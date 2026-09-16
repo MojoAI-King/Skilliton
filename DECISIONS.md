@@ -6,12 +6,15 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 
 | # | Item | Status | Next step |
 |---|---|---|---|
-| O1 | Claude Code on this machine is 2.1.92; PLAN.md assumes 2.1.269 or later for `claude plugin eval` and `claude plugin details`. Neither command exists on 2.1.92. | UNVERIFIED that an update provides them | Run `claude update`, then `claude plugin eval --help`; record the output here |
+| O1 | CLOSED 2026-09-16. The terminal `claude` is 2.1.92, but the editor-bundled binary is 2.1.273 and has `plugin eval`, `plugin details`, and `plugin init` (run here). No `claude update` needed for Day 2; the terminal binary stays older until the owner updates it. | CLOSED | Use the 2.1.273 binary for eval and details |
 | O2 | The meter does not reproduce the known-correct Sep 14 to 15 figures ($407.68 top-level, $70.72 subagents). Closest measured scope (all project directories of the investigated work, cutoff Sep 15 22:14 Eastern): subagents $70.19 (0.7% under), top-level $446.54 (9.5% over). The investigation did not record its exact project scope or cutoff time, so the gap cannot be attributed yet. | OPEN, blocks the Tier 2 baseline | Recover the investigation's own scope and cutoff (owner), then re-run with `--project` and `--until`. Do not tune the meter toward the target. |
 | O3 | "Batch" (the Tier 3 unit) has no written definition. | OPEN | Define before Day 4's first comparison; do not invent one to fill a table |
 | O4 | `hooks/config-drift-check.sh` ships in the pack but nothing runs it, and it prints DRIFT whenever settings.json has no `model` key (a false positive on the default setup). | OPEN | Day 2 |
 | O5 | `setup.mjs --undo` restores the last backup over settings.json, discarding any edits made after `--apply`; with no settings file before `--apply` it restores an empty file instead of deleting it. `--apply` replaces an existing statusLine rather than chaining it. | OPEN, known | Day 2 hardening (PLAN.md Day 2) |
 | O6 | How SessionStart hook output reaches the model has not been observed in a live session. | UNVERIFIED | Fresh session with the plugin installed (Day 1, needs the owner at the keyboard) |
+| O7 | Guardrails must be proven to block in a live Claude Code session, not only against fixture JSON; the `ask` permission decision is unverified. | OPEN | Day 2 live probe |
+| O8 | Team settings (`extraKnownMarketplaces`, `autoUpdate`, `enabledPlugins`) and auto-update are documented, not yet exercised on a clean machine or user. | OPEN | Day 3 |
+| O9 | Codex support is documented (skills in `.agents/skills`, AGENTS.md, hooks with a trust review) but nothing has been run in Codex yet. | OPEN | Day 4 |
 
 ## 2026-09-16 Public repository with no names in it
 **Decision:** The repo is public from its first push, and it contains no client names, no evaluator name, and no personal names, in files, commit messages, or author fields.
@@ -68,3 +71,31 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 **Alternatives rejected:** Agents for the meter (quantitative work gets narrated instead of counted).
 **Risk:** Lanes drift on anything not dictated. The combined review found two such cases (plugin descriptions overclaiming unwired features; stale log paths in older docs), both fixed.
 **Reversibility:** EASY.
+
+## 2026-09-16 Product direction v3: a ready-made way of working, forked and extended by each company
+**Decision:** Skillgate's product is an opinionated base skill set (context and token hygiene, dispatch, maintain, handoff, plain-English review, git guardrails) that a company forks, extends with its own skills, and hands to every developer, technical or not, in one onboarding step. Distribution, auto-update, and release verification are how it gets there, not the headline. PLAN.md v3 records this.
+**Why:** The owner described the goal as ending "Wild West" AI-assisted coding across a company, so that non-technical people using vibe-coding tools work the way the company wants without stress, and new hires get the whole environment at once. A usage-savings pack alone does not do that; a base way of working does.
+**Alternatives rejected:** v2's usage pack as the product (too narrow for the goal); per-developer forks of the repository (every developer would have to merge upstream changes); a hand-built auto-update skill (a skill runs only when the model chooses to use it, while Claude Code's own marketplace auto-update runs on its own).
+**Risk:** A broader week risks finishing nothing well. The schedule keeps a minimum credible submission at Day 3 (the fork-and-extend loop with verify and tamper), and every behavior is labelled enforced or instructed so the breadth never becomes overclaiming.
+**Reversibility:** MODERATE. Evidence: owner conversation, September 16; PLAN.md v3.
+
+## 2026-09-16 Building past the Day 1 gate, on the owner's instruction
+**Decision:** Work continues into the base pack and onboarding before Day 1's owner-dependent items close.
+**Why:** The owner asked directly to keep building. The Day 1 items still open (meter reproduction O2, the live status-line check, the hand-recorded quota numbers, observing the session-start hook O6) all need the owner at the keyboard or information only the owner has, so waiting would not close them sooner.
+**Alternatives rejected:** Stopping at the gate until the owner is available (idle time with no change to the open items).
+**Risk:** Later work could be described as resting on a Day 1 gate that never closed. Guard: those items stay in the open-items table, the baseline stays uncommitted, and no later demo claims a quota or savings result.
+**Reversibility:** EASY.
+
+## 2026-09-16 Base packs are read-only in a fork; companies extend beside them
+**Decision:** A company fork never edits `packs/base/`; it adds `packs/<company>/plugins/<plugin>/`.
+**Why:** Upstream improvements to the base then merge into a fork without conflicts, which is what keeps "fork it and make it yours" sustainable for more than a month. Claude Code namespaces plugin skills, so company skills and personal skills never collide either.
+**Alternatives rejected:** Letting forks edit base skills (every upstream update becomes a merge the company has to resolve by hand).
+**Risk:** A company that needs a base skill to behave differently has no clean hook for it. Answer for now: disable the base plugin in its team settings and ship its own version in its pack.
+**Reversibility:** EASY.
+
+## 2026-09-16 One project config file, and enforced versus instructed labels
+**Decision:** Every component reads its settings from one `.skillgate/config.json`, and every behavior in the harness block and the docs is labelled enforced (a hook does it) or instructed (the model is told to).
+**Why:** One file is easier for a company to manage than one per skill. The labels exist because instructions in `CLAUDE.md` steer a model and hooks bind it; a product sold as making AI coding safe for non-technical people has to say which is which.
+**Alternatives rejected:** Per-skill config files; describing every behavior as automatic.
+**Risk:** A reader skims past the labels. The one-pagers repeat them in plain language.
+**Reversibility:** EASY. Evidence: docs/CONTRACTS.md, templates/harness.md.
