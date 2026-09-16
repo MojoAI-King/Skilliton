@@ -73,3 +73,51 @@ Kind: Living. This repository's own lessons, specific and technical, in the form
 3. **The fix:** only `main` was pushed; the other branches were left untouched and recorded as owner decision O11, with a trial merge showing no conflicts.
 4. **The rule:** before pushing or scanning history, run `git worktree list` and `git for-each-ref refs/heads`, and scope pushes and scans to your own refs.
 5. **What now enforces it:** nothing yet (DECISIONS.md O13: `scrub-check.sh --history` still scans every ref).
+
+## 2026-09-16 A local-folder plugin install shipped files that were never committed
+
+1. **What broke:** a Codex install of the workflow plugin from this checkout held five raw eval result files that no release would contain; a Claude Code install from a folder copied an untracked note the same way.
+2. **The mechanism:** a marketplace added from a local folder is read as a directory, and both clients copy the whole plugin folder, including git-ignored and untracked files. `claude plugin eval` writes its raw results inside the plugin folder by default.
+3. **The fix:** the raw results moved out of the repository; eval runs now pass `--output-dir` outside the plugin folder; `skillgate verify` lists added files as TAMPERED.
+4. **The rule:** distribute plugins from committed content (a Git source or a clean clone), and keep generated files out of plugin folders.
+5. **What now enforces it:** `scripts/codex-offline-probe.sh` check X3 (installed files must equal the committed plugin files; it failed on the real extra files); `scripts/release.test.mjs` (added files are TAMPERED).
+
+## 2026-09-16 A research agent quoted this repository's own instructions as platform documentation
+
+1. **What broke:** a documentation research report cited a sentence about session-start hooks as coming from the platform's headless documentation; the sentence was this repository's own harness block.
+2. **The mechanism:** the agent's context held the repository instructions, and it attributed a remembered sentence to the page it was summarising.
+3. **The fix:** the capability was measured instead, in a real session (`scripts/live-capability-probe.sh`, check C1).
+4. **The rule:** a platform capability the design depends on is either run or quoted from a fetched page whose text is checked; a report's citation alone is a lead.
+5. **What now enforces it:** `scripts/live-capability-probe.sh` and docs/CLIENTS.md, which labels every row measured, documented or unverified.
+
+## 2026-09-16 A string replacement in a patch script inserted half a file
+
+1. **What broke:** a test file patched by a small Node script failed to parse; a copy of the file's beginning had appeared in the middle of a line.
+2. **The mechanism:** `String.prototype.replace(from, to)` interprets `$` patterns in the replacement string; the replacement contained a dollar sign followed by a backtick, which means "the text before the match".
+3. **The fix:** the file was restored from Git and the patch reapplied with a function replacer (`s.replace(from, () => to)`), which inserts text literally.
+4. **The rule:** when a script edits code, use a function replacer or `split(from).join(to)`, never a replacement string, and check the syntax before running anything.
+5. **What now enforces it:** nothing automatic; the syntax check (`node --check`) caught this one before a test ran.
+
+## 2026-09-16 Each lane was green on its own base and red on the combined tree
+
+1. **What broke:** after merging, 4 prepare tests, 2 release tests and 2 lifecycle tests failed, although each lane had passed every test before merging.
+2. **The mechanism:** each lane's tests hard-coded facts true only on its base: the raw template text (before the template gained `{{...}}` values), an empty migrations list, a guardrails version, and "not available in this build" for modules another lane added.
+3. **The fix:** the tests derive those expectations from the build (render the template with the contract defaults; read the migrations registry; bump from the current version; check whether a module exists).
+4. **The rule:** a lane's test states what the contract promises, not what its base happens to lack; the integrating session runs the full suite after every merge, not only the lane's own tests.
+5. **What now enforces it:** the merge protocol in the dispatch skill and docs/MAINTAIN.md step 2; CI runs every suite on the combined tree.
+
+## 2026-09-16 An improvement's behavior test passed before the improvement
+
+1. **What broke:** the company release rehearsal's eval for "review stops on a removed delivery check" passed on the review skill before the change as well as after, so the rehearsal could not show the change mattered.
+2. **The mechanism:** the existing STOP rule for tests that are switched off already covered a removed test check.
+3. **The fix:** the fixture became a company rule the model cannot infer (billing changes need the payments lead); the rehearsal asserts the eval fails before and passes after (evidence/rehearsals/2026-09-16-company-release).
+4. **The rule:** show a behavior test failing on the old version before crediting a change with fixing it.
+5. **What now enforces it:** `scripts/rehearsals/company-release.mjs` step I1 (fails unless before is false and after is true).
+
+## 2026-09-16 An eval run without its tool grants measured nothing
+
+1. **What broke:** a regression run of the workflow evals failed the handoff case with "docs/HANDOFF.md does not exist", although the skill fired.
+2. **The mechanism:** the case allows only read-only tools; writing needs the operator grant `--allow-tools Bash Write Edit`, which the recorded run had used but its summary did not record.
+3. **The fix:** the run was stopped and repeated with the grant; the command is now written next to the evidence.
+4. **The rule:** record the exact eval command with its results, and compare runs only when the commands match.
+5. **What now enforces it:** docs/MAINTAIN.md step 4 names the full command; nothing checks it automatically yet.

@@ -18,29 +18,39 @@ Rules for every session in this repo:
 <!-- skillgate:harness:start v1 -->
 ## How we work here (Skillgate)
 
-This block is managed by Skillgate. Edit `templates/harness.md` in the company skills repo, not this copy. Changes reach this project when `harness --apply` runs; automatic repository migration on plugin update is not implemented yet.
+This block is managed by Skillgate. The company edits it in its skills repository (`packs/base/plugins/workflow/templates/harness.md`), and it reaches this project when `skillgate harness --apply` or a project migration runs. Text outside this block belongs to the project.
 
-Each behavior below is marked **enforced** (an installed, enabled hook handles its supported event) or **instructed** (the assistant is asked to do it). The current hook implementation targets Claude Code. `node scripts/skillgate.mjs doctor` in the company skills repo inspects installation and configuration records; actual hook execution must be observed separately. Codex behavior has not been rehearsed.
+Each behavior is marked **enforced** (a hook of an installed, enabled plugin does it on a supported client event), **instructed** (you, the assistant, are asked to do it), or **checked at merge** (the shared repository's trusted delivery checks decide). Hooks are proved on Claude Code. Codex does not run hooks shipped inside plugins, asks a person to trust each hook a team configures, and has no plugins in its IDE extension, so in Codex treat every enforced line as instructed unless your company has set up and verified its Codex hooks.
+
+### Project records
+- Status `docs/STATUS.md`; backlog `docs/BACKLOG.md` (finished items move to `docs/BACKLOG_ARCHIVE.md`); roadmap `PLAN.md`; decisions `DECISIONS.md`, one entry per file in `docs/decisions/`; lessons `docs/LESSONS.md`, entries in `docs/lessons/`; handoff `docs/HANDOFF.md`; this repository's own maintenance steps `docs/MAINTAIN.md`; one task record per piece of work in `docs/tasks/`.
+- The shared records (status, backlog, handoff and the indexes) are written on `main` only. On any other branch, record progress in that branch's task record, and propose decisions and lessons as new entry files.
+- Commands below are `skillgate <command>`. In Claude Code the workflow plugin puts `skillgate` on the shell path. If it is not found, say so, then use the `bin/skillgate` next to the workflow skills you were given, or `node scripts/skillgate.mjs` in the company skills repository.
 
 ### Start of a session
-- **Enforced within the supported session-start hook:** the configured handoff's latest `RESUME HERE` section is shown when present (default `docs/HANDOFF.md`). Missing content is reported. **Instructed:** read it, verify its claims against current work, and tell the user briefly where things stand. Display does not prove the handoff is current.
-- **Instructed:** if there is no handoff yet, ask what the user wants to get done today before exploring the codebase.
+- **Enforced:** the latest `RESUME HERE` from `docs/HANDOFF.md` and a "Project state" block (pending migrations, versions, the current task, an interrupted previous session, a stale handoff, security evidence counts) are shown. **Instructed:** read both, check their claims against the files and `git status`, and tell the user in two or three plain sentences where things stand and what is missing or stale. If the block is absent, run `skillgate status`.
+- **Instructed:** if there is no current task, ask what the user wants to get done before exploring the code.
+
+### Starting a piece of work
+- **Instructed:** before changing code, turn the request into a task record with acceptance criteria: `skillgate task start "<title>" --criteria "<criterion>" --apply` (repeat `--criteria`). Keep one task per branch; small work may stay on the current branch.
+- **Instructed:** when the user gives six or more separate tasks, bugs or notes, use `/workflow:dispatch` to verify and split them before writing code.
+- **Instructed:** explain what you are about to change in plain language before changing it, especially for users who are not developers.
 
 ### While working
-- **Instructed:** never load a large file whole. Search it or read the part you need. Keep command output out of the conversation when a summary will do.
-- **Instructed:** when the user pastes six or more separate tasks, bugs, or notes, use `/workflow:dispatch` to verify and split them before writing code.
-- **Instructed:** explain what you are about to change in plain language before changing it, especially for users who are not developers.
-- **Enforced within supported Claude Bash calls while guardrails is enabled:** the hook checks for protected-branch force pushes, skipped git hooks and secret-shaped commits. It does not inspect all indirect commands or govern other terminals. When a command is blocked, explain why and offer a safe next step. Never try to get around a block. Shared merge eligibility belongs to the repository's trusted checks and review policy.
+- **Enforced:** when you try to finish with changes and no recent checkpoint, the stop hook asks you to record one. **Instructed:** record a checkpoint whenever something is decided, verified or blocked: `skillgate checkpoint --state "<what is true now>" --evidence "<what ran and its result>" --next "<next step>" --apply`. Record a decision as its own entry: `skillgate record decision "<title>" --apply`, then fill in the file.
+- **Instructed:** never load a large file whole; search it or read the part you need. Keep command output out of the conversation when a summary will do.
+- **Enforced (guardrails enabled, shell commands the assistant runs):** force-pushes to protected branches, skipped git hooks and secret-shaped commits are blocked; commands that throw away uncommitted work need confirmation, and in Codex they are blocked instead. Other terminals and indirect commands are not covered. **Instructed:** when a command is blocked, explain why and offer a safe next step; never try to get around a block.
 
 ### Before committing
-- **Instructed:** run `/workflow:review` on the working tree and show the user its summary: what changed, what could break, and what was tested.
+- **Instructed:** run `/workflow:review` and show its summary: what changed, what could break, what was tested, and the security evidence state from `skillgate security status`.
 - **Instructed:** run the project's tests and read the result before committing. Never commit on a failing test without the user explicitly agreeing.
+- **Checked at merge:** where the delivery gate is installed, the shared branch accepts only a combined result that passes the checks in `.skillgate/delivery.json`, and policy changes need an approver's signature. Local checks and security evidence do not replace that gate, and none of it is a compliance certification.
 
 ### End of a stretch of work
-- **Instructed:** when the work is finished, when the user is stepping away, or when the conversation has grown large, run `/workflow:handoff` so the next session, or the next person, can pick up without re-explaining.
-- **Instructed:** after merging a batch of work or at the end of a working day, run `/workflow:maintain` to bring the decisions, status, and lessons up to date.
+- **Instructed:** when the work is finished, when the user is stepping away, or when the conversation has grown large, run `/workflow:handoff`. On `main` it updates `docs/HANDOFF.md`; on other branches it updates the task record.
+- **Instructed:** after merging a batch of work or at the end of a working day, run `/workflow:maintain` on an integration branch, then `skillgate index --apply`.
 
 ### Always
-- **Instructed:** say "I don't know" or "not verified" instead of guessing, and never report a failed or skipped check as a success.
-- **Instructed:** never write a secret value (keys, tokens, passwords) into any file, commit, or message.
+- **Instructed:** say "I don't know" or "not verified" instead of guessing; never report a failed or skipped check as a success; keep done locally, merged, released, installed and verified separate.
+- **Instructed:** never write a secret value (keys, tokens, passwords) into any file, commit or message.
 <!-- skillgate:harness:end -->

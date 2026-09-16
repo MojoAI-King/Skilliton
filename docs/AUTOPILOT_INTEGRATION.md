@@ -1,42 +1,31 @@
 # Autopilot integration brief
 
-Kind: Living. Execution detail for PLAN.md v4, not a second roadmap. Updated 2026-09-16.
+Kind: Living. Execution detail for PLAN.md v4, not a second roadmap. Updated 2026-09-16 after the integration.
 
-## Resume the shared build
+## How the integration ran
 
-The owner has aligned the product around the development autopilot: prepared repositories, routine workflow execution, durable project knowledge, continuous security evidence, and company-approved improvements. PLAN.md v4 supersedes the narrower v3 day ordering. Preserve working main-branch plugins, CLI, tests and evidence.
+One integrating session (Claude Code) wrote integration contract v1, moved the runtime into the workflow plugin, and ran six lanes with fixed write sets and a verified base: prepare, security, lifecycle, release, delivery, and guardrails under Codex. Lanes merged one at a time; the full suite ran after every merge, and the seams it exposed were fixed on the combined tree (DECISIONS.md; docs/LESSONS.md). The prototype at `23aae41` was adapted in place; neither prototype branch was merged again.
 
-All foundation material is now in this working tree. Start at [AUTOPILOT_START_HERE.md](AUTOPILOT_START_HERE.md) for source files, tests, demo, verification, historical notes and the saved [build goal](BUILD_GOAL.md). No sibling folder, branch checkout or earlier chat is required.
+## M1: one prepared repository
 
-The scripts came from foundation commit `23aae41`, which already included the security branch. That source has now been merged for local availability. Adapt it in place; do not merge either branch again. The original plan, handoff and decision are archived under `docs/history/autopilot-foundation/` and do not replace PLAN.md v4.
-
-Source availability does not close M1. The existing main CLI still needs the configuration, renderer, packaging and workflow changes below. No existing client settings were changed by the import.
-
-## M1: integrate a prepared repository
-
-| Step | Work | Acceptance |
+| Step | Acceptance | State and evidence |
 |---|---|---|
-| I1 | Extend the shared config/result contracts in docs/CONTRACTS.md and every relevant reader; retain main CLI | Correct preparation is recognized by doctor; missing security evidence is attention; invalid input and operation failures remain distinct |
-| I2 | Adapt foundation scripts `prepare.mjs`, `project-files.mjs`, `security-evidence.mjs` and their tests | One explicit target; existing records/settings preserved; failure and repeat setup exercised |
-| I3 | Route generated instructions through the existing harness renderer; migrate prototype markers | Exactly one current managed block per file; human text preserved; update and removal affect the intended owned content only |
-| I4 | Package executable runtime with the approved distribution; retain project evidence locally | Moving a toolkit clone does not break the project; runtime identity is known; copied prototype runtime has a tested migration |
-| I5 | Update Maintain, Handoff and Review to use adopted records/security status; update Dispatch write boundaries | Full initial structure is created by Prepare; one-task work is recorded; workers do not overwrite shared handoffs; relevant plugin versions bumped |
-| I6 | Run combined validation and one existing-repo walkthrough | Original CLI/plugin checks plus foundation tests pass; fresh/repeated adoption and stale observation behavior are demonstrated on the integrated tree |
+| I1 | Config and result contracts shared by every reader; doctor recognizes preparation; missing evidence is attention; invalid input and failures stay distinct | Done. `runtime/lib/config.mjs`; exit codes 0, 1, 2, 3 everywhere (CONTRACTS section 6); doctor reports layout, required versions and rendered instruction blocks (project rehearsal N2) |
+| I2 | Prepare adapted; one explicit target; records and settings preserved; failure and repeat setup exercised | Done. 41 tests including the 16 prototype cases; project rehearsal N1, A1, A2 |
+| I3 | One instruction writer; prototype markers migrated; human text preserved | Done. Blocks come only from `planHarnessFile`; migration `0002-integrated-layout` (project rehearsal G1); template changes arrive as `0100-instructions-<hash>` |
+| I4 | Runtime in the approved distribution; moving a toolkit clone does not break a project; copied runtime migrated | Done. Runtime inside the workflow plugin; company release rehearsal P2; 0002 removes the copied runtime only when its bytes match |
+| I5 | Maintain, Handoff, Review, Dispatch use adopted records and security status; single-task work recorded; workers do not overwrite shared handoffs | Done in skill text and runtime (task records, branch-aware handoff, dispatch base check); lifecycle tests; live Claude Code sessions L1 and L2; workflow evals at 0.3.0, 4 of 4 cases |
+| I6 | Combined validation and an existing-repo walkthrough | Done. Full suite on the combined tree; project rehearsal including adoption of a clone of this repository |
 
-Preserve the imported regression cases and adapt the existing scripts to the shared contracts. The standalone tests and walkthrough can now run from this checkout. Their results do not replace the combined CLI/client acceptance gates.
+## M2 to M5
 
-## M2-M5: prove the complete experience
-
-Follow the milestone table in PLAN.md. The company-fork rehearsal must include prepared project records, one actual skill improvement, one preserved project migration, one stale observation, tamper detection and rollback/removal. A separate application delivery rehearsal must show that trusted checks reject a defective combined change. Use a disposable project and synthetic data for destructive-command confirmation and security probes.
-
-Measure actual behavior in each client. A fresh clone passing tests does not prove that a new employee received an update, that a session hook ran, or that Codex has the same behavior as Claude Code. Do not advertise the full loop as automatic before these observations exist.
+| Milestone | Proved | Still open |
+|---|---|---|
+| M2 Normal-work continuity | Session start, stop reminder with a checkpoint, and interrupted-session recovery in real Claude Code sessions; two contributors' tasks and decisions merge without conflicts (project rehearsal C1) | Codex lifecycle hooks (O9); an interactive session (O6) |
+| M3 Approved company updates | Company release rehearsal, 18 of 18: fork, signed release, clean Claude Code and Codex installs verified, lesson to proposal to improved skill with a behavior eval that fails before and passes after, update received by both clients, template migration with rollback, tamper, unauthorized release, rollback, withdrawal, removal | A model session in the clean configuration and automatic updates at session start (O8); a signed release of this repository (O17) |
+| M4 Security and shared delivery | 15-control catalog, applicability, expiry, collectors and deduplicated findings; a shared repository's check rejects a change that breaks only when combined; policy changes need an approver's signature (delivery tests, demo) | The GitHub adapter on a hosted repository (O15) |
+| M5 Beginner and team rehearsal | Protocol and observation sheet ready (docs/rehearsals/NEW_BUILDER.md) | A real new builder (O16) |
 
 ## Coordinating sessions
 
-The integrating session owns CLI/config/harness contracts and final shared documentation. Implementation lanes receive explicit files and a base commit before writing. Useful independent lanes are preparation/evidence adaptation, release verification, and bounded client rehearsals after their contracts are fixed. Each lane reports local, integrated, released and verified states separately.
-
-Do not have two sessions rewrite PLAN.md or DECISIONS.md independently. Record proposed decisions in the task's permitted record, and reconcile them through the integrating session. Upstream and company-release work may proceed independently only where the declared write sets and interfaces permit it.
-
-## Existing open evidence
-
-DECISIONS.md retains the detailed unresolved items. Live session-start/interactive confirmation, clean-environment updates and Codex behavior still need rehearsal. The usage meter's historical scope/cutoff and manual quota readings block usage claims only. They do not block M1's repository preparation or the approved-update design.
+The integrating session owns the CLI, config, harness contracts, PLAN.md and final decision and status reconciliation. Another session proposes changes to those in a task record and does not rewrite them independently. Lanes receive explicit files and a base commit, verify the base before writing, and report local, integrated, released and verified states separately.

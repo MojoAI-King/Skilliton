@@ -4,8 +4,19 @@ Kind: Living.
 
 ## RESUME HERE
 
-Written: 2026-09-16 15:29 EDT
+Written: 2026-09-16 16:58 EDT
 
+- **State:** The M1-M4 integration is merged on local `main` (workflow 0.3.0, guardrails 0.2.0, context-hygiene 0.1.2): the runtime lives in the workflow plugin; prepare, migrate, remove, tasks, checkpoints, status, entries, indexes, security evidence, releases, verify, trust and the delivery gate are built; this repository is prepared by its own runtime (layout 2) with one instructions migration applied. Every offline suite passes on the combined tree; CI runs them. Proved: M1 locally; M2 on Claude Code in real sessions; M3 at install level on Claude Code and Codex (18 of 18); M4 locally; workflow evals 4 of 4 at 0.3.0. PLAN.md section 7 and docs/AUTOPILOT_INTEGRATION.md carry the evidence. Nothing is released; see the commit message of the push for the published state.
+- **Next:**
+  1. Push `main` after `bash scripts/scrub-check.sh --history`, then read the CI run's step results.
+  2. Owner inputs, each smallest first (docs/BACKLOG.md B1 to B7): a person for the M5 rehearsal; `CODEX_HOME=<folder> codex login` once for Codex hooks; one login in a fresh `CLAUDE_CONFIG_DIR`; approval for a throwaway GitHub repository; applicability decisions for this repository's security register; a first signed release.
+  3. Follow-ups without owner input: O20 (one entry ID generator), O18 and O19 (verify policies), eval cases for the task and security skills.
+- **Blocked:** M5 on a participant; Codex lifecycle hooks on an isolated login; the hosted delivery adapter on approval; savings claims on O2.
+- **Watch out:** lane branches (`lane/*`, `worktree-agent-*`) and their worktrees under `.claude/worktrees/` are merged and can be removed; the Codex session's `codex/*` branches are superseded history. `scrub-check.sh --history` scans every local ref (O13). Paid checks: evals, `live-capability-probe.sh`, `rehearsals/live-clients.mjs`, `rehearsals/company-release.mjs --with-eval`. Run eval commands exactly as docs/MAINTAIN.md step 4 writes them.
+
+## Earlier
+
+### 2026-09-16 15:29 EDT
 - **State:** M1-M4 integration is in progress, run by one integrating session (Claude Code in VS Code). Local `main` holds the integration base `c3fec4b` (the runtime moved into the workflow plugin, `runtime/lib/config.mjs` as the one config contract, the command registry, docs/CONTRACTS.md integration contract v1) and measured client probes `4141e81` (docs/CLIENTS.md). Six implementation lanes are running in isolated worktrees on branches `lane/prepare`, `lane/security`, `lane/lifecycle`, `lane/release`, `lane/delivery`, `lane/guardrails-codex`. This commit updates the workflow skills and the harness template for commands those lanes are building. Nothing is pushed; nothing is released.
 - **Next:**
   1. Integrating session: merge the lanes one at a time with the full suite, then bump plugin versions and wire CI.
@@ -13,8 +24,6 @@ Written: 2026-09-16 15:29 EDT
   3. Rehearsals: fresh and adopted projects, interrupted-session recovery, two contributors, company release with an improved skill and a project migration, tamper and rollback, stale evidence, blocked defective combined change; Claude Code and Codex separately.
 - **Blocked:** owner and human inputs, requested when reached: a person for the M5 new-builder rehearsal; one login in a clean Claude Code configuration for the clean-environment session; approval before any hosted GitHub rehearsal repository is created; a Codex session that trusts the plugin hooks. Historical usage inputs block cost claims only.
 - **Watch out:** other sessions should not edit the runtime, contracts, skills, template, PLAN.md or DECISIONS.md until this integration lands; propose changes in a task record instead. Skills now name `skillgate task`, `checkpoint`, `record`, `index` and `security` commands that are "not built in this version" until their lanes merge. A local-path marketplace install copies git-ignored files (docs/CLIENTS.md), so keep raw eval results out of plugin folders.
-
-## Earlier
 
 ### 2026-09-16 14:41 EDT
 - **State:** All foundation code, tests, demo, prior verification, original design notes and build-goal instructions are now present in the main working tree. Start at docs/AUTOPILOT_START_HERE.md; no prior chat, branch checkout or sibling worktree is required. PLAN.md v4 remains authoritative. The standalone source is available, but existing CLI/plugin/lifecycle integration remains M1 work. This local import is not a published release.

@@ -191,7 +191,7 @@ async function planInstructions(project, { root }) {
     const now = blockSha(root, name);
     if (previous && now !== null && typeof previous.blocks[name] === "string" && previous.blocks[name] !== now && plan.changed) edited.push(name);
     if (!plan.changed || !/^replace the harness block/.test(plan.summary)) { blocks[name] = now; continue; }
-    files.push({ path: name, action: plan.exists ? "update" : "create", before: plan.exists ? Buffer.from(plan.text, "latin1") : null, after: Buffer.from(plan.next, "latin1"), what: `${plan.summary}; text outside the markers is kept`, diff: true });
+    files.push({ path: name, action: plan.exists ? "update" : "create", before: plan.exists ? Buffer.from(plan.text, "latin1") : null, after: Buffer.from(plan.next, "latin1"), what: plan.summary, diff: true });
     const afterText = plan.next;
     const found = findBlock(afterText, name);
     blocks[name] = found ? sha256(Buffer.from(afterText.slice(found.innerStart, found.innerEnd).replace(/\r\n/g, "\n"), "latin1")) : null;

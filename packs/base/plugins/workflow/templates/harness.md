@@ -2,7 +2,7 @@
 
 This block is managed by Skillgate. The company edits it in its skills repository (`packs/base/plugins/workflow/templates/harness.md`), and it reaches this project when `skillgate harness --apply` or a project migration runs. Text outside this block belongs to the project.
 
-Each behavior is marked **enforced** (a hook of an installed, enabled plugin does it on a supported client event), **instructed** (you, the assistant, are asked to do it), or **checked at merge** (the shared repository's trusted delivery checks decide). Hooks are proved on Claude Code. In the Codex CLI every hook must be trusted once before it runs, and the Codex IDE extension has no plugins, so there treat every enforced line as instructed.
+Each behavior is marked **enforced** (a hook of an installed, enabled plugin does it on a supported client event), **instructed** (you, the assistant, are asked to do it), or **checked at merge** (the shared repository's trusted delivery checks decide). Hooks are proved on Claude Code. Codex does not run hooks shipped inside plugins, asks a person to trust each hook a team configures, and has no plugins in its IDE extension, so in Codex treat every enforced line as instructed unless your company has set up and verified its Codex hooks.
 
 ### Project records
 - Status `{{status}}`; backlog `{{backlog}}` (finished items move to `{{backlogArchive}}`); roadmap `{{roadmap}}`; decisions `{{decisions}}`, one entry per file in `{{decisionsDir}}/`; lessons `{{lessons}}`, entries in `{{lessonsDir}}/`; handoff `{{handoff}}`; this repository's own maintenance steps `{{maintain}}`; one task record per piece of work in `{{tasksDir}}/`.
