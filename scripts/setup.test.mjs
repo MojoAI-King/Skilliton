@@ -26,7 +26,9 @@ function sandbox(initial) {
       return { code: 0, out };
     } catch (e) { return { code: e.status ?? 1, out: `${e.stdout ?? ""}${e.stderr ?? ""}` }; }
   };
-  return { dir, settings, backups, run, read: () => readFileSync(settings, "utf8") };
+  // json() is null for a missing or unparsable file, so a check reports FAIL instead of the test crashing.
+  const json = () => { try { return JSON.parse(readFileSync(settings, "utf8")); } catch { return null; } };
+  return { dir, settings, backups, run, json, read: () => readFileSync(settings, "utf8") };
 }
 
 console.log(`setup under test: ${SETUP === join(here, "setup.mjs") ? "scripts/setup.mjs (shipped)" : `override: ${SETUP} (NOT the shipped file)`}`);
@@ -70,6 +72,62 @@ console.log("\n== regression: another tool's folder in the shared backup root do
   ok(u.code === 0, `undo still exits 0 with a harness/ folder present (got ${u.code}: ${u.out.trim().split("\n").pop()})`);
   ok(s.read() === original, "undo still restores settings.json byte for byte");
   rmSync(s.dir, { recursive: true, force: true });
+}
+
+console.log("\n== undo keeps edits made after apply (O5)");
+{
+  const original = '{\n  "statusLine": { "type": "command", "command": "node old-statusline.mjs" },\n  "theme": "dark"\n}\n';
+  const s = sandbox(original);
+  ok(s.run("--apply").code === 0, "apply exits 0");
+  const applied = s.json();
+  writeFileSync(s.settings, JSON.stringify({ ...applied, theme: "light", permissions: { allow: ["Bash(git status:*)"] } }, null, 2) + "\n");
+  const u = s.run("--undo");
+  const now = s.json();
+  ok(u.code === 0 && /put back only statusLine/.test(u.out), `undo after later edits exits 0 and says it kept them (got ${u.code}: ${u.out.trim().split("\n").pop()})`);
+  ok(now?.statusLine?.command === "node old-statusline.mjs", "the statusLine from before apply is back");
+  ok(now?.theme === "light" && JSON.stringify(now?.permissions) === JSON.stringify({ allow: ["Bash(git status:*)"] }), "the edits made after apply are kept");
+  const again = s.run("--undo");
+  ok(again.code === 0 && /nothing to undo/.test(again.out), "a second undo changes nothing and says so");
+  rmSync(s.dir, { recursive: true, force: true });
+}
+
+console.log("\n== undo removes a settings file that apply created (O5)");
+{
+  const s = sandbox(null);
+  ok(s.run("--apply").code === 0 && existsSync(s.settings), "apply creates settings.json when there was none");
+  const u = s.run("--undo");
+  ok(u.code === 0 && !existsSync(s.settings), `undo removes the file it created instead of leaving an empty one (got ${u.code}: ${u.out.trim().split("\n").pop()})`);
+  ok(s.run("--undo").code === 0, "a second undo exits 0");
+  const t = sandbox(null);
+  t.run("--apply");
+  writeFileSync(t.settings, JSON.stringify({ ...t.json(), theme: "dark" }, null, 2) + "\n");
+  const tu = t.run("--undo");
+  ok(tu.code === 0 && existsSync(t.settings) && JSON.stringify(t.json()) === JSON.stringify({ theme: "dark" }), "with a key added after apply, undo keeps the file and removes only statusLine");
+  rmSync(s.dir, { recursive: true, force: true });
+  rmSync(t.dir, { recursive: true, force: true });
+}
+
+console.log("\n== undo refuses when statusLine changed after apply, and handles a backup without a receipt (O5)");
+{
+  const original = '{ "theme": "dark" }\n';
+  const s = sandbox(original);
+  s.run("--apply");
+  const changed = JSON.stringify({ ...s.json(), statusLine: { type: "command", command: "node someone-else.mjs" } }, null, 2) + "\n";
+  writeFileSync(s.settings, changed);
+  const u = s.run("--undo");
+  ok(u.code === 1 && /not the one --apply wrote/.test(u.out), "undo refuses to overwrite a statusLine changed after apply");
+  ok(s.read() === changed, "the file is untouched after the refusal");
+  rmSync(s.dir, { recursive: true, force: true });
+
+  const old = sandbox(original);
+  old.run("--apply");
+  const [stamp] = readdirSync(old.backups);
+  rmSync(join(old.backups, stamp, "receipt.json"), { force: true });
+  writeFileSync(old.settings, JSON.stringify({ ...old.json(), fontSize: 14 }, null, 2) + "\n");
+  const ou = old.run("--undo");
+  const now = old.json();
+  ok(ou.code === 0 && now !== null && now.statusLine === undefined && now.theme === "dark" && now.fontSize === 14, "a backup made before receipts still undoes only statusLine and keeps later edits");
+  rmSync(old.dir, { recursive: true, force: true });
 }
 
 console.log("\n== refusals");

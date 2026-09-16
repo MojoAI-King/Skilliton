@@ -394,15 +394,11 @@ test("a file changed between planning and writing is refused, and the change a p
 test("the contract shapes of readTask, currentTask and the task id rule", async () => withTemp("shapes", async ({ dir, env }) => {
   const tasks = await import(pathToFileURL(join(PLUGIN, "runtime", "lib", "tasks.mjs")).href);
   const config = await import(pathToFileURL(join(PLUGIN, "runtime", "lib", "config.mjs")).href);
-  assert.equal(tasks.newTaskId("Fix: the login page!", { date: new Date(2026, 0, 2), hex: () => "beef" }), "2026-01-02-fix-the-login-page-beef");
-  assert.equal(tasks.newTaskId("!!!", { date: new Date(2026, 0, 2), hex: () => "0a0b" }), "2026-01-02-task-0a0b");
-  const long = tasks.slugify("An extremely long task title that keeps going well past forty characters");
-  assert.ok(long.length <= 40 && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(long), long);
-  assert.equal(tasks.slugify(`Caf${String.fromCharCode(0xe9)} menu`), "cafe-menu");
-  for (let i = 0; i < 20; i++) assert.match(tasks.newTaskId("Same title"), tasks.TASK_ID_RE);
+  const ids = await import(pathToFileURL(join(PLUGIN, "runtime", "lib", "ids.mjs")).href);
 
   const p = initRepo(join(dir, "p"), env);
   const { id, file } = startTask(p, env, "Shape check");
+  assert.ok(ids.isId(id) && /-shape-check-[0-9a-f]{4}$/.test(id), `task IDs follow the shared rule: ${id}`);
   const task = tasks.readTask(file);
   for (const key of ["id", "title", "state", "branch", "owner", "updated", "checkpoints", "handoff"]) assert.ok(Object.prototype.hasOwnProperty.call(task, key), key);
   assert.deepEqual([task.id, task.title, task.state, task.branch, task.owner, task.checkpoints, task.handoff], [id, "Shape check", "in-progress", "main", "unassigned", 0, null]);
@@ -414,6 +410,9 @@ test("the contract shapes of readTask, currentTask and the task id rule", async 
   assert.equal(current.task.id, id);
   assert.deepEqual(current.ambiguous, []);
   assert.deepEqual([tasks.currentTask(project, "other").task, tasks.currentTask(project, null).task], [null, null]);
+
+  const symbols = startTask(p, env, "!!!", ["--branch", "symbols"]);
+  assert.match(symbols.id, /^\d{4}-\d{2}-\d{2}-task-[0-9a-f]{4}$/, "a title with no letter or digit gives the slug task");
 }));
 
 test("non-ASCII text is written as UTF-8 and bytes that are not valid UTF-8 survive an edit", async () => withTemp("bytes", async ({ dir, env }) => {

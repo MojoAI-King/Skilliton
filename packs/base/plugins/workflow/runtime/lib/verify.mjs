@@ -194,9 +194,13 @@ export function evaluateInstall(install, releases) {
     line.state = "VERIFIED";
     line.release = liveMatch.version;
     line.detail = `release ${liveMatch.version}; all ${c.files.length} files match`;
+    // The content hash does not cover the executable bit. A file the release runs by path (a hook, bin/)
+    // that lost its bit cannot run, so that is attention; a bit the release does not have is only a note.
     const flags = new Map(scan.files.map((f) => [f.path, f.executable]));
-    const modes = c.files.filter((f) => flags.get(f.path) !== f.executable).map((f) => `${f.path} (${f.executable ? "executable" : "not executable"} in the release)`);
-    if (modes.length) line.notes.push(`the executable bit differs, which the content hash does not cover: ${listSome(modes)}`);
+    line.notRunnable = c.files.filter((f) => f.executable && flags.get(f.path) === false).map((f) => f.path);
+    const gained = c.files.filter((f) => !f.executable && flags.get(f.path) === true).map((f) => f.path);
+    if (line.notRunnable.length) line.notes.push(`not executable although the release marks it executable, so the client cannot run it: ${listSome(line.notRunnable)}; reinstall the plugin`);
+    if (gained.length) line.notes.push(`executable although the release does not mark it so (the content hash does not cover the bit): ${listSome(gained)}`);
     return line;
   }
   const goneMatch = gone.find(matches);
@@ -279,8 +283,14 @@ export function runVerify({ client = "claude-code", configDir, source, company, 
     exitCode = 2;
     summary = `INVALID: ${invalid.length} problem(s) mean this cannot count as a verification (${invalid[0]}${invalid.length > 1 ? "; see the other problems above" : ""}). Nothing is approved on a signature or record that does not check out.`;
   } else if (lines.length && lines.every((l) => l.state === "VERIFIED")) {
-    exitCode = 0;
-    summary = `all ${lines.length} company plugin install(s) on this client are VERIFIED against approved releases.`;
+    const notRunnable = lines.flatMap((l) => (l.notRunnable ?? []).map((p) => `${l.plugin}/${p}`));
+    if (notRunnable.length) {
+      exitCode = 1;
+      summary = `all ${lines.length} company plugin install(s) match approved releases, but ${notRunnable.length} file(s) the release marks executable are not executable, so the client cannot run them (${listSome(notRunnable)}). Reinstall the plugin, then run verify again.`;
+    } else {
+      exitCode = 0;
+      summary = `all ${lines.length} company plugin install(s) on this client are VERIFIED against approved releases.`;
+    }
   } else if (!lines.length) {
     exitCode = 1;
     summary = `nothing was verified: this client has no plugins from the company marketplace (${[...names].join(", ") || "no name known"}) and no approved release lists any plugin.`;

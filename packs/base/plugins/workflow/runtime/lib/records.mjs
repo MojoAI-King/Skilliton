@@ -1,9 +1,7 @@
 // records.mjs: decision and lesson entries, and the managed indexes (docs/CONTRACTS.md section 11).
 //
-//   newEntryId(title, date)          YYYY-MM-DD-<slug>-<hex4>: local date, a slug of at most 40 lowercase letters,
-//                                    digits and hyphens from the title, four random hex digits. No sequential numbers,
-//                                    so entries written on different branches never compete for one number.
-//   createEntry(project, kind, ...)  plans a decision or lesson entry; writes it only with { apply: true }.
+//   createEntry(project, kind, ...)  plans a decision or lesson entry, named by the ID rule in ids.mjs; writes it
+//                                    only with { apply: true }.
 //   regenerateIndexes(project, ...)  plans the three managed index sections (decisions, lessons, open tasks); writes
 //                                    them only with { apply: true }, and only on an integration branch.
 //
@@ -14,45 +12,18 @@
 // Nothing here parses arguments or exits the process. Nothing here imports from outside the plugin folder.
 
 import { lstatSync, readdirSync, readFileSync } from "node:fs";
-import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { detectEol, lineSpans, refuse } from "./core.mjs";
+import { isId, localDate, newId } from "./ids.mjs";
 import { OperationFailed, applyChanges, currentBranch, inspectFolder, inspectPath, readPath } from "./prepare.mjs";
 import {
   CLOSED_TASK_STATES, INDEX_KINDS, INDEX_RECORD_ROLE, ROLE_LABELS, TASK_STATES, entryTemplate, indexEndMarker,
   indexStartMarker, renderIndexSection,
 } from "./project-files.mjs";
 
-export const ENTRY_ID_RE = /^(\d{4}-\d{2}-\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)-([0-9a-f]{4})$/;
 export const ENTRY_KINDS = { decision: "decisions", lesson: "lessons" };
-const MAX_SLUG = 40;
 const MAX_ENTRY_BYTES = 256 * 1024;
 const BOM = String.fromCharCode(0xfeff);
-
-// ---------- IDs ----------
-
-export function slugify(title) {
-  const plain = String(title).normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase();
-  let slug = plain.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  if (slug.length > MAX_SLUG) slug = slug.slice(0, MAX_SLUG).replace(/-+$/, "");
-  return slug || "entry";
-}
-
-const pad = (n, width = 2) => String(n).padStart(width, "0");
-
-export function localDate(date = new Date()) {
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) throw new TypeError("a valid Date is required");
-  return `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-export function newEntryId(title, date = new Date()) {
-  return `${localDate(date)}-${slugify(title)}-${randomBytes(2).toString("hex")}`;
-}
-
-export function isEntryId(id) {
-  const m = ENTRY_ID_RE.exec(id);
-  return Boolean(m) && m[2].length <= MAX_SLUG;
-}
 
 // ---------- entries ----------
 
@@ -78,7 +49,7 @@ export function createEntry(project, kind, title, { branch, date = new Date(), a
   const day = localDate(date);
   let id = null, path = null;
   for (let attempt = 0; attempt < 20 && id === null; attempt++) {
-    const candidate = newEntryId(clean, date);
+    const candidate = newId(clean, { date });
     if (!inspectPath(project.root, `${dir}/${candidate}.md`).exists) { id = candidate; path = `${dir}/${candidate}.md`; }
   }
   if (id === null) throw new OperationFailed(`no unused ID was found for this title in ${dir}/ after 20 tries; nothing was written`);
@@ -124,7 +95,7 @@ export function readEntries(project, kind) {
     if (name === "README.md" || !name.endsWith(".md")) continue;
     const rel = `${dir}/${name}`;
     const id = name.slice(0, -3);
-    if (!isEntryId(id)) { problems.push(`${rel} was not indexed: its name is not an entry ID (YYYY-MM-DD-<slug>-<four hex digits>.md)`); continue; }
+    if (!isId(id)) { problems.push(`${rel} was not indexed: its name is not an entry ID (YYYY-MM-DD-<slug>-<four hex digits>.md)`); continue; }
     let st;
     try { st = lstatSync(join(folder.abs, name)); } catch (e) { problems.push(`${rel} was not indexed: it could not be inspected (${e.code ?? "error"})`); continue; }
     if (!st.isFile()) { problems.push(`${rel} was not indexed: it is not a regular file`); continue; }
@@ -192,10 +163,13 @@ export function regenerateIndexes(project, { apply = false, gitDir = null, branc
     const eol = detectEol(text);
     const rendered = Buffer.from(renderIndexSection(kind, { dir, recordPath: record, entries }), "utf8").toString("latin1").replace(/\n/g, eol);
     const section = findIndexSection(text, kind, record);
-    const next = section
+    // A record without markers and with nothing to list is left alone: an adopted record keeps its own history above,
+    // and an appended "no entries yet" section would contradict it. The section arrives with the first entry.
+    const deferred = !section && entries.length === 0;
+    const next = deferred ? text : section
       ? text.slice(0, section.startOffset) + (section.endHasNewline ? rendered : rendered.slice(0, -eol.length)) + text.slice(section.endOffset)
       : text + (text === "" ? "" : (text.endsWith("\n") ? "" : eol) + eol) + rendered;
-    sections.push({ kind, record, dir, count: entries.length, total: kind === "tasks" ? total : entries.length, hadSection: Boolean(section), before: bytes, after: Buffer.from(next, "latin1"), changed: next !== text });
+    sections.push({ kind, record, dir, count: entries.length, total: kind === "tasks" ? total : entries.length, hadSection: Boolean(section), deferred, before: bytes, after: Buffer.from(next, "latin1"), changed: next !== text });
   }
   let result = null;
   const changes = sections.filter((s) => s.changed).map((s) => ({ path: s.record, before: s.before, after: s.after }));
