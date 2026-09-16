@@ -296,3 +296,44 @@ test('prepared catalog description and records README are supported without acce
   writeFileSync(p, JSON.stringify(c));
   assert.equal(run(dir, 'status').code, 1);
 });
+
+test('overall and command help describe commands and exits without reading or writing project files', t => {
+  const dir = fixture(t);
+  writeFileSync(join(dir, '.skillgate/security/catalog.json'), 'intentionally malformed');
+  const before = readdirSync(join(dir, '.skillgate/security'));
+  for (const args of [['--help'], ['record', '--help'], ['status', '--help']]) {
+    const p = spawnSync(process.execPath, [cli, ...args], { cwd: dir, encoding: 'utf8' });
+    assert.equal(p.status, 0);
+    assert.match(p.stdout, /record --dir/);
+    assert.match(p.stdout, /status --dir/);
+    assert.match(p.stdout, /observed\|gap\|needs-human/);
+    assert.match(p.stdout, /Exit 0/);
+    assert.match(p.stdout, /Exit 1/);
+    assert.match(p.stdout, /Exit 2/);
+    assert.equal(p.stderr, '');
+  }
+  assert.deepEqual(readdirSync(join(dir, '.skillgate/security')), before);
+  assert.equal(readFileSync(join(dir, '.skillgate/security/catalog.json'), 'utf8'), 'intentionally malformed');
+});
+
+test('status preserves human REPORT.md and refreshes only reports carrying its generated marker', t => {
+  const dir = fixture(t);
+  assert.equal(record(dir).code, 0);
+  const p = join(dir, '.skillgate/security/REPORT.md');
+  const human = '# Human security review\n\nFindings belong to the project team.\n';
+  writeFileSync(p, human);
+  const modified = statSync(p).mtimeMs;
+  assert.equal(run(dir, 'status').code, 0);
+  const refused = run(dir, 'status', '--apply');
+  assert.equal(refused.code, 1);
+  assert.match(refused.out, /NON_GENERATED_REPORT/);
+  assert.equal(readFileSync(p, 'utf8'), human);
+  assert.equal(statSync(p).mtimeMs, modified);
+  assert.equal(readdirSync(join(dir, '.skillgate/security')).some(f => f.startsWith('.pending-')), false);
+  rmSync(p);
+  assert.equal(run(dir, 'status', '--apply').code, 0);
+  assert.match(readFileSync(p, 'utf8'), /^<!-- skillgate-security-evidence-report:v1 -->\n/);
+  writeFileSync(join(dir, 'source.js'), 'changed\n');
+  assert.equal(run(dir, 'status', '--apply').code, 2);
+  assert.match(readFileSync(p, 'utf8'), /observed.*stale/);
+});

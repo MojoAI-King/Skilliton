@@ -8,6 +8,7 @@ import { createHash, randomUUID } from 'node:crypto';
 
 const LIMIT = { catalog: 1024 * 1024, record: 64 * 1024, file: 32 * 1024 * 1024, total: 256 * 1024 * 1024, records: 5000, controls: 500, attachments: 32 };
 const BASE = '.skillgate/security';
+const REPORT_MARKER = '<!-- skillgate-security-evidence-report:v1 -->';
 const ASSESSMENTS = ['observed', 'gap', 'needs-human'];
 const ID = /^[A-Za-z][A-Za-z0-9_.:-]{0,63}$/;
 const VERSION = /^[A-Za-z0-9][A-Za-z0-9_.+-]{0,63}$/;
@@ -177,6 +178,10 @@ function ensureDirectory(root, rel) {
 function publish(root, rel, data, immutable) {
   const { path, stat } = checkedPath(root, rel, true);
   if (stat && (!stat.isFile() || stat.nlink !== 1 || immutable)) fail('UNSAFE_OUTPUT');
+  const checkGenerated = existing => {
+    if (existing && !immutable && !safeRead(root, rel, LIMIT.catalog).toString('utf8').startsWith(REPORT_MARKER + '\n')) fail('NON_GENERATED_REPORT');
+  };
+  checkGenerated(stat);
   const parentRel = rel.slice(0, rel.lastIndexOf('/'));
   // Keep incomplete writes outside the evidence directory so every entry in
   // records must validate, including unexpected hidden files.
@@ -191,6 +196,7 @@ function publish(root, rel, data, immutable) {
     checkedPath(root, parentRel);
     const current = checkedPath(root, rel, true).stat;
     if (current && (!current.isFile() || current.nlink !== 1 || immutable)) fail('UNSAFE_OUTPUT');
+    checkGenerated(current);
     if (immutable) {
       // link is atomic and refuses collisions without overwriting a record.
       linkSync(temp, path);
@@ -204,6 +210,7 @@ function publish(root, rel, data, immutable) {
 }
 function argumentsRead(args) {
   if (args.length < 1 || args.length > 150 || args.some(s => s.length > 4096)) fail('INVALID_ARGUMENTS');
+  if ((args.length === 1 && args[0] === '--help') || (args.length === 2 && ['record', 'status'].includes(args[0]) && args[1] === '--help')) return { help: true };
   const command = args.shift();
   if (!['record', 'status'].includes(command)) fail('INVALID_ARGUMENTS');
   const out = { command, apply: false, source: [], artifact: [] };
@@ -272,7 +279,7 @@ function status(options, catalog) {
   const observed = rows.filter(r => r.assessment === 'observed' && r.freshness === 'current').length;
   const invalid = history.invalid > 0 || rows.some(r => r.freshness === 'invalid');
   const inactive = history.records.filter(r => !catalog.controls.some(c => c.id === r.controlId)).length;
-  const lines = ['# Security evidence status', '', `Current recorded observations: ${observed}/${rows.length} controls.`,
+  const lines = [REPORT_MARKER, '', '# Security evidence status', '', `Current recorded observations: ${observed}/${rows.length} controls.`,
     `Invalid evidence records: ${history.invalid}.`, `Historical records outside the current catalog: ${inactive}.`, '',
     'Assessment and freshness are separate. Observed means a recorded claim, not a control pass.',
     'Exit 0 means only that every control has a current recorded observation. It does not establish compliance, certification, or passing security checks.',
@@ -281,17 +288,46 @@ function status(options, catalog) {
     '| Control | Title | Assessment | Freshness |', '| --- | --- | --- | --- |',
     ...rows.map(r => `| ${markdown(r.ctrl.id)} | ${markdown(r.ctrl.title)} | ${r.assessment} | ${r.freshness} |`), '',
     'Missing records and unresolved assessments need evidence or human review. Stale records need a new observation after review; existing records are never restamped.', ''];
-  if (history.invalid) lines.splice(4, 0, 'Invalid records make every control invalid until the record problem is resolved. No malformed record is silently discarded.');
+  if (history.invalid) lines.splice(6, 0, 'Invalid records make every control invalid until the record problem is resolved. No malformed record is silently discarded.');
   const report = lines.join('\n');
   if (options.apply) publish(options.root, `${BASE}/REPORT.md`, report, false);
   process.stdout.write(report);
   return invalid ? 1 : observed === rows.length ? 0 : 2;
 }
 
+const HELP = `Security evidence records and freshness reporting
+
+Usage:
+  node security-evidence.mjs --help
+  node security-evidence.mjs record --help
+  node security-evidence.mjs status --help
+  node security-evidence.mjs record --dir <repo> --control <id> --assessment observed|gap|needs-human --note <text> --reviewer <label> [--source <repo-relative-file>] [--artifact <repo-relative-file>] [--apply]
+  node security-evidence.mjs status --dir <repo> [--apply]
+
+Repeat --source and --artifact for multiple files. Observed requires at least
+one source and one artifact. Values containing spaces must be shell quoted.
+Record validates inputs without writing unless --apply is supplied.
+Status prints the derived report; --apply also writes .skillgate/security/REPORT.md.
+Only a report carrying this tool's generated marker can be overwritten.
+Existing evidence records are never edited. Help never reads or writes project files.
+
+Exit 0: help displayed, record input accepted, or all catalog controls have
+        current recorded observations for status. This is not compliance,
+        certification, authenticated review, or proof that security checks passed.
+Exit 1: invalid invocation, malformed or unsafe input, invalid evidence, or
+        an operation refusal or failure.
+Exit 2: status has missing or stale evidence, a gap, or a needs-human assessment.
+`;
+
 try {
   const options = argumentsRead(process.argv.slice(2));
-  const catalog = catalogRead(options.root);
-  process.exitCode = options.command === 'record' ? makeRecord(options, catalog) : status(options, catalog);
+  if (options.help) {
+    process.stdout.write(HELP);
+    process.exitCode = 0;
+  } else {
+    const catalog = catalogRead(options.root);
+    process.exitCode = options.command === 'record' ? makeRecord(options, catalog) : status(options, catalog);
+  }
 } catch (e) {
   // Never print raw OS errors, supplied arguments, JSON text, or secret values.
   const code = e instanceof Refusal ? e.code : 'OPERATION_FAILED';
