@@ -1,106 +1,116 @@
 # Skilliton
 
-This repository is Skilliton. The product inside it is Skillgate.
+This repository is Skilliton. The product inside it is **Skillgate**.
 
 Kind: Living.
 
-Skillgate is a starter pack for shipping the skills, guardrails, and habits that make a team's AI coding tools work well, to every developer's environment, so the good behavior is automatic instead of tribal knowledge.
+**Skillgate is a ready-made way of working for AI-assisted development.** It ships a base skill set that keeps codebases healthy, spends tokens well, never loses context between sessions or people, reviews work in plain language, and blocks the git mistakes that hurt. A company forks it, adds its own skills, and gives every developer, technical or not, the whole environment in one onboarding step. Improvements arrive by auto-update.
 
-Status: week-one build, September 16 to 23, 2026. See `PLAN.md` for the full plan, gates, and what is verified versus still open. `DECISIONS.md` records every architectural choice in plain English.
+Built for Claude Code first; the skills use the open Agent Skills format that Codex also reads (see "Codex" below for what is verified).
 
-## Why not just build this yourself?
+Status: week-one build, September 16 to 23, 2026. `PLAN.md` is the build contract, `DECISIONS.md` records every choice in plain English, and `docs/CONTRACTS.md` lists the names and formats the pieces share.
 
-You can. This exists so you do not start from zero. The flagship pack came out of a real, measured investigation on a real project, including a measurement error the investigation caught in itself and corrected. Forking this repo and making it yours is the intended path, not a workaround.
+## Why this exists
 
-## Layout
+Without it, every person's AI setup is different. Good skills get copied between projects by hand, and the copies drift: before this project, one in-house skill existed in about sixty copies across six versions, and nobody could say which was current. People who are new to coding lose work to a force-push, commit a key by accident, or start every session re-explaining where they left off. Skillgate makes one good way of working the default, and keeps it current.
 
+## What is in the box
+
+| Plugin | What it does | Enforced or instructed |
+|---|---|---|
+| `guardrails` | Blocks force-pushing a protected branch, skipping git hooks, and committing secret files; asks before destroying uncommitted work; explains every block in plain language | Enforced (a hook checks every shell command) |
+| `workflow` | `handoff` saves where you are so the next session starts from it; `review` explains your changes and their risks before you commit; `dispatch` turns a pile of notes into verified parallel work lanes; `maintain` keeps the project's docs, decisions, and lessons current | Handoff shown at session start: enforced. Writing, review, dispatch, maintain: instructed |
+| `context-hygiene` | Keeps sessions lean: a bounded session-start checklist, a status line that logs real quota, and habits that avoid the measured causes of wasted tokens | Hook and status line: enforced. Habits: instructed |
+
+**Enforced** means a hook does it every time. **Instructed** means the model is told to do it, and usually will, but nothing forces it. Nothing instructed is described as guaranteed.
+
+## For a company: fork it and make it yours
+
+1. Fork this repository. Your fork is your company's skill marketplace.
+2. Keep `packs/base/` as it is. Add your own skills beside it:
+
+   ```bash
+   node scripts/skillgate.mjs new-skill <your-plugin> <skill-name>
+   node scripts/skillgate.mjs import ~/.claude/skills/<a-skill-you-already-use> --into <your-plugin>
+   ```
+
+   `import` refuses a skill that contains secret-shaped strings, personal paths, or names on your denylist.
+3. Put the team settings into your product repositories, so anyone who opens one in Claude Code is offered your marketplace with auto-update on:
+
+   ```bash
+   node scripts/skillgate.mjs project-settings --marketplace-repo <your-org>/<your-fork> --apply
+   ```
+
+4. Every change to a plugin bumps its version. Installed copies only update when the version changes.
+
+## For a new hire: get the company environment
+
+In a company repository that carries the team settings, open it in Claude Code and trust the folder; you are offered the company marketplace and plugins. Otherwise:
+
+```bash
+claude plugin marketplace add <your-org>/<your-fork>
+claude plugin install guardrails@skillgate
+claude plugin install workflow@skillgate
+claude plugin install context-hygiene@skillgate
 ```
-PLAN.md                         the build contract; read it first
-CLAUDE.md                       session rules for Claude Code in this repo
-DECISIONS.md                    plain-English record of every architectural choice
-LICENSE                         MIT
-.claude-plugin/marketplace.json the marketplace catalog (marketplace name: skillgate; local, relative sources for now)
-packs/base/                     the base pack every fork ships with
-  plugins/context-hygiene/      the flagship plugin
-    .claude-plugin/plugin.json
-    skills/context-hygiene/SKILL.md
-    hooks/hooks.json            SessionStart hook registration
-    hooks/session-start-checklist.sh
-    hooks/statusline-quota.sh   Tier 1: logs real quota, does not just display it
-    hooks/config-drift-check.sh
-    evals/                      claude plugin eval cases (results/ is gitignored)
-scripts/setup.mjs               show / apply / undo the settings a plugin cannot set itself
-scripts/token-cost.mjs          corrected usage meter; fixture-tested, does NOT yet reproduce a known real figure (DECISIONS.md O2)
-scripts/token-cost.test.mjs     fixture test with hand-computed totals
-scripts/hook-fixture.test.sh    original vs repaired awk, plus the shipped hook against real-world heading shapes
-scripts/statusline.test.sh      status line: quota present, absent (null, never 0), jq missing, log unwritable
-scripts/fixtures/               the fixtures
-scripts/gate.mjs                wraps your existing verify command, preserves exit status, logs full output
-scripts/scrub-check.sh          public-safety gate: denylisted names, em or en dashes, home-directory paths
-docs/USAGE_BASELINE.md          Tier 2: commit this BEFORE any fix ships
-docs/ONE-PAGER.md               onboarding one-pager (first draft)
-evidence/day-1/                 committed test output for the Day 1 gate
-evidence/<sha>/                 eval results bound to a commit (Day 2 onward)
-releases/<pack>/<version>.json  release records (see releases/SCHEMA.md)
+
+Then, from a clone of the company fork, once per project:
+
+```bash
+node scripts/skillgate.mjs harness --dir <your project> --apply   # adds the "how we work here" block to CLAUDE.md and AGENTS.md
+node scripts/skillgate.mjs doctor                                  # says, in plain language, what is working and what is not
+node scripts/setup.mjs --apply                                     # optional: the quota status line
 ```
+
+Updates are checked after a session starts and take effect in the next session.
+
+## Codex
+
+Verified in OpenAI's documentation (not yet exercised here): Codex reads skills in the same format from `.agents/skills/` in a repository and `~/.agents/skills/` for a user, reads `AGENTS.md` (which `harness` writes), and supports hooks with the same deny decision, after each hook is reviewed and trusted once. Codex's IDE extension has no plugins, so for Codex the skills are linked as plain folders.
 
 ## Requirements
 
-Claude Code, Node.js, bash, awk, and `jq` (the status line and its test need `jq`; without it the status line says so instead of logging).
+Claude Code, Node.js, git, bash, and `jq` (the status line and several hooks use `jq`; without a JSON parser, each one says so instead of failing silently).
 
-## Get the code
+## Check everything yourself
 
-```
-git clone https://github.com/MojoAI-King/Skilliton
-cd Skilliton
-```
-
-## Quick start
-
-From a clone (run inside the repository root):
-
-```
-claude plugin marketplace add ./
-claude plugin install context-hygiene@skillgate
-```
-
-Straight from GitHub, without cloning (the `owner/repo` shorthand is documented for `claude plugin marketplace add`; the setup step below still needs a clone):
-
-```
-claude plugin marketplace add MojoAI-King/Skilliton
-claude plugin install context-hygiene@skillgate
+```bash
+node scripts/packs.test.mjs               # packaging: marketplace, manifests, skill names, executable hooks
+bash scripts/guardrails.test.sh           # every guardrail rule, with safe commands that must stay allowed
+bash scripts/handoff-hook.test.sh         # session-start handoff display
+node scripts/skillgate.test.mjs           # onboarding CLI
+node scripts/setup.test.mjs               # status line setup: apply and undo are byte-identical
+bash scripts/hook-fixture.test.sh         # session-start checklist hook
+bash scripts/statusline.test.sh           # status line logger
+node scripts/token-cost.test.mjs          # usage meter: hand-computed fixture totals
+node scripts/evidence.test.mjs            # eval evidence writer never leaks paths or model text
+bash scripts/scrub-check.sh --self-test   # proves the public-safety gate can fail
 ```
 
-Installing gives you the skill and the SessionStart hook. It cannot give you the status line or project instructions, because a plugin's settings cannot set those. So run the setup step from a clone, which shows what it will change, backs up first, and can undo itself:
+Two checks use your Claude account and cost a little each run, so CI does not run them:
 
-```
-node scripts/setup.mjs            # show
-node scripts/setup.mjs --apply    # write the statusLine key, after backing up
-node scripts/setup.mjs --undo     # restore the last backup byte for byte
+```bash
+bash scripts/live-guardrails-probe.sh --control   # a real session: force-push to main is blocked, and goes through without the plugin
+claude plugin eval packs/base/plugins/workflow --scaffold --no-publish --allow-tools Bash Write Edit --max-cost-usd 12
 ```
 
-Then start a session and confirm the session-start checklist is bounded and the status line shows 5h and 7d percentages. The per-model weekly limit shown in `/usage` is not exposed to status lines; record it by hand.
+Eval results are summarized into `evidence/<commit>/` by `node scripts/evidence.mjs`; the live check's output is in `evidence/live/`.
 
-## Check the meter before believing any number
+## The usage evidence, honestly
 
-```
-node scripts/token-cost.test.mjs   # meter: hand-computed fixture totals; must pass
-bash scripts/hook-fixture.test.sh  # session-start hook: original vs repaired, and the shipped script
-bash scripts/statusline.test.sh    # status line logger
-bash scripts/scrub-check.sh --self-test  # proves the public-safety gate can fail
-```
+The `context-hygiene` plugin came out of a real investigation into where an AI coding budget went. That investigation caught a 3.28x counting error in itself. The session-start fix is measured and verified. The corrected meter (`scripts/token-cost.mjs`) passes its fixture tests but does not yet reproduce the investigation's own real-window figure, so this repository makes no savings claim (`DECISIONS.md`, O2).
 
 ## Not built yet
 
-`skillgate evidence`, `skillgate release`, and `skillgate verify` do not exist yet. They are planned for later in the week (see `PLAN.md`). Nothing in this README should be read as claiming they work. Today, `setup`, `gate`, and the meter exist only as the `scripts/*.mjs` files listed above.
+`skillgate release` and `skillgate verify` (release pinning by commit SHA, and checking installed copies for tampering) are planned for Day 3. Nothing here should be read as claiming they work today. Also not yet exercised on a clean machine: the team settings and auto-update path, and anything in Codex.
 
-## Pinning note
+## Why not just build this yourself?
 
-The marketplace catalog uses a relative-path source for local development. A released entry should instead use a `github` source with both `ref` (the tag) and `sha` (the exact commit), because a ref-only pin is silently mutable. `skillgate release` (not built yet) is meant to rewrite the entry that way.
+You can. This exists so you do not start from zero: the base skills came out of real, daily use, the evidence behind them caught its own mistakes, and forking it is the intended path, not a workaround.
 
 ## Contributing
 
-A pull request must pass `bash scripts/scrub-check.sh --history` and the four checks above. `scrub-check.sh` reads its denylist from outside the repo (`SKILLGATE_DENYLIST`); keep your own. Without one, the name scan does not run and the script exits 2 instead of claiming a pass.
+A pull request must pass every check above and `bash scripts/scrub-check.sh --history`. `scrub-check.sh` reads its denylist from outside the repository (`SKILLGATE_DENYLIST`); keep your own. Without one, the name scan does not run, and the script exits 2 instead of claiming a pass.
 
 ## License
 

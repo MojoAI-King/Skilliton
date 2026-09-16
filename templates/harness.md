@@ -2,7 +2,7 @@
 
 This block is managed by Skillgate. Edit `templates/harness.md` in the company skills repo, not this copy; it is replaced on the next update.
 
-Each behavior below is marked **enforced** (a hook does it every time, whatever anyone types) or **instructed** (you, the assistant, are told to do it and should, but nothing forces it).
+Each behavior below is marked **enforced** (a hook does it every time, whatever anyone types) or **instructed** (you, the assistant, are told to do it and should, but nothing forces it). Enforced behaviors hold only while the `workflow` and `guardrails` plugins are installed and enabled; `node scripts/skillgate.mjs doctor` in the company skills repo checks that.
 
 ### Start of a session
 - **Enforced:** the latest `RESUME HERE` section of `docs/HANDOFF.md` is shown at session start. Read it before doing anything else, and tell the user in one sentence where things stand.
