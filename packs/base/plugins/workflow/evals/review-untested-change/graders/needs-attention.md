@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: "NEEDS ATTENTION"
+pattern: "\\*\\*NEEDS ATTENTION\\*\\*"
 target: last_message
 ---
-PASS: the verdict is NEEDS ATTENTION.
+PASS: the verdict line is NEEDS ATTENTION.

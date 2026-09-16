@@ -50,10 +50,10 @@ Only what ran **in this session**, with its real result, for example "`npm test`
 Find the project's test command: `package.json` scripts (`test`, `lint`, `typecheck`), a `Makefile` (`test`, `check`), `pyproject.toml` or `pytest.ini` (`pytest`), `go.mod` (`go test ./...`), `Cargo.toml` (`cargo test`), or what `README.md`, `CLAUDE.md`, or `AGENTS.md` say. Name it and offer to run it. If there is none, say so.
 
 ### Verdict
-Exactly one, with the reason in one sentence:
-- **STOP** (list): committing now could do harm that is hard to undo. A secret-looking file or value; conflict markers; tests seen failing in this session; tests deleted, switched off, or weakened without a reason the user agreed to.
-- **NEEDS ATTENTION** (list): anything else flagged above, or not tested.
-- **READY TO COMMIT**: nothing flagged, and the tests ran in this session after the last change and passed.
+The section's first line is exactly one of `**STOP**`, `**NEEDS ATTENTION**`, or `**READY TO COMMIT**`, then a colon and the reason in one sentence. Nothing else in the review is written in that bold form.
+- **STOP** (then the list): committing now could do harm that is hard to undo. A secret-looking file or value; conflict markers; tests seen failing in this session; tests deleted, switched off, or weakened without a reason the user agreed to.
+- **NEEDS ATTENTION** (then the list): anything else flagged above, or **any change that can affect how the code behaves and was not tested after the last edit**.
+- **READY TO COMMIT**: nothing flagged, and one of these is true, stated as the reason: the tests ran in this session after the last change and passed; or the change cannot affect behavior (only comments, documentation, or whitespace), which you checked in the diff rather than assumed.
 
 ## 4. Offer the next step
 
