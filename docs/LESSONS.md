@@ -161,3 +161,27 @@ Kind: Living. This repository's own lessons, specific and technical, in the form
 3. **The fix:** the sections were rewritten from the evidence (measured installs, what is built, what is not).
 4. **The rule:** when a milestone's evidence lands, reread every status claim it could have changed, not only the files whose formats changed.
 5. **What now enforces it:** docs/MAINTAIN.md step 6 now includes a sweep for "not built", "still required", "not verified" and similar phrases; nothing runs it automatically.
+
+## 2026-09-16 The first eval run of the task skill ran out of turns doing work nobody asked for
+
+1. **What broke:** in `task-start-records-work` at 06880a6, asked only to set up a piece of work, two of three with-plugin runs went on to edit the backlog and handoff, run `skillgate index` and start a review toward a commit; one hit the 30-turn limit mid-sentence.
+2. **The mechanism:** in `claude plugin eval` runs the plugin's `bin/` is not on the shell path. The task skill said to "continue with the same steps by hand" when `skillgate` is missing, while the project instructions say to use the plugin's `bin/skillgate`; every run spent turns finding it. The skill also had no rule for a request that is only to set work up, so the model followed the whole lifecycle.
+3. **The fix:** `packs/base/plugins/workflow/skills/task/SKILL.md` names the fallback (`bin/skillgate` two folders above the skill's base directory), stops at the record when only set-up was asked, and forbids editing a managed index list by hand; `skills/security/SKILL.md` names the same fallback. At e87d2d1 the runs took 14 to 18 turns and did only what was asked.
+4. **The rule:** every instruction that depends on a helper command says how to reach it when the host does not put it on the path, in the same words everywhere; and a skill says where to stop when the request is narrower than its full lifecycle.
+5. **What now enforces it:** the eval case itself (its `reply` check fails a run that ends mid-task); nothing compares the fallback sentences across instruction files yet.
+
+## 2026-09-16 A PATH folder the process could not inspect made skillgate report an internal error
+
+1. **What broke:** in an eval sandbox, `skillgate index` stopped with "unexpected internal error: EPERM: operation not permitted, stat '/opt/homebrew/bin/git'. This is a bug in skillgate", and the model spent turns working around it.
+2. **The mechanism:** `which()` in `runtime/lib/core.mjs` checked each PATH candidate with `statOrNull`, which returns null only for ENOENT and ENOTDIR and rethrows anything else; EPERM from a sandbox, or EACCES from a folder without search permission, escaped as an unexpected exception.
+3. **The fix:** `which()` skips candidates it cannot inspect (ENOENT, ENOTDIR, EACCES, EPERM, ELOOP, ENAMETOOLONG) and moves on to the next PATH entry.
+4. **The rule:** a lookup over many candidates treats one unreadable candidate as absent; only a failure of the lookup as a whole is an error.
+5. **What now enforces it:** `scripts/records.test.mjs` puts a folder without search permission first on PATH; the test fails on the old lookup.
+
+## 2026-09-16 The default eval judge failed replies that met their rubric
+
+1. **What broke:** the `reply` check of `task-start-records-work` failed two with-plugin runs (one at 06880a6, one at e87d2d1) whose final messages named the record, listed the criteria including the emailed link and 30-minute expiry, and claimed nothing was built.
+2. **The mechanism:** the first rubric said "does not claim that anything was built or tested", and the default judge (haiku) read a truthful "the existing tests pass" as such a claim; after the wording was fixed, it still failed a long reply that met every element (DECISIONS.md O12).
+3. **The fix:** the same case at the same commit with `--judge-model sonnet` passed all three with-plugin runs and failed a without-plugin reply that really omitted a rubric element; docs/MAINTAIN.md step 4 now passes `--judge-model sonnet`.
+4. **The rule:** before changing a skill or a rubric over an llm check, read the reply; when the judge is wrong, test a stronger judge on the same case and check that it still fails what should fail.
+5. **What now enforces it:** the recorded command in docs/MAINTAIN.md step 4 and the notes requirement to diagnose every failed check from its transcript; nothing checks the judge model automatically.

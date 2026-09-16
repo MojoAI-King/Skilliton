@@ -1,0 +1,364 @@
+{
+  "kind": "skillgate eval evidence",
+  "schema": 1,
+  "commit": "06880a62f9efcc3285a7561bbb56bad8dd098e98",
+  "rawResultSha256": "4f1e4c878b173b7734bc2b58b4f6a37d175dd865e848b90f471cee31137046df",
+  "rawResultNote": "The raw aggregate-result.json holds machine paths and model-written text, so it is kept on the machine that ran it and identified here by its hash.",
+  "claudeVersion": "2.1.273",
+  "startedAt": "2026-09-16T21:46:50.229Z",
+  "durationSeconds": 258,
+  "costUsdListPriceEstimate": 4.439883,
+  "costNote": "List-price estimate reported by claude plugin eval for running the eval itself. Not plan usage, and not a savings figure.",
+  "partial": false,
+  "settings": {
+    "ablation": "with-without",
+    "threshold": 1,
+    "concurrency": 4
+  },
+  "plugins": [
+    {
+      "name": "workflow",
+      "version": "0.3.2"
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 0,
+    "overallScore": 0.888888888888889,
+    "overallPassRate": 0.3333333333333333,
+    "meanDelta": 0.22222222222222232
+  },
+  "cases": [
+    {
+      "name": "task-start-records-work",
+      "runsPerCase": 3,
+      "maxTurns": 30,
+      "score": 0.888888888888889,
+      "delta": 0.22222222222222232,
+      "arms": {
+        "with": [
+          {
+            "score": 0.8333333333333334,
+            "passed": false,
+            "turns": 31,
+            "error": "error (see raw result)",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "criteria-given",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "nothing-built-edit",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "nothing-built-write",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "record-created",
+                "type": "file_exists",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "reply",
+                "type": "llm",
+                "passed": false,
+                "scored": true,
+                "votes": [
+                  "FAIL",
+                  "FAIL",
+                  "FAIL"
+                ]
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "through-skillgate",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.8333333333333334,
+            "passed": false,
+            "turns": 30,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "criteria-given",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "nothing-built-edit",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "nothing-built-write",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "record-created",
+                "type": "file_exists",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "reply",
+                "type": "llm",
+                "passed": false,
+                "scored": true,
+                "votes": [
+                  "FAIL",
+                  "FAIL",
+                  "FAIL"
+                ]
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "through-skillgate",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 25,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "criteria-given",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "nothing-built-edit",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "nothing-built-write",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "record-created",
+                "type": "file_exists",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "reply",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "through-skillgate",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.6666666666666666,
+            "passed": false,
+            "turns": 18,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "criteria-given",
+                "type": "tool_used",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "nothing-built-edit",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "nothing-built-write",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "record-created",
+                "type": "file_exists",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "reply",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "through-skillgate",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.6666666666666666,
+            "passed": false,
+            "turns": 18,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "criteria-given",
+                "type": "tool_used",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "nothing-built-edit",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "nothing-built-write",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "record-created",
+                "type": "file_exists",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "reply",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "through-skillgate",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.6666666666666666,
+            "passed": false,
+            "turns": 18,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "criteria-given",
+                "type": "tool_used",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "nothing-built-edit",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "nothing-built-write",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "record-created",
+                "type": "file_exists",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "reply",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "through-skillgate",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
