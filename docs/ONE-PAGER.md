@@ -115,7 +115,7 @@ node scripts/token-cost.test.mjs        # meter fixture totals
 bash scripts/hook-fixture.test.sh       # original vs repaired session-start awk
 ```
 
-`scrub-check.sh` needs its denylist outside the repo (`$SKILLGATE_DENYLIST`, default `~/.config/skilliton/denylist`); without it the name scan does not run and the script exits 2 with `INCOMPLETE`, not `PASS`. There is no CI configuration in the repo today, so the author and reviewer run these by hand. Release pinning by commit SHA is planned for Day 3 (`releases/SCHEMA.md` describes the record; the tool that writes it is not built).
+`scrub-check.sh` needs its denylist outside the repo (`$SKILLGATE_DENYLIST`, default `~/.config/skillgate/denylist`); without it the name scan does not run and the script exits 2 with `INCOMPLETE`, not `PASS`. There is no CI configuration in the repo today, so the author and reviewer run these by hand. Release pinning by commit SHA is planned for Day 3 (`releases/SCHEMA.md` describes the record; the tool that writes it is not built).
 
 **Removal:**
 

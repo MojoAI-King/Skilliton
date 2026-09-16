@@ -676,7 +676,7 @@ const IMPORT_HELP = `import: copy an existing skill folder into a plugin, after 
 
 Before anything is copied, every file in <skill-dir> is scanned twice:
   1. scripts/scrub-check.sh --path <skill-dir>: denylisted names, em or en dashes, home-directory paths.
-     The name scan needs a denylist (SKILLGATE_DENYLIST, default ~/.config/skilliton/denylist). Without one the
+     The name scan needs a denylist (SKILLGATE_DENYLIST, default ~/.config/skillgate/denylist). Without one the
      import is refused, because a scan that did not run is not a pass. A denylist holding only comments is
      allowed and means "no names to block".
   2. secret-shaped text (AWS access key ids; Anthropic, GitHub, Slack, and Stripe live keys; private key blocks)

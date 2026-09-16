@@ -106,3 +106,31 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 **Alternatives rejected:** Changing `hooks.json` to run `bash <script>` (hides the same mistake for the next script a company adds).
 **Risk:** A company fork adds a script and forgets the bit. The packaging test catches it in CI; its self-test proves each check can fail.
 **Reversibility:** EASY. Evidence: `node scripts/packs.test.mjs --self-test`; `bash scripts/hook-fixture.test.sh --hook <non-executable copy>` exits 1.
+
+## 2026-09-16 Onboarding CLI: doctor, harness, project-settings, new-skill, import
+**Decision:** `scripts/skillgate.mjs` is the one onboarding tool. `doctor` writes nothing and says in plain English what is working and what to do next; `harness` manages the instructions block in `CLAUDE.md` and `AGENTS.md` between markers; `project-settings` writes the team settings; `new-skill` and `import` add skills to a company pack and bump the plugin version.
+**Why:** A new hire or a non-technical builder needs one place that tells them what is wrong and what to type next, and a tech lead needs to package skills without learning the plugin format.
+**Alternatives rejected:** Separate scripts per task (more to learn); a hosted onboarding service (out of scope).
+**Risk:** The tool reads Claude Code's local plugin records, whose format is undocumented, when `claude plugin list --json` cannot be used safely; it labels that output as such.
+**Reversibility:** EASY. Evidence: `node scripts/skillgate.test.mjs` (142 checks, including runs proving the idempotency and outside-marker checks can fail).
+
+Details recorded from the lane's report, measured unless stated:
+- `doctor` does not run `claude plugin list` on a home where Claude Code never ran, because on 2.1.92 that command creates `~/.claude.json` and a backup; doctor must write nothing.
+- `doctor` exits 1 only for required items (Claude Code found, marketplace added, base plugins installed and enabled, harness block current, config parses, tools that shipped hooks actually call). An editor and terminal version mismatch, auto-update, and team settings are warnings, so the tool does not cry wolf.
+- `import` refuses when no denylist is configured, because names were not scanned. A denylist containing only comments is the explicit opt-out. Its secret patterns match prefixes, so a skill that merely mentions a key prefix is refused and must be reviewed by hand.
+- `project-settings` never removes existing entries, replaces a marketplace source whole (never mixes two source types), and lists every value it changes before writing.
+- `harness --undo` removes the block after a backup instead of restoring an old backup, because the rest of the file may have changed since.
+
+## 2026-09-16 Shared backup root no longer breaks setup undo; scrub output never prints a match
+**Decision:** `setup.mjs --undo` only considers timestamp-named backup folders. `scrub-check.sh` always prints `file:line`, never the matched text.
+**Why:** Both found by the CLI lane, measured. `skillgate harness` writes backups under `harness/` in the same root as setup, and "harness" sorts after every timestamp, so setup's undo picked it as the newest backup and refused. Separately, grep omits the file name when it sees a single file, so a scan could print the matched name or home path itself, which is the text the scan exists to keep private.
+**Alternatives rejected:** Moving setup's backups to a new folder (would orphan backups already taken).
+**Risk:** None significant.
+**Reversibility:** EASY. Evidence: `node scripts/setup.test.mjs` (18 checks; the regression checks fail against the previous setup.mjs).
+
+## 2026-09-16 Denylist default moves to ~/.config/skillgate/denylist
+**Decision:** The private name denylist defaults to `~/.config/skillgate/denylist` (still overridable with `SKILLGATE_DENYLIST`).
+**Why:** Forks carry the product name, not this repository's name; a path named after the product is the one a company would expect.
+**Alternatives rejected:** Keeping the repository-named path.
+**Risk:** Anyone who created the old path must move the file. Only this machine had one; it was moved.
+**Reversibility:** EASY.

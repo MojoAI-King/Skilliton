@@ -29,7 +29,9 @@ const parse = (txt) => { if (!txt.trim()) return {}; try { return JSON.parse(txt
 
 if (mode === "undo") {
   if (!existsSync(BACKUPS)) { console.log("nothing to undo: no backups directory"); process.exit(0); }
-  const dirs = readdirSync(BACKUPS).sort();
+  // Only folders this script created (ISO timestamps) are backups. Other tools share the root (for example
+  // skillgate harness writes harness/), and a name that sorts after the timestamps must not be taken as newest.
+  const dirs = readdirSync(BACKUPS).filter((d) => /^\d{4}-\d{2}-\d{2}T/.test(d)).sort();
   if (!dirs.length) { console.log("nothing to undo: no backups"); process.exit(0); }
   const latest = join(BACKUPS, dirs[dirs.length - 1], "settings.json");
   if (!existsSync(latest)) { console.log(`backup ${latest} missing; refusing to guess`); process.exit(1); }

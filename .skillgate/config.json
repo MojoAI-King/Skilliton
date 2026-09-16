@@ -1,0 +1,15 @@
+{
+  "handoff": { "file": "docs/HANDOFF.md", "maxBytes": 6000 },
+  "maintain": { "teamLessonsFile": null },
+  "dispatch": {
+    "laneRoot": "../Skilliton-lanes",
+    "hotspots": [".claude-plugin/marketplace.json", "docs/CONTRACTS.md", "templates/harness.md"],
+    "mainOnlyPaths": ["docs/", "DECISIONS.md", "PLAN.md", "README.md", "CLAUDE.md"],
+    "laneSetup": [],
+    "laneTestCommand": null,
+    "mainOnlyChecks": ["claude plugin eval"],
+    "maxItemsPerLane": 8,
+    "minItemsForLanes": 6
+  },
+  "guardrails": { "protectedBranches": ["main"], "blockForcePush": true, "blockNoVerify": true, "blockSecretFiles": true }
+}
