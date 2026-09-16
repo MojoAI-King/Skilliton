@@ -1,7 +1,7 @@
 {
   "name": "workflow",
   "description": "How work moves: dispatch turns a pile of notes into verified, parallel work lanes; maintain keeps a repo's living docs, decisions, and lessons current; handoff writes a short resume note to docs/HANDOFF.md, and a session-start hook prints its RESUME HERE section when the next session starts; review explains uncommitted changes in plain English, flags what could break, and gives a commit verdict without committing.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": { "name": "MojoAI" },
   "homepage": "https://github.com/MojoAI-King/Skilliton",
   "repository": "https://github.com/MojoAI-King/Skilliton",

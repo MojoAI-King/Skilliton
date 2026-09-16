@@ -42,14 +42,14 @@ If none exist, offer to create `docs/HANDOFF.md` (the resume marker) and `DECISI
 
 ### The resume marker (`docs/HANDOFF.md`)
 
-The top of `docs/HANDOFF.md` is a section headed exactly `## RESUME HERE`, which the session-start hook shows to the next session. Write it as:
+The top of `docs/HANDOFF.md` is a section headed exactly `## RESUME HERE`, which the session-start hook shows to the next session. `/workflow:handoff` writes the same section; both follow the layout in that skill. Start the section with `Written: <date and time>`, then:
 
 - **State:** one or two sentences on where things stand.
 - **Next:** the next actions in priority order, each with the file or command to start from.
 - **Blocked:** what is waiting on whom.
 - **Watch out:** anything a fresh session would trip on (a failing check with a known reason, a half-finished migration).
 
-Move the previous `RESUME HERE` block below, under `## Earlier`, with its date. Keep the five most recent there; move older ones to `docs/HANDOFF_ARCHIVE.md`. The live file must stay short enough to read whole.
+Move the previous `RESUME HERE` block below, under `## Earlier`, headed `### <its Written date>` (no `Written:` line: use `git log -1 --format=%cs -- docs/HANDOFF.md`, or `undated`). Keep the five most recent there; move older ones to `docs/HANDOFF_ARCHIVE.md`. The live file must stay short enough to read whole.
 
 ### Decisions (`DECISIONS.md`)
 

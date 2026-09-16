@@ -35,8 +35,8 @@ Environment overrides: `SKILLGATE_TEAM_LESSONS` (maintain), `SKILLGATE_GUARDRAIL
 ## Handoff file: `docs/HANDOFF.md`
 
 - Starts with `# Handoff`, then `Kind: Living.`, then a section headed exactly `## RESUME HERE`.
-- `RESUME HERE` holds four labelled lines or lists: **State**, **Next**, **Blocked**, **Watch out**.
-- Older blocks go under `## Earlier` (newest first, at most five), older still to `docs/HANDOFF_ARCHIVE.md`.
+- `RESUME HERE` starts with a `Written: <date and time>` line, then four labelled items: **State**, **Next**, **Blocked**, **Watch out**.
+- Older blocks go under `## Earlier` as `### <Written date>` (newest first, at most five), older still to `docs/HANDOFF_ARCHIVE.md` (`Kind: Reference.`).
 - Writers: `/workflow:handoff` (quick, end of a stretch of work) and `/workflow:maintain` (full reconciliation). Reader: `session-start-handoff.sh`, which prints the `RESUME HERE` section only, bounded by `handoff.maxBytes`, and prints a one-line notice when the file or section is missing.
 
 ## Harness block in `CLAUDE.md` and `AGENTS.md`
