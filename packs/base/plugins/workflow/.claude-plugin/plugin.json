@@ -1,0 +1,9 @@
+{
+  "name": "workflow",
+  "description": "How work moves: dispatch turns a pile of notes into verified, parallel work lanes; maintain keeps a repo's living docs, decisions, and lessons current so nothing is lost between sessions or people.",
+  "version": "0.1.0",
+  "author": { "name": "MojoAI" },
+  "homepage": "https://github.com/MojoAI-King/Skilliton",
+  "repository": "https://github.com/MojoAI-King/Skilliton",
+  "license": "MIT"
+}
