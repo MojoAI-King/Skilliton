@@ -46,7 +46,8 @@ Main reads that lane's report, rebases it, runs the checks, and merges only if t
 
 ## If something goes wrong
 
-- **A lane asks to edit a doc or a file outside its list:** "Note it in the commit message and keep going."
+- **A lane asks to edit a doc or a file outside its list:** "Note it in the commit message and keep going." A lane may always create its own task record and new decision or lesson entry files; it never edits the shared handoff, status, backlog or indexes.
+- **A lane says it is missing the base commit:** its folder was made from an older commit. Recreate the lane from the base named at the top of `LANES.md`.
 - **A lane's tests fail on things it did not touch:** check that it used the exact test command from its brief. Lanes that share a test database or a port can break each other, and a red caused by another lane means nothing.
 - **A merge goes red:** main tells you which lane broke what. Paste that into the lane: "Main's checks fail after your changes: <paste>. Fix on your branch and say LANE DONE again."
 - **A lane wants to run a check listed as main-only:** "No, main runs that at merge."

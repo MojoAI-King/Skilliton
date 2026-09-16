@@ -33,7 +33,8 @@ Plain language, grouped by purpose ("the sign-in page now checks the email forma
 ### What could break
 One bullet per risk, naming the file:
 - **Tests deleted or weakened:** a test file removed, checks removed, tests switched off (`.skip`, `xit`, `@pytest.mark.skip`, `t.Skip`), or expected values edited to match new output.
-- **Config or environment files:** `.env*`, `*.config.*`, `settings*.json`, Docker files, CI workflows, deploy files.
+- **Config or environment files:** `.env*`, `*.config.*`, `settings*.json`, Docker files, deploy files.
+- **Validation policy changes:** anything that decides what counts as passing: `.skillgate/delivery.json`, CI workflows (`.github/workflows/`), `CODEOWNERS`, branch or merge settings, `.skillgate/security/catalog.json` and `applicability.json`, test configuration that skips or excludes tests. Say plainly that this needs review by whoever approves policy for the repository, separately from the rest of the change: a change cannot approve its own weakening of checks.
 - **Database migrations:** `migrations/`, `*.sql`, schema files; say whether the change can be undone.
 - **Dependency changes:** packages added, removed, or upgraded; a lockfile changed without its manifest, or the reverse.
 - **Auth or permission code:** sign-in, sessions, tokens, roles, permissions, access checks, CORS.
@@ -47,12 +48,14 @@ If none apply, write "Nothing flagged."
 ### What was checked
 Only what ran **in this session**, with its real result, for example "`npm test`: 42 passed, 0 failed, after the last edit". If nothing ran, write **not tested**. Never claim a pass you did not see; a run from before the last edit does not cover the current changes.
 
+Then one line on project security evidence: run `skillgate security status` if it is available and report its counts in plain words (for example "security evidence: 2 of 14 applicable controls have a current observation; 3 stale; 4 not yet decided"). If `skillgate` is not found or the project has no security register, write "security evidence: not set up in this project". Counts describe recorded evidence, never whether the code is secure or compliant.
+
 Find the project's test command: `package.json` scripts (`test`, `lint`, `typecheck`), a `Makefile` (`test`, `check`), `pyproject.toml` or `pytest.ini` (`pytest`), `go.mod` (`go test ./...`), `Cargo.toml` (`cargo test`), or what `README.md`, `CLAUDE.md`, or `AGENTS.md` say. Name it and offer to run it. If there is none, say so.
 
 ### Verdict
 The section's first line is exactly one of `**STOP**`, `**NEEDS ATTENTION**`, or `**READY TO COMMIT**`, then a colon and the reason in one sentence. Nothing else in the review is written in that bold form.
 - **STOP** (then the list): committing now could do harm that is hard to undo. A secret-looking file or value; conflict markers; tests seen failing in this session; tests deleted, switched off, or weakened without a reason the user agreed to.
-- **NEEDS ATTENTION** (then the list): anything else flagged above, or **any change that can affect how the code behaves and was not tested after the last edit**.
+- **NEEDS ATTENTION** (then the list): anything else flagged above, including a validation policy change, or **any change that can affect how the code behaves and was not tested after the last edit**.
 - **READY TO COMMIT**: nothing flagged, and one of these is true, stated as the reason: the tests ran in this session after the last change and passed; or the change cannot affect behavior (only comments, documentation, or whitespace), which you checked in the diff rather than assumed.
 
 ## 4. Offer the next step

@@ -20,7 +20,19 @@ const SCRUB = join(here, "scrub-check.sh");
 const START = "<!-- skillgate:harness:start v1 -->";
 const END = "<!-- skillgate:harness:end -->";
 const TEMPLATE = readFileSync(join(repo, "packs", "base", "plugins", "workflow", "templates", "harness.md"), "utf8");
-const BLOCK = `${START}\n${TEMPLATE.endsWith("\n") ? TEMPLATE : TEMPLATE + "\n"}${END}\n`;
+// The template names project record files as {{key}}. These are the contract defaults (docs/CONTRACTS.md sections 2
+// and 4) for a project with no .skillgate/config.json and no existing records, written out here rather than imported,
+// so a change to the defaults in config.mjs has to be made on purpose in both places.
+const DEFAULT_VARS = {
+  status: "docs/STATUS.md", backlog: "docs/BACKLOG.md", backlogArchive: "docs/BACKLOG_ARCHIVE.md", roadmap: "docs/ROADMAP.md",
+  decisions: "DECISIONS.md", lessons: "docs/LESSONS.md", handoff: "docs/HANDOFF.md", handoffArchive: "docs/HANDOFF_ARCHIVE.md",
+  maintain: "docs/MAINTAIN.md", tasksDir: "docs/tasks", decisionsDir: "docs/decisions", lessonsDir: "docs/lessons", integrationBranches: "main, master",
+};
+function render(template, vars) {
+  return template.replace(/\{\{([A-Za-z]+)\}\}/g, (_, key) => { if (!Object.hasOwn(vars, key)) throw new Error(`test: template names unknown value {{${key}}}`); return vars[key]; });
+}
+const RENDERED = render(TEMPLATE, DEFAULT_VARS);
+const BLOCK = `${START}\n${RENDERED.endsWith("\n") ? RENDERED : RENDERED + "\n"}${END}\n`;
 const SETTINGS_TEMPLATE = JSON.parse(readFileSync(join(repo, "templates", "project-settings.json"), "utf8"));
 const CATALOG = JSON.parse(readFileSync(join(repo, ".claude-plugin", "marketplace.json"), "utf8"));
 
@@ -175,6 +187,42 @@ section("harness: undo removes exactly the block");
   writeFileSync(join(p3, "CLAUDE.md"), `${BLOCK}\nMy own notes\n`);
   const r4 = cli(["harness", "--undo", "--file", "CLAUDE.md", "--dir", p3], { SKILLGATE_BACKUPS: backups });
   check("undo of a block at the top also removes the blank line after it", r4.code === 0 && readFileSync(join(p3, "CLAUDE.md"), "utf8") === "My own notes\n", r4.all);
+}
+
+section("harness: the block names this project's own record files");
+{
+  const backups = join(tmp, "b-vars");
+  const p = folder("h-vars-config");
+  mkdirSync(join(p, ".skillgate"));
+  writeFileSync(join(p, ".skillgate", "config.json"), JSON.stringify({ prepare: { artifacts: { handoff: "notes/HANDOFF.md" } }, handoff: { file: "notes/HANDOFF.md" } }));
+  const r = cli(["harness", "--apply", "--file", "CLAUDE.md", "--dir", p], { SKILLGATE_BACKUPS: backups });
+  const got = existsSync(join(p, "CLAUDE.md")) ? readFileSync(join(p, "CLAUDE.md"), "utf8") : "";
+  check("a configured handoff path is rendered into the block", r.code === 0 && got.includes("`notes/HANDOFF.md`") && !got.includes("docs/HANDOFF.md"), r.all);
+  check("positive control: the default rendering names docs/HANDOFF.md", BLOCK.includes("`docs/HANDOFF.md`"));
+
+  const d = cli(["doctor", "--dir", p], { SKILLGATE_BACKUPS: backups });
+  check("doctor calls the configured rendering current", /^OK +CLAUDE\.md: harness block present and matches the current template/m.test(d.out), d.out);
+  writeFileSync(join(p, "CLAUDE.md"), BLOCK);
+  const d2 = cli(["doctor", "--dir", p], { SKILLGATE_BACKUPS: backups });
+  check("doctor flags a default rendering in a project whose handoff lives elsewhere", /^WARN +CLAUDE\.md: harness block differs from the current template/m.test(d2.out), d2.out);
+
+  const q = folder("h-vars-adopt");
+  writeFileSync(join(q, "HANDOFF.md"), "# Handoff\n");
+  const r2 = cli(["harness", "--apply", "--file", "AGENTS.md", "--dir", q], { SKILLGATE_BACKUPS: backups });
+  const got2 = existsSync(join(q, "AGENTS.md")) ? readFileSync(join(q, "AGENTS.md"), "utf8") : "";
+  check("an existing root HANDOFF.md is adopted by the rendering", r2.code === 0 && got2.includes("handoff `HANDOFF.md`"), r2.all);
+
+  const bad = folder("h-vars-badconfig");
+  mkdirSync(join(bad, ".skillgate"));
+  writeFileSync(join(bad, ".skillgate", "config.json"), JSON.stringify({ prepare: { artifacts: { handoff: "../outside.md" } } }));
+  const r3 = cli(["harness", "--apply", "--dir", bad], { SKILLGATE_BACKUPS: backups });
+  check("an unusable project configuration refuses with exit 2 and writes nothing", r3.code === 2 && /configuration cannot be used/.test(r3.all) && !existsSync(join(bad, "CLAUDE.md")) && !existsSync(join(bad, "AGENTS.md")), r3.all);
+
+  const custom = join(tmp, "custom-template.md");
+  writeFileSync(custom, "## Rules\n\nRead {{nope}} first.\n");
+  const e = folder("h-vars-unknown");
+  const r4 = cli(["harness", "--apply", "--dir", e, "--template", custom], { SKILLGATE_BACKUPS: backups });
+  check("a template naming an unknown value refuses with exit 2 and writes nothing", r4.code === 2 && r4.all.includes("{{nope}}") && !existsSync(join(e, "CLAUDE.md")), r4.all);
 }
 
 section("harness: malformed markers are refused with exit 2, and nothing is written");
