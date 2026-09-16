@@ -28,7 +28,7 @@ Read the `dispatch` section of `.skillgate/config.json` at the repo root. If the
 ```
 
 - `hotspots`: files or folders that have caused merge pain. Any two items that touch one share a lane.
-- `mainOnlyPaths`: written by the main window only, never by a lane.
+- `mainOnlyPaths`: written by the main window only, never by a lane, with one exception: a lane creates its own task record and proposed decision and lesson entries as new files in the folders named by `prepare.directories` (defaults `docs/tasks`, `docs/decisions`, `docs/lessons`). Those are new files only one lane writes, so they never conflict; the shared records and indexes stay main-only.
 - `laneSetup`: commands run once per lane after the worktree exists, with `{lane}` substituted (for example a per-lane test database, so two lanes' tests never share state).
 - `laneTestCommand`: the exact test command a lane runs, with `{lane}` substituted. If null, lanes run the repo's normal test command and the brief says that lanes may interfere with each other.
 - `mainOnlyChecks`: checks that cannot run in parallel (a fixed port, a shared device). Lanes never run them; main runs them at merge.
@@ -70,6 +70,8 @@ Say these outcomes out loud rather than engineering around them: everything coll
 
 ## Step 5: write LANES.md
 
+**Name the base commit.** Record `git rev-parse main` at the top of `LANES.md` as the base. A lane created from anything older (an agent worktree made from the last pushed commit is the usual cause) silently misses work, so every brief checks it.
+
 Before the setup lines, run `git worktree list` and check each lane folder under `laneRoot`:
 
 - Folder missing: emit `git worktree add <laneRoot>/<name> -b lane/<name>-<mmdd>`.
@@ -110,7 +112,8 @@ Then open <laneRoot>/<name> in a new window, start a fresh session, and paste th
 
 ### Brief
 Run `git branch --show-current`. It must print lane/<name>-<mmdd>; otherwise stop and say so.
-You are in an isolated worktree. Do not edit anything under: <mainOnlyPaths>. Record decisions in commit messages instead.
+Run `git merge-base --is-ancestor <base commit> HEAD`. It must exit 0; otherwise stop and say the lane is missing the base commit.
+You are in an isolated worktree. Do not edit anything under: <mainOnlyPaths>, except these new files: your task record (`skillgate task start "<lane name>" --branch lane/<name>-<mmdd> --apply`, then `skillgate checkpoint ... --apply` as items finish) and proposed decision or lesson entries (`skillgate record decision "<title>" --apply`). Never edit the shared handoff, status, backlog or indexes.
 Do not touch files outside this lane's list without flagging it in the commit message.
 Test command, exactly: <laneTestCommand or the repo default, with the interference warning>.
 Never run: <mainOnlyChecks>. Main runs them at merge.
@@ -140,7 +143,7 @@ When the user says a lane is done:
 2. Run the full gate on the rebased lane tree. Read the exit status on its own line; never judge a gate through a pipe into `tail` or `grep`, and in zsh do not rely on `PIPESTATUS`. Only when it is green: in main, `git merge --ff-only lane/<name>-<mmdd>` (fall back to a plain merge and say so).
 3. Run `mainOnlyChecks` in main. A red that appears only here is undone with `git reset --keep <main-before-merge>` before reporting, since nothing was pushed.
 4. The next lane rebases on the new main. Repeat.
-5. After the last lane: confirm every lane branch is contained in main and no lane folder holds uncommitted work, then run `maintain` once to write the decisions and status from the commit messages.
+5. After the last lane: confirm every lane branch is contained in main and no lane folder holds uncommitted work, then run `skillgate index --apply` (the decision, lesson and task indexes regenerate from the entry files the lanes added) and `maintain` once to write the decisions and status from the task records and commit messages.
 6. Close the batch: detach each lane folder to main (`git -C <folder> checkout --detach main`), delete the lane branches, keep the folders.
 
 A lane's green is not the merge's green: the lane proves it is internally sound, not that it is sound on top of the other lanes.

@@ -13,15 +13,19 @@ Bring every living document in this repository up to date, so that a fresh sessi
 
 If `docs/MAINTAIN.md` exists, read it and run its steps as part of this ritual. It holds what is specific to this repo (index generators, archive scripts, generated tables). This skill stays generic. If a repo keeps re-deriving the same setup from prose, that is the signal to create one.
 
-## 1. Find the living documents
+## 1. Find the living documents, and check the branch
 
-In this order:
+**Prepared projects first.** Run `skillgate status` if it is available. In a project Skillgate prepared, it names every record (status, backlog and its archive, roadmap, decisions, lessons, handoff and its archive, maintenance steps), the entry folders for tasks, decisions and lessons, the integration branches, open tasks, pending migrations, and the security evidence counts. Those are the documents. A pending migration is reported to the user; do not run it as part of maintenance.
+
+**Integration branches only.** The shared records (status, backlog, handoff, indexes, the decisions and lessons monoliths) are reconciled on an integration branch (`prepare.integrationBranches`, default `main` and `master`). On any other branch, update only that branch's task record and create new decision or lesson entry files; say that the shared records wait for integration, then skip to section 4a.
+
+Otherwise, in this order:
 
 1. `CLAUDE.md`, `AGENTS.md`, and `README.md` often name them ("read docs/STATUS.md first"). Their pointers override the list below.
 2. Common names at the root and under `docs/`: `HANDOFF.md`, `STATUS.md`, `BACKLOG.md`, `TODO.md`, `CHANGELOG.md`, `DECISIONS.md`, `docs/decisions/`, `docs/LESSONS.md`.
 3. Fallback: files under `docs/` containing `Last updated`, `Kind: Living`, `RESUME HERE`, or checkbox lists.
 
-If none exist, offer to create `docs/HANDOFF.md` (the resume marker) and `DECISIONS.md`, and nothing more. Do not invent a documentation system.
+If none exist, offer `skillgate prepare` (it previews first, adopts what exists, and adds only what is missing, marked "not yet assessed"). Without Skillgate, offer to create `docs/HANDOFF.md` and `DECISIONS.md`, and nothing more. Do not invent a documentation system.
 
 ## 2. Establish what actually happened, from evidence
 
@@ -39,6 +43,8 @@ If none exist, offer to create `docs/HANDOFF.md` (the resume marker) and `DECISI
 - **Currency markers:** update the date and one-line state summary the document already uses. Do not add a header it lacks.
 - **Finished items** are marked done with evidence (commit hash, test count). In a backlog, move a finished item to an archive file with its closure date instead of deleting it; a live queue that carries finished work is how people pick up work that already shipped.
 - **Cross-file consistency, checked not assumed:** for each item you touched, search the other living documents for it and confirm they agree on its state (done, next, blocked) and its owner.
+- **Task records:** read the open ones (`skillgate task list`). A task whose work is finished gets its real state, not a hopeful one: `done-local` when it is only on a branch, `merged`, `released` or `verified` only with the evidence for that state (`skillgate task close <id> --state <state> --apply`). Its outcome moves into the status record; the backlog item moves to the archive with the closure date and evidence.
+- **Indexes:** after adding or merging entry files, run `skillgate index --apply`. It regenerates the decision, lesson and task indexes between their markers and never touches text outside them.
 
 ### The resume marker (`docs/HANDOFF.md`)
 
@@ -64,7 +70,11 @@ Every architectural or product choice made this session gets an entry, written s
 **Reversibility:** EASY / MODERATE / EXPENSIVE.
 ```
 
-Keep its open-items table current. When two sessions or people share a checkout, prefer one file per decision under `docs/decisions/` with `DECISIONS.md` as the index, so two writers never take the same number.
+Keep its open-items table current. When the project has a decisions entry folder (a prepared project does), each new decision is its own file: `skillgate record decision "<title>" --apply`, then fill in its sections, then `skillgate index --apply`. Two writers never take the same number that way.
+
+### Security evidence
+
+Run `skillgate security status`. Report its counts in plain words: current, missing, stale, gaps, needs a person's decision. Stale or missing evidence is a finding to report, not a failure to hide, and never something to fix by re-dating a record. On an integration branch, `skillgate security findings --apply` writes one backlog row per open finding without duplicating rows. Evidence counts are never described as security or compliance.
 
 ## 4. Harvest lessons: two files, two jobs
 
@@ -72,7 +82,7 @@ A lesson has two halves that cannot live in one file. Write each lesson twice.
 
 ### 4a. The repo's lessons file (specific and technical). Do this first.
 
-`docs/LESSONS.md`, or wherever the entry doc points. Create it if missing, seeded only from lessons this session earned. Each entry has:
+In a prepared project, each lesson is its own entry file: `skillgate record lesson "<title>" --apply`, then fill in its sections (the same five parts as below), then `skillgate index --apply`. Otherwise `docs/LESSONS.md`, or wherever the entry doc points. Create it if missing, seeded only from lessons this session earned. Each entry has:
 
 1. **What broke:** the symptom as the user saw it.
 2. **The mechanism:** why it broke, at the level of the actual machinery. If you cannot state it, the diagnosis is not finished.
@@ -91,6 +101,7 @@ If the team keeps a shared lessons file, its path is `maintain.teamLessonsFile` 
 - **Strictly portable:** no client names, project names, repo paths, domains, or dollar figures. If a lesson cannot be told without them, it belongs only in 4a.
 - **Sharpen, do not duplicate:** if the lesson exists, improve that entry.
 - **Never copy the team lessons file into a repo.** It is written to be stripped of the specifics a repo needs, and it may hold material from other projects.
+- **A lesson that should change how the whole company works** (a skill, a check, the instruction template) is a proposal, not a local edit: `skillgate propose <lesson entry> --repo <company skills repository>` copies it, scrubbed, for review. It becomes company policy only through a regression scenario, review and an approved release.
 - If the session earned nothing portable, say "no new lessons". Do not manufacture one.
 
 ## 5. Commit
