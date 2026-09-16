@@ -5,6 +5,12 @@
 // recheck, Git-private backups, rollback) together with a receipt in .skillgate/migrations/<id>.json. A rollback
 // restores the backups only when every file still holds exactly what the migration wrote, then removes the receipt.
 //
+// 0100-instructions-<template sha256, 12 hex> refreshes the managed instruction blocks in CLAUDE.md and AGENTS.md when
+// the harness template changed after a layout-2 project was prepared. It is keyed by the template's hash, so each
+// template version is one migration with one receipt; the receipt records the hash of every block it wrote, so a later
+// refresh can tell a block a person edited inside the markers (refused, with the reconciling step) from one Skillgate
+// wrote. Text outside the markers is never changed.
+//
 // 0002-integrated-layout moves a project prepared by the standalone prototype (layout 1) to layout 2. It recognises
 // prototype content only by exact bytes (prototype-v1.mjs) and refuses anything else with the step that reconciles it,
 // because a copied runtime or a managed block that differs may hold a person's changes.
@@ -14,8 +20,8 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import {
-  HARNESS_FILES, HARNESS_TEMPLATE, Refused, clone, cmpVersion, isPlainObject, lineSpans, planHarnessFile,
-  readHarnessTemplate, refuse, removeBlockAt, tilde,
+  HARNESS_FILES, HARNESS_TEMPLATE, Refused, clone, cmpVersion, findBlock, isPlainObject, lineSpans, planHarnessFile,
+  readHarnessTemplate, refuse, removeBlockAt, selfCommand, tilde,
 } from "./core.mjs";
 import { CONFIG_REL, LAYOUT_VERSION, templateVars, validRelPath } from "./config.mjs";
 import { OperationFailed, applyChanges, inspectFolder, inspectPath, newBackupId, readPath, sha256 } from "./prepare.mjs";
@@ -26,6 +32,7 @@ import {
 } from "./prototype-v1.mjs";
 
 export const RECEIPT_SCHEMA = "skillgate.migration-receipt/1";
+export const INSTRUCTIONS_PREFIX = "0100-instructions-";
 export const MIGRATION_ID_RE = /^\d{4}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const BACKUP_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 const SHA_RE = /^[0-9a-f]{64}$/;
@@ -135,6 +142,78 @@ export const MIGRATIONS = [
   },
 ];
 
+// ---------- 0100-instructions-<sha12> ----------
+
+// The text between a file's harness markers, as its sha256, or null when the file or the block is absent.
+function blockSha(root, name) {
+  const bytes = readPath(root, name);
+  if (bytes === null) return null;
+  const text = bytes.toString("latin1");
+  const found = findBlock(text, name);
+  return found ? sha256(Buffer.from(text.slice(found.innerStart, found.innerEnd).replace(/\r\n/g, "\n"), "latin1")) : null;
+}
+
+function instructionsId(template) {
+  return INSTRUCTIONS_PREFIX + sha256(Buffer.from(template, "latin1")).slice(0, 12);
+}
+
+// The newest instructions receipt that recorded block hashes, or null.
+function latestInstructionsReceipt(root) {
+  let latest = null;
+  for (const id of listReceiptIds(root).filter((i) => i.startsWith(INSTRUCTIONS_PREFIX))) {
+    let receipt;
+    try { receipt = readReceipt(root, id).receipt; } catch (e) { if (e instanceof Refused) continue; throw e; }
+    if (!isPlainObject(receipt.blocks)) continue;
+    if (!latest || String(receipt.appliedAt) > String(latest.appliedAt)) latest = receipt;
+  }
+  return latest;
+}
+
+// { id, templateSha12, outdated: [file names whose block differs from the current rendering], applied } for a layout-2
+// project, else null. Malformed markers are refused (core findBlock), which status reports as a failed check.
+export function instructionsState(project) {
+  if (project.layoutVersion !== LAYOUT_VERSION) return null;
+  const template = readHarnessTemplate(HARNESS_TEMPLATE);
+  const vars = templateVars(project);
+  // Only an existing block that differs is a template update; a missing file or block is prepare's to add.
+  const outdated = HARNESS_FILES.filter((name) => { const plan = planHarnessFile(project.root, name, template, false, vars); return plan.changed && /^replace the harness block/.test(plan.summary); });
+  const id = instructionsId(template);
+  return { id, templateSha12: id.slice(INSTRUCTIONS_PREFIX.length), outdated, applied: listReceiptIds(project.root).includes(id) };
+}
+
+async function planInstructions(project, { root }) {
+  const template = readHarnessTemplate(HARNESS_TEMPLATE);
+  const vars = templateVars(project);
+  const previous = latestInstructionsReceipt(root);
+  const files = [], notes = [], blocks = {}, edited = [];
+  for (const name of HARNESS_FILES) {
+    const plan = planHarnessFile(root, name, template, false, vars);
+    const now = blockSha(root, name);
+    if (previous && now !== null && typeof previous.blocks[name] === "string" && previous.blocks[name] !== now && plan.changed) edited.push(name);
+    if (!plan.changed || !/^replace the harness block/.test(plan.summary)) { blocks[name] = now; continue; }
+    files.push({ path: name, action: plan.exists ? "update" : "create", before: plan.exists ? Buffer.from(plan.text, "latin1") : null, after: Buffer.from(plan.next, "latin1"), what: `${plan.summary}; text outside the markers is kept`, diff: true });
+    const afterText = plan.next;
+    const found = findBlock(afterText, name);
+    blocks[name] = found ? sha256(Buffer.from(afterText.slice(found.innerStart, found.innerEnd).replace(/\r\n/g, "\n"), "latin1")) : null;
+  }
+  if (edited.length) {
+    refuse(`the managed instruction block in ${edited.join(" and ")} was edited by hand after Skillgate last wrote it (receipt ${previous.id}), so refreshing it would discard that edit. Nothing was changed. To reconcile: move the text you want to keep outside the skillgate:harness markers, then run migrate again; or overwrite the block on purpose with: ${selfCommand()} harness --apply (it keeps a backup)`);
+  }
+  if (!previous) notes.push("No earlier instructions receipt records what Skillgate wrote into these blocks, so a hand edit inside the markers cannot be told apart; the diff above shows everything that changes, and the backup keeps the old text.");
+  return { files, notes, receiptExtra: { blocks, templateSha256: sha256(Buffer.from(template, "latin1")) } };
+}
+
+// A migration by ID: a layout migration from MIGRATIONS, or the instructions refresh for a template hash.
+export function migrationById(id, project) {
+  const layout = MIGRATIONS.find((m) => m.id === id);
+  if (layout) return layout;
+  if (typeof id === "string" && id.startsWith(INSTRUCTIONS_PREFIX) && MIGRATION_ID_RE.test(id)) {
+    const level = project.layoutVersion ?? LAYOUT_VERSION;
+    return { id, kind: "instructions", from: level, to: level, summary: `refresh the managed instruction blocks in CLAUDE.md and AGENTS.md to harness template ${id.slice(INSTRUCTIONS_PREFIX.length)}; text outside the markers is kept`, plan: planInstructions, paths: () => [...HARNESS_FILES] };
+  }
+  return null;
+}
+
 // ---------- state ----------
 
 function listReceiptIds(root) {
@@ -155,7 +234,11 @@ export function migrationState(project) {
       if (m.from === layout) { pending.push({ id: m.id, from: m.from, to: m.to, summary: m.summary }); layout = m.to; }
     }
   }
-  return { layoutVersion: project.layoutVersion, target: LAYOUT_VERSION, pending, applied: listReceiptIds(project.root) };
+  const instructions = pending.length ? null : instructionsState(project);
+  if (instructions && instructions.outdated.length && !instructions.applied) {
+    pending.push({ id: instructions.id, from: project.layoutVersion, to: project.layoutVersion, summary: migrationById(instructions.id, project).summary });
+  }
+  return { layoutVersion: project.layoutVersion, target: LAYOUT_VERSION, pending, applied: listReceiptIds(project.root), instructions };
 }
 
 // ---------- apply ----------
@@ -167,8 +250,8 @@ export async function planMigration(migration, project, { root, runtimeVersion }
   if (project.layoutVersion !== migration.from) refuse(`${migration.id} migrates layout ${migration.from}, and this project is at layout ${project.layoutVersion}. Nothing was changed`);
   const receiptRel = `${MIGRATIONS_DIR}/${migration.id}.json`;
   if (inspectPath(root, receiptRel).exists) refuse(`${receiptRel} already exists, so ${migration.id} was applied before, yet prepare.version is ${project.layoutVersion}. Reconcile .skillgate/config.json and the receipt by hand (git log shows when each changed). Nothing was changed`);
-  const { files, notes } = await migration.plan(project, { root, runtimeVersion });
-  return { migration, files, notes, receiptRel };
+  const { files, notes, receiptExtra } = await migration.plan(project, { root, runtimeVersion });
+  return { migration, files, notes, receiptRel, receiptExtra: receiptExtra ?? null };
 }
 
 // Write one planned migration and its receipt as one transaction. Returns { receipt, receiptRel, result }.
@@ -183,6 +266,7 @@ export function applyMigration(plan, { root, gitDir, runtimeVersion }) {
     runtime: runtimeVersion,
     files: plan.files.map((f) => ({ path: f.path, action: f.action, beforeSha256: f.before ? sha256(f.before) : null, afterSha256: f.after ? sha256(f.after) : null })),
     backup: backupId,
+    ...(plan.receiptExtra ?? {}),
   };
   const changes = [
     ...plan.files.map((f) => ({ path: f.path, before: f.before, after: f.after })),
@@ -233,7 +317,7 @@ export function readReceipt(root, id) {
 // listed), or when a backup is missing or does not match the receipt.
 export function planRollback(project, { root, gitDir }, id) {
   const { rel, bytes, receipt } = readReceipt(root, id);
-  const migration = MIGRATIONS.find((m) => m.id === id);
+  const migration = migrationById(id, project);
   if (!migration) refuse(`${id} is not a migration this runtime knows, so it cannot check what the receipt lists. Nothing was changed`);
   if (receipt.from !== migration.from || receipt.to !== migration.to) refuse(`the receipt ${rel} says layout ${receipt.from} to ${receipt.to}, but ${id} migrates layout ${migration.from} to ${migration.to}. Nothing was changed`);
   const allowed = new Set(migration.paths(project).map((p) => p.toLowerCase()));

@@ -190,15 +190,19 @@ export function evaluateStop({ stopHookActive, checkpoints, state, events, sessi
   if (!checkpoints.stopReminder) return { block: false, why: "checkpoints.stopReminder is off" };
   if (!state.fingerprint) return { block: false, why: "the working tree fingerprint could not be read" };
   const lastCheckpoint = findLast(events, (e) => e.event === "checkpoint");
-  const sessionStart = findLast(events, (e) => e.event === "session-start" && (e.session ?? null) === session);
-  const baseline = lastCheckpoint ?? sessionStart;
+  // This session's first start (a resume or compaction records another start with the same ID, which must not reset
+  // the baseline). Measure from whichever is later, this session's start or the last checkpoint, so changes made
+  // before this session began (a commit in a terminal, another session's work) never trigger a reminder here.
+  const sessionStart = events.find((e) => e.event === "session-start" && (e.session ?? null) === session) ?? null;
+  const baseline = lastCheckpoint && sessionStart ? (Date.parse(sessionStart.at) > Date.parse(lastCheckpoint.at) ? sessionStart : lastCheckpoint) : (lastCheckpoint ?? sessionStart);
+  const fromCheckpoint = baseline !== null && baseline === lastCheckpoint;
   if (!baseline) return { block: false, why: "no checkpoint and no recorded start for this session, so there is nothing to measure from" };
   if (!baseline.fingerprint) return { block: false, why: "the baseline event has no fingerprint" };
-  if (baseline.fingerprint === state.fingerprint) return { block: false, why: lastCheckpoint ? "nothing changed since the last checkpoint" : "nothing changed since this session started" };
+  if (baseline.fingerprint === state.fingerprint) return { block: false, why: fromCheckpoint ? "nothing changed since the last checkpoint" : "nothing changed since this session started" };
   const elapsedMs = now.getTime() - Date.parse(baseline.at);
-  if (elapsedMs < checkpoints.minMinutes * 60000) return { block: false, why: `less than ${checkpoints.minMinutes} minutes since the ${lastCheckpoint ? "last checkpoint" : "session started"}` };
+  if (elapsedMs < checkpoints.minMinutes * 60000) return { block: false, why: `less than ${checkpoints.minMinutes} minutes since the ${fromCheckpoint ? "last checkpoint" : "session started"}` };
   if (events.some((e) => e.event === "stop-reminded" && e.fingerprint === state.fingerprint)) return { block: false, why: "a reminder was already given for this working tree state" };
-  return { block: true, why: "reminder due", baseline: lastCheckpoint ? "checkpoint" : "session-start", baselineAt: baseline.at, elapsedMinutes: Math.floor(elapsedMs / 60000) };
+  return { block: true, why: "reminder due", baseline: fromCheckpoint ? "checkpoint" : "session-start", baselineAt: baseline.at, elapsedMinutes: Math.floor(elapsedMs / 60000) };
 }
 
 // The Stop hook's reason: what changed, and the exact command to run next.

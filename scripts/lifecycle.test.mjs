@@ -797,6 +797,27 @@ test("stop allows after a checkpoint, and measures minMinutes from it", async ()
   assert.match(JSON.parse(due.out).reason, /changed since the last checkpoint \(25 minutes ago\)/);
 }));
 
+test("stop measures from this session's start when it is later than the last checkpoint, and a compaction does not reset it", async () => withTemp("stop-baseline", async ({ dir, env }) => {
+  // A checkpoint from an earlier session, then a commit made between sessions, then a new session that changes nothing.
+  const p = stopFixture(dir, env, { change: false });
+  startTask(p, env, "Earlier work");
+  assert.equal(cli(p, ["checkpoint", "--state", "recorded", "--next", "continue", "--apply"], env).code, 0);
+  backdate(p, env, (e) => e.event === "checkpoint", 60);
+  writeFileSync(join(p, "between-sessions.txt"), "committed in a terminal\n");
+  commit(p, env, "a commit between sessions");
+  assert.equal(hook(p, "session-start", { session_id: "s2", source: "startup" }, env).code, 0);
+  backdate(p, env, (e) => e.event === "session-start" && e.session === "s2", 30);
+  const quiet = hook(p, "stop", { session_id: "s2" }, env);
+  assert.equal(quiet.out, "", "nothing changed since this session started, so no reminder for the earlier commit");
+
+  // A change in this session, then a compaction (another start with the same session ID) before the stop.
+  writeFileSync(join(p, "this-session.txt"), "new work\n");
+  assert.equal(hook(p, "session-start", { session_id: "s2", source: "compact" }, env).code, 0);
+  const due = hook(p, "stop", { session_id: "s2" }, env);
+  assert.equal(JSON.parse(due.out).decision, "block", "the compaction's start did not reset the baseline, so the change still gets its reminder");
+  assert.match(JSON.parse(due.out).reason, /changed since this session started \(30 minutes ago\)/);
+}));
+
 test("stop allows when checkpoints.stopReminder is false", async () => withTemp("stop-off", async ({ dir, env }) => {
   const p = stopFixture(dir, env, { config: { checkpoints: { stopReminder: false, minMinutes: 20 } } });
   const r = hook(p, "stop", { session_id: "s1" }, env);

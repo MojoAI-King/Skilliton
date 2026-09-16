@@ -25,7 +25,7 @@ jobs:
 
       - name: Tools the hooks need
         run: |
-          for t in jq git bash python3; do command -v "$t" >/dev/null || { echo "missing: $t"; exit 1; }; done
+          for t in jq git bash python3 ssh-keygen tar; do command -v "$t" >/dev/null || { echo "missing: $t"; exit 1; }; done
           echo "jq $(jq --version), node $(node --version), git $(git --version)"
 
       - name: Packaging (marketplace, manifests, skill frontmatter, executable hooks)
@@ -64,6 +64,27 @@ jobs:
 
       - name: Onboarding CLI
         run: node scripts/skillgate.test.mjs
+
+      - name: Prepare, migrate, remove, records and indexes
+        run: node --test scripts/prepare.test.mjs scripts/migrate.test.mjs scripts/records.test.mjs
+
+      - name: Tasks, checkpoints, status and lifecycle hooks
+        run: node scripts/lifecycle.test.mjs
+
+      - name: Project security evidence and collectors
+        run: node --test scripts/security-evidence.test.mjs scripts/collectors.test.mjs
+
+      - name: Releases, signed approval, verify, trust and proposals
+        run: node scripts/release.test.mjs
+
+      - name: Trusted delivery gate
+        run: node scripts/delivery.test.mjs
+
+      - name: End-to-end demo (disposable project, no model, no network)
+        run: node scripts/autopilot-demo.mjs
+
+      - name: Project rehearsal (M1 and M2, offline)
+        run: node scripts/rehearsals/projects.mjs --no-evidence
 
       - name: Public-safety scrub (dashes and home paths; names need the private denylist)
         run: |

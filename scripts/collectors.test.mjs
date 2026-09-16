@@ -222,6 +222,22 @@ test('secrets collector: a runtime-built fake key records gap, and the key is ne
   assert.match(status(dir).out, row('SG-SECRETS-IN-SOURCE', 'undecided', 'gap', 'current'));
 });
 
+test('secrets collector: only generic shapes (a long encoded run such as a lockfile hash) record needs-human, not a gap', (t) => {
+  const dir = project(t, { git: true });
+  const digestLike = 'a1b2c3d4'.repeat(8);
+  assert.match(digestLike, /[A-Za-z0-9+/_=-]{48,}/, 'positive control: the generic long-encoded-run rule matches it');
+  writeFileSync(join(dir, 'lock.json'), `{ "integrity": "${digestLike}" }\n`);
+  gitIn(dir, 'add', '.');
+  const r = collect(dir, 'secrets', ['--apply']);
+  assert.equal(r.code, 0, r.out);
+  const [rec] = records(dir);
+  assert.equal(rec.assessment, 'needs-human');
+  const report = readFileSync(join(dir, rec.artifacts[0].path), 'utf8');
+  assert.match(report, /^Result: needs-human \(only generic shapes matched/m);
+  assert.match(report, /^ {2}lock\.json:1 long-encoded-run$/m);
+  assert.match(status(dir).out, row('SG-SECRETS-IN-SOURCE', 'undecided', 'needs-human', 'current'));
+});
+
 test('secrets collector: a clean repository records observed, and changing a scanned file makes it stale', (t) => {
   const dir = project(t, { git: true });
   writeFileSync(join(dir, '.gitignore'), '/.skillgate/private-evidence/\n');

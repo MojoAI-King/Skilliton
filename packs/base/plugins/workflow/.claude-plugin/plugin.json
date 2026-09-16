@@ -1,8 +1,10 @@
 {
   "name": "workflow",
-  "description": "How work moves: dispatch turns a pile of notes into verified, parallel work lanes; maintain keeps a repo's living docs, decisions, and lessons current; handoff writes a short resume note to docs/HANDOFF.md, and a session-start hook prints its RESUME HERE section when the next session starts; review explains uncommitted changes in plain English, flags what could break, and gives a commit verdict without committing.",
-  "version": "0.2.4",
-  "author": { "name": "MojoAI" },
+  "description": "The team's way of working and the Skillgate runtime. Skills: task (a request becomes a tracked, recoverable piece of work), dispatch (many items become verified parallel lanes), handoff, maintain, review (plain-English review with a commit verdict) and security (evidence, not assurances). Runtime (skillgate on the shell path in Claude Code): prepare and migrate projects, task records and checkpoints, status, decision and lesson entries, project security evidence, release verification and the delivery gate. Hooks: session start shows the handoff and project state; stop reminds to record a checkpoint; pre-compact and session end keep a local journal for recovery.",
+  "version": "0.3.0",
+  "author": {
+    "name": "MojoAI"
+  },
   "homepage": "https://github.com/MojoAI-King/Skilliton",
   "repository": "https://github.com/MojoAI-King/Skilliton",
   "license": "MIT"

@@ -503,7 +503,11 @@ export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLU
   for (const name of HARNESS_FILES) {
     inspectPath(root, name);
     const plan = planHarnessFile(root, name, template, false, vars);
+    // In a prepared project, a block that exists but differs from the template is a template update: it goes through
+    // migrate (receipt, rollback, hand-edit check), never a silent rewrite here.
+    const refresh = plan.changed && plan.exists && project.layoutVersion === LAYOUT_VERSION && /^replace the harness block/.test(plan.summary);
     if (!plan.changed) add(name, "current", plan.summary);
+    else if (refresh) add(name, "migrate", `the managed instruction block differs from the current template; refresh it with a receipt and a rollback: ${selfCommand()} migrate`);
     else add(name, plan.exists ? "update" : "create", plan.summary, plan.exists ? Buffer.from(plan.text, "latin1") : null, Buffer.from(plan.next, "latin1"));
   }
 

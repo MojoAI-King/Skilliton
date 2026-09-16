@@ -299,7 +299,7 @@ test("migrationState reports the layout, pending migrations and applied receipts
   const ctx = fixture(t);
   const { migrationState } = await lib("migrations.mjs");
   const { resolveProject } = await lib("config.mjs");
-  assert.deepEqual(migrationState(resolveProject(ctx.dir)), { layoutVersion: null, target: 2, pending: [], applied: [] });
+  assert.deepEqual(migrationState(resolveProject(ctx.dir)), { layoutVersion: null, target: 2, pending: [], applied: [], instructions: null });
   prototypePrepare(ctx);
   const one = migrationState(resolveProject(ctx.dir));
   assert.equal(one.layoutVersion, 1);
@@ -308,7 +308,77 @@ test("migrationState reports the layout, pending migrations and applied receipts
   assert.equal(one.pending.length, 1);
   assert.deepEqual({ ...one.pending[0], summary: typeof one.pending[0].summary }, { id: "0002-integrated-layout", from: 1, to: 2, summary: "string" });
   assert.equal(migrate(ctx, "--apply").code, 0);
-  assert.deepEqual(migrationState(resolveProject(ctx.dir)), { layoutVersion: 2, target: 2, pending: [], applied: ["0002-integrated-layout"] });
+  const after = migrationState(resolveProject(ctx.dir));
+  assert.deepEqual({ ...after, instructions: { ...after.instructions, id: typeof after.instructions.id } }, { layoutVersion: 2, target: 2, pending: [], applied: ["0002-integrated-layout"], instructions: { id: "string", templateSha12: sha256(Buffer.from(TEMPLATE, "latin1")).slice(0, 12), outdated: [], applied: false } });
+  assert.equal(after.instructions.id, `0100-instructions-${sha256(Buffer.from(TEMPLATE, "latin1")).slice(0, 12)}`);
+});
+
+// ---------------------------------------------------------------- 0100-instructions-<template sha>
+
+// A byte copy of the workflow plugin whose harness template was changed, run through its own runtime entry point.
+function pluginWithTemplate(ctx, name, transform) {
+  const copy = join(ctx.base, name);
+  cpSync(PLUGIN, copy, { recursive: true });
+  const t = join(copy, "templates", "harness.md");
+  const text = transform(readFileSync(t, "utf8"));
+  writeFileSync(t, text);
+  return { cli: join(copy, "runtime", "skillgate.mjs"), id: `0100-instructions-${sha256(Buffer.from(text, "latin1")).slice(0, 12)}`, template: text };
+}
+const RULE_A = "- **Instructed:** a company rule added after this project was prepared.\n";
+const RULE_B = "- **Instructed:** a second company rule.\n";
+const addRule = (rule) => (t) => { assert.ok(t.includes("### Before committing\n"), "fixture: the template has the section this test extends"); return t.replace("### Before committing\n", "### Before committing\n" + rule); };
+
+test("a changed template is a pending instructions migration: prepare leaves it to migrate; apply writes a receipt; rollback and apply again", (t) => {
+  const ctx = fixture(t);
+  assert.equal(sg(ctx, ["prepare", "--dir", ctx.dir, "--apply"]).code, 0);
+  write(ctx, "CLAUDE.md", read(ctx, "CLAUDE.md") + "\nA note a person added after the block.\n");
+  git(ctx.dir, "add", "-A"); git(ctx.dir, "commit", "-q", "-m", "prepared");
+  const next = pluginWithTemplate(ctx, "plugin-rule-a", addRule(RULE_A));
+  const claudeBefore = readFileSync(join(ctx.dir, "CLAUDE.md"));
+
+  const check = sg(ctx, ["prepare", "--dir", ctx.dir, "--check"], { cli: next.cli });
+  assert.equal(check.code, 1, check.all);
+  assert.match(check.out, /migrate\s+CLAUDE\.md/);
+  assert.match(check.out, /instruction block\(s\) wait for: skillgate migrate/);
+  assert.equal(sg(ctx, ["prepare", "--dir", ctx.dir, "--apply"], { cli: next.cli }).code, 0);
+  assert.ok(readFileSync(join(ctx.dir, "CLAUDE.md")).equals(claudeBefore), "prepare --apply leaves an outdated block to migrate");
+
+  const preview = sg(ctx, ["migrate", "--dir", ctx.dir], { cli: next.cli });
+  assert.equal(preview.code, 1, preview.all);
+  assert.ok(preview.out.includes(next.id), preview.out);
+  assert.ok(readFileSync(join(ctx.dir, "CLAUDE.md")).equals(claudeBefore), "the preview wrote nothing");
+
+  const apply = sg(ctx, ["migrate", "--dir", ctx.dir, "--apply"], { cli: next.cli });
+  assert.equal(apply.code, 0, apply.all);
+  for (const f of ["CLAUDE.md", "AGENTS.md"]) assert.ok(read(ctx, f).includes(RULE_A), `${f} has the new rule`);
+  assert.ok(read(ctx, "CLAUDE.md").includes("A note a person added after the block."), "text outside the markers is kept");
+  const receipt = JSON.parse(read(ctx, `.skillgate/migrations/${next.id}.json`));
+  assert.equal(receipt.templateSha256, sha256(Buffer.from(next.template, "latin1")));
+  assert.deepEqual(Object.keys(receipt.blocks).sort(), ["AGENTS.md", "CLAUDE.md"]);
+  assert.deepEqual([receipt.from, receipt.to], [2, 2]);
+  assert.equal(sg(ctx, ["migrate", "--dir", ctx.dir], { cli: next.cli }).code, 0, "nothing pending after the refresh");
+  assert.equal(sg(ctx, ["prepare", "--dir", ctx.dir, "--check"], { cli: next.cli }).code, 0);
+
+  const back = sg(ctx, ["migrate", "--dir", ctx.dir, "--rollback", next.id, "--apply"], { cli: next.cli });
+  assert.equal(back.code, 0, back.all);
+  assert.ok(readFileSync(join(ctx.dir, "CLAUDE.md")).equals(claudeBefore), "rollback restores the block exactly");
+  assert.equal(existsSync(join(ctx.dir, `.skillgate/migrations/${next.id}.json`)), false);
+  assert.equal(sg(ctx, ["migrate", "--dir", ctx.dir, "--apply"], { cli: next.cli }).code, 0);
+  assert.ok(read(ctx, "CLAUDE.md").includes(RULE_A), "applied again after the rollback");
+});
+
+test("a block edited inside the markers after Skillgate wrote it refuses the next template refresh and changes nothing", (t) => {
+  const ctx = fixture(t);
+  assert.equal(sg(ctx, ["prepare", "--dir", ctx.dir, "--apply"]).code, 0);
+  const first = pluginWithTemplate(ctx, "plugin-rule-a", addRule(RULE_A));
+  assert.equal(sg(ctx, ["migrate", "--dir", ctx.dir, "--apply"], { cli: first.cli }).code, 0);
+  replaceIn(ctx, "CLAUDE.md", RULE_A, RULE_A.replace("company rule", "company rule, reworded by a person inside the block"));
+  const before = snapshot(ctx.dir);
+  const second = pluginWithTemplate(ctx, "plugin-rule-b", (t) => addRule(RULE_B)(addRule(RULE_A)(t)));
+  const refused = sg(ctx, ["migrate", "--dir", ctx.dir, "--apply"], { cli: second.cli });
+  assert.equal(refused.code, 2, refused.all);
+  assert.match(refused.err, /CLAUDE\.md was edited by hand after Skillgate last wrote it/);
+  assert.deepEqual(snapshot(ctx.dir), before, "nothing changed");
 });
 
 test("migrate --json prints one result object for a pending migration and for a refusal", (t) => {
