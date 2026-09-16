@@ -32,3 +32,7 @@ PLAN.private*
 
 # git worktrees created by parallel agent lanes; each is its own checkout, never content of this one
 .claude/worktrees/
+
+# Skillgate setup lock and private evidence
+/.skillgate/prepare.lock
+/.skillgate/private-evidence/

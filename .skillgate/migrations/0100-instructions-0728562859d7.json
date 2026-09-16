@@ -1,0 +1,28 @@
+{
+  "schema": "skillgate.migration-receipt/1",
+  "id": "0100-instructions-0728562859d7",
+  "from": 2,
+  "to": 2,
+  "appliedAt": "2026-09-16T20:54:24.081Z",
+  "runtime": "0.3.0",
+  "files": [
+    {
+      "path": "CLAUDE.md",
+      "action": "update",
+      "beforeSha256": "c9d5f508a4df719ccd4965da7c90ed2510a4568a40fe751d599fae78a8b7abe9",
+      "afterSha256": "ce1690318637f4a482d6c09a51d49d154d209f655d2333c562d94fc69b8ef930"
+    },
+    {
+      "path": "AGENTS.md",
+      "action": "update",
+      "beforeSha256": "4e944beda06fefbdca38fd0f641b5db665310b98a0c71c4f6bd52340451d23fe",
+      "afterSha256": "a198d03e9350864629dc204d96dca166437337a5edb3a1e71694b700b71d9526"
+    }
+  ],
+  "backup": "20260916T205424Z-migrate-ae166306",
+  "blocks": {
+    "CLAUDE.md": "f8f4ae260f4fbf93b552ec8f215c4c28f5540256a29838c219a1b37400ade272",
+    "AGENTS.md": "f8f4ae260f4fbf93b552ec8f215c4c28f5540256a29838c219a1b37400ade272"
+  },
+  "templateSha256": "0728562859d70265ab6292d78536eaccf1b3f03d0d43021e53de2e5602f20bf1"
+}

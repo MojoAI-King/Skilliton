@@ -1,14 +1,14 @@
 # Contracts
 
-Kind: Living. PLAN.md is the product authority. This file holds the shared names, formats, interfaces and exit meanings every component uses. Change a shared format here first, then every reader and its checks together. Section 9 onward is the integration contract v1 that the M1-M4 implementation lanes build against; a row stays "contract" until its code and tests land on `main`, and PLAN.md's milestone table records what has been proved.
+Kind: Living. PLAN.md is the product authority. This file holds the shared names, formats, interfaces and exit meanings every component uses. Change a shared format here first, then every reader and its checks together. Sections 9 to 15 are integration contract v1, implemented in workflow 0.3.0 and guardrails 0.2.0 with the choices the implementation lanes recorded; PLAN.md section 7 records what has been proved and how.
 
 ## 1. Packs and plugins
 
 | Pack | Plugin | Ships | Invocation |
 |---|---|---|---|
 | `base` | `context-hygiene` | skill `context-hygiene`; SessionStart hook `session-start-checklist.sh`; status line `statusline-quota.sh` (applied by `scripts/setup.mjs`) | model-invoked |
-| `base` | `workflow` | skills `dispatch`, `maintain`, `handoff`, `review`; SessionStart hook `session-start-handoff.sh`; the Skillgate runtime (`runtime/`, launched by `bin/skillgate`); the harness template (`templates/harness.md`) | `/workflow:<skill>`, model-invoked from the description, or `skillgate <command>` |
-| `base` | `guardrails` | PreToolUse hook `guard-bash.sh` on the Bash tool; SessionStart hook `session-start-guardrails.sh` (one status line: on, off, or a problem); skill `guardrails` explaining what is blocked and why | hook runs on every Bash call; skill model-invoked |
+| `base` | `workflow` | skills `task`, `dispatch`, `review`, `handoff`, `maintain`, `security`; hooks: SessionStart `session-start-handoff.sh` and `skillgate hook session-start`, Stop, PreCompact and SessionEnd `skillgate hook <event>`; the Skillgate runtime (`runtime/`, launched by `bin/skillgate`); the harness template (`templates/harness.md`); security catalogs (`catalogs/`) | `/workflow:<skill>`, model-invoked from the description, or `skillgate <command>` |
+| `base` | `guardrails` | PreToolUse hook `guard-bash.sh` on the Bash tool (asks in Claude Code, refuses in Codex; section 15); SessionStart hook `session-start-guardrails.sh` (one status line: on, off, or a problem); skill `guardrails` explaining what is blocked and why | hook runs on every Bash call; skill model-invoked |
 | `<company>` (in a fork) | anything | the company's own skills | `/<plugin>:<skill>` |
 
 Rules:
@@ -42,7 +42,8 @@ One file at the repo root, one section per component. Every key is optional. The
 - `handoff.file` stays compatible: it names the handoff record when `prepare.artifacts.handoff` is absent, and disagreement between the two is refused.
 - `prepare.requires` maps plugin names to the **minimum** package version the project needs. Installed runtime version, required version, and applied layout/migrations are reported separately (never merged into one "up to date").
 - `prepare.integrationBranches`: branches where the shared handoff, status, backlog and indexes are written. Everywhere else, work is recorded in its task record.
-- Environment overrides: `SKILLGATE_TEAM_LESSONS` (maintain), `SKILLGATE_GUARDRAILS=off` (turns the guardrails hook into a visible no-op for one session; it prints that it is off).
+- `prepare` writes `handoff.file` equal to `prepare.artifacts.handoff`, because the session-start handoff hook reads `handoff.file`.
+- Environment overrides: `SKILLGATE_TEAM_LESSONS` (maintain), `SKILLGATE_GUARDRAILS=off` (turns the guardrails hook into a visible no-op for one session; it prints that it is off), `SKILLGATE_GUARDRAILS_CLIENT=claude-code|codex` (overrides guardrails' client detection), `SKILLGATE_TRUST_DIR` (release signers, default `~/.config/skillgate/trust`), `SKILLGATE_BACKUPS` (backups of files outside a project's Git folder), `SKILLGATE_DENYLIST` (the private name scan), `SKILLGATE_SELF` (how help text names the command).
 
 ## 3. Handoff file: `docs/HANDOFF.md`
 
@@ -82,7 +83,7 @@ The runtime is `packs/base/plugins/workflow/runtime/skillgate.mjs`. `scripts/ski
 | `project-settings [--apply] [--dir <project>] [--marketplace-repo owner/repo] [--marketplace-name <name>] [--template <file>]` | shows or writes `.claude/settings.json` from the template, merging with an existing file | `.claude/settings.json`, after a backup |
 | `new-skill <plugin> <skill> [--pack <pack>] [--repo <dir>] [--description <text>]` | scaffolds `packs/<pack>/plugins/<plugin>/skills/<skill>/SKILL.md` with frontmatter and bumps the plugin version | the new skill, `plugin.json` |
 | `import <skill-dir> --into <plugin> [--pack <pack>] [--repo <dir>] [--name <skill>]` | scans the source (scrub check, secret shapes, home paths; refuses when no denylist is configured), then copies it into a company plugin | the copied skill, `plugin.json` |
-| `prepare`, `migrate`, `remove`, `status`, `task`, `checkpoint`, `record`, `index`, `security`, `hook`, `propose`, `release`, `verify`, `trust`, `delivery` | section 9 onward | per command |
+| `prepare`, `migrate`, `remove`, `status`, `task`, `checkpoint`, `record`, `index`, `security`, `hook`, `propose`, `release`, `verify`, `trust`, `delivery` | sections 10 to 14 (all built in workflow 0.3.0) | per command |
 
 A listed command whose module is not present is refused as "not built in this version" (exit 2) and marked so in `--help`.
 
@@ -110,103 +111,84 @@ Changes to validation policy need review by the authority configured for that re
 
 ## 9. Integration contract v1: runtime modules
 
-Agreed 2026-09-16 by the integrating session (base commit named in each lane brief). Lanes implement against these names; a change to any of them goes back through the integrating session.
+Agreed 2026-09-16 by the integrating session and implemented by six lanes merged one at a time.
 
-- **Command module:** `runtime/commands/<name>.mjs` exports `help` (string, printed for `--help`) and `async run(argv)` returning an exit code. Parse options with `core.mjs` `parseArgs(argv, { flags, options }, "<name>")`. Throw `Refused` (from `core.mjs`) for invalid input or a refusal before writing (exit 2); let other errors propagate (exit 3). A subcommand (`task start`) is the first plain argument.
-- **Engines:** reusable logic lives in `runtime/lib/<area>.mjs` so commands, hooks and tests share it: `prepare.mjs`, `migrations.mjs`, `records.mjs`, `tasks.mjs`, `journal.mjs`, `lifecycle.mjs`, `security.mjs`, `collectors.mjs`, `release.mjs`, `treehash.mjs`, `verify.mjs`, `trust.mjs`, `delivery.mjs`.
-- **`--json`:** where a command offers it, stdout carries exactly one JSON object and nothing else: `{ "schema": "skillgate.result/1", "command": "<name>", "result": "complete" | "attention" | "invalid" | "operation-failed", "summary": "<one sentence>", "details": { ... } }`. The exit code matches `result`.
-- **Cross-lane functions** (the only imports one lane's code makes into another's; each must exist with these shapes at merge):
-  - `migrations.mjs`: `migrationState(project) -> { layoutVersion, target, pending: [{ id, from, to, summary }], applied: [receiptId] }`.
+- **Command module:** `runtime/commands/<name>.mjs` exports `help` (string, printed for `--help`) and `async run(argv)` returning an exit code. Options are parsed with `core.mjs` `parseArgs(argv, { flags, options }, "<name>")`; a command that needs a repeatable option (`--source`, `--artifact`, `--evidence`, `--criteria`) collects those first. `Refused` means exit 2; other errors exit 3. A subcommand is the first plain argument.
+- **Engines:** `runtime/lib/`: `config.mjs`, `core.mjs`, `prepare.mjs`, `project-files.mjs`, `prototype-v1.mjs`, `migrations.mjs`, `records.mjs`, `tasks.mjs`, `journal.mjs`, `lifecycle.mjs`, `security.mjs`, `collectors.mjs`, `treehash.mjs`, `release.mjs`, `verify.mjs`, `trust.mjs`, `delivery.mjs`.
+- **`--json`:** where offered (prepare, migrate, status, verify), stdout carries exactly one `{ "schema": "skillgate.result/1", "command", "result": "complete" | "attention" | "invalid" | "operation-failed", "summary", "details" }` object, including on refusal and failure. The exit code matches `result`.
+- **Cross-lane functions:**
+  - `migrations.mjs`: `MIGRATIONS` (the ordered layout migrations), `migrationById(id, project)` (a layout migration or an instructions refresh), `instructionsState(project)`, and `migrationState(project) -> { layoutVersion, target, pending: [{ id, from, to, summary }], applied: [receiptId], instructions: { id, templateSha12, outdated: [file], applied } | null }`.
   - `security.mjs`: `securitySummary(root) -> { available: true, catalogVersion, total, applicable, current, missing, stale, expired, invalid, gaps, needsHuman, undecided }` or `{ available: false, reason }`; never throws for missing evidence.
-  - `tasks.mjs`: `currentTask(project, branch) -> { task | null, ambiguous: [ids] }`; `readTask(file) -> { id, title, state, branch, owner, updated, checkpoints: n, handoff: { state, next, blocked, watchOut } | null }`.
-  - `journal.mjs`: `appendEvent(root, event)`, `lastEvents(root, n)`; events are JSON lines `{ "at": ISO, "event": "session-start" | "session-end" | "pre-compact" | "stop" | "checkpoint" | "stop-reminded", "session": id | null, "branch", "head", "dirty": n, "fingerprint": sha256 }`.
-- A lane whose command calls another lane's function imports it dynamically and reports "not available in this build" when the module or export is missing, so each lane is testable on its own base. The integrating session replaces nothing silently at merge: it runs the combined suite.
+  - `tasks.mjs`: `currentTask(project, branch) -> { task | null, ambiguous: [ids], unreadable: [...] }`; `readTask(file)` adds `file`, `criteria`, `lastCheckpoint` and `sections` to the contract fields.
+  - `journal.mjs`: `appendEvent(root, event)`, `lastEvents(root, n)` (an array that also carries `corrupt`, `path`, `exists`, `truncated`). Events may also carry `task`, `source`, `trigger`, `reason`, `git`. A plain `stop` event is never written; only `stop-reminded`.
+- Commands that call another engine import it dynamically and report "not available in this build" when it is missing. Entry IDs are generated with the same rule in `records.mjs` and `tasks.mjs` (DECISIONS.md O20).
 
 ## 10. Prepared project layout 2
 
 | Path | Owner | Notes |
 |---|---|---|
 | `.skillgate/config.json` | project (human-editable) | section 2 |
-| record files from `prepare.artifacts` | project | adopted when present; created with an explicit "not yet assessed" state when missing; never overwritten |
+| record files from `prepare.artifacts` | project | adopted when present and never modified; created with an explicit "not yet assessed" state when missing; decisions, lessons and status carry an empty managed index section |
 | `docs/tasks/`, `docs/decisions/`, `docs/lessons/` (from `prepare.directories`) | project | one file per entry; each folder gets a README explaining the entry format |
 | harness block in `CLAUDE.md` and `AGENTS.md` | Skillgate (section 4) | the only managed instruction content |
-| `.skillgate/security/catalog.json`, `applicability.json`, `records/<uuid>.json`, `REPORT.md` | project (catalog adopted from the package; records immutable; report generated with a marker) | section 12 |
+| `.skillgate/security/catalog.json`, `applicability.json`, `records/<uuid>.json`, `REPORT.md`; `docs/security/README.md` | project (catalog adopted from the package; records immutable; report generated with its marker) | section 12 |
 | `.skillgate/delivery.json` | project policy (policy path) | section 14 |
 | `.skillgate/migrations/<id>.json` | Skillgate receipt, committed | one per applied migration |
 | `.skillgate/private-evidence/`, `.skillgate/prepare.lock` | local, ignored | added to `.gitignore` by prepare |
-| `<git-dir>/skillgate-backups/<id>/` | local, never tracked | backups of every file a prepare, migrate or remove changed |
+| `<git-dir>/skillgate-backups/<id>/` | local, never tracked | backups of every file prepare, migrate, remove, task close and checkpoint changed |
 | `<git-dir>/skillgate/journal.jsonl` | local, per clone and per worktree | section 11 |
 
-There is **no copied runtime** in layout 2: the project never stores a path to a toolkit clone, and moving or deleting a clone cannot break it. Commands run from the installed plugin (`skillgate` on the Bash tool's PATH in Claude Code) or from a company skills repository checkout.
+There is **no copied runtime** in layout 2: the project never stores a path to a toolkit clone, and moving or deleting a clone does not break it (measured, company release rehearsal P2).
 
-- **`prepare [--dir <repo root>] [--apply | --check] [--json]`:** the target must be a Git repository root. Preview by default; `--apply` writes transactionally (lock, recheck each destination immediately before replacing it, git-private backups, rollback on a caught failure that preserves edits made meanwhile); `--check` reads only and exits `1` when setup is incomplete. Repeat apply on a prepared project changes nothing. A layout-1 project is refused with the migrate command to run.
-- **`migrate [--dir] [--apply] [--rollback <id>] [--json]`:** ordered migrations with ids `NNNN-slug`. Each previews its file changes, checks preconditions (a managed block edited by hand, a copied runtime whose bytes match no known release, or a destination changed since preview is refused with the reconciliation step), backs up, writes, and records a receipt `{ "schema": "skillgate.migration-receipt/1", "id", "from", "to", "appliedAt", "runtime": "<workflow version>", "files": [{ "path", "action": "create" | "update" | "delete", "beforeSha256", "afterSha256" }], "backup": "<backup id>" }`. `--rollback <id>` restores the backup only when every file still has its `afterSha256`, then removes the receipt; otherwise it refuses and lists the files that changed since. Package rollback never reverses a project migration by itself.
-- **Migration `0002-integrated-layout`** (layout 1 to 2): remove `.skillgate/bin/security-evidence.mjs` only when its sha256 matches the prototype runtime released at `23aae41`; remove `skillgate:project` blocks from `CLAUDE.md`, `AGENTS.md` and the maintain record only when their content equals the prototype's rendering; add the harness blocks; set `prepare.version` 2 and `prepare.requires.workflow`.
-- **`remove [--dir] [--apply] [--config]`:** removes the harness blocks, the generated security report, and (with `--config`) `.skillgate/config.json`; keeps every record, entry, observation, receipt and the Git history, and says so.
+- **`prepare [--dir <repo root>] [--apply | --check] [--json]`:** the target must be a Git repository root. Preview by default; `--apply` writes transactionally (lock, recheck each destination immediately before replacing it, Git-private backups, rollback that preserves edits made meanwhile, exit 3 when a rollback was incomplete); `--check` reads only and exits `1` when anything is missing or outdated, or a layout-1 project waits for its migration. Repeat apply changes nothing. A layout-1 project is refused (exit 2) with the migrate command. In a prepared project, an existing instruction block that differs from the template is listed as `migrate` and left for `skillgate migrate`. `prepare.requires.workflow` is set when absent and raised when a project moves to layout 2; a project requiring a newer runtime is refused.
+- **`migrate [--dir] [--apply] [--rollback <id> [--apply]] [--json]`:** preview exits `1` while a migration is pending. Receipts: `{ "schema": "skillgate.migration-receipt/1", "id", "from", "to", "appliedAt", "runtime", "files": [{ "path", "action", "beforeSha256", "afterSha256" }], "backup" }`, plus `blocks` and `templateSha256` for an instructions refresh. `--rollback <id>` previews by default and restores only when every file still holds exactly what the migration wrote and every backup matches; it refuses a later receipt, an unknown migration, and a receipt naming a path its migration never touches.
+- **Migration `0002-integrated-layout`** (layout 1 to 2): removes `.skillgate/bin/security-evidence.mjs` only when its sha256 matches the prototype runtime released at `23aae41`; removes `skillgate:project` blocks from `CLAUDE.md`, `AGENTS.md` and the maintain record only when their content equals the prototype's rendering; adds the harness blocks; sets `prepare.version` 2 and `prepare.requires.workflow`.
+- **Migration `0100-instructions-<template sha256, 12 hex>`:** pending in a layout-2 project when an existing managed block differs from the current template's rendering. It replaces only the text between the markers, records each block's hash in its receipt, and refuses a block whose hash differs from what the previous instructions receipt recorded (a hand edit inside the markers), naming the reconciliation.
+- **`remove [--dir] [--apply] [--config]`:** removes the harness blocks, the generated security report, and (with `--config`) `.skillgate/config.json`; keeps every record, entry, observation, receipt and the Git history, and says so. A layout-1 project is refused.
 
 ## 11. Records, tasks, checkpoints and lifecycle
 
-- **Entry ids:** `YYYY-MM-DD-<slug>-<hex4>`: the local date, a slug of at most 40 lowercase letters, digits and hyphens from the title, and four random hex digits. File: `<directory>/<id>.md`. No sequential numbers; two contributors on two branches cannot collide on a file.
-- **Task record** (`docs/tasks/<id>.md`):
-
-  ```
-  # Task: <title>
-
-  Kind: Living. Task record.
-
-  - **ID:** <id>
-  - **State:** planned | in-progress | blocked | review | done-local | merged | released | verified | abandoned
-  - **Branch:** <branch>
-  - **Owner:** <label, not an authenticated identity>
-  - **Updated:** <ISO date and time>
-
-  ## Request
-  ## Acceptance criteria
-  - [ ] <criterion>
-  ## Decisions
-  ## Checkpoints
-  ### <ISO date and time>
-  - **State:** ...  - **Evidence:** ...  - **Next:** ...  - **Git:** <branch> @ <short head>, <n> uncommitted
-  ## Handoff
-  - **State:** ...
-  - **Next:** ...
-  - **Blocked:** ...
-  - **Watch out:** ...
-  ```
-
-  `task start "<title>" [--criteria "<text>" ...] [--branch <name>] [--owner <label>] [--apply]`, `task list [--all]`, `task show [<id>]`, `task close <id> --state <state> [--apply]`. `checkpoint [--task <id>] --state "<text>" [--evidence "<text>"] --next "<text>" [--apply]` appends one checkpoint (mechanical Git state included) and a `checkpoint` journal event. The current task is the one whose Branch is the checked-out branch and whose State is not `done-local`, `merged`, `released`, `verified` or `abandoned`; more than one is reported as ambiguous, never picked.
-- **Decision and lesson entries:** `record decision "<title>" [--apply]` writes `# <title>`, `Kind: Living. Decision entry.`, bullets **ID**, **Status** (`proposed` on a non-integration branch, else `accepted`), **Date**, then `## Decision`, `## Why`, `## Alternatives rejected`, `## Risk`, `## Reversibility`, `## Evidence`, each "not yet written". `record lesson` uses `## What broke`, `## The mechanism`, `## The fix`, `## The rule`, `## What now enforces it`.
-- **Indexes:** `index [--apply]` regenerates, deterministically and sorted by id, a managed section in the decisions record (`<!-- skillgate:index:decisions:start -->` ... `end`), the lessons record (`lessons`), and the status record (`tasks`: open tasks only). Text outside the markers is never changed. After a merge, rerunning `index` resolves any index conflict.
-- **Journal:** `<git-dir>/skillgate/journal.jsonl`, append-only, local. An interrupted session is a `session-start` with no later `session-end` for the same session id.
-- **Hooks** (workflow plugin `hooks.json`, each command `skillgate hook <event>` reading the hook JSON on stdin; a hook that fails prints a one-line notice and never blocks the session):
-  - `SessionStart`: after the handoff hook, prints a bounded "Project state" block: layout and pending migrations, installed versus required versions, the current task (state, last checkpoint, its handoff), an interrupted previous session, a handoff older than the latest commit or uncommitted change, and the security summary counts. Missing pieces are named, never omitted.
-  - `Stop`: when `checkpoints.stopReminder` is on, the working tree fingerprint changed since the last checkpoint, at least `checkpoints.minMinutes` passed, and no reminder was already given for this fingerprint, returns `{"decision": "block", "reason": "<run skillgate checkpoint ... or task start ...>"}` once; otherwise allows. It also honours `stop_hook_active` when the client sends it.
-  - `PreCompact` and `SessionEnd`: journal events with the mechanical Git state.
+- **Entry IDs:** `YYYY-MM-DD-<slug>-<hex4>`. Two entries with the same title on the same day on two branches collide with probability 1 in 65,536, and Git shows that as a merge conflict, never an overwrite.
+- **Task record** (`docs/tasks/<id>.md`): the header bullets **ID**, **State**, **Branch**, **Owner**, **Updated**, then `## Request`, `## Acceptance criteria`, `## Decisions`, `## Checkpoints`, `## Handoff`. Each checkpoint is `### <ISO time>`, a blank line, and four bullets: **State**, **Evidence** (`none given` when absent), **Next**, **Git** (`<branch> @ <short head>, <n> uncommitted`). Placeholders read `not yet written`.
+- **Commands:** `task start "<title>" [--criteria ...] [--branch] [--owner] [--dir] [--apply]` (state `in-progress`, owner `unassigned`, branch the checked-out one; a detached HEAD needs `--branch`); `task list [--all]`; `task show [<id>]`; `task close <id> --state done-local|merged|released|verified|abandoned [--apply]`; `checkpoint [--task <id>] --state --next [--evidence] [--dir] [--apply]`. The current task is the open task whose Branch is the checked-out branch; more than one is reported as ambiguous, never picked.
+- **Decision and lesson entries:** `record decision|lesson "<title>" [--dir] [--apply]`, with the sections listed in the templates; Status is `proposed` off an integration branch, else `accepted`.
+- **Indexes:** `index [--dir] [--apply]` regenerates the managed sections deterministically; `--apply` refuses off an integration branch; text outside the markers never changes; rerunning after a merge resolves an index conflict.
+- **Status:** `status [--dir] [--json]`: one line per check (layout, migrations, versions, records, tasks, handoff, sessions, security) and a summary. Exit `1` for attention (a pending migration, an unmet required version, missing records, a stale handoff on an integration branch, an interrupted session with uncommitted changes, unreadable or ambiguous tasks, security attention); a check that is "not run" (an absent module) does not change the exit code; `3` when a check could not be evaluated.
+- **Hooks** (`"${CLAUDE_PLUGIN_ROOT}"/bin/skillgate hook <event>`, timeout 15 seconds; the handoff hook stays first in `hooks.json`):
+  - `session-start`: a "Project state" block bounded by `handoff.maxBytes` (current task, task handoff, previous session, shared handoff first, then layout, migrations, versions, records, security), and a journal event. An internal failure prints one notice line on stdout (the stream the client adds to context) and exits 0.
+  - `stop`: blocks once per working tree state, measured from the later of the last checkpoint and this session's first start, after `checkpoints.minMinutes`, never when `stop_hook_active` is true; the reason names the exact command. Failures print one line on stderr and allow.
+  - `pre-compact`, `session-end`: journal events; session-end gives `git status` one second because Claude Code shares a short budget among SessionEnd hooks.
+- **Interrupted session:** a `session-start` with no later `session-end` for the same session ID; the next session's Project state names it (measured live on Claude Code).
 
 ## 12. Project security evidence
 
-- Engine: `runtime/lib/security.mjs`, adapted in place from the prototype `scripts/security-evidence.mjs` (its record schema 1 and immutability rules are kept). Command: `security status|record|applicability|collect|findings`, with the section 6 exit codes (status: `0` every applicable control has a current observed record; `1` anything missing, stale, expired, a gap, needs-human, or undecided applicability; `2` invalid catalog, records or input; `3` failure).
-- **Applicability:** `.skillgate/security/applicability.json` `{ "schemaVersion": 1, "decisions": [{ "controlId", "applies": true | false, "rationale", "decidedBy": "<label>", "decidedAt": ISO }] }`; the newest decision per control wins; a control with no decision is `undecided` and counts as needs-human. `applies: false` removes a control from the denominator and is listed with its rationale.
-- **Freshness:** a record is `stale` when a fingerprinted file changed or disappeared, the control definition or catalog version changed, or it is older than `maxAgeDays` (control, else `security.maxAgeDays`); regenerating a report never creates or re-dates a record.
-- **Collectors:** `security collect <tests | secrets | delivery-policy> [--apply]` gather real evidence, store artifacts under `.skillgate/private-evidence/`, and record an observation with the collector name, version and tool versions in its note. A collector that cannot run records nothing and says why.
-- **Findings:** `security findings [--apply]` writes one row per open finding, keyed `SEC-<controlId>`, into a managed section of the backlog record (`<!-- skillgate:security-findings:start -->` ... `end`). Rerunning never duplicates a row; a resolved finding leaves the section, and its history stays in the observation records.
-- **Catalogs:** shipped under `packs/base/plugins/workflow/catalogs/<catalogVersion>.json`; prepare copies the current one into a project; a newer catalog reaches a project only through a migration that previews which observations become stale. Mappings are `related` references to versioned public frameworks written as original summaries, never framework text.
+- **Engine and command:** `runtime/lib/security.mjs` keeps the prototype's record schema 1, immutability and refusal of links and secret-shaped input. `security status|record|applicability|collect|findings`, each with `--dir`, preview by default, `--apply` to write. Status exits `0` only when every applicable control has a current observed record; `1` for missing, stale, expired, gap, needs-human or undecided; `2` for an invalid catalog, records or input (then `--apply` writes no report); `3` for failures.
+- **Applicability:** `applicability.json` as agreed; newest decision per control wins; undecided counts as needs-human; `applies: false` leaves the denominator and is listed with its rationale. Concurrent writers take `applicability.lock`; a left-over lock refuses with instructions.
+- **Freshness:** stale when a fingerprinted file changed or disappeared, the control or catalog version changed, or `maxAgeDays` passed (the control's own value wins over `security.maxAgeDays`). Scan evidence carries a file manifest; its files are re-verified by size, time and, when the time differs, content. Regenerating a report never creates or re-dates a record.
+- **Collectors** (`security collect <name> [--control <id>] --apply`): `tests` runs the delivery policy's checks without a shell (default control `SG-SECURITY-TESTS`, requires `--source`, adds the policy file to its sources); `secrets` scans tracked files and records a **gap** only for specific shapes (private key block, provider token prefix, JSON web token) and **needs-human** when only generic shapes match (default control `SG-SECRETS-IN-SOURCE`); `delivery-policy` (default control `SG-CHECK-CRITERIA`). Artifacts go to `.skillgate/private-evidence/`, which other clones do not have, so there the record reads stale.
+- **Findings:** `security findings --apply` writes one row per applicable control that is not current, observed and decided, keyed `SEC-<id>`, sorted, idempotent; a resolved row leaves; a missing backlog record or invalid evidence refuses.
+- **Catalogs:** `catalogs/index.json` names `skillgate-baseline-2` (15 controls, 36 related references to NIST SSDF 1.1 and OWASP ASVS 5.0.0, verified in docs/security-catalog-sources.md). Prepare copies it into new projects; an existing project keeps its catalog until a reviewed migration changes it.
 
 ## 13. Releases, verification and trust
 
-- **Manifest** `releases/<version>.json` in the company skills repository: `{ "schema": "skillgate.release/1", "release": "<x.y.z>", "sourceCommit": "<sha>", "createdAt": ISO, "marketplace": "<name>", "components": [{ "kind": "plugin", "name", "version", "path", "treeSha256", "files": [{ "path", "sha256", "executable": bool }] }], "projectLayout": 2, "migrations": ["<id>"], "clients": { "claude-code": { ... }, "codex": { ... } }, "evidence": [{ "kind", "path", "sha256" }] }`. `treeSha256` is the sha256 of the lines `<sha256>  <path>\n` for every regular file in the plugin folder, sorted by path, excluding `.DS_Store`; symbolic links are refused.
-- **Approval** is an annotated, signed tag `skillgate-release/<version>` on the commit holding the manifest, whose message contains `manifest-sha256: <hex>`. **Withdrawal** is a signed tag `skillgate-withdrawn/<version>` with `reason: <text>`. `release create --version <v> [--apply]` writes the manifest; `release sign <v>` runs `git tag -s` with the maintainer's own signing key; `release list` shows approved, unapproved and withdrawn versions.
-- **Trust:** `trust add --company <name> --signers <allowed_signers file>` copies an SSH `allowed_signers` file to `~/.config/skillgate/trust/<name>.allowed_signers`, outside every repository; `trust show`, `trust remove`. Verification uses `git verify-tag` with `gpg.ssh.allowedSignersFile` set to that file. A tag signed any other way is reported as not verifiable, never as approved.
-- **`verify [--client claude-code | codex] [--config-dir <dir>] [--source <skills repo path or URL>] [--company <name>] [--json]`:** for each installed plugin from the company marketplace: `VERIFIED` (version in an approved, unwithdrawn release and every file matches), `TAMPERED` (same version, different bytes; files named), `UNKNOWN VERSION` (no approved release has it), `WITHDRAWN`. Exit `0` only when every plugin is VERIFIED; `1` for any other state; `2` when trust is not configured, a signature does not verify, or a manifest is invalid; `3` on failure. Installed locations are read from the client's own records, labelled when the format is undocumented.
+- **Manifest** `releases/<version>.json`: the agreed fields plus `notes` (what could not be recorded, for example an absent migrations module) and `clients` (`{ catalog, marketplace, plugins }` per client, with a note when there is no Codex catalog). `release create` refuses any uncommitted, untracked, ignored or mode change under a component, a duplicate version, an escaping or linked component path, disagreeing versions, uncommitted evidence, and (when the release carries migrations) a runtime other than the release's own workflow plugin.
+- **Approval and withdrawal:** `release sign <version> [--apply]` checks the manifest is committed and unchanged and every component still matches, requires SSH signing, then tags `skillgate-release/<version>` with `manifest-sha256: <hex>`. `release withdraw <version> --reason <text> [--apply]` tags `skillgate-withdrawn/<version>`. `release list [--company]` shows approved, unapproved and withdrawn; exit `2` when trust is missing or any tag does not check out.
+- **Trust:** `trust add --company <name> --signers <file> [--apply]`, `trust show [--company]`, `trust remove --company <name> [--apply]`. A trusted tag must be annotated, name itself, point at a commit, carry one complete SSH signature verified with `ssh-keygen`, and name a principal from the signers file.
+- **`verify [--client claude-code|codex] [--config-dir] [--source] [--company] [--json]`:** VERIFIED, TAMPERED (changed, added, missing or unreadable files named), UNKNOWN VERSION, WITHDRAWN, NOT INSTALLED. Exit `0` only when every company plugin is VERIFIED; `1` otherwise (including nothing installed); `2` when trust is missing, the client's install records are malformed, or any release tag in the source does not verify (O19); `3` on failure. `--source` defaults to the skills repository the runtime runs from and is required from an installed copy; a URL source is not built. A different executable bit is a note, not TAMPERED (O18). Claude Code install records and Codex cache folders are read as observed and labelled undocumented.
+- **Proposals:** `propose <lesson file> [--repo] [--apply]` writes `proposals/<lesson id>.md` after the scrub check and the secret-shape scan pass on the exact text.
 
 ## 14. Trusted delivery checks
 
-- **Policy** `.skillgate/delivery.json`: `{ "schema": "skillgate.delivery/1", "protectedBranches": ["main"], "checks": [{ "name", "command": ["argv", "..."], "timeoutSeconds": 600 }], "policyPaths": [".skillgate/delivery.json", ".github/workflows/", ".github/CODEOWNERS", "CODEOWNERS"] }`. Commands are argument arrays, never shell strings.
-- **Local trusted boundary:** `delivery install --bare <repo.git> --approvers <allowed_signers> [--runtime <path>]` writes a `pre-receive` hook into a shared bare repository. For each update to a protected branch it rejects non-fast-forward updates; reads the policy **from the current protected tip**, never from the pushed commits; requires every pushed commit that touches a policy path to carry a signature from the approvers file; checks out the pushed tip (the combined result) into a temporary folder; runs every check; and rejects with the failing check's name and the last lines of its output. `delivery check` runs the same evaluation by hand.
-- **Hosted adapter:** `templates/github/skillgate-delivery.yml` runs the same checks on `pull_request` and `merge_group`; branch protection must require it, require branches to be up to date (or a merge queue), and require code-owner review for policy paths. Until a hosted rehearsal runs, the hosted adapter is documented, not proved.
+- **Policy** `.skillgate/delivery.json`: unknown keys refused; `policyPaths` must include `.skillgate/delivery.json`; check names 1 to 64 characters, unique; `timeoutSeconds` default 600, at most 86400; `checks: []` is valid and runs nothing.
+- **Protected branches:** the policy on the bare repository's default branch lists them; while that branch has no policy, it alone is protected. Each protected branch is checked with the policy on its own current tip. An invalid default-branch policy rejects every push.
+- **The gate** (`delivery install --bare <repo.git> --approvers <file> [--runtime <bin/skillgate>] [--apply]` writes a marked `pre-receive` hook that reads the runtime path from Git config at push time and fails closed): rejects non-fast-forward updates and deletions; reads the policy from the current tip; requires every pushed commit that changes a policy path, compared with its first parent, to carry an SSH signature from the approvers file (other signature types are rejected); creating a protected branch needs a signed tip that contains a valid policy; a push that removes or breaks the policy is rejected; extracts the pushed tip with `git archive`, compares every file with the commit, runs each check with a minimal environment in its own process group, and rejects naming the failing check with the last 20 output lines.
+- **`delivery check [--repo] [--ref] [--remote] [--approvers <file>]`:** the same evaluation of the local HEAD against the remote-tracking tip; without an approvers file a needed signature check reports NOT CHECKED and exits 1.
+- **Hosted adapter:** `templates/github/skillgate-delivery.yml` and docs/DELIVERY.md; documented, not rehearsed on a hosted repository (O15).
 - Local assistant guardrails and security evidence freshness are never presented as merge enforcement.
 
 ## 15. Codex adapter
 
-- The repository root also carries `.agents/plugins/marketplace.json` (`{ "name", "plugins": [{ "name", "source": { "source": "local", "path": "./packs/base/plugins/<name>" } }] }`), and each plugin carries `.codex-plugin/plugin.json` with the same `name` and `version` as its `.claude-plugin/plugin.json` and `"skills": "./skills/"`. `scripts/packs.test.mjs` checks that the two manifests agree.
-- `AGENTS.md` receives the same harness block as `CLAUDE.md`. Which lifecycle hooks and runtime paths Codex actually supports is recorded from the Codex rehearsal, not assumed from Claude Code.
+- **Manifests:** Codex reads this repository's `.claude-plugin/marketplace.json` and each `.claude-plugin/plugin.json` (measured on 0.154.0-alpha.6.2), so no separate Codex manifests are shipped and there is one version per plugin.
+- **Instructions and skills:** `AGENTS.md` receives the same harness block as `CLAUDE.md`; plugin skills appear as `workflow:<skill>` with their paths (measured).
+- **Hooks:** Codex reports `plugin_hooks` as removed, so hooks shipped inside a plugin are not a delivery route for Codex; a team configures them in a Codex configuration layer, and each hook needs trust. Codex lifecycle hooks are unverified (O9).
+- **Guardrails:** the hook treats input with a top-level `turn_id` or `model` key, or `PLUGIN_ROOT` equal to `CLAUDE_PLUGIN_ROOT`, as Codex (`SKILLGATE_GUARDRAILS_CLIENT` overrides) and turns every ask into a deny with the reason, because Codex does not support ask from a hook.

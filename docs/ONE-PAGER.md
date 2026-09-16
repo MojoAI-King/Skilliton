@@ -1,50 +1,36 @@
 # Skillgate: how your team works with AI
 
-Kind: Living. Covers the current build and the agreed autopilot direction. The complete company onboarding and update journey still needs a fresh-user rehearsal.
+Kind: Living. Updated 2026-09-16 with the integrated build. What is proved and what is not is kept in [PLAN.md](../PLAN.md) section 7 and [CLIENTS.md](CLIENTS.md).
 
 ## For your first week
 
-**Skillgate gives your coding assistant a shared way of working.** Your company chooses the skills and rules once. The goal is for you to describe a task normally, without needing to know skill names or how separate coding workspaces operate.
+**Skillgate gives your coding assistant your team's way of working.** You describe what you want in your own words; you do not need to know skill names, branches or where notes go.
 
-Today, plugins help the assistant organize work, review changes, save a handoff, and maintain project notes. An enabled hook shows an existing handoff at session start. Another checks supported risky git commands issued through Claude's Bash tool; it may block them or ask for confirmation.
+**What happens when you work:**
 
-**What to expect during work:**
+1. **You open a session.** It starts with the last handoff and a short project state: the task you were on, anything left unfinished, anything out of date. The assistant tells you where things stand.
+2. **You ask for something.** The assistant turns it into a task with a clear definition of done, and for anything bigger than a small fix it works on a separate branch so the shared one stays safe.
+3. **It builds and keeps notes.** Before changing anything it explains the change in plain words. When something is decided, checked or stuck, it records a checkpoint. If it tries to finish with changes it has not recorded, it is reminded to.
+4. **It reviews before committing.** You get what changed, what could break, what was actually tested, and a verdict: READY TO COMMIT, NEEDS ATTENTION or STOP.
+5. **You stop, or get interrupted.** A handoff note is saved. If the session simply ended, the next one is told it was interrupted and picks up from the last checkpoint.
 
-1. Start a session and read the short handoff with the assistant. Correct anything that is missing or out of date.
-2. Describe what you want built and what success looks like. The assistant should explain its proposed changes in plain language.
-3. Before committing, expect a review that says what changed, what might break, and what was tested. A failing or skipped check must be visible.
-4. At a stopping point, expect a saved note covering progress, decisions, and the next step. If that note was not written, the next session cannot display it.
+**Some protections run by themselves.** Force-pushing over the shared branch, skipping the checks git runs, or committing something that looks like a password are blocked, with the reason and a safe next step. Throwing away uncommitted work needs your confirmation. When your team's shared repository has a delivery check, a change is only accepted when the combined result passes the tests.
 
-These steps are instructions, not all forced by software today. Have the assistant explain any block and a safe next step. Ask your maintainer about unclear setup or review results.
-
-**What comes next:** preparation of status, backlog, roadmap, decisions, lessons, handoffs, and security records; better interrupted-work recovery; security evidence that shows when supporting information changes; and trusted checks before merging. Preparation and evidence tracking have standalone prototype scripts in this checkout, with tests and a runnable demo. They are not yet wired into the normal install; [start here](AUTOPILOT_START_HERE.md) lists the material.
-
-**How improvements arrive:** your company approves changes to its shared tools. Plugin updates then reach installed copies through the marketplace. Updating project instructions and structure is separate; automatic migrations remain planned and must preserve project history. Product changes still follow the normal review process.
-
-An optional usage display shows available quota readings. It is not required for the project workflow and promises no particular saving.
+**What these do not do:** they do not watch other terminals or tools, they do not make the code correct on their own, and a security evidence summary is never a certificate. Ask your maintainer when something is blocked and you think it should not be.
 
 ## For the person maintaining this
 
-Use the [README](../README.md) for current install commands. [PLAN.md](../PLAN.md) owns the roadmap; [CONTRACTS.md](CONTRACTS.md) owns the implemented and target interfaces; [AUTOPILOT_INTEGRATION.md](AUTOPILOT_INTEGRATION.md) owns the reconciliation work.
+| You manage | Where | How you check it |
+|---|---|---|
+| The skills and plugins your team gets | your fork of this repository: `packs/base/` plus your own `packs/<company>/` | `node scripts/skillgate.mjs doctor`, `node scripts/packs.test.mjs` |
+| What the assistant is told | `packs/base/plugins/workflow/templates/harness.md` | changes reach projects through `skillgate migrate` (preview, receipt, rollback) |
+| Approved releases | `releases/<version>.json`, signed tags | `skillgate release list`; each developer runs `skillgate verify` |
+| A project's records | the project's own `docs/`, `DECISIONS.md` and `.skillgate/` | `skillgate status --dir <project>` |
+| Project security evidence | the project's `.skillgate/security/` | `skillgate security status --dir <project>` |
+| What may merge | the project's `.skillgate/delivery.json` and the delivery check on the shared repository | [DELIVERY.md](DELIVERY.md) |
 
-| What you manage today | Where it lives or how to inspect it |
-|---|---|
-| Shared plugins and versions | `packs/base/plugins/` and `.claude-plugin/marketplace.json`; add company plugins beside the base pack |
-| Team marketplace settings | `templates/project-settings.json`; `project-settings --dir <project-folder>` previews the target's `.claude/settings.json` |
-| Assistant instructions | `templates/harness.md`; `harness --dir <project-folder>` previews its managed block in `CLAUDE.md` and `AGENTS.md` |
-| Setup health | `node scripts/skillgate.mjs doctor --dir <project-folder>`; inspect missing and unverified checks |
-| Existing handoff display | `workflow` SessionStart hook; default project record is `docs/HANDOFF.md` |
-| Skill evaluation evidence | `scripts/evidence.mjs` and `evidence/`; these measure selected skill behavior, not project compliance |
-| Project preparation and security prototype | `scripts/prepare.mjs`, `scripts/security-evidence.mjs`, tests and demo in this checkout; [material index](AUTOPILOT_START_HERE.md). Adapt them through the existing CLI rather than adding a second onboarding system |
+**The improvement loop:** a project records a lesson; `skillgate propose` copies it, scrubbed, to your fork; you change the skill or template and prove it with a test that fails before the change and passes after; you sign a release; developers update and verify; projects apply the template change with `migrate`. Nothing reaches your team's policy without your review.
 
-Run the subcommands through `node scripts/skillgate.mjs` from the company fork. `harness` and `project-settings` preview by default; `--apply` writes with backups. `harness --undo --dir <project-folder>` removes the managed block, preserving surrounding text.
+**Keep three kinds of evidence apart:** skill evaluation results (`evidence/<commit>/`), project security evidence (each project's `.skillgate/security/`), and release approval (signed tags). One never stands in for another.
 
-**The improvement loop:** lesson -> proposed change -> regression or behavior test -> company review and approved release -> rollout. Sessions propose improvements; they do not silently change company policy.
-
-**Keep three records separate:** skill evaluation results, project security evidence, and release approval. A security mapping must name its framework version, scope, evidence, and gaps. Unassessed controls stay unassessed.
-
-**Validation:** [CI](../.github/workflows/checks.yml) runs fixture and packaging checks. Live model evaluations are separate and incur usage. The private name scan needs your denylist; CI warns if unavailable. Native plugin updates do not migrate project documents or refresh instruction blocks. Those migrations and release verification remain planned.
-
-**Optional status line:** `node scripts/setup.mjs` previews; `--apply` writes. It runs from the clone and keeps local quota readings. Its `--undo` restores the entire backed-up settings file, so reconcile any subsequent settings changes first. See [setup.mjs](../scripts/setup.mjs) before removal.
-
-**Full acceptance rehearsal:** fresh company fork and contributor; normal work; interrupted-session recovery; stale security evidence; approved update preserving project history; defective change rejected by trusted merge checks; removal. Codex needs its own rehearsal. Current plugin tests do not satisfy this whole gate.
+**Guides:** [RELEASING.md](RELEASING.md) for the fork and releases, [ONBOARDING.md](ONBOARDING.md) for your developers, [DELIVERY.md](DELIVERY.md) for merge checks, [CLIENTS.md](CLIENTS.md) for what each coding client supports.

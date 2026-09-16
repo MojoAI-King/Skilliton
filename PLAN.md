@@ -94,35 +94,38 @@ Withdrawal prevents future approval/distribution according to policy; it must no
 
 ## 6. Current implementation and evidence
 
+Updated 2026-09-16 after the M1-M4 integration (workflow 0.3.0, guardrails 0.2.0, context-hygiene 0.1.2). "Local" means committed on this machine's `main`; PUBLISHED, INSTALLED and VERIFIED states are named in docs/HANDOFF.md.
+
 | Capability | Current state | Evidence or remaining proof |
 |---|---|---|
-| Base `workflow`, `guardrails`, `context-hygiene` plugins | Implemented on main | Repository fixtures, recorded workflow evaluations and one live headless force-push probe |
-| `doctor`, `harness`, `project-settings`, `new-skill`, `import` | Implemented on main | CLI tests; install/update rehearsal still open |
-| Prepare and project security runtime | Standalone scripts/tests/demo imported from `23aae41` into this checkout; current CLI and lifecycle wiring still open | See evidence/autopilot-foundation/import-validation.md for local results; M1 still requires combined behavior proof |
-| Ongoing event-driven checkpoints and security refresh | Instructed in parts; integrated lifecycle not proven | Exercise actual supported client events and recovery behavior |
-| `release`, `verify`, approved update and tamper detection | Planned | Release schema exists; end-to-end distribution proof remains open |
-| Application merge enforcement | Target capability | Package CI is not a company's application merge gate |
-| Codex parity | Not rehearsed | Running this repository's development in Codex does not prove installed plugin/hook behavior |
+| Runtime and CLI (`doctor`, `harness`, `project-settings`, `new-skill`, `import`, `prepare`, `migrate`, `remove`, `status`, `task`, `checkpoint`, `record`, `index`, `security`, `hook`, `propose`, `release`, `verify`, `trust`, `delivery`) | Implemented inside the workflow plugin; one config contract; exit codes 0, 1, 2, 3 | CLI 149 checks; prepare 41; lifecycle 32; security 52; release 21; delivery 10; demo; project rehearsal 9 of 9 |
+| Workflow skills (`task`, `dispatch`, `review`, `handoff`, `maintain`, `security`) | Implemented; instructed behavior | Evals at 0.3.0: 4 of 4 cases, score 1.00, mean difference 0.55 over no plugin (evidence/325d38f.../SUMMARY.md); the task and security skills have no eval cases yet |
+| Lifecycle hooks (session start, stop reminder, pre-compact, session end) | Implemented | Measured in real headless Claude Code sessions (evidence/rehearsals/2026-09-16-live-clients); interactive sessions and Codex not observed |
+| Guardrails | Implemented; asks in Claude Code, refuses in Codex | 487 checks; live denials (force-push; `git reset --hard` with a control) |
+| Project security evidence | Implemented: applicability, expiry, collectors, findings, 15-control catalog | 52 tests; stale evidence in the project rehearsal and the demo |
+| Releases, trust, verify, proposals, template migrations | Implemented | Company release rehearsal 18 of 18 on clean Claude Code and Codex installs, with a behavior eval that fails before the improvement and passes after |
+| Delivery gate | Implemented locally (server-side pre-receive); GitHub adapter documented | 10 tests with real pushes; the demo rejects a defective combined change; hosted adapter not rehearsed |
+| Codex | Marketplace, install, skills, `AGENTS.md` and verify measured; guardrails adapted | Plugin hooks are removed in the measured Codex; lifecycle hooks need a run from a logged-in isolated Codex home |
 | Usage measurement | Optional supporting module; known reproduction gap | DECISIONS.md O2 and O3; no savings claim until reproduced and cross-checked |
 
-The recorded 0.98 skill-evaluation score and 0.51 mean uplift apply to four workflow scenarios with three runs per arm. They are not a general code-quality score or proof of production defect reduction. Handoff display is automatic when the installed hook runs; writing a correct, current handoff remains instructed. Local guardrails inspect supported Claude Bash calls and explicitly exclude several indirect command forms.
+The evaluation scores apply to the named cases and runs only. They are not a general code-quality score or proof of production defect reduction. Writing a correct, current handoff and following the instructions remain instructed behavior even where a hook reminds or displays.
 
-Current CI runs offline package/repository checks and plugin validation. It does not run paid model evaluations. Its private name scan can be unavailable while the run stays green with a warning. Required release evidence must state those omissions. The target policy is offline checks on every PR and scoped behavioral evidence for relevant skill changes before company release, with the evidence tied to the reviewed candidate.
+CI runs every offline suite, strict plugin validation, the demo and the offline project rehearsal. It does not run paid evaluations or live client sessions, and its private name scan can be unavailable while the run stays green with a warning. Release evidence must state those omissions.
 
 ## 7. Delivery gates and order
 
-The original September 16-23 demonstration window does not promise completion of the expanded autopilot. Execute these milestones in order, with independent distribution work allowed after shared contracts are agreed. Record changed scope and measured results rather than declaring a calendar day complete as a substitute for proof.
+The original September 16-23 demonstration window does not promise completion of the expanded autopilot. Record changed scope and measured results rather than declaring a calendar day complete as a substitute for proof.
 
 | ID | Milestone | Acceptance | State |
 |---|---|---|---|
-| M0 | Shared direction | README, plan, contracts, instructions and handoff agree on implemented/prototype/target boundaries | Documentation aligned in this change |
-| M1 | One prepared repository | Integrate foundation through existing CLI; one instruction writer; doctor understands config; preserves existing docs; repeat/undo or recovery exercised; no unexplained status codes | Next |
-| M2 | Normal-work continuity | Actual session start/checkpoint/review/handoff integration; two contributors resume without overwriting records; missing/stale state stays visible | Planned |
-| M3 | Approved company updates | Rehearsal fork, versioned release/verify, second clean environment joins, receives one improved skill and one safe repo migration; tampering detected; rollback and removal proved | Planned |
-| M4 | Security and shared delivery | Broader applicable controls, evidence collectors and deduplicated gaps; actual application checks block a defective combined change; policy changes receive separate review | Planned |
-| M5 | Beginner/team rehearsal | A new builder follows the docs to prepare, build, review, resume, receive an update and recover; measure interventions, reviewer effort and missed requirements | Planned |
+| M0 | Shared direction | README, plan, contracts, instructions and handoff agree on implemented/prototype/target boundaries | Done (aligned again after integration) |
+| M1 | One prepared repository | Integrate foundation through existing CLI; one instruction writer; doctor understands config; preserves existing docs; repeat/undo or recovery exercised; no unexplained status codes | **Verified locally.** docs/AUTOPILOT_INTEGRATION.md I1 to I6 |
+| M2 | Normal-work continuity | Actual session start/checkpoint/review/handoff integration; two contributors resume without overwriting records; missing/stale state stays visible | **Verified on Claude Code** (live sessions; project rehearsal). Open: Codex lifecycle hooks (O9), an interactive session (O6) |
+| M3 | Approved company updates | Rehearsal fork, versioned release/verify, second clean environment joins, receives one improved skill and one safe repo migration; tampering detected; rollback and removal proved | **Verified at install level** (18 of 18, Claude Code and Codex). Open: a model session in the clean configuration and automatic updates at session start (O8) |
+| M4 | Security and shared delivery | Broader applicable controls, evidence collectors and deduplicated gaps; actual application checks block a defective combined change; policy changes receive separate review | **Verified locally.** Open: the GitHub adapter on a hosted repository (O15) |
+| M5 | Beginner/team rehearsal | A new builder follows the docs to prepare, build, review, resume, receive an update and recover; measure interventions, reviewer effort and missed requirements | **Not started: needs a real person** (O16); protocol ready in docs/rehearsals/NEW_BUILDER.md |
 
-M1 integration work and ownership are detailed in [docs/AUTOPILOT_INTEGRATION.md](docs/AUTOPILOT_INTEGRATION.md). Contracts distinguish current implementation from target decisions in [docs/CONTRACTS.md](docs/CONTRACTS.md). The latest execution state is [docs/HANDOFF.md](docs/HANDOFF.md). Do not turn the prototype branch's older plan into a second live roadmap.
+The integration steps and their evidence are in [docs/AUTOPILOT_INTEGRATION.md](docs/AUTOPILOT_INTEGRATION.md). Contracts are in [docs/CONTRACTS.md](docs/CONTRACTS.md). The latest execution state is [docs/HANDOFF.md](docs/HANDOFF.md). No milestone with an open item above is complete.
 
 ## 8. Quality, review and trust
 

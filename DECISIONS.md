@@ -22,6 +22,69 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 **Reversibility:** EASY for the import and documentation; no client configuration, hosted policy or production environment changes. Main's existing CLI/plugins are preserved.
 **Evidence:** Source provenance `23aae41`; code and test bytes checked against that snapshot. New local validation is recorded in evidence/autopilot-foundation/import-validation.md. PLAN.md v4 remains authoritative.
 
+## 2026-09-16 The Skillgate runtime lives inside the workflow plugin
+**Decision:** The command line (every command, its engines and the harness template) moved into `packs/base/plugins/workflow/runtime/`, launched by `bin/skillgate` from an installed plugin and by `scripts/skillgate.mjs` from a company fork. Projects no longer receive a copied runtime.
+**Why:** An installed plugin then carries exactly the code its release approved, a project never stores a path to a toolkit clone, and one version identifies both skills and runtime. Claude Code puts a plugin's `bin/` on the Bash tool's path (measured).
+**Alternatives rejected:** Keeping the prototype's copied runtime in each project (copies drift and escape release verification); a separate runtime plugin (hooks in one plugin cannot find another plugin's path).
+**Risk:** A company that edits the base template must reconcile that one file when taking upstream changes (CONTRACTS section 1). Moving the fork does not break a project: measured in the company release rehearsal (P2).
+**Reversibility:** MODERATE.
+
+## 2026-09-16 One integrating session, a frozen contract, six lanes
+**Decision:** The integrating session wrote integration contract v1 (docs/CONTRACTS.md sections 9 to 15), committed the base, and ran six implementation lanes in isolated worktrees (prepare, security, lifecycle, release, delivery, guardrails under Codex), each with a fixed write set and a verified base commit. Lanes merged one at a time with the full suite after each merge.
+**Why:** The owner asked for the whole autopilot, and the work split cleanly by files once the shared names and formats were fixed first.
+**Alternatives rejected:** Letting lanes negotiate shared formats (the cause of the earlier two-stack drift); one serial implementation (hours slower with no quality gain).
+**Risk:** A lane's green is not the merge's green. Measured: three lanes' tests assumed modules or template text their base did not have, and failed on the combined tree until they derived expectations from the build (fixed in integration commits; docs/LESSONS.md).
+**Reversibility:** EASY.
+
+## 2026-09-16 Template updates reach projects as receipted migrations
+**Decision:** A change to the harness template shows up in a prepared project as migration `0100-instructions-<template hash>`: preview, backups, a receipt recording each block's hash, rollback, and a refusal when a block was edited by hand since Skillgate wrote it. `prepare` no longer rewrites an existing block in a prepared project.
+**Why:** PLAN.md section 5 requires instruction changes to be versioned project migrations, not silent rewrites. Keying by the template's hash makes every template version one migration without hand-numbering.
+**Alternatives rejected:** A numbered registry entry per template edit (easy to forget in a company fork); letting `prepare --apply` refresh blocks (no receipt, no rollback, no hand-edit check).
+**Risk:** The first refresh of a project prepared before this change has no earlier receipt, so a hand edit inside the markers cannot be detected that once; the preview diff and the backup cover it, and the output says so.
+**Reversibility:** EASY. Evidence: `scripts/migrate.test.mjs` (14 tests; disabling the hand-edit check fails its test); company release rehearsal M1.
+
+## 2026-09-16 Release approval is a signed tag checked against signers kept outside the repository
+**Decision:** A release is `releases/<version>.json` hashing every installable file; approval is an annotated SSH-signed tag `skillgate-release/<version>` naming the manifest's hash, verified against an allowed signers file each machine records with `skillgate trust add` outside every repository. Withdrawal is a signed `skillgate-withdrawn/<version>` tag.
+**Why:** A field in a file anyone can push is a claim, not approval. Git's own SSH signing needs no server and works for a solo company and a large one alike.
+**Alternatives rejected:** An approvers list inside the repository (the attacker can edit it); a hosted approval service (out of scope for local-first delivery).
+**Risk:** The trust file is only as safe as the channel that delivers it; verification proves the installed bytes were approved, not that what was approved is safe (a reviewed but malicious hook would verify). Review of executable files stays the control.
+**Reversibility:** MODERATE. Evidence: `scripts/release.test.mjs` (21); company release rehearsal, 18 of 18 on real Claude Code and Codex installs.
+
+## 2026-09-16 The delivery check reads its policy from the protected branch, not from the push
+**Decision:** The server-side check tests the pushed tip (the combined result) with the checks in `.skillgate/delivery.json` as it is on the protected branch before the push; any pushed commit that changes a policy path must carry an approver's SSH signature; the archive it tests is compared file by file with the commit; the protected set comes from the policy on the repository's default branch.
+**Why:** A defective change must not be able to weaken the checks that would catch it. Measured by the lane: a pushed `.gitattributes` with export-ignore removed the tests from a plain archive, so the file-by-file comparison is required.
+**Alternatives rejected:** Reading the policy from the pushed commit (self-approval); trusting client-side hooks (skippable with --no-verify).
+**Risk:** A check that can never pass blocks the fix too; recovery is administrative (docs/DELIVERY.md). The GitHub adapter is documented, not rehearsed (O15).
+**Reversibility:** MODERATE. Evidence: `scripts/delivery.test.mjs` (10 tests with real pushes); `scripts/autopilot-demo.mjs`.
+
+## 2026-09-16 Security evidence: collectors, findings, and a tiered secret scan
+**Decision:** Project security evidence gains applicability decided by a named person, expiry, collectors (tests, secrets, delivery policy), one backlog row per open finding, and a 15-control baseline catalog. The secrets collector records a gap only for specific shapes (private key block, provider token prefix, JSON web token); generic shapes alone record needs-human.
+**Why:** Measured: the prototype's generic shapes matched 60 lines of this clean repository (hashes, fixtures), so a gap on any match would be noise that teaches people to ignore gaps.
+**Alternatives rejected:** Gap on any match (noise); dropping the generic shapes (misses real assignments of secrets).
+**Risk:** A real secret that only matches a generic shape waits for a person's review instead of showing as a gap (O22).
+**Reversibility:** EASY. Evidence: `scripts/security-evidence.test.mjs` and `scripts/collectors.test.mjs` (52); docs/security-catalog-sources.md.
+
+## 2026-09-16 The stop reminder measures from the later of the last checkpoint and this session's start
+**Decision:** The Stop hook compares the working tree with the later of the last checkpoint and the first start of the current session, so work from before the session (a commit in a terminal) never triggers a reminder, and a compaction does not reset the baseline.
+**Why:** Proposed by the lifecycle lane: measuring only from the last checkpoint reminded new sessions about changes they did not make.
+**Alternatives rejected:** The latest session start (a compaction would hide unrecorded work).
+**Risk:** None significant. Evidence: `scripts/lifecycle.test.mjs` (32; the baseline test fails when the first start is replaced by the latest).
+**Reversibility:** EASY.
+
+## 2026-09-16 Codex: the same plugins and instructions, refusals instead of confirmations, hooks not from plugins
+**Decision:** Codex reads this repository's Claude Code marketplace and plugin manifests directly, so no separate Codex manifests are shipped. Guardrails refuses, with the reason, the commands it would ask about in Claude Code. Skillgate does not rely on hooks shipped inside a Codex plugin.
+**Why:** Measured on Codex CLI 0.154.0-alpha.6.2: marketplace add, plugin install, skills and AGENTS.md in the prompt, and verify all work from the existing manifests; `codex features list` reports `plugin_hooks` as removed. Codex documents that a hook's "ask" is not supported and the tool call continues.
+**Alternatives rejected:** Duplicate `.codex-plugin` manifests (two version fields to keep in step); letting asks through under Codex (silent permission).
+**Risk:** Codex lifecycle hooks are unverified: a project hook did not load under `codex exec` with a per-run trust override, and the next run needs a logged-in isolated Codex home (O9). Client detection by input keys could misfire on a future Claude Code (O21).
+**Reversibility:** EASY.
+
+## 2026-09-16 A rehearsal improvement whose behavior test passed before the change was replaced, not tuned
+**Decision:** The company release rehearsal's first improvement (review stops on a removed delivery check) was dropped when its eval passed before the change as well as after; the rehearsal now uses a company review rule the model cannot know without the skill (billing changes need the payments lead), and the rehearsal requires the eval to fail before and pass after.
+**Why:** An improvement is only shown to work when its test can fail on the old version. The first attempt's result is kept in evidence/rehearsals/2026-09-16-company-release-attempt-1/.
+**Alternatives rejected:** Tightening the grader until the old version failed (proves nothing about the change).
+**Risk:** None. Cost: two eval runs of one case per attempt, about 0.22 USD each at list price.
+**Reversibility:** EASY.
+
 ## Open items
 
 | # | Item | Status | Next step |
@@ -31,15 +94,23 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 | O3 | "Batch" (the Tier 3 unit) has no written definition. | OPEN | Define before the first cost comparison; do not invent one to fill a table |
 | O4 | `hooks/config-drift-check.sh` ships in the pack but nothing runs it, and it prints DRIFT whenever settings.json has no `model` key (a false positive on the default setup). | OPEN | Triage with M1; remains unimplemented |
 | O5 | `setup.mjs --undo` restores the last backup over settings.json, discarding any edits made after `--apply`; with no settings file before `--apply` it restores an empty file instead of deleting it. `--apply` replaces an existing statusLine rather than chaining it. | OPEN, known | Setup recovery hardening; track with PLAN.md M3 |
-| O6 | How SessionStart hook output reaches the model has not been observed in a live session. | UNVERIFIED | Fresh session with the plugin installed (fresh interactive rehearsal remains open) |
-| O7 | Deny path CLOSED 2026-09-16: a real headless Claude Code session, allowed to run `git push`, was stopped from force-pushing main by the guardrails hook, and the same request without the plugin went through (`evidence/live/2026-09-16-guardrails-force-push.md`). Still UNVERIFIED: the `ask` decision (commands that discard uncommitted work) in a live session. | PARTLY CLOSED | Use a disposable repo with synthetic uncommitted work to observe the interactive confirmation path |
-| O8 | Team settings (`extraKnownMarketplaces`, `autoUpdate`, `enabledPlugins`) and auto-update are documented, not yet exercised on a clean machine or user. | OPEN | PLAN.md M3 company-update rehearsal |
+| O6 | SessionStart output reaching the model: observed headless on Claude Code 2.1.273 with a probe plugin (evidence/live/2026-09-16-client-capability-probes.md) and with the real workflow plugin, where the model quoted the handoff and the Project state (evidence/rehearsals/2026-09-16-live-clients). Not observed in an interactive session. | PARTLY CLOSED | A person opens an interactive session in a prepared project |
+| O7 | Deny path CLOSED 2026-09-16 (force-push). Ask path: with nobody to answer, headless Claude Code denies it and the command does not run (probe C3; live rehearsal L3, where the control without guardrails lost the work). The confirmation prompt a person sees is not observed. | PARTLY CLOSED | A person runs `git reset --hard` in an interactive session in a disposable repo |
+| O8 | Install, update, downgrade, verification and removal measured in a clean Claude Code configuration and a clean Codex home (company release rehearsal). Not observed: the team-settings trust and install prompt, `autoUpdate` at session start, and a model session in the clean configuration (it starts logged out). | PARTLY CLOSED | Owner logs in once inside a fresh `CLAUDE_CONFIG_DIR`; then observe autoUpdate across two session starts |
+| O9 | Codex: marketplace, install, skills, AGENTS.md and verify measured. Lifecycle hooks not observed: `plugin_hooks` is removed in 0.154.0-alpha.6.2 and a project hook did not load under `codex exec` with a trust override. | OPEN | Owner runs `CODEX_HOME=<folder> codex login` once; then `node scripts/rehearsals/live-clients.mjs --codex-home <folder>` |
 | O10 | Guardrails' `.env.*` rule has no per-file allowlist; a team that commits `.env.development` on purpose can only turn off every secret-file check. | OPEN | Add an `allowSecretFiles` list to the guardrails config |
-| O11 | Foundation code, tests, demo and evidence are now present in the local main working tree; old design notes are archived and the goal is saved in docs/BUILD_GOAL.md. Existing CLI/plugins still need M1 wiring and shared-contract reconciliation. | MATERIAL AVAILABLE; INTEGRATION OPEN | Start at docs/AUTOPILOT_START_HERE.md and adapt the scripts in place. Do not merge foundation/security branches again |
+| O11 | CLOSED 2026-09-16: the foundation was adapted in place into the runtime (prepare, migrations, records, security); neither prototype branch was merged again; a real layout-1 project migrates and rolls back (scripts/migrate.test.mjs). | CLOSED | none |
 | O12 | The default eval judge model failed a phrasing its rubric explicitly allows (evidence/15b842e). | OPEN | Re-run with a stronger `--judge-model` and compare before adding more cases |
 | O13 | `scrub-check.sh --history` scans every local ref (`git log --all`), including other sessions' unpushed branches, so it can fail or pass on work that is not being pushed. | OPEN | Scan the ref being pushed by default, with `--all` as an option |
-| O14 | The dispatch skill's lane brief checks the branch name but not that the lane has the base commit; agent worktrees here were created from the remote's commit. | OPEN | Add a base-commit check to the brief (`git merge-base --is-ancestor`) |
-| O9 | Codex support is documented (skills in `.agents/skills`, AGENTS.md, hooks with a trust review) but nothing has been run in Codex yet. | OPEN | PLAN.md M2/M3 client rehearsal |
+| O14 | CLOSED 2026-09-16: the dispatch lane brief now checks `git merge-base --is-ancestor <base> HEAD`; the six lanes this session each verified their base before writing. | CLOSED | none |
+| O15 | The GitHub delivery adapter (`templates/github/skillgate-delivery.yml` with branch protection) is documented but not rehearsed on a hosted repository. | OPEN | Owner approves creating a private throwaway repository for the rehearsal |
+| O16 | M5 needs a real person who has never used Skillgate. | OPEN | Owner schedules a participant; docs/rehearsals/NEW_BUILDER.md |
+| O17 | This repository has no signed release; signing needs the owner's key and a chosen version. | OPEN | Owner runs `release create` and `release sign` (docs/RELEASING.md) |
+| O18 | `verify` reports a differing executable bit as a note and still VERIFIED; a hook that lost its bit would not run. | OPEN | Decide whether a mode difference is attention (exit 1) |
+| O19 | `verify` exits 2 when any release tag in the source does not verify, even a tag for another version. | OPEN (accepted for now) | Revisit if one bad tag blocks developers in practice |
+| O20 | Entry IDs are generated in two places with the same rule (records.mjs for decisions and lessons, tasks.mjs for tasks). | OPEN | One exported function and one shared test |
+| O21 | Guardrails treats a top-level `model` key in hook input as Codex; a future Claude Code input with that key would turn confirmations into refusals (visible; `SKILLGATE_GUARDRAILS_CLIENT` overrides). | OPEN | Record real Codex PreToolUse keys in the Codex live run, then decide |
+| O22 | The secrets collector's split between specific shapes (gap) and generic shapes (needs-human) is a judgment. | OPEN | Review after the first real application runs it |
 
 ## 2026-09-16 Public repository with no names in it
 **Decision:** The repo is public from its first push, and it contains no client names, no evaluator name, and no personal names, in files, commit messages, or author fields.
