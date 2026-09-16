@@ -1,0 +1,495 @@
+#!/usr/bin/env bash
+# guardrails.test.sh: tests the guardrails plugin hooks (packs/base/plugins/guardrails/hooks/)
+# with synthetic Claude Code hook input against throwaway git repositories in a temp dir.
+# The hook is only asked for a decision; no command under test is ever run. Nothing outside the
+# temp dir is touched, and git's global and system config are replaced by empty ones.
+#
+#   bash scripts/guardrails.test.sh              check the shipped hooks
+#   bash scripts/guardrails.test.sh --hook FILE  run every check with FILE as guard-bash.sh
+#                                                (proves a broken hook turns this test red)
+#
+# Every case prints ok or FAIL. Exit 0: all ok. Exit 1: any FAIL. Exit 2: NOT RUN (git or jq missing).
+# The fake secrets are assembled from pieces at run time, so no secret-shaped string exists in
+# this repository, and the checks assert that a block reason never repeats the value.
+set -u
+here="$(cd "$(dirname "$0")" && pwd)"
+root="$(cd "$here/.." && pwd)"
+PLUGIN_REL="packs/base/plugins/guardrails"
+SHIPPED_DIR="$root/$PLUGIN_REL/hooks"
+HOOK="$SHIPPED_DIR/guard-bash.sh"
+LABEL="$PLUGIN_REL/hooks/guard-bash.sh (shipped)"
+OVERRIDE=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --hook) [ $# -ge 2 ] || { echo "FAIL: --hook needs a file argument"; exit 1; }; OVERRIDE=$2; shift 2 ;;
+    *) echo "FAIL: unknown argument: $1"; exit 1 ;;
+  esac
+done
+
+for t in git jq; do
+  command -v "$t" >/dev/null 2>&1 || { echo "NOT RUN: $t missing"; exit 2; }
+done
+
+TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+if [ -n "$OVERRIDE" ]; then
+  [ -f "$OVERRIDE" ] || { echo "FAIL: hook under test not found: $OVERRIDE"; exit 1; }
+  mkdir -p "$TMP/plugin/hooks"
+  cp "$OVERRIDE" "$TMP/plugin/hooks/guard-bash.sh"
+  cp "$SHIPPED_DIR/session-start-guardrails.sh" "$TMP/plugin/hooks/"
+  chmod +x "$TMP/plugin/hooks/guard-bash.sh" "$TMP/plugin/hooks/session-start-guardrails.sh"
+  HOOK="$TMP/plugin/hooks/guard-bash.sh"
+  LABEL="override: $(basename "$OVERRIDE") (NOT the shipped hook)"
+fi
+SS="$(dirname "$HOOK")/session-start-guardrails.sh"
+
+export HOME="$TMP/home" GIT_CONFIG_GLOBAL="$TMP/gitconfig" GIT_CONFIG_NOSYSTEM=1
+export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
+mkdir -p "$HOME"; : > "$GIT_CONFIG_GLOBAL"
+unset SKILLGATE_GUARDRAILS CLAUDE_PROJECT_DIR
+
+fails=0; oks=0
+ok()  { echo "ok   $1"; oks=$((oks + 1)); }
+bad() { echo "FAIL $1"; fails=$((fails + 1)); }
+section() { echo; echo "== $1"; }
+
+jstr() { printf '%s' "$1" | jq -Rs .; }
+payload() { # payload <cwd> <command>
+  printf '{"session_id":"guardrails-test","transcript_path":%s,"cwd":%s,"permission_mode":"default","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":%s,"description":"guardrails test"}}' \
+    "$(jstr "$TMP/transcript.jsonl")" "$(jstr "$1")" "$(jstr "$2")"
+}
+
+# hook <cwd> <command> [VAR=value...]: runs the hook the way Claude Code does, by path, JSON on stdin.
+# CLAUDE_PROJECT_DIR defaults to <cwd>; a later VAR=value overrides it.
+hook() {
+  local cwd=$1 cmd=$2; shift 2
+  payload "$cwd" "$cmd" > "$TMP/payload.json"
+  OUT=$(env CLAUDE_PROJECT_DIR="$cwd" "$@" "$HOOK" < "$TMP/payload.json" 2>"$TMP/stderr"); RC=$?
+  DECISION=allow; REASON_TEXT=""
+  case "$OUT" in
+    '') DECISION=allow ;;
+    *'"permissionDecision":"deny"'*) DECISION=deny ;;
+    *'"permissionDecision":"ask"'*) DECISION=ask ;;
+    *) DECISION="unrecognized output" ;;
+  esac
+  [ -n "$OUT" ] && REASON_TEXT=$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.permissionDecisionReason // empty' 2>/dev/null)
+  return 0
+}
+
+valid_decision_json() { # empty output, or exactly one well-formed deny or ask object
+  [ -n "$OUT" ] || return 0
+  printf '%s' "$OUT" | jq -e -s 'length == 1 and (.[0] | keys == ["hookSpecificOutput"])
+    and (.[0].hookSpecificOutput.hookEventName == "PreToolUse")
+    and (.[0].hookSpecificOutput.permissionDecision == "deny" or .[0].hookSpecificOutput.permissionDecision == "ask")
+    and ((.[0].hookSpecificOutput.permissionDecisionReason | type) == "string")
+    and ((.[0].hookSpecificOutput.permissionDecisionReason | length) > 0)' >/dev/null 2>&1
+}
+
+# expect <label> <deny|ask|allow> <cwd> <command> [VAR=value...]
+expect() {
+  local label=$1 want=$2; shift 2
+  hook "$@"
+  if [ "$RC" -ne 0 ]; then bad "$label: hook exited $RC (it must always exit 0)"; return 0; fi
+  if ! valid_decision_json; then bad "$label: output is not a valid PreToolUse decision"; return 0; fi
+  if [ "$DECISION" = "$want" ]; then ok "$label -> $DECISION"
+  else bad "$label -> expected $want, got $DECISION${REASON_TEXT:+ [reason: $REASON_TEXT]}"; fi
+  return 0
+}
+reason_has()   { case "$REASON_TEXT" in *"$2"*) ok "$1" ;; *) bad "$1 [reason: $REASON_TEXT]" ;; esac; }
+reason_lacks() { case "$OUT" in *"$2"*) bad "$1" ;; *) ok "$1" ;; esac; }   # never prints the needle
+
+new_repo() { # new_repo <dir>: branch main with one commit (README.md, deploy.key) and a feature branch
+  mkdir -p "$1" && git init -q "$1" && git -C "$1" symbolic-ref HEAD refs/heads/main || return 1
+  printf '# fixture\n' > "$1/README.md"
+  printf 'placeholder, not a real key\n' > "$1/deploy.key"
+  git -C "$1" add README.md deploy.key && git -C "$1" commit -q -m init && git -C "$1" branch feature
+}
+
+make_bin() { # make_bin <dir> <tool>...: a PATH directory that holds only these tools
+  local d=$1 t p; shift
+  mkdir -p "$d"
+  for t in "$@"; do
+    p=$(command -v "$t" 2>/dev/null)
+    case "$p" in /*) ln -sf "$p" "$d/$t" ;; esac
+  done
+}
+
+# fake secrets: each literal is split so the whole value never appears in this file
+FAKE_AWS="AKIA""TESTONLYEXAMPLE0"
+FAKE_ANTHROPIC="sk-ant-""api03-testonlyfakevalue0000000000"
+FAKE_GH="ghp_""testonlyfakevalue000000000000000"
+FAKE_GH_PAT="github_pat_""testonly_fake_value_0000000000000"
+FAKE_SLACK="xoxb-""0000000000-testonlyfake"
+FAKE_STRIPE="sk_live_""testonlyfakevalue000"
+FAKE_PEM="-----BEGIN RSA PRIVATE"" KEY-----"
+
+echo "guardrails test"
+echo "hook under test: $LABEL"
+echo "bash: $(bash -c 'echo $BASH_VERSION'), git: $(git --version | cut -d' ' -f3)"
+
+# ---------------------------------------------------------------- fixtures
+R="$TMP/repo"          # on main: untracked .env, staged clean notes.txt, tracked deploy.key modified
+RF="$TMP/repo-feature" # on feature
+RS="$TMP/repo-secret"  # staged content is swapped per case
+RA="$TMP/repo-add"     # untracked app.js with a key, README.md gains a key line, clean.txt
+RI="$TMP/repo-ignored" # .env present but listed in .gitignore
+RD="$TMP/repo-remove"  # a committed .env.production staged for removal
+RU="$TMP/repo-upstream" # branch topic pushes to origin/main (push.default=upstream)
+RCFG="$TMP/repo-config"  # .skillgate/config.json rewritten per case
+for d in "$R" "$RF" "$RS" "$RA" "$RI" "$RD" "$RU" "$RCFG"; do
+  new_repo "$d" || { echo "FAIL: could not build fixture repository $d"; exit 1; }
+done
+printf 'SECRET=placeholder\n' > "$R/.env"
+printf 'meeting notes\n' > "$R/notes.txt"; git -C "$R" add notes.txt
+printf 'changed placeholder\n' >> "$R/deploy.key"
+git -C "$RF" checkout -q feature
+printf 'const key = "%s";\n' "$FAKE_AWS" > "$RA/app.js"
+printf 'aws = %s\n' "$FAKE_AWS" >> "$RA/README.md"
+printf 'hello\n' > "$RA/clean.txt"
+printf '.env\n' > "$RI/.gitignore"; git -C "$RI" add .gitignore; git -C "$RI" commit -q -m ignore
+printf 'SECRET=placeholder\n' > "$RI/.env"
+printf 'SECRET=placeholder\n' > "$RD/.env.production"; git -C "$RD" add .env.production; git -C "$RD" commit -q -m mistake
+git -C "$RD" rm -q --cached .env.production
+git init -q --bare "$TMP/remote.git"
+git -C "$RU" remote add origin "$TMP/remote.git" && git -C "$RU" push -q origin main feature 2>/dev/null \
+  && git -C "$RU" checkout -q -b topic --track origin/main && git -C "$RU" config push.default upstream \
+  || { echo "FAIL: could not build the upstream fixture"; exit 1; }
+printf 'SECRET=placeholder\n' > "$RCFG/.env"; mkdir -p "$RCFG/.skillgate"
+write_config() { printf '%s\n' "$1" > "$RCFG/.skillgate/config.json"; }
+
+# ---------------------------------------------------------------- packaging
+section "packaging: hooks.json and executable bits (Claude Code runs the scripts by path)"
+HJ="$SHIPPED_DIR/hooks.json"
+jq_true() { if jq -e "$2" "$HJ" >/dev/null 2>&1; then ok "$1"; else bad "$1"; fi; }
+jq_true "PreToolUse has one entry, matcher Bash" '(.hooks.PreToolUse | length) == 1 and .hooks.PreToolUse[0].matcher == "Bash"'
+jq_true "PreToolUse runs guard-bash.sh by path with timeout 10" '.hooks.PreToolUse[0].hooks == [{"type":"command","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/guard-bash.sh","timeout":10}]'
+jq_true "SessionStart runs session-start-guardrails.sh by path" '.hooks.SessionStart == [{"hooks":[{"type":"command","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-start-guardrails.sh"}]}]'
+jq_true "no if filter anywhere (compound commands must reach the hook)" '[.. | objects | has("if")] | any | not'
+if [ -x "$HOOK" ]; then ok "guard-bash.sh is executable"; else bad "guard-bash.sh is not executable"; fi
+if [ -x "$SS" ]; then ok "session-start-guardrails.sh is executable"; else bad "session-start-guardrails.sh is not executable"; fi
+
+# ---------------------------------------------------------------- rule 1: force push
+section "deny: force-push to a protected branch"
+expect "git push --force origin main"                 deny "$R" 'git push --force origin main'
+reason_has "force-push reason names the branch and the safe alternative" "shared main branch"
+reason_has "force-push reason ends with what to do instead" "open a pull request instead."
+expect "git push -f origin main"                      deny "$R" 'git push -f origin main'
+expect "git push --force-with-lease origin main"      deny "$R" 'git push --force-with-lease origin main'
+expect "git push --force-with-lease=main:abc origin main" deny "$R" 'git push --force-with-lease=main:abc origin main'
+expect "git push --force-w origin main (abbreviation git accepts)" deny "$R" 'git push --force-w origin main'
+expect "git push origin main --force (flag after)"    deny "$R" 'git push origin main --force'
+expect "git push -uf origin main (combined flags)"    deny "$R" 'git push -uf origin main'
+expect "git push origin +main (plus refspec)"         deny "$R" 'git push origin +main'
+expect "git push origin +HEAD:main"                   deny "$R" 'git push origin +HEAD:main'
+expect "git push --force origin feature:main"         deny "$R" 'git push --force origin feature:main'
+expect "git push --force origin refs/heads/main"      deny "$R" 'git push --force origin refs/heads/main'
+expect "git push --force origin master"               deny "$R" 'git push --force origin master'
+expect "git push -f (no branch named, on main)"       deny "$R" 'git push -f'
+reason_has "current-branch reason says you are on main" "you are on the shared main branch"
+expect "git push --force origin (remote only, on main)" deny "$R" 'git push --force origin'
+expect "git push -f origin HEAD (on main)"            deny "$R" 'git push -f origin HEAD'
+expect "git push -f (on topic, which pushes to origin/main)" deny "$RU" 'git push -f'
+expect "git push --mirror"                            deny "$R" 'git push --mirror origin'
+expect "git push --force --all"                       deny "$R" 'git push --force --all origin'
+section "deny: the same force-push inside compound commands"
+expect "cd repo && git push --force origin main"      deny "$TMP" 'cd repo && git push --force origin main'
+expect "cd repo && git push -f (cd followed to main)" deny "$TMP" 'cd repo && git push -f'
+expect "git -C repo push -f (no branch, -C followed)" deny "$TMP" 'git -C repo push -f'
+expect "git status; git push -f origin main"          deny "$R" 'git status; git push -f origin main'
+expect "true || git push --force origin main"         deny "$R" 'true || git push --force origin main'
+expect "npm test | git push -f origin main"           deny "$R" 'npm test | git push -f origin main'
+expect "two lines, second is the force-push"          deny "$R" $'git fetch origin\ngit push --force origin main'
+# Found by this test: the raw-input fast path saw "\ngit" (JSON-escaped newline) as no git word at
+# all and allowed the call unread. Pinned with a first line that does not mention git.
+expect "echo hi, newline, force-push (JSON \\n before git)" deny "$R" $'echo hi\ngit push --force origin main'
+expect "echo hi; tab, force-push (JSON \\t before git)" deny "$R" $'echo hi;\tgit push --force origin main'
+expect "(git push -f origin main) subshell"           deny "$R" '(git push -f origin main)'
+expect "FOO=1 git push -f origin main (env assignment)" deny "$R" 'FOO=1 git push -f origin main'
+expect "sudo git push -f origin main"                 deny "$R" 'sudo git push -f origin main'
+expect "/usr/bin/git push -f origin main (full path)" deny "$R" '/usr/bin/git push -f origin main'
+expect "line continuation before --force"             deny "$R" $'git push \\\n  --force origin main'
+section "allow: force-push rules must not fire on ordinary pushes (negative controls)"
+expect "git push origin feature"                      allow "$R" 'git push origin feature'
+expect "git push -f origin feature"                   allow "$R" 'git push -f origin feature'
+expect "git push --force-with-lease origin feature"   allow "$R" 'git push --force-with-lease origin feature'
+expect "git push origin +feature"                     allow "$R" 'git push origin +feature'
+expect "git push origin main (no force)"              allow "$R" 'git push origin main'
+expect "git push -u origin HEAD (no force)"           allow "$R" 'git push -u origin HEAD'
+expect "git push -f (on feature)"                     allow "$RF" 'git push -f'
+expect "git push -f origin HEAD (on feature)"         allow "$RF" 'git push -f origin HEAD'
+expect "cd repo-feature && git push -f"               allow "$TMP" 'cd repo-feature && git push -f'
+expect "git push --force origin main:feature"         allow "$R" 'git push --force origin main:feature'
+
+# ---------------------------------------------------------------- rule 2: skipping hooks
+section "deny: skipping git hooks"
+expect "git commit --no-verify -m x"                  deny "$R" 'git commit --no-verify -m "x"'
+reason_has "no-verify reason ends with what to do instead" "instead of skipping it."
+expect "git commit -n -m x"                           deny "$R" 'git commit -n -m "x"'
+expect "git commit -nm x (combined)"                  deny "$R" 'git commit -nm "x"'
+expect "git commit -anm x (combined)"                 deny "$R" 'git commit -anm "x"'
+expect "git commit --no-veri -m x (abbreviation git accepts)" deny "$R" 'git commit --no-veri -m "x"'
+expect "git push --no-verify origin feature"          deny "$R" 'git push --no-verify origin feature'
+expect "cd repo && git commit --no-verify -m x"       deny "$TMP" 'cd repo && git commit --no-verify -m "x"'
+section "allow: flags that only look similar (negative controls)"
+expect "git commit -m \"add -n flag docs\" (quoted message)" allow "$R" 'git commit -m "add -n flag docs"'
+expect "git commit -mn (message is the letter n)"     allow "$R" 'git commit -mn'
+expect "git push -n origin feature (dry run)"         allow "$R" 'git push -n origin feature'
+expect "git log -n 5"                                 allow "$R" 'git log -n 5'
+
+# ---------------------------------------------------------------- rule 3: secret files and content
+section "deny: staging or committing secret-shaped files"
+expect "git add .env"                                 deny "$R" 'git add .env'
+reason_has "secret-file reason names the file and rule" ".env looks like a file that holds passwords or keys (it matches the .env rule)"
+expect "git add -A (untracked .env present)"          deny "$R" 'git add -A'
+expect "git add . (untracked .env present)"           deny "$R" 'git add .'
+expect "git add --all (untracked .env present)"       deny "$R" 'git add --all'
+expect "git commit -am x (tracked deploy.key modified)" deny "$R" 'git commit -am "x"'
+reason_has "commit -a reason names deploy.key" "deploy.key"
+expect "git commit -a -m x"                           deny "$R" 'git commit -a -m "x"'
+expect "git commit --all -m x"                        deny "$R" 'git commit --all -m "x"'
+for name in .env.local .env.production server.pem private.key cert.p12 cert.pfx release.keystore id_rsa id_ed25519 aws_credentials.csv user_accessKeys.csv prod-api-key.txt config/.env '*.pem'; do
+  expect "git add $name (name rule)"                  deny "$R" "git add $name"
+done
+printf 'SECRET=placeholder\n' > "$RS/.env.production"; git -C "$RS" add .env.production
+expect "git commit -m x with .env.production staged"  deny "$RS" 'git commit -m "x"'
+git -C "$RS" reset -q; rm -f "$RS/.env.production"
+section "allow: names that are not secrets (negative controls)"
+for name in .env.example .env.sample .env.template id_rsa.pub keys.md monkey.txt README.md notes.txt; do
+  expect "git add $name"                              allow "$R" "git add $name"
+done
+expect "git add \"\" (empty pathspec, no crash)"      allow "$R" 'git add ""'
+expect "git commit -m fix (staged content is clean)"  allow "$R" 'git commit -m "fix"'
+expect "git add -A (.env is gitignored)"              allow "$RI" 'git add -A'
+expect "git add .env (gitignored, but typed by name)" deny "$RI" 'git add .env'
+expect "git commit (staged removal of .env.production)" allow "$RD" 'git commit -m "stop tracking env file"'
+
+section "deny: staged content shaped like a secret (each pattern must fire)"
+i=0
+for pair in "FAKE_AWS|AWS access key ID" "FAKE_ANTHROPIC|Anthropic API key" "FAKE_GH|GitHub personal access token" \
+            "FAKE_GH_PAT|GitHub fine-grained token" "FAKE_SLACK|Slack token" "FAKE_STRIPE|Stripe live secret key" "FAKE_PEM|private key"; do
+  var=${pair%%|*}; label=${pair#*|}; value=${!var}
+  printf 'line one\nconst token = "%s";\n' "$value" > "$RS/config.js"
+  git -C "$RS" add config.js
+  expect "git commit -m x with $label staged in config.js" deny "$RS" 'git commit -m "add config"'
+  reason_has "  reason names config.js and the rule ($label)" "config.js contain text shaped like"
+  reason_has "  reason names the rule ($label)" "$label"
+  reason_lacks "  reason does not contain the secret value ($label)" "$value"
+  reason_lacks "  reason does not contain the secret's tail ($label)" "${value#????????}"
+  git -C "$RS" reset -q; rm -f "$RS/config.js"
+  i=$((i + 1))
+done
+printf 'const token = process.env.TOKEN;\n' > "$RS/config.js"; git -C "$RS" add config.js
+expect "git commit -m x with clean config.js staged"  allow "$RS" 'git commit -m "add config"'
+git -C "$RS" reset -q; rm -f "$RS/config.js"
+
+section "deny: content checked when it is staged, and in add-then-commit"
+expect "git add app.js (new file holds a key)"        deny "$RA" 'git add app.js'
+reason_has "add reason names app.js" "app.js contains text shaped like an AWS access key ID"
+reason_lacks "add reason does not contain the key" "$FAKE_AWS"
+expect "git add README.md (tracked file gains a key line)" deny "$RA" 'git add README.md'
+reason_lacks "tracked-file reason does not contain the key" "$FAKE_AWS"
+expect "git add app.js && git commit -m x"            deny "$RA" 'git add app.js && git commit -m "add app"'
+expect "git add clean.txt"                            allow "$RA" 'git add clean.txt'
+
+# ---------------------------------------------------------------- ask rules
+section "ask: commands that throw away uncommitted work"
+expect "git reset --hard"                             ask "$R" 'git reset --hard'
+reason_has "reset reason ends with what to do instead" "confirm only if losing it is intended."
+expect "git reset --hard HEAD~1"                      ask "$R" 'git reset --hard HEAD~1'
+expect "git clean -f"                                 ask "$R" 'git clean -f'
+expect "git clean -fd"                                ask "$R" 'git clean -fd'
+expect "git clean -xdf"                               ask "$R" 'git clean -xdf'
+expect "git checkout -- ."                            ask "$R" 'git checkout -- .'
+expect "git checkout ."                               ask "$R" 'git checkout .'
+expect "git restore ."                                ask "$R" 'git restore .'
+expect "git restore --staged --worktree ."            ask "$R" 'git restore --staged --worktree .'
+expect "git stash drop"                               ask "$R" 'git stash drop'
+expect "git stash drop stash@{1}"                     ask "$R" 'git stash drop stash@{1}'
+expect "git stash clear"                              ask "$R" 'git stash clear'
+expect "git branch -D feature"                        ask "$R" 'git branch -D feature'
+expect "git branch --delete --force feature"          ask "$R" 'git branch --delete --force feature'
+section "allow: safe neighbours of the ask rules (negative controls)"
+expect "git reset --soft HEAD~1"                      allow "$R" 'git reset --soft HEAD~1'
+expect "git reset HEAD notes.txt"                     allow "$R" 'git reset HEAD notes.txt'
+expect "git clean -n"                                 allow "$R" 'git clean -n'
+expect "git clean -fn (dry run)"                      allow "$R" 'git clean -fn'
+expect "git checkout feature"                         allow "$R" 'git checkout feature'
+expect "git checkout -b topic"                        allow "$R" 'git checkout -b topic'
+expect "git restore --staged ."                       allow "$R" 'git restore --staged .'
+expect "git stash"                                    allow "$R" 'git stash'
+expect "git stash list"                               allow "$R" 'git stash list'
+expect "git branch -d feature"                        allow "$R" 'git branch -d feature'
+section "precedence: any segment that denies decides the call"
+expect "git reset --hard && git push --force origin main" deny "$R" 'git reset --hard && git push --force origin main'
+expect "git push -f origin main; git reset --hard"    deny "$R" 'git push -f origin main; git reset --hard'
+
+# ---------------------------------------------------------------- not git at all
+section "allow: commands that only mention git (negative controls)"
+expect "git status"                                   allow "$R" 'git status'
+expect "ls -la"                                       allow "$R" 'ls -la'
+expect "echo \"remember to git push --force origin main\"" allow "$R" 'echo "remember to git push --force origin main"'
+expect "echo \"a; git push --force origin main\" (separator inside quotes)" allow "$R" 'echo "a; git push --force origin main"'
+expect "echo 'git commit --no-verify' single quotes"  allow "$R" "echo 'git commit --no-verify'"
+expect "grep -rn \"git reset --hard\" docs/"          allow "$R" 'grep -rn "git reset --hard" docs/'
+expect "heredoc body mentioning a force-push"         allow "$R" $'cat <<\'EOF\' > notes.md\ngit push --force origin main\ngit commit --no-verify\nEOF'
+expect "heredoc body, then a real force-push after it" deny "$R" $'cat <<EOF > notes.md\nhello\nEOF\ngit push --force origin main'
+expect "# comment mentioning git push -f origin main" allow "$R" 'ls # git push -f origin main'
+expect "git log --oneline | grep force"               allow "$R" 'git log --oneline | grep force'
+
+# ---------------------------------------------------------------- hook input robustness
+section "input: malformed or partial hook input never becomes silent permission"
+OUT=$(printf 'not json at all, but it says git push --force origin main' | env CLAUDE_PROJECT_DIR="$R" "$HOOK" 2>/dev/null); RC=$?
+case "$OUT" in *'"permissionDecision":"ask"'*) ok "unreadable JSON that mentions git -> ask" ;; *) bad "unreadable JSON that mentions git did not ask (exit $RC)" ;; esac
+# a hook that crashes (here: an unset variable under set -u) must not turn into silent permission
+awk '/^  walk_segments$/ { print "  : \"$GUARDRAILS_TEST_UNSET\"" } { print }' "$HOOK" > "$TMP/crash-before.sh"
+awk '{ print } /^  walk_segments$/ { print "  : \"$GUARDRAILS_TEST_UNSET\"" }' "$HOOK" > "$TMP/crash-after.sh"
+if grep -q GUARDRAILS_TEST_UNSET "$TMP/crash-before.sh" && grep -q GUARDRAILS_TEST_UNSET "$TMP/crash-after.sh"; then
+  payload "$R" 'git status' > "$TMP/payload.json"
+  OUT=$(env CLAUDE_PROJECT_DIR="$R" bash "$TMP/crash-before.sh" < "$TMP/payload.json" 2>/dev/null); RC=$?
+  case "$RC|$OUT" in '0|'*'"permissionDecision":"ask"'*'internal error'*) ok "crash before deciding, git command -> ask, exit 0" ;; *) bad "crash before deciding: exit $RC, output: $OUT" ;; esac
+  payload "$R" 'git push --force origin main' > "$TMP/payload.json"
+  OUT=$(env CLAUDE_PROJECT_DIR="$R" bash "$TMP/crash-after.sh" < "$TMP/payload.json" 2>/dev/null); RC=$?
+  case "$RC|$OUT" in '0|'*'"permissionDecision":"deny"'*) ok "crash after a deny was decided -> still deny, exit 0" ;; *) bad "crash after deny: exit $RC, output: $OUT" ;; esac
+  payload "$R" 'ls -la' > "$TMP/payload.json"
+  OUT=$(env CLAUDE_PROJECT_DIR="$R" bash "$TMP/crash-before.sh" < "$TMP/payload.json" 2>/dev/null); RC=$?
+  if [ "$RC" -eq 0 ] && [ -z "$OUT" ]; then ok "crash path is never reached for a command without git"; else bad "non-git command with crashing copy: exit $RC, output: $OUT"; fi
+else
+  bad "could not build the crashing copies (walk_segments call not found in the hook under test)"
+fi
+OUT=$(printf '' | env CLAUDE_PROJECT_DIR="$R" "$HOOK" 2>/dev/null); RC=$?
+if [ "$RC" -eq 0 ] && [ -z "$OUT" ]; then ok "empty stdin -> allow, exit 0"; else bad "empty stdin -> exit $RC, output: $OUT"; fi
+OUT=$(printf '{"cwd":"%s","tool_name":"Bash","tool_input":{}}' "$R" | env CLAUDE_PROJECT_DIR="$R" "$HOOK" 2>/dev/null); RC=$?
+if [ "$RC" -eq 0 ] && [ -z "$OUT" ]; then ok "no tool_input.command -> allow, exit 0"; else bad "no tool_input.command -> exit $RC, output: $OUT"; fi
+
+# ---------------------------------------------------------------- settings
+section "settings: .skillgate/config.json"
+write_config '{"guardrails":{"blockForcePush":false}}'
+expect "blockForcePush false: git push -f origin main" allow "$RCFG" 'git push -f origin main'
+expect "blockForcePush false: --no-verify still blocked" deny "$RCFG" 'git commit --no-verify -m "x"'
+write_config '{"guardrails":{"blockNoVerify":false}}'
+expect "blockNoVerify false: git commit --no-verify"   allow "$RCFG" 'git commit --no-verify -m "x"'
+expect "blockNoVerify false: git push --no-verify origin feature" allow "$RCFG" 'git push --no-verify origin feature'
+expect "blockNoVerify false: force-push still blocked" deny "$RCFG" 'git push -f origin main'
+write_config '{"guardrails":{"blockSecretFiles":false}}'
+expect "blockSecretFiles false: git add .env"          allow "$RCFG" 'git add .env'
+write_config '{"guardrails":{"protectedBranches":["release/*"]}}'
+expect "protectedBranches [release/*]: push -f origin main" allow "$RCFG" 'git push -f origin main'
+expect "protectedBranches [release/*]: push -f origin release/1.0" deny "$RCFG" 'git push -f origin release/1.0'
+write_config '{"guardrails":{"blockForcePush":"no","blockNoVerify":0}}'
+expect "non-boolean values leave rules on (force-push)" deny "$RCFG" 'git push -f origin main'
+expect "non-boolean values leave rules on (--no-verify)" deny "$RCFG" 'git commit -n -m "x"'
+write_config '{"guardrails":{"blockForcePush":false,"blockNoVerify":false,"blockSecretFiles":false}}'
+expect "every rule off: ask rules still ask"           ask "$RCFG" 'git reset --hard'
+write_config '{"handoff":{"file":"docs/HANDOFF.md"}}'
+expect "config without a guardrails section: defaults" deny "$RCFG" 'git push -f origin main'
+write_config '{"guardrails": '
+expect "unreadable config: defaults stay on"           deny "$RCFG" 'git push -f origin main'
+reason_has "unreadable config: the reason says the config could not be read" ".skillgate/config.json could not be read"
+write_config '{"guardrails":{"blockForcePush":false}}'
+expect "config read from CLAUDE_PROJECT_DIR (rule off there)" allow "$R" 'git push -f origin main' CLAUDE_PROJECT_DIR="$RCFG"
+expect "config falls back to the input cwd"           allow "$RCFG" 'git push -f origin main' CLAUDE_PROJECT_DIR=
+rm -f "$RCFG/.skillgate/config.json"
+
+section "SKILLGATE_GUARDRAILS=off"
+expect "off: git push --force origin main"             allow "$R" 'git push --force origin main' SKILLGATE_GUARDRAILS=off
+expect "off: git add .env"                             allow "$R" 'git add .env' SKILLGATE_GUARDRAILS=off
+expect "unset again: git push --force origin main"     deny "$R" 'git push --force origin main'
+
+# ---------------------------------------------------------------- SessionStart line
+section "SessionStart line"
+HEALTHY='[guardrails] on: force-push to protected branches, --no-verify, and secret files are blocked.'
+OFFLINE='[guardrails] OFF for this session (SKILLGATE_GUARDRAILS=off). Force-push, --no-verify, and secret-file checks are not running.'
+ss() { # ss <project dir> [VAR=value...]: runs the SessionStart hook by path; sets OUT and RC
+  local dir=$1; shift
+  OUT=$(printf '{"hook_event_name":"SessionStart","source":"startup","session_id":"t","cwd":%s}' "$(jstr "$dir")" \
+    | env CLAUDE_PROJECT_DIR="$dir" "$@" "$SS" 2>/dev/null); RC=$?
+}
+ss "$R"
+if [ "$RC" -eq 0 ] && [ "$OUT" = "$HEALTHY" ]; then ok "healthy: exactly the on line"; else bad "healthy: exit $RC, got: $OUT"; fi
+ss "$R" SKILLGATE_GUARDRAILS=off
+if [ "$RC" -eq 0 ] && [ "$OUT" = "$OFFLINE" ]; then ok "SKILLGATE_GUARDRAILS=off: exactly the OFF line"; else bad "off: exit $RC, got: $OUT"; fi
+write_config '{"guardrails":{"blockForcePush":false}}'
+ss "$RCFG"
+if [ "$OUT" = "[guardrails] on. Blocked: --no-verify and secret files. Turned off in .skillgate/config.json: force-push to protected branches." ]; then
+  ok "a rule turned off in the config is named in the line"
+else bad "rule turned off not reported as expected: $OUT"; fi
+write_config '{"guardrails": '
+ss "$RCFG"
+case "$OUT" in "$HEALTHY"$'\n'*"could not be read"*) ok "unreadable config: on line plus a could-not-be-read line" ;; *) bad "unreadable config not reported: $OUT" ;; esac
+rm -f "$RCFG/.skillgate/config.json"
+mkdir -p "$TMP/lonely"; cp "$SS" "$TMP/lonely/"
+OUT=$(printf '{}' | "$TMP/lonely/session-start-guardrails.sh" 2>/dev/null); RC=$?
+case "$OUT" in *"did not run"*) [ "$RC" -eq 0 ] && ok "guard-bash.sh missing: SessionStart says the check did not run" || bad "guard-bash.sh missing: exit $RC" ;; *) bad "guard-bash.sh missing: silent or wrong: $OUT" ;; esac
+
+# ---------------------------------------------------------------- no JSON reader at all
+section "no jq, node, or python3 on PATH (bash and core tools only)"
+NOP="$TMP/bin-noparser"
+make_bin "$NOP" bash cat env dirname basename tr head tail wc ls mkdir rm sort cut date sed
+for p in jq node python3; do
+  if env PATH="$NOP" "$NOP/bash" -c "command -v $p" >/dev/null 2>&1; then bad "precondition: $p is still visible on the no-parser PATH"; else ok "precondition: $p is not on the no-parser PATH"; fi
+done
+np_hook() { # np_hook <cwd> <command>
+  payload "$1" "$2" > "$TMP/payload.json"
+  OUT=$(env PATH="$NOP" CLAUDE_PROJECT_DIR="$1" "$NOP/bash" "$HOOK" < "$TMP/payload.json" 2>/dev/null); RC=$?
+}
+NOPARSER_REASON='guardrails cannot inspect this git command because jq, node, and python3 are all missing; confirm it yourself'
+np_hook "$R" 'git push --force origin main'
+if [ "$RC" -eq 0 ] && [ "$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.permissionDecision + "|" + .hookSpecificOutput.permissionDecisionReason' 2>/dev/null)" = "ask|$NOPARSER_REASON" ]; then
+  ok "git command -> ask with the cannot-inspect reason"
+else bad "git command without a parser: exit $RC, output: $OUT"; fi
+np_hook "$R" $'echo hi\ngit push --force origin main'
+case "$OUT" in *'"permissionDecision":"ask"'*) ok "git on a second line (JSON \\n before it) -> ask" ;; *) bad "git on a second line without a parser: exit $RC, output: $OUT" ;; esac
+np_hook "$R" 'ls -la'
+if [ "$RC" -eq 0 ] && [ -z "$OUT" ]; then ok "ls -la -> allow"; else bad "ls -la without a parser: exit $RC, output: $OUT"; fi
+mkdir -p "$TMP/github/project"
+np_hook "$TMP/github/project" 'ls -la'
+if [ "$RC" -eq 0 ] && [ -z "$OUT" ]; then ok "ls -la in a folder named github -> allow (the word git, not the substring)"; else bad "ls -la under a github folder: exit $RC, output: $OUT"; fi
+OUT=$(printf '{"cwd":"%s"}' "$R" | env PATH="$NOP" CLAUDE_PROJECT_DIR="$R" "$NOP/bash" "$SS" 2>/dev/null); RC=$?
+case "$OUT" in *"jq, node, and python3 are all missing"*) ok "SessionStart without a parser says so" ;; *) bad "SessionStart without a parser: exit $RC, output: $OUT" ;; esac
+
+# ---------------------------------------------------------------- the node and python3 readers
+BASE_TOOLS="bash cat env dirname git awk grep find head tr"
+for P in node python3; do
+  section "JSON reader fallback: only $P on PATH"
+  BIN="$TMP/bin-$P"
+  # shellcheck disable=SC2086
+  make_bin "$BIN" $BASE_TOOLS "$P"
+  if [ ! -e "$BIN/$P" ]; then bad "NOT RUN: $P is not installed, so its reader was not tested"; continue; fi
+  for other in jq node python3; do
+    [ "$other" = "$P" ] && continue
+    if env PATH="$BIN" "$BIN/bash" -c "command -v $other" >/dev/null 2>&1; then bad "[$P] precondition: $other is visible, so $P may not be the reader under test"
+    else ok "[$P] precondition: $other is not on PATH, so $P is the only JSON reader"; fi
+  done
+  expect "[$P] git push --force origin main"          deny "$R" 'git push --force origin main' PATH="$BIN"
+  expect "[$P] git status"                            allow "$R" 'git status' PATH="$BIN"
+  expect "[$P] quotes and backslashes, then force-push" deny "$R" 'echo "a \"quoted\" \\ word" && git push -f origin main' PATH="$BIN"
+  expect "[$P] heredoc body"                          allow "$R" $'cat <<EOF > f.md\ngit push --force origin main\nEOF' PATH="$BIN"
+  expect "[$P] non-ASCII commit message, clean staged content" allow "$R" $'git commit -m "caf\xc3\xa9 notes"' PATH="$BIN"
+  printf 'const token = "%s";\n' "$FAKE_STRIPE" > "$RS/config.js"; git -C "$RS" add config.js
+  expect "[$P] staged Stripe key"                     deny "$RS" 'git commit -m "x"' PATH="$BIN"
+  reason_lacks "[$P] reason does not contain the key" "$FAKE_STRIPE"
+  git -C "$RS" reset -q; rm -f "$RS/config.js"
+  write_config '{"guardrails":{"blockForcePush":false,"protectedBranches":["main"]}}'
+  expect "[$P] config turns force-push off"           allow "$RCFG" 'git push -f origin main' PATH="$BIN"
+  write_config '{"guardrails":{"blockNoVerify":false}'
+  expect "[$P] unreadable config keeps defaults"      deny "$RCFG" 'git commit -n -m "x"' PATH="$BIN"
+  reason_has "[$P] and says the config could not be read" "could not be read"
+  rm -f "$RCFG/.skillgate/config.json"
+done
+
+# ---------------------------------------------------------------- size and time
+section "large commands finish well inside the 10 second hook timeout"
+big_body=$(printf 'git push --force origin main\n%.0s' $(seq 1 30000))
+start=$(date +%s)
+expect "heredoc of $(printf '%s' "$big_body" | wc -c | tr -d ' ') bytes" allow "$R" "cat <<'EOF' > big.txt"$'\n'"$big_body"$'\n'"EOF"
+elapsed=$(( $(date +%s) - start ))
+if [ "$elapsed" -le 5 ]; then ok "  finished in ${elapsed}s (limit 5s)"; else bad "  took ${elapsed}s (limit 5s)"; fi
+long_line=$(head -c 400000 /dev/zero | tr '\0' 'x')
+start=$(date +%s)
+expect "400000-byte single line, then a force-push" deny "$R" "echo \"$long_line\" && git push --force origin main"
+elapsed=$(( $(date +%s) - start ))
+if [ "$elapsed" -le 5 ]; then ok "  finished in ${elapsed}s (limit 5s)"; else bad "  took ${elapsed}s (limit 5s)"; fi
+
+echo
+if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
+echo "RESULT: FAIL ($fails of $((oks + fails)) checks failed)"; exit 1
