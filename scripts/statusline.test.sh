@@ -77,6 +77,23 @@ printf "%s" "$B" | env -u SKILLGATE_USAGE_LOG -u SKILLGATE_KEYS_LOG HOME="$tmp/f
 [ -s "$tmp/fakehome/.claude/skillgate/statusline-keys-seen.log" ] && ok "(d) default keys log is ~/.claude/skillgate/statusline-keys-seen.log" || bad "(d) default keys log not at ~/.claude/skillgate/statusline-keys-seen.log"
 [ ! -e "$tmp/fakehome/.claude/usage-log.jsonl" ] && ok "(d) nothing written to ~/.claude/usage-log.jsonl" || bad "(d) wrote to ~/.claude/usage-log.jsonl (schema collision)"
 
+echo "== (e) jq missing: says so, never claims the payload lacked quota"
+mkdir -p "$tmp/nojq"
+for t in bash cat date mkdir dirname grep printf tr; do p=$(command -v "$t" 2>/dev/null); [ -n "$p" ] && [ -x "$p" ] && ln -sf "$p" "$tmp/nojq/$t"; done
+disp=$(printf "%s" "$A" | PATH="$tmp/nojq" SKILLGATE_USAGE_LOG="$tmp/e/usage.jsonl" SKILLGATE_KEYS_LOG="$tmp/e/keys.log" "$tmp/nojq/bash" "$SL" 2>&1); rc=$?
+echo "   display: $disp"
+[ "$rc" -eq 0 ] && ok "(e) exit 0 (a status line must not crash the UI)" || bad "(e) exit $rc"
+contains "(e) display names the missing dependency" "$disp" "jq not installed"
+lacks "(e) display does not claim quota was absent from the payload" "$disp" "not in payload"
+
+echo "== (f) log not writable: the display says the write failed"
+mkdir -p "$tmp/ro" && chmod 500 "$tmp/ro"
+disp=$(printf "%s" "$A" | SKILLGATE_USAGE_LOG="$tmp/ro/usage.jsonl" SKILLGATE_KEYS_LOG="$tmp/f-keys.log" bash "$SL" 2>&1); rc=$?
+chmod 700 "$tmp/ro"
+echo "   display: $disp"
+[ "$rc" -eq 0 ] && ok "(f) exit 0" || bad "(f) exit $rc"
+contains "(f) display reports LOG WRITE FAILED" "$disp" "LOG WRITE FAILED"
+
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS (all assertions ok)"; exit 0; fi
 echo "RESULT: FAIL ($fails assertion(s) failed)"; exit 1
