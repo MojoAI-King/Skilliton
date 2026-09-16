@@ -4,48 +4,63 @@ This repository is Skilliton. The product inside it is **Skillgate**.
 
 Kind: Living.
 
-**Skillgate is a ready-made way of working for AI-assisted development.** It ships a base skill set that keeps codebases healthy, spends tokens well, never loses context between sessions or people, reviews work in plain language, and blocks the git mistakes that hurt. A company forks it, adds its own skills, and gives every developer, technical or not, the whole environment in one onboarding step. Improvements arrive by auto-update.
+**Skillgate is being built as a forkable development autopilot for teams using AI coding tools.** A company defines how it wants to build software once, then gives every contributor the same starting environment, project records, working habits, and checks. People describe the work they need; the assistant helps carry it through without requiring them to know which skill to invoke.
 
-Built for Claude Code first; the skills use the open Agent Skills format that Codex also reads (see "Codex" below for what is verified).
+The full product prepares repositories, preserves decisions and unfinished work, gathers security evidence, connects changes to trusted team checks, and delivers company-approved improvements. Parts work today; the complete lifecycle is still being integrated.
 
-Status: week-one build, September 16 to 23, 2026. `PLAN.md` is the build contract, `DECISIONS.md` records every choice in plain English, `docs/CONTRACTS.md` lists the names and formats the pieces share, `docs/HANDOFF.md` says where things stand, and `docs/LESSONS.md` records what went wrong and what now prevents it.
+[PLAN.md](PLAN.md) is the canonical direction and roadmap. [CONTRACTS.md](docs/CONTRACTS.md) distinguishes implemented interfaces from target contracts. [AUTOPILOT_INTEGRATION.md](docs/AUTOPILOT_INTEGRATION.md) reconciles the existing build and the separate prototype. [HANDOFF.md](docs/HANDOFF.md) records the next work.
 
-## Why this exists
+## The workflow we are building
 
-Without it, every person's AI setup is different. Good skills get copied between projects by hand, and the copies drift: before this project, one in-house skill existed in about sixty copies across six versions, and nobody could say which was current. People who are new to coding lose work to a force-push, commit a key by accident, or start every session re-explaining where they left off. Skillgate makes one good way of working the default, and keeps it current.
+| Step | What the contributor experiences |
+|---|---|
+| Prepare | The project gets the instructions and records it needs: status, backlog, roadmap, decisions, lessons, handoffs, and security evidence. Existing project history is preserved. |
+| Build | The assistant helps define a task, chooses an appropriate workspace, and follows the company's workflow during normal coding. |
+| Remember | Decisions, progress, and unfinished work are saved as work proceeds, so another session or person can resume from recorded state. |
+| Check | Review explains the change and its risks. Security observations link to supporting evidence. Trusted checks determine whether the change may merge. |
+| Improve | A lesson becomes a proposed workflow change, is tested and reviewed, and reaches the team through an approved release. |
 
-## What is in the box
+Project records are useful inputs for a board or roadmap; a web dashboard is not required for the workflow to work. Usage and context hygiene are supporting capabilities, not the core product or a prerequisite for this roadmap.
 
-| Plugin | What it does | Enforced or instructed |
-|---|---|---|
-| `guardrails` | Blocks force-pushing a protected branch, skipping git hooks, and committing secret files; asks before destroying uncommitted work; explains every block in plain language | Enforced (a hook checks every shell command) |
-| `workflow` | `handoff` saves where you are so the next session starts from it; `review` explains your changes and their risks before you commit; `dispatch` turns a pile of notes into verified parallel work lanes; `maintain` keeps the project's docs, decisions, and lessons current | Handoff shown at session start: enforced. Writing, review, dispatch, maintain: instructed |
-| `context-hygiene` | Keeps sessions lean: a bounded session-start checklist, a status line that logs real quota, and habits that avoid the measured causes of wasted tokens | Hook and status line: enforced. Habits: instructed |
+## What works today
 
-**Enforced** means a hook does it every time. **Instructed** means the model is told to do it, and usually will, but nothing forces it. Nothing instructed is described as guaranteed.
+| Component on the main branch | Current behavior and limits |
+|---|---|
+| `workflow` plugin | `dispatch` organizes work; `maintain` updates living documents; `handoff` saves a resume note; `review` explains changes and gives a verdict. These are instructions to the assistant. A session-start hook displays an existing handoff, but does not ensure one was written or is current. |
+| `guardrails` plugin | An enabled Claude Code hook checks Bash-tool command text for supported risky git operations and secret-shaped commits. It can block or request confirmation. Its documented parsing limits apply; it is not protection for every terminal command or a server-side merge gate. |
+| Onboarding CLI | `doctor`, `harness`, `project-settings`, `new-skill`, and `import` inspect setup, write managed instructions and settings, and package company skills. |
+| `context-hygiene` plugin | Provides a bounded session-start checklist and working habits. A separate optional setup adds a quota status line. No usage-savings claim is made. |
+| Tests and evaluation evidence | Fixture tests and packaging checks run in CI. Separate model evaluations measure selected skill scenarios; `scripts/evidence.mjs` summarizes those results. This is not evidence of a customer's security compliance. |
 
-## For a company: fork it and make it yours
+**Separate, locally tested prototype:** repository preparation and project security evidence exist on `codex/autopilot-foundation-0916` at `23aae41`. They are not installed by the commands below and have not been integrated into the main CLI. The prototype preserves observations and detects changes to their recorded source files, artifacts, and control definitions. It is a partial starter mapping, not a complete security assessment.
 
-1. Fork this repository. Your fork is your company's skill marketplace.
-2. Keep `packs/base/` as it is. Add your own skills beside it:
+**Still to integrate or prove:** automatic lifecycle execution, preparation within onboarding, broader framework applicability and gap tracking, trusted application merge checks, approved release verification, safe project-file migrations, and the full company-fork/update rehearsal. Codex has not had a fresh end-to-end rehearsal here. See the [plan](PLAN.md) for acceptance gates.
 
-   ```bash
-   node scripts/skillgate.mjs new-skill <your-plugin> <skill-name>
-   node scripts/skillgate.mjs import ~/.claude/skills/<a-skill-you-already-use> --into <your-plugin>
-   ```
+## Start with the current build
 
-   `import` refuses a skill that contains secret-shaped strings, personal paths, or names on your denylist.
-3. Put the team settings into your product repositories, so anyone who opens one in Claude Code is offered your marketplace with auto-update on:
+Requirements: Claude Code, Node.js (CI uses 22), git, bash, and `jq` for the hooks that need it. The [one-pager](docs/ONE-PAGER.md) explains daily use and the maintainer's responsibilities.
 
-   ```bash
-   node scripts/skillgate.mjs project-settings --marketplace-repo <your-org>/<your-fork> --apply
-   ```
+**For the company maintainer:** fork this repository and clone the fork. Keep company plugins beside `packs/base/`. The current CLI adds skills to an existing plugin; it does not create the plugin container. First create `packs/<company>/plugins/<your-plugin>/.claude-plugin/plugin.json` with its name, version, description and license, and register its source in `.claude-plugin/marketplace.json` using the existing plugins as examples. Then add or import skills:
 
-4. Every change to a plugin bumps its version. Installed copies only update when the version changes.
+```bash
+node scripts/skillgate.mjs new-skill <your-plugin> <skill-name>
+node scripts/skillgate.mjs import <existing-skill-folder> --into <your-plugin>
+```
 
-## For a new hire: get the company environment
+Import checks for secret-shaped strings, personal paths, and names from your configured denylist. A name scan depends on supplying that list.
 
-In a company repository that carries the team settings, open it in Claude Code and trust the folder; you are offered the company marketplace and plugins. Otherwise:
+From the company fork, preview settings and instructions for each product repository, then apply them:
+
+```bash
+node scripts/skillgate.mjs project-settings --dir <project-folder> --marketplace-repo <your-org>/<your-fork>
+node scripts/skillgate.mjs project-settings --dir <project-folder> --marketplace-repo <your-org>/<your-fork> --apply
+node scripts/skillgate.mjs harness --dir <project-folder>
+node scripts/skillgate.mjs harness --dir <project-folder> --apply
+```
+
+This writes team settings and a managed block in `CLAUDE.md` and `AGENTS.md`. It does not yet create the full project record structure described above.
+
+**For a contributor:** use the company's onboarding instructions when opening and trusting its repository. The explicit install path is:
 
 ```bash
 claude plugin marketplace add <your-org>/<your-fork>
@@ -54,64 +69,52 @@ claude plugin install workflow@skillgate
 claude plugin install context-hygiene@skillgate
 ```
 
-Then, from a clone of the company fork, once per project:
+These names assume the fork retains the `skillgate` marketplace name. From a clone of that fork, check one project:
 
 ```bash
-node scripts/skillgate.mjs harness --dir <your project> --apply   # adds the "how we work here" block to CLAUDE.md and AGENTS.md
-node scripts/skillgate.mjs doctor                                  # says, in plain language, what is working and what is not
-node scripts/setup.mjs --apply                                     # optional: the quota status line
+node scripts/skillgate.mjs doctor --dir <project-folder>
 ```
 
-Updates are checked after a session starts and take effect in the next session.
-
-## Codex
-
-Verified in OpenAI's documentation (not yet exercised here): Codex reads skills in the same format from `.agents/skills/` in a repository and `~/.agents/skills/` for a user, reads `AGENTS.md` (which `harness` writes), and supports hooks with the same deny decision, after each hook is reviewed and trusted once. Codex's IDE extension has no plugins, so for Codex the skills are linked as plain folders.
-
-## Requirements
-
-Claude Code, Node.js, git, bash, and `jq` (the status line and several hooks use `jq`; without a JSON parser, each one says so instead of failing silently).
-
-## Check everything yourself
+Start a fresh session and check the handoff and guardrails notices. A maintainer must investigate missing or unverified checks; installation alone does not demonstrate the full workflow. The optional quota status line has its own preview and setup:
 
 ```bash
-node scripts/packs.test.mjs               # packaging: marketplace, manifests, skill names, executable hooks
-bash scripts/guardrails.test.sh           # every guardrail rule, with safe commands that must stay allowed
-bash scripts/handoff-hook.test.sh         # session-start handoff display
-node scripts/skillgate.test.mjs           # onboarding CLI
-node scripts/setup.test.mjs               # status line setup: apply and undo are byte-identical
-bash scripts/hook-fixture.test.sh         # session-start checklist hook
-bash scripts/statusline.test.sh           # status line logger
-node scripts/token-cost.test.mjs          # usage meter: hand-computed fixture totals
-node scripts/evidence.test.mjs            # eval evidence writer never leaks paths or model text
-bash scripts/scrub-check.sh --self-test   # proves the public-safety gate can fail
+node scripts/setup.mjs
+node scripts/setup.mjs --apply
 ```
 
-Two checks use your Claude account and cost a little each run, so CI does not run them:
+## How improvements reach a team
+
+The intended path is: **earned lesson -> proposed change -> regression or behavior test -> company review and approved release -> rollout**. Companies review upstream changes into their fork. Individual sessions can propose improvements; they do not silently rewrite company policy.
+
+Three different updates have different responsibilities:
+
+- **Plugins:** current team settings request native marketplace auto-update. Plugin changes need version bumps. Release approval, pinning, verification, and a fresh receiving-machine rehearsal remain work in the plan; turning on auto-update does not provide those controls by itself.
+- **Repository instructions and structure:** today a maintainer reruns `harness` to refresh its managed block. Automatic, versioned migrations for prepared repositories are planned. They must preserve human-written content and project history, report conflicts, and support recovery.
+- **Product code:** application behavior changes still follow the product repository's normal review and merge process. A skill update is not permission to rewrite or deploy an application.
+
+Security mappings follow the same discipline: findings and evidence accumulate, while changes to framework versions, applicability, and required checks remain reviewable. Missing, stale, and unassessed evidence must stay visible; a framework reference is not proof of compliance.
+
+## Check the current implementation
 
 ```bash
-bash scripts/live-guardrails-probe.sh --control   # a real session: force-push to main is blocked, and goes through without the plugin
-claude plugin eval packs/base/plugins/workflow --scaffold --no-publish --allow-tools Bash Write Edit --max-cost-usd 12
+node scripts/packs.test.mjs
+bash scripts/guardrails.test.sh
+bash scripts/handoff-hook.test.sh
+node scripts/skillgate.test.mjs
+node scripts/setup.test.mjs
+bash scripts/hook-fixture.test.sh
+bash scripts/statusline.test.sh
+node scripts/token-cost.test.mjs
+node scripts/evidence.test.mjs
+bash scripts/scrub-check.sh --self-test
 ```
 
-Eval results are summarized into `evidence/<commit>/` by `node scripts/evidence.mjs`; the live check's output is in `evidence/live/`.
+[CI](.github/workflows/checks.yml) also validates packaging. Live guardrail probes and model evaluations require an account and incur usage; they are separate from credential-free CI. Recorded results live under `evidence/` and apply to the scenarios and versions tested. See the [integration plan](docs/AUTOPILOT_INTEGRATION.md) for prototype validation and the combined rehearsal still required.
 
-## The usage evidence, honestly
+Before publishing, run `bash scripts/scrub-check.sh --history` with your private `SKILLGATE_DENYLIST`. Without a denylist, the name scan is incomplete and exits 2; current CI permits that result with a warning. A green CI run is not proof that the private name scan ran.
 
-The `context-hygiene` plugin came out of a real investigation into where an AI coding budget went. That investigation caught a 3.28x counting error in itself. The session-start fix is measured and verified. The corrected meter (`scripts/token-cost.mjs`) passes its fixture tests but does not yet reproduce the investigation's own real-window figure, so this repository makes no savings claim (`DECISIONS.md`, O2).
+## Contributing and license
 
-## Not built yet
+Propose changes through a pull request with the affected behavior, relevant tests, and any migration impact. Company-specific skills belong beside the base pack. Plugin changes require a version bump. The [plan](PLAN.md), [decisions](DECISIONS.md), and [contracts](docs/CONTRACTS.md) keep implementation and claims aligned.
 
-`skillgate release` and `skillgate verify` (release pinning by commit SHA, and checking installed copies for tampering) are planned for Day 3. Nothing here should be read as claiming they work today. Also not yet exercised on a clean machine: the team settings and auto-update path, and anything in Codex.
-
-## Why not just build this yourself?
-
-You can. This exists so you do not start from zero: the base skills came out of real, daily use, the evidence behind them caught its own mistakes, and forking it is the intended path, not a workaround.
-
-## Contributing
-
-A pull request must pass every check above and `bash scripts/scrub-check.sh --history`. `scrub-check.sh` reads its denylist from outside the repository (`SKILLGATE_DENYLIST`); keep your own. Without one, the name scan does not run, and the script exits 2 instead of claiming a pass.
-
-## License
-
-MIT. See `LICENSE`.
+MIT. See [LICENSE](LICENSE).

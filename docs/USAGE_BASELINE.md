@@ -1,6 +1,6 @@
 # Usage baseline (Tier 2)
 
-Kind: Living.
+Kind: Living. Optional usage-measurement workstream; its blockers do not block the core autopilot milestones in PLAN.md.
 
 STATUS: NOT YET RECORDED, and BLOCKED (2026-09-16). The meter passes its fixture test but does not yet reproduce the known-correct real-window figure; see DECISIONS.md, item O2. No baseline is recorded with an untrusted meter. A baseline written after the change is not a baseline.
 
@@ -26,7 +26,7 @@ STATUS: NOT YET RECORDED, and BLOCKED (2026-09-16). The meter passes its fixture
 | Per-model weekly % (from /usage, by hand; not in status line payload) | |
 | Reset times | |
 
-## Scorecard baseline (copy from PLAN.md Section 5, fill from transcripts)
+## Usage scorecard baseline (fill from transcripts)
 
 | Fix | Counter | Baseline value | Source query |
 |---|---|---|---|
