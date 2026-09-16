@@ -451,6 +451,13 @@ boxed("a signed release is approved by release list and VERIFIED by verify, incl
   const inferred = expectCode(cli(box, ["verify", "--source", repo]), 0, "verify with the only trusted company");
   assert.match(inferred.out, /the only company configured/);
 
+  mkdirSync(join(box.root, "empty-claude"));
+  const elsewhere = { CLAUDE_CONFIG_DIR: join(box.root, "empty-claude") };
+  const viaOption = expectCode(cli(box, ["verify", "--source", repo, "--config-dir", box.env.CLAUDE_CONFIG_DIR], { env: elsewhere }), 0, "--config-dir overrides CLAUDE_CONFIG_DIR");
+  for (const name of PLUGIN_NAMES) assert.equal(verifyLine(viaOption.out, name).state, "VERIFIED", viaOption.out);
+  const viaEnv = expectCode(cli(box, ["verify", "--source", repo], { env: elsewhere }), 1, "CLAUDE_CONFIG_DIR is read when --config-dir is absent");
+  assert.equal(verifyLine(viaEnv.out, "workflow").state, "NOT INSTALLED", viaEnv.out);
+
   const json = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme", "--json"]), 0, "verify --json");
   const parsed = JSON.parse(json.out);
   assert.equal(parsed.schema, "skillgate.result/1");
@@ -673,6 +680,10 @@ boxed("verify refuses corrupted client records, missing or corrupted trust, and 
   r = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"]), 2, "records with another shape");
   assert.match(r.out, /does not have the shape Skillgate has observed/);
 
+  r = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme", "--config-dir", join(box.root, "no-such-config")]), 2, "a --config-dir that does not exist");
+  assert.match(r.all, /--config-dir \S+ is not an existing folder/);
+  r = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme", "--client", "vscode"]), 2, "an unknown client");
+  assert.match(r.all, /--client must be one of claude-code, codex/);
   r = expectCode(cli(box, ["verify", "--source", box.root, "--company", "acme"]), 2, "source that is not a repository");
   assert.match(r.all, /is not inside a Git repository/);
   r = expectCode(cli(box, ["verify", "--source", "https://example.invalid/skills.git", "--company", "acme"]), 2, "a URL source");
