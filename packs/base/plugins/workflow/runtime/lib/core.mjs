@@ -127,15 +127,19 @@ function parseArgs(argv, spec, command) {
   return out;
 }
 
-// Find an executable on PATH without shelling out.
+// Find an executable on PATH without shelling out. A candidate this process may not inspect (a folder without search
+// permission, or a sandbox that denies stat) is skipped like a missing one, because a later PATH entry may hold the tool.
+const UNINSPECTABLE = new Set(["ENOENT", "ENOTDIR", "EACCES", "EPERM", "ELOOP", "ENAMETOOLONG"]);
 function which(tool) {
   const exts = process.platform === "win32" ? (process.env.PATHEXT || ".EXE;.CMD;.BAT").split(";") : [""];
   for (const dir of (process.env.PATH || "").split(delimiter)) {
     if (!dir) continue;
     for (const ext of exts) {
       const candidate = join(dir, tool + ext);
-      if (!isFile(candidate)) continue;
-      try { accessSync(candidate, fsConstants.X_OK); return candidate; } catch (e) { if (e.code !== "EACCES") throw e; }
+      let st;
+      try { st = statSync(candidate); } catch (e) { if (UNINSPECTABLE.has(e.code)) continue; throw e; }
+      if (!st.isFile()) continue;
+      try { accessSync(candidate, fsConstants.X_OK); return candidate; } catch (e) { if (e.code !== "EACCES" && e.code !== "EPERM") throw e; }
     }
   }
   return null;

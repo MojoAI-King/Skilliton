@@ -208,6 +208,22 @@ test("record refuses bad input and unsafe folders without writing", (t) => {
 
 // ---------------------------------------------------------------- index
 
+test("a PATH folder that cannot be searched is skipped when finding git, not reported as an internal error", (t) => {
+  if (process.getuid?.() === 0) { t.skip("permissions are not enforced for root"); return; }
+  const ctx = prepared(t);
+  const locked = join(ctx.base, "locked");
+  mkdirSync(locked);
+  const gitDir = dirname(execFileSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).trim());
+  execFileSync("chmod", ["000", locked]);
+  let r;
+  // Restored here, not in t.after: the fixture's own after hook removes the folder first and cannot enter a locked one.
+  try { r = spawnSync(process.execPath, [CLI, "index", "--dir", ctx.dir], { cwd: ctx.dir, env: { ...BASE_ENV, HOME: ctx.home, PATH: `${locked}:${gitDir}` }, encoding: "utf8" }); }
+  finally { execFileSync("chmod", ["700", locked]); }
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.doesNotMatch(r.stderr, /unexpected internal error/);
+  assert.match(r.stdout, /Summary: every index is current; nothing written\./);
+});
+
 test("index leaves an adopted record without markers alone until there is an entry to list, then appends the section", (t) => {
   const ctx = prepared(t);
   const adopted = "# Decisions\n\nEarlier decisions, written by people before Skillgate.\n";
