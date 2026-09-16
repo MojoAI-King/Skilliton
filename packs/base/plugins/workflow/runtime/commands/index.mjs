@@ -14,8 +14,8 @@ Each index is a managed section between two marker lines:
   <!-- skillgate:index:decisions:start --> ... <!-- skillgate:index:decisions:end -->   in the decisions record
   <!-- skillgate:index:lessons:start --> ... <!-- skillgate:index:lessons:end -->       in the lessons record
   <!-- skillgate:index:tasks:start --> ... <!-- skillgate:index:tasks:end -->           in the status record (open tasks)
-A record without the markers gets its section appended after a blank line. Text outside the markers is never
-changed. Each list is sorted by ID and built from the entry files alone, so every clone with the same entries writes
+A record without the markers gets its section appended after a blank line once there is something to list; with
+no entries it is left as it is. Text outside the markers is never changed. Each list is sorted by ID and built from the entry files alone, so every clone with the same entries writes
 the same bytes, and running index again after a merge resolves a conflict inside a section.
 
 Indexes are shared records, so --apply writes only on an integration branch (prepare.integrationBranches; by default
@@ -47,7 +47,8 @@ export async function run(argv) {
     const width = Math.max(...plan.sections.map((s) => s.record.length));
     for (const s of plan.sections) {
       const listed = s.kind === "tasks" ? `${s.count} open task(s) of ${s.total} in ${s.dir}/` : `${s.count} ${s.kind === "decisions" ? "decision" : "lesson"} entr${s.count === 1 ? "y" : "ies"} in ${s.dir}/`;
-      const change = !s.changed ? "already current" : s.hadSection ? "section rewritten" : "section appended after a blank line (the record had no markers)";
+      const change = s.deferred ? "nothing to list and no index section yet, so the record is left as it is; the section is added with the first entry"
+        : !s.changed ? "already current" : s.hadSection ? "section rewritten" : "section appended after a blank line (the record had no markers)";
       const verb = !s.changed ? "current" : written ? "updated" : "update";
       say(`  ${verb.padEnd(8)} ${s.record.padEnd(width)}  ${s.kind} index: ${listed}; ${change}`);
     }

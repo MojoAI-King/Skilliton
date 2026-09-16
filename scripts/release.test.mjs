@@ -562,13 +562,26 @@ boxed("verify says TAMPERED and names the files after a one-byte change, an adde
   assert.match(verifyLine(r.out, "context-hygiene").line, new RegExp(`missing: hooks/${removed.replace(/\./g, "\\.")}`));
 });
 
-boxed("verify keeps VERIFIED when only an executable bit differs, and says so", (box) => {
+boxed("verify: a hook that lost its executable bit keeps VERIFIED content but is attention; a bit the release lacks is a note", (box) => {
   const { repo } = signedRelease(box);
   const paths = installClaude(box, repo);
+  const extra = readdirSync(join(paths.workflow, "skills", "review")).sort()[0];
+  chmodSync(join(paths.workflow, "skills", "review", extra), 0o755);
+  let r = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"]), 0, "gained bit only");
+  assert.equal(verifyLine(r.out, "workflow").state, "VERIFIED");
+  assert.match(r.out, new RegExp(`executable although the release does not mark it so \\(the content hash does not cover the bit\\): skills/review/${extra.replace(/\./g, "\\.")}`));
+
   chmodSync(join(paths.guardrails, "hooks", "guard-bash.sh"), 0o644);
-  const r = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"]), 0, "mode only");
-  assert.equal(verifyLine(r.out, "guardrails").state, "VERIFIED");
-  assert.match(r.out, /executable bit differs, which the content hash does not cover: hooks\/guard-bash\.sh \(executable in the release\)/);
+  r = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme", "--json"]), 1, "lost bit");
+  const result = JSON.parse(r.out);
+  assert.equal(result.result, "attention");
+  const guard = result.details.plugins.find((p) => p.plugin === "guardrails");
+  assert.equal(guard.state, "VERIFIED", "the content still matches the release");
+  assert.deepEqual(guard.notRunnable, ["hooks/guard-bash.sh"]);
+  assert.match(result.summary, /1 file\(s\) the release marks executable are not executable, so the client cannot run them \(guardrails\/hooks\/guard-bash\.sh\)/);
+  r = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"]), 1, "lost bit, text");
+  assert.match(verifyLine(r.out, "guardrails").line, /^VERIFIED/);
+  assert.match(r.out, /not executable although the release marks it executable, so the client cannot run it: hooks\/guard-bash\.sh; reinstall the plugin/);
 });
 
 boxed("verify says UNKNOWN VERSION for a version no approved release has, and NOT INSTALLED for a released plugin the client lacks", (box) => {

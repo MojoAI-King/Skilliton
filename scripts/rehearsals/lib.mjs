@@ -74,13 +74,13 @@ export function useSigningKey(repo, env, key) {
   }
 }
 
+// The client named by the flag, else by the environment variable, else found on PATH. A path that was given but does
+// not run makes the client not found; it is never replaced by another binary, so the evidence names the client that ran.
 export function findClient(explicit, envName, fallback) {
-  const candidates = [explicit, process.env[envName], fallback].filter(Boolean);
-  for (const c of candidates) {
-    const r = run(c, ["--version"], { timeoutMs: 20000 });
-    if (r.code === 0) return { path: c, version: r.out.trim().split("\n")[0] };
-  }
-  return null;
+  const chosen = explicit || process.env[envName] || fallback;
+  if (!chosen) return null;
+  const r = run(chosen, ["--version"], { timeoutMs: 20000 });
+  return r.code === 0 ? { path: chosen, version: r.out.trim().split("\n")[0] } : null;
 }
 
 // Replace machine-specific paths before anything is written to the repository.
@@ -104,6 +104,13 @@ export class Rehearsal {
     }
     try {
       const result = await fn();
+      // A step whose prerequisite is missing (a client binary, a logged-in isolated home) did not run; it says why.
+      if (result?.notRun) {
+        this.steps.push({ id, label, status: "NOT RUN", detail: result.notRun });
+        console.log(`NOT RUN ${id} ${label}: ${result.notRun}`);
+        if (result.critical) this.stopped = id;
+        return null;
+      }
       const ok = result?.ok !== false;
       this.steps.push({ id, label, status: ok ? "PASS" : "FAIL", detail: result?.detail ?? "" });
       console.log(`${ok ? "PASS" : "FAIL"} ${id} ${label}${result?.detail ? `: ${result.detail}` : ""}`);

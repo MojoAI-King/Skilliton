@@ -20,6 +20,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const CLI = join(here, "skillgate.mjs");
 const PLUGIN = join(here, "..", "packs", "base", "plugins", "workflow");
 const records = await import(pathToFileURL(join(PLUGIN, "runtime", "lib", "records.mjs")).href);
+const ids = await import(pathToFileURL(join(PLUGIN, "runtime", "lib", "ids.mjs")).href);
 const ID_RE = /^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9a-f]{4}$/;
 
 const BASE_ENV = (() => {
@@ -92,23 +93,45 @@ const section = (kind, lines) => [`<!-- skillgate:index:${kind}:start -->`, ...l
 
 // ---------------------------------------------------------------- IDs
 
-test("newEntryId follows the contract: local date, a slug of at most 40 characters, four random hex digits", () => {
+test("the one ID rule (lib/ids.mjs): local date, a slug of at most 40 characters, four random hex digits", () => {
   const late = new Date(2026, 8, 16, 23, 59, 30);
-  assert.match(records.newEntryId("Keep orders in PostgreSQL!", late), /^2026-09-16-keep-orders-in-postgresql-[0-9a-f]{4}$/);
-  assert.equal(records.newEntryId("x", new Date(2026, 0, 5, 0, 0, 1)).slice(0, 10), "2026-01-05", "the local date, not the UTC date");
+  assert.match(ids.newId("Keep orders in PostgreSQL!", { date: late }), /^2026-09-16-keep-orders-in-postgresql-[0-9a-f]{4}$/);
+  assert.equal(ids.newId("x", { date: new Date(2026, 0, 5, 0, 0, 1) }).slice(0, 10), "2026-01-05", "the local date, not the UTC date");
+  assert.equal(ids.newId("Fix: the login page!", { date: new Date(2026, 0, 2), hex: () => "beef" }), "2026-01-02-fix-the-login-page-beef");
   const [eAcute, aGrave, uUmlaut, iDiaeresis] = [0xe9, 0xe0, 0xfc, 0xef].map((c) => String.fromCharCode(c));
-  assert.equal(records.slugify(`Caf${eAcute} d${eAcute}j${aGrave} vu, ${uUmlaut}ber na${iDiaeresis}ve`), "cafe-deja-vu-uber-naive");
-  assert.equal(records.slugify("An extremely long decision title that keeps going well past the forty character limit"), "an-extremely-long-decision-title-that-ke");
-  assert.equal(records.slugify(`${"a".repeat(39)} b`), "a".repeat(39), "a slug cut at 40 characters never ends with a hyphen");
-  assert.equal(records.slugify("!!! ???"), "entry");
-  const ids = Array.from({ length: 200 }, () => records.newEntryId("Same title", late));
-  for (const id of ids) {
+  assert.equal(ids.slugify(`Caf${eAcute} d${eAcute}j${aGrave} vu, ${uUmlaut}ber na${iDiaeresis}ve`), "cafe-deja-vu-uber-naive");
+  assert.equal(ids.slugify("An extremely long decision title that keeps going well past the forty character limit"), "an-extremely-long-decision-title-that-ke");
+  assert.equal(ids.slugify(`${"a".repeat(39)} b`), "a".repeat(39), "a slug cut at 40 characters never ends with a hyphen");
+  assert.equal(ids.slugify("!!! ???"), "entry");
+  assert.equal(ids.newId("!!!", { date: new Date(2026, 0, 2), fallback: "task", hex: () => "0a0b" }), "2026-01-02-task-0a0b");
+  const made = Array.from({ length: 200 }, () => ids.newId("Same title", { date: late }));
+  for (const id of made) {
     assert.match(id, ID_RE);
-    assert.ok(records.isEntryId(id));
+    assert.ok(ids.isId(id));
   }
-  assert.ok(new Set(ids).size > 150, "the suffix is random, not a counter");
-  assert.equal(records.isEntryId(`2026-09-16-${"a".repeat(41)}-abcd`), false, "a slug longer than 40 characters is not an entry ID");
-  assert.throws(() => records.newEntryId("x", new Date(Number.NaN)), TypeError);
+  assert.ok(new Set(made).size > 150, "the suffix is random, not a counter");
+  assert.equal(ids.isId(`2026-09-16-${"a".repeat(40)}-abcd`), true, "a 40-character slug is an ID");
+  for (const bad of [`2026-09-16-${"a".repeat(41)}-abcd`, "2026-09-16-a--b-abcd", "2026-09-16-ab--abcd", "2026-09-16--ab-abcd", "2026-09-16-ab-ABCD", "2026-09-16-ab-abc", null]) {
+    assert.equal(ids.isId(bad), false, `${bad} is not an ID`);
+  }
+  assert.throws(() => ids.newId("x", { date: new Date(Number.NaN) }), TypeError);
+});
+
+test("the ID rule is defined once: no other runtime module makes or matches IDs with its own pattern", () => {
+  const runtime = join(PLUGIN, "runtime");
+  const own = [];
+  const walk = (dir) => {
+    for (const d of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, d.name);
+      if (d.isDirectory()) walk(p);
+      else if (d.name.endsWith(".mjs") && p !== join(runtime, "lib", "ids.mjs")) {
+        const text = readFileSync(p, "utf8");
+        if (text.includes("[0-9a-f]{4}") || /function (slugify|localDate|newEntryId|newTaskId)\b/.test(text)) own.push(p.slice(runtime.length + 1));
+      }
+    }
+  };
+  walk(runtime);
+  assert.deepEqual(own, [], "these modules define their own ID rule; import it from lib/ids.mjs instead");
 });
 
 // ---------------------------------------------------------------- record
@@ -184,6 +207,26 @@ test("record refuses bad input and unsafe folders without writing", (t) => {
 });
 
 // ---------------------------------------------------------------- index
+
+test("index leaves an adopted record without markers alone until there is an entry to list, then appends the section", (t) => {
+  const ctx = prepared(t);
+  const adopted = "# Decisions\n\nEarlier decisions, written by people before Skillgate.\n";
+  write(ctx, "DECISIONS.md", adopted);
+  const before = snapshot(ctx.dir);
+  const preview = index(ctx);
+  assert.equal(preview.code, 0, preview.all);
+  assert.match(preview.out, /current\s+DECISIONS\.md\s+decisions index: 0 decision entries in docs\/decisions\/; nothing to list and no index section yet, so the record is left as it is; the section is added with the first entry/);
+  assert.match(preview.out, /Summary: every index is current; nothing written\./);
+  const applied = index(ctx, "--apply");
+  assert.equal(applied.code, 0, applied.all);
+  assert.deepEqual(snapshot(ctx.dir), before, "an index run with nothing to list writes nothing, so no empty section contradicts the record's own history");
+
+  assert.equal(record(ctx, "decision", "Keep orders in PostgreSQL", "--apply").code, 0);
+  const withEntry = index(ctx, "--apply");
+  assert.equal(withEntry.code, 0, withEntry.all);
+  assert.match(withEntry.out, /DECISIONS\.md\s+decisions index: 1 decision entry in docs\/decisions\/; section appended after a blank line \(the record had no markers\)/);
+  assert.ok(read(ctx, "DECISIONS.md").startsWith(`${adopted}\n<!-- skillgate:index:decisions:start -->`), "the section follows the adopted text after one blank line");
+});
 
 test("index regenerates the three managed sections, lists open tasks only, and never changes text outside the markers", (t) => {
   const ctx = prepared(t);

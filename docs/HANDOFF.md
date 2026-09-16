@@ -4,8 +4,18 @@ Kind: Living.
 
 ## RESUME HERE
 
-Written: 2026-09-16 16:58 EDT
+Written: 2026-09-16 17:34 EDT
 
+- **State:** Milestones are unchanged since the integration: M1 verified locally; M2 verified on Claude Code (live sessions and the offline rehearsal); M3 verified at install level on Claude Code and Codex (18 of 18); M4 verified locally; M5 not started because it needs a person. This session closed the follow-ups that needed no owner input, each with a check that fails on the previous code: `verify` treats a lost executable bit as attention, with installs measured on both clients (O18); one ID rule in `runtime/lib/ids.mjs`, where a third copy was found in `propose` (O20); `setup.mjs --undo` keeps later settings edits (O5); the drift check stops alarming on the default setup (O4); `scrub-check.sh --history` scans the branch being pushed and `--history-all` every ref, which CI runs (O13); rehearsals record a missing client as NOT RUN and never substitute another binary. Versions: workflow 0.3.1, guardrails 0.2.0, context-hygiene 0.1.3 (runtime and script changes only; skill text and the instruction template are unchanged, so projects get no new migration). Full offline suite on this tree: 24 checks, all exit 0. Published: pushed to `main` on GitHub with this note; the previous push, 697e5e9, passed CI run 35149679005 with every step read. Installed: nothing from this marketplace in the owner's own Claude Code or Codex configuration; installs exist only in throwaway homes used by rehearsals and probes. Released: none. Verified: the rehearsal installs only.
+- **Next:**
+  1. Owner inputs, smallest first (docs/BACKLOG.md): `CODEX_HOME=<folder> codex login` once, then `node scripts/rehearsals/live-clients.mjs --claude <2.1.273 path> --codex <path> --codex-home <folder>` (B2); one login inside a fresh `CLAUDE_CONFIG_DIR` (B3); approval to create a private throwaway GitHub repository for the delivery adapter (B4); applicability decisions for this repository's 15 security controls (B7); a version and the owner's signing key for the first release (B6); a person for the M5 rehearsal (B1, docs/rehearsals/NEW_BUILDER.md).
+  2. Without owner input: eval cases for the `task` and `security` skills (B10, paid; docs/MAINTAIN.md step 4); the guardrails env-file allowlist (O10).
+- **Blocked:** M5 on a participant; Codex lifecycle hooks on an isolated login; the hosted delivery adapter on approval; a model session in a clean configuration on a login; savings claims on O2.
+- **Watch out:** the first live Codex rehearsal used the default Codex home and left trusted-project entries for its two deleted temporary folders in `~/.codex/config.toml`; they were removed on 2026-09-16 (docs/LESSONS.md). The terminal `claude` is 2.1.92; use the editor-bundled 2.1.273 for evals and rehearsals, and pass it explicitly. Lane branches and worktrees are merged and can be removed; `codex/*` branches are superseded history. Paid checks: evals, the live probes, `live-clients.mjs`, `company-release.mjs --with-eval`.
+
+## Earlier
+
+### 2026-09-16 16:58 EDT
 - **State:** The M1-M4 integration is merged on local `main` (workflow 0.3.0, guardrails 0.2.0, context-hygiene 0.1.2): the runtime lives in the workflow plugin; prepare, migrate, remove, tasks, checkpoints, status, entries, indexes, security evidence, releases, verify, trust and the delivery gate are built; this repository is prepared by its own runtime (layout 2) with one instructions migration applied. Every offline suite passes on the combined tree; CI runs them. Proved: M1 locally; M2 on Claude Code in real sessions; M3 at install level on Claude Code and Codex (18 of 18); M4 locally; workflow evals 4 of 4 at 0.3.0. PLAN.md section 7 and docs/AUTOPILOT_INTEGRATION.md carry the evidence. Nothing is released; see the commit message of the push for the published state.
 - **Next:**
   1. Push `main` after `bash scripts/scrub-check.sh --history`, then read the CI run's step results.
@@ -13,56 +23,3 @@ Written: 2026-09-16 16:58 EDT
   3. Follow-ups without owner input: O20 (one entry ID generator), O18 and O19 (verify policies), eval cases for the task and security skills.
 - **Blocked:** M5 on a participant; Codex lifecycle hooks on an isolated login; the hosted delivery adapter on approval; savings claims on O2.
 - **Watch out:** lane branches (`lane/*`, `worktree-agent-*`) and their worktrees under `.claude/worktrees/` are merged and can be removed; the Codex session's `codex/*` branches are superseded history. `scrub-check.sh --history` scans every local ref (O13). Paid checks: evals, `live-capability-probe.sh`, `rehearsals/live-clients.mjs`, `rehearsals/company-release.mjs --with-eval`. Run eval commands exactly as docs/MAINTAIN.md step 4 writes them.
-
-## Earlier
-
-### 2026-09-16 15:29 EDT
-- **State:** M1-M4 integration is in progress, run by one integrating session (Claude Code in VS Code). Local `main` holds the integration base `c3fec4b` (the runtime moved into the workflow plugin, `runtime/lib/config.mjs` as the one config contract, the command registry, docs/CONTRACTS.md integration contract v1) and measured client probes `4141e81` (docs/CLIENTS.md). Six implementation lanes are running in isolated worktrees on branches `lane/prepare`, `lane/security`, `lane/lifecycle`, `lane/release`, `lane/delivery`, `lane/guardrails-codex`. This commit updates the workflow skills and the harness template for commands those lanes are building. Nothing is pushed; nothing is released.
-- **Next:**
-  1. Integrating session: merge the lanes one at a time with the full suite, then bump plugin versions and wire CI.
-  2. Apply the new harness to this repository; update README, ONE-PAGER, PLAN milestone states, DECISIONS and LESSONS from measured results.
-  3. Rehearsals: fresh and adopted projects, interrupted-session recovery, two contributors, company release with an improved skill and a project migration, tamper and rollback, stale evidence, blocked defective combined change; Claude Code and Codex separately.
-- **Blocked:** owner and human inputs, requested when reached: a person for the M5 new-builder rehearsal; one login in a clean Claude Code configuration for the clean-environment session; approval before any hosted GitHub rehearsal repository is created; a Codex session that trusts the plugin hooks. Historical usage inputs block cost claims only.
-- **Watch out:** other sessions should not edit the runtime, contracts, skills, template, PLAN.md or DECISIONS.md until this integration lands; propose changes in a task record instead. Skills now name `skillgate task`, `checkpoint`, `record`, `index` and `security` commands that are "not built in this version" until their lanes merge. A local-path marketplace install copies git-ignored files (docs/CLIENTS.md), so keep raw eval results out of plugin folders.
-
-### 2026-09-16 14:41 EDT
-- **State:** All foundation code, tests, demo, prior verification, original design notes and build-goal instructions are now present in the main working tree. Start at docs/AUTOPILOT_START_HERE.md; no prior chat, branch checkout or sibling worktree is required. PLAN.md v4 remains authoritative. The standalone source is available, but existing CLI/plugin/lifecycle integration remains M1 work. This local import is not a published release.
-- **Next:**
-  1. Read docs/BUILD_GOAL.md, PLAN.md and docs/AUTOPILOT_INTEGRATION.md. The owner wants the complete M1-M5 implementation and acceptance proof. docs/GOAL_COMMAND.md provides a 1,369-character launcher after the earlier long prompt was rejected by the 4,000-character limit; saving it does not start a goal.
-  2. Adapt the existing scripts/prepare.mjs, project-files.mjs and security-evidence.mjs through scripts/skillgate.mjs. Reconcile artifact config, result semantics, the single harness renderer, package-owned runtime and workflow readers before claiming M1 complete.
-  3. Use scripts/autopilot-demo.mjs for the disposable standalone walkthrough and the paired preparation/evidence test files for regressions. See evidence/autopilot-foundation/import-validation.md for this import's checks.
-  4. Continue M2-M5: actual client checkpoints/recovery, approved company updates and migrations, scoped security evidence plus trusted application checks, and a real new-builder rehearsal.
-- **Blocked:** No missing source material blocks implementation. Actual interactive-client, clean-environment and human usability evidence still need those environments or participation. Historical usage inputs block cost claims only.
-- **Watch out:** Foundation 23aae41 already included the security implementation and has now been imported; do not merge either prototype branch again. Original notes under docs/history/autopilot-foundation/ are historical. The current CLI still does not invoke Prepare or security status, and these scripts retain the prototype contracts until adapted. Never interpret source availability, local fixture success or evidence freshness as a completed autopilot or security certification.
-
-### 2026-09-16 14:23 EDT
-- **State:** PLAN.md v4 now aligns the shared build around the development autopilot. Main's existing plugins/CLI remain the implementation base. README, one-pager, shared contracts, client instructions and release design distinguish implemented behavior from the unintegrated preparation/security prototype and future work. This alignment is local; it does not publish a release or close implementation gates.
-- **Next:**
-  1. Start M1 using docs/AUTOPILOT_INTEGRATION.md and the target section of docs/CONTRACTS.md. One integrating session owns the CLI/config/harness interfaces before lanes implement them.
-  2. Adapt foundation `codex/autopilot-foundation-0916` at `23aae41` into that CLI. It already includes `codex/security-evidence-0916`; do not independently merge both or copy their older plans over PLAN.md v4.
-  3. Connect preparation, adopted record paths, Maintain/Review and task checkpoints; rerun integrated validation. Prototype results alone are not proof of main-branch behavior.
-  4. Continue the approved-release/verify design and M3 company-fork rehearsal, including one skill improvement, one preserved project migration, update verification and recovery. Follow M2-M5 acceptance rather than the old day numbers.
-- **Blocked:** Live interactive session-start/confirmation, clean-environment updates and Codex behavior still need rehearsal. O2/O3 historical usage inputs block cost claims only; they do not block core integration. The earlier O11 direction question is resolved; implementation remains open.
-- **Watch out:** `scripts/evidence.mjs` measures skill evaluations; the foundation security runtime tracks project observations. Current doctor does not recognize prototype prepare config. Two managed instruction writers and differing exit meanings must be reconciled. Guardrails cover supported enabled Claude Bash calls, not all developer actions. Use disposable synthetic projects for destructive-command tests. No paid eval or live test was rerun during documentation alignment.
-
-### 2026-09-16 14:20 EDT
-- **State:** Day 1 code gates and Day 2's build list are done and pushed (`main` at 243afee plus this maintenance commit). Base pack: `context-hygiene` 0.1.2, `workflow` 0.2.4 (dispatch, maintain, handoff, review), `guardrails` 0.1.0; onboarding CLI `scripts/skillgate.mjs`; CI green on Linux. Guardrails proven to block a force-push in a live headless session (`evidence/live/`); workflow evals 0.98 with the plugin, mean difference 0.51 (`evidence/15b842e.../SUMMARY.md`). A Codex session has two unpushed branches in this repository (DECISIONS.md O11).
-- **Next:**
-  1. Owner: decide what happens to the Codex branches (`codex/security-evidence-0916`, `codex/autopilot-foundation-0916`); their evidence script may overlap `scripts/evidence.mjs` (O11).
-  2. Owner: install the three plugins here (`claude plugin marketplace add MojoAI-King/Skilliton`, install `guardrails`, `workflow`, `context-hygiene`), start a fresh interactive session, confirm the handoff and guardrails lines appear, and try `git reset --hard` to see the `ask` prompt (O6, O7).
-  3. Owner: recover the originating investigation's scope and cutoff so the meter can reproduce $407.68 / $70.72 (O2); read `/usage` by hand for the baseline.
-  4. Day 3: rehearsal company fork (`new-skill`, `import`), team settings on a clean user with auto-update (O8), `skillgate release` and `verify` with tamper detection (`releases/SCHEMA.md`).
-  5. Rewrite `docs/ONE-PAGER.md` for the whole company environment (labelled BEHIND).
-- **Blocked:** O2 and O11 on the owner; O6 and the live `ask` check on a fresh interactive session.
-- **Watch out:** the terminal `claude` is 2.1.92 and lacks `plugin eval`; the editor-bundled 2.1.273 binary has it. `scripts/scrub-check.sh --history` scans every local branch, including the Codex ones (O13). The name scan needs `~/.config/skillgate/denylist`. Evals and the live probe cost real usage. Run every gate as its own step (docs/LESSONS.md).
-
-### 2026-09-16 14:00 EDT
-- **State:** Day 1 code gates and most of Day 2 are done and pushed. The base pack has three plugins (context-hygiene, workflow with dispatch, maintain, handoff, review, and guardrails) and the onboarding CLI (`scripts/skillgate.mjs`). Guardrails were proven to block a force-push in a real session (`evidence/live/`); the workflow skills scored 0.98 with the plugin, a mean difference of 0.51 over no plugin (`evidence/15b842e.../SUMMARY.md`). Branch `main`, pushed.
-- **Next:**
-  1. Owner: install the three plugins on this machine (`claude plugin marketplace add MojoAI-King/Skilliton`, then install `guardrails`, `workflow`, `context-hygiene`), start a fresh session here, and confirm the handoff and guardrails lines appear at session start (open items O6, O7 ask path).
-  2. Owner: recover the originating investigation's project scope and cutoff time so the meter can reproduce $407.68 / $70.72 (O2); then record the Tier 2 baseline.
-  3. Owner: read `/usage` by hand (five-hour, weekly, per-model weekly) for the baseline.
-  4. Day 3: rehearsal company fork (`new-skill`, `import`), team settings on a clean user with auto-update (O8), then `skillgate release` and `verify` with tamper detection.
-  5. Rewrite `docs/ONE-PAGER.md` as the whole company environment one-pager (it still describes only context-hygiene).
-- **Blocked:** O2 on the owner (investigation scope); O6 and the live ask check on a fresh interactive session.
-- **Watch out:** the terminal `claude` is 2.1.92 and lacks `plugin eval`; use the editor-bundled 2.1.273 binary or update. `scripts/scrub-check.sh` needs `~/.config/skillgate/denylist`; without it the name scan reports NOT RUN. Evals and `scripts/live-guardrails-probe.sh` cost real usage.

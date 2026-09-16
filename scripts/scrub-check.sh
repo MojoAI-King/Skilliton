@@ -13,7 +13,10 @@
 # A check that cannot run is never reported as a check that found nothing.
 #
 #   bash scripts/scrub-check.sh              tree only
-#   bash scripts/scrub-check.sh --history    tree plus every commit (diffs, messages, author fields)
+#   bash scripts/scrub-check.sh --history    tree plus every commit the checked-out branch reaches (diffs, messages,
+#                                            author fields): what pushing this branch publishes
+#   bash scripts/scrub-check.sh --history-all tree plus every commit on every ref, including other sessions'
+#                                            unpushed branches and fetched remote branches (CI uses this)
 #   bash scripts/scrub-check.sh --self-test  positive control: proves each scan can fail
 #   bash scripts/scrub-check.sh --path <dir> one directory instead of the repo: every regular file under it,
 #                                            tracked by git or not (skipping .git/ and .DS_Store), because it is
@@ -57,11 +60,13 @@ scan_tree() {
   return $fails
 }
 
+# scan_history <dir> <head|all>: the commits HEAD reaches, or the commits every ref reaches
 scan_history() {
-  local dir="$1" log n
+  local dir="$1" scope="$2" log n rev label
   if ! git -C "$dir" rev-parse HEAD >/dev/null 2>&1; then echo "FAIL history: no commits to scan"; return 1; fi
-  log=$(git -C "$dir" log --all -p --format='commit %H%nauthor %an <%ae>%ncommitter %cn <%ce>%n%B')
-  echo "history commits: $(git -C "$dir" rev-list --all | wc -l | tr -d ' ')"
+  if [ "$scope" = all ]; then rev=--all; label="every ref"; else rev=HEAD; label="HEAD ($(git -C "$dir" rev-parse --abbrev-ref HEAD))"; fi
+  log=$(git -C "$dir" log "$rev" -p --format='commit %H%nauthor %an <%ae>%ncommitter %cn <%ce>%n%B')
+  echo "history commits: $(git -C "$dir" rev-list "$rev" | wc -l | tr -d ' ') reachable from $label"
   local fails=0
   if [ -f "$DENY" ]; then
     n=$(printf '%s\n' "$log" | grep -c -i -E -f <(deny_patterns))
@@ -85,8 +90,19 @@ if [ "${1:-}" = "--self-test" ]; then
     rm -f "$tmp"/bad.txt; printf 'x %s x\n' "$bad" > "$tmp/bad.txt"
     scan_tree "$tmp" >/dev/null; [ $? -gt 0 ] && pass=$((pass+1))
   done
-  [ $pass -eq 3 ] && { echo "self-test passed: clean tree passes; names, dashes, and home paths each fail"; exit 0; }
-  echo "SELF-TEST FAIL: only $pass of 3 bad inputs were caught"; exit 1
+  [ $pass -eq 3 ] || { echo "SELF-TEST FAIL: only $pass of 3 bad inputs were caught"; exit 1; }
+  # History scope: a dash committed only on another branch passes --history on a clean main and fails --history-all.
+  repo="$tmp/repo"; mkdir -p "$repo/scripts"; cp "$here/scrub-check.sh" "$repo/scripts/scrub-check.sh"
+  g() { git -C "$repo" -c user.name=selftest -c user.email=selftest@example.invalid -c commit.gpgsign=false -c core.hooksPath=/dev/null "$@" >/dev/null 2>&1; }
+  if ! { g init -q -b main && g add -A && g commit -q -m clean && g switch -q -c side \
+    && printf 'x %s x\n' "a${EM}b" > "$repo/side.txt" && g add side.txt && g commit -q -m side && g switch -q main; }; then
+    echo "SELF-TEST NOT RUN: git could not build the history fixture"; exit 2
+  fi
+  hist=0
+  SKILLGATE_DENYLIST="$DENY" bash "$repo/scripts/scrub-check.sh" --history >/dev/null 2>&1; [ $? -eq 0 ] && hist=$((hist+1))
+  SKILLGATE_DENYLIST="$DENY" bash "$repo/scripts/scrub-check.sh" --history-all >/dev/null 2>&1; [ $? -eq 1 ] && hist=$((hist+1))
+  [ $hist -eq 2 ] || { echo "SELF-TEST FAIL: history scope: --history must pass a clean branch and --history-all must fail on a dash in another branch"; exit 1; }
+  echo "self-test passed: clean tree passes; names, dashes, and home paths each fail; --history reads the branch and --history-all every ref"; exit 0
 fi
 
 if [ "${1:-}" = "--path" ]; then
@@ -106,7 +122,8 @@ fi
 total=0
 if [ ! -f "$DENY" ]; then echo "NAME SCAN NOT RUN: no denylist at the configured path (set SKILLGATE_DENYLIST)"; fi
 scan_tree "$root"; total=$((total+$?))
-if [ "${1:-}" = "--history" ]; then scan_history "$root"; total=$((total+$?)); fi
+if [ "${1:-}" = "--history" ]; then scan_history "$root" head; total=$((total+$?)); fi
+if [ "${1:-}" = "--history-all" ]; then scan_history "$root" all; total=$((total+$?)); fi
 if [ $total -gt 0 ]; then echo "scrub-check: FAIL ($total scan(s) failed)"; exit 1; fi
 if [ ! -f "$DENY" ]; then echo "scrub-check: INCOMPLETE (dashes and paths clean; names not scanned)"; exit 2; fi
 echo "scrub-check: PASS"

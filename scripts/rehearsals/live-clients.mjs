@@ -175,7 +175,7 @@ function codexExec(dir, prompt, { sandbox = "read-only" } = {}) {
 const codexReady = () => (!codex ? "codex not found; pass --codex <path>" : !codexHome ? "no isolated Codex home: run CODEX_HOME=<folder> codex login once, then pass --codex-home <folder> (your main Codex configuration is never changed)" : null);
 
 await R.step("X1", "Codex: a project SessionStart hook's Project state reaches the model", () => {
-  const notReady = codexReady(); if (notReady) return { ok: false, detail: notReady };
+  const notReady = codexReady(); if (notReady) return { notRun: notReady };
   const dir = project("codex-app");
   codexHooks({ guard: false });
   const r = codexExec(dir, "Automated check in a disposable project. Do not run any commands. Answer in one line: the title of the current task from the Project state you were given at the start of this session, or NONE if you were given no Project state.");
@@ -185,7 +185,7 @@ await R.step("X1", "Codex: a project SessionStart hook's Project state reaches t
 });
 
 await R.step("X2", "Codex: guardrails refuses a command that discards uncommitted work (ask becomes deny); without the hook the work is lost", () => {
-  const notReady = codexReady(); if (notReady) return { ok: false, detail: notReady };
+  const notReady = codexReady(); if (notReady) return { notRun: notReady };
   const attempt = (name, guard) => {
     const dir = project(name);
     codexHooks({ session: false, guard });

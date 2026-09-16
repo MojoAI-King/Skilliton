@@ -13,7 +13,8 @@ The open acceptance items after the 2026-09-16 integration. Details and history 
 | B5 (O6, O7) | The session start and the guardrails confirmation prompt seen in an interactive session | needs a person at the keyboard | headless behavior measured (evidence/rehearsals/2026-09-16-live-clients) |
 | B6 (O17) | A signed release of this repository | needs the owner's signing key and version choice | docs/RELEASING.md |
 | B7 | Applicability decisions for this repository's own security register | needs the owner | `skillgate security status`, then `skillgate security applicability ... --decided-by <owner> --apply` |
-| B8 (O10, O18 to O22) | Smaller follow-ups: guardrails allowlist for env files, verify's mode and tag policies, one entry ID generator, guardrails client detection, secrets tiering review | open | DECISIONS.md open items |
+| B8 (O10, O19, O21, O22) | Smaller follow-ups: guardrails allowlist for env files, verify's tag policy, guardrails client detection, secrets tiering review | open; O21 needs the Codex run in B2 and O22 a real application | DECISIONS.md open items (O18 and O20 closed; docs/BACKLOG_ARCHIVE.md) |
+| B10 | Eval cases for the `task` and `security` skills | open | docs/MAINTAIN.md step 4; the other workflow skills have cases under `packs/base/plugins/workflow/evals/` |
 | B9 (O2, O3) | Usage reproduction before any savings claim | blocked on the owner's original scope and cutoff | DECISIONS.md O2 |
 
 Give each item a stable ID and link its task and decisions. Move a completed item to `docs/BACKLOG_ARCHIVE.md` with its closure date and evidence.

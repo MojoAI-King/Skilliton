@@ -7,6 +7,7 @@ import { lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { parseArgs, refuse, resolveSkillsRepo, say, scanSecrets, tilde } from "../lib/core.mjs";
+import { isId, localDate } from "../lib/ids.mjs";
 
 export const help = `propose: turn a lesson entry into an improvement proposal in the company skills repository.
 
@@ -27,15 +28,9 @@ A proposal is not a change to company defaults: it needs a reproducible regressi
 release first. Previews by default; --apply writes the file.
 Exit codes: 0 complete; 2 refused (nothing written); 3 an operation failed.`;
 
-const ENTRY_ID_RE = /^\d{4}-\d{2}-\d{2}-[a-z0-9][a-z0-9-]{0,39}-[0-9a-f]{4}$/;
 const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/;
 const MAX_LESSON_BYTES = 256 * 1024;
 const STATUS_LINE = "status: proposed; needs a regression scenario, review and an approved release";
-
-function localDate(d = new Date()) {
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 function readLesson(input) {
   const path = resolve(input);
@@ -55,7 +50,7 @@ function readLesson(input) {
   if (idLine) {
     id = idLine[1];
     if (!SAFE_ID_RE.test(id)) refuse(`the lesson's ID "${id.slice(0, 80)}" is not a plain id (letters, digits, . _ -), so it cannot name a proposal file`);
-  } else if (ENTRY_ID_RE.test(stem)) id = stem;
+  } else if (isId(stem)) id = stem;
   else refuse(`${tilde(path)} is not a lesson entry: it has no "- **ID:** <id>" line and its file name is not an entry id (YYYY-MM-DD-<slug>-<hex4>). Create entries with: skillgate record lesson "<title>"`);
   const heading = /^#[ \t]+(.+?)[ \t]*$/m.exec(text);
   const title = heading ? heading[1].replace(/^Lesson:\s*/i, "") : id;

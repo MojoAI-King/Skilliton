@@ -96,7 +96,7 @@ await R.step("C1", "clean Claude Code configuration installs the company plugins
 }, { requires: ["F2"] });
 
 await R.step("X1", "clean Codex home installs the company plugins and verifies them", () => {
-  if (!codex) return { ok: false, detail: "codex not found; pass --codex <path>" };
+  if (!codex) return { notRun: "codex not found; pass --codex <path>" };
   mkdirSync(codexC, { recursive: true });
   const add = cx(["plugin", "marketplace", "add", fork, "--json"]);
   const installs = ["workflow", "guardrails", "context-hygiene"].map((p) => [p, cx(["plugin", "add", `${p}@skillgate`, "--json"]).code]);

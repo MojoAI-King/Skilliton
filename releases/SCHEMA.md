@@ -98,7 +98,7 @@ Git reads run with `GIT_NO_REPLACE_OBJECTS=1`, so a `refs/replace` object cannot
 
 | State | Meaning |
 |---|---|
-| `VERIFIED` | its version is in an approved, unwithdrawn release and every file matches that release's tree hash; an executable-bit difference is reported as a note |
+| `VERIFIED` | its version is in an approved, unwithdrawn release and every file matches that release's tree hash. The hash does not cover the executable bit: a file the release marks executable that is not executable is named in `notRunnable` and makes the exit `1`, because the client cannot run it; a bit the release does not have is a note |
 | `TAMPERED` | its version is released but the files differ; changed, added, missing and not-verifiable files are named |
 | `UNKNOWN VERSION` | no approved release has that version (for example a marketplace branch that moved past the last release); when the files equal another approved version, a note says so |
 | `WITHDRAWN` | its files match a release withdrawn by a verified withdrawal tag; the reason and date are shown |
@@ -111,7 +111,7 @@ Installed locations come from each client's own records, whose formats are not d
 
 Company plugins are those whose marketplace name appears in an approved or withdrawn manifest (`clients.codex.marketplace` for Codex, falling back to `marketplace`) or in the source's own catalog. Others are listed in a note, not checked.
 
-Exit codes: `0` every company plugin install is VERIFIED (and there is at least one); `1` any other state, including nothing to verify; `2` trust not configured, any release or withdrawal tag that does not verify, an invalid approved manifest, an invalid client record, or a bad invocation; `3` the check itself failed. With `--json`, stdout is exactly one `skillgate.result/1` object, also on a refusal or failure; `details` holds the client, records path and format label, source, trust file, every release with its approval and withdrawal, every plugin line with its files, counts, problems and notes.
+Exit codes: `0` every company plugin install is VERIFIED (and there is at least one) and every file its release marks executable is executable; `1` any other state, including nothing to verify or a lost executable bit; `2` trust not configured, any release or withdrawal tag that does not verify, an invalid approved manifest, an invalid client record, or a bad invocation; `3` the check itself failed. With `--json`, stdout is exactly one `skillgate.result/1` object, also on a refusal or failure; `details` holds the client, records path and format label, source, trust file, every release with its approval and withdrawal, every plugin line with its files, counts, problems and notes.
 
 ## Proposals: `proposals/<id>.md`
 
@@ -120,9 +120,10 @@ Exit codes: `0` every company plugin install is VERIFIED (and there is at least 
 ## Not built, not verified
 
 - **Not built:** `--source` as a URL (clone the repository and pass its path); components other than plugins (the runner, templates and catalogs ship inside the workflow plugin, so their bytes are covered as plugin files, not as separate components); client prerequisite and minimum versions in `clients`; publication state, update and rollback targets; a JSON form of `release list`; checks of evidence content beyond its sha256; verify does not re-check `sourceCommit` ancestry (sign does).
-- **Contract gap:** CONTRACTS section 9 names no export that lists every migration; `release create` reads `MIGRATIONS` or `listMigrations()` until one is agreed.
-- **Not verified:** whether Claude Code and Codex caches add, drop or rewrite files or executable bits when installing (a client-added file would show as TAMPERED); how either client picks among several cached versions; that the marketplace copy a client keeps holds every release tag; line-ending conversion on Windows checkouts; behavior on Git older than 2.34 or OpenSSH without `ssh-keygen -Y`. The M3 rehearsal (fork, release, second clean environment, tampered and withdrawn update, rollback and removal) is still required before any of this is described as a working update path.
+- **Measured:** installs from a clean clone into a clean Claude Code 2.1.273 configuration and a clean Codex 0.154.0-alpha.6.2 home verify with every file matching (evidence/rehearsals/2026-09-16-company-release, which also covers the update, tamper, unauthorized release, withdrawal, rollback and removal), and both clients kept every executable bit (a throwaway install probe on 2026-09-16: 11 of 11 files on each). A local-folder marketplace copies the folder as it is, untracked and ignored files included, so release installs are tested from a clone.
+- **Not verified:** how either client picks among several cached versions; that the marketplace copy a client keeps holds every release tag; line-ending conversion on Windows checkouts; behavior on Git older than 2.34 or OpenSSH without `ssh-keygen -Y`.
 
-## Update and recovery behavior (design, not built)
+## Update and recovery behavior
 
-Verify the installable bytes against approved content before reporting an update as successful. Report the installed version, the project's required version and its applied layout and migrations separately; never report a successful update when only some transitions happened. Project reconciliation previews, checks preconditions, backs up owned content, preserves human text and records, and supports tested recovery. Package rollback does not reverse a project migration by itself.
+- **Built:** a plugin update never edits a project. `status` and the session-start Project state block report the installed runtime version, the version the project requires and pending migrations separately. `migrate` previews, refuses hand edits inside managed blocks, backs up what it replaces, writes a receipt, and rolls back while the migrated files are unchanged. `verify` checks installed bytes against approved releases. Package rollback does not reverse a project migration by itself.
+- **Not built:** a client's own update command reports success before anything is verified, and nothing runs `verify` after an update by itself; developers run it (docs/ONBOARDING.md section 5).

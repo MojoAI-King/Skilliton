@@ -28,11 +28,11 @@ import { chmodSync, constants as fsConstants, copyFileSync, existsSync, lstatSyn
 import { basename, dirname, join } from "node:path";
 import { checkRecordPath } from "./config.mjs";
 import { Refused } from "./core.mjs";
+import { isId, newId } from "./ids.mjs";
 
 export const TASK_STATES = ["planned", "in-progress", "blocked", "review", "done-local", "merged", "released", "verified", "abandoned"];
 export const CLOSED_STATES = ["done-local", "merged", "released", "verified", "abandoned"];
 export const NOT_WRITTEN = "not yet written";
-export const TASK_ID_RE = /^\d{4}-\d{2}-\d{2}-[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?-[0-9a-f]{4}$/;
 export const MAX_TASK_BYTES = 1024 * 1024;
 
 const HEADER_FIELDS = ["ID", "State", "Branch", "Owner", "Updated"];
@@ -55,26 +55,7 @@ const blank = (line) => line.replace(/\r$/, "").trim() === "";
 const stripCr = (line) => line.replace(/\r$/, "");
 const toLatin1 = (text) => Buffer.from(text, "utf8").toString("latin1");
 
-// ---------- ids ----------
-
-// Lowercase letters, digits and single hyphens, at most 40 characters. Accents are dropped (an accented e becomes e);
-// a title with no letter or digit that survives gives "task", so every id stays readable.
-export function slugify(title) {
-  const slug = String(title).normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "");
-  return slug || "task";
-}
-
-export function localDate(date = new Date()) {
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-// YYYY-MM-DD-<slug>-<hex4>: the local date, the slug, and four random hex digits. No sequential numbers, so two
-// contributors on two branches never pick the same file name by counting.
-export function newTaskId(title, { date = new Date(), hex = () => randomBytes(2).toString("hex") } = {}) {
-  return `${localDate(date)}-${slugify(title)}-${hex()}`;
-}
+// Task IDs follow the one ID rule in ids.mjs; a title with no letter or digit gives the slug "task".
 
 // ---------- input checks (thrown as Refused, before anything is written) ----------
 
@@ -99,7 +80,7 @@ export function checkBranch(name) {
 }
 
 export function checkTaskId(id) {
-  if (typeof id !== "string" || !TASK_ID_RE.test(id)) throw new Refused(`"${id}" is not a task id (YYYY-MM-DD-<slug>-<four hex digits>, for example 2026-09-16-add-sign-in-form-3f9a)`);
+  if (typeof id !== "string" || !isId(id)) throw new Refused(`"${id}" is not a task id (YYYY-MM-DD-<slug>-<four hex digits>, for example 2026-09-16-add-sign-in-form-3f9a)`);
   return id;
 }
 
@@ -226,7 +207,7 @@ export function parseTask(text, label) {
     if (!value) fail(`the ${name} field is empty`);
     values[name] = value;
   }
-  if (!TASK_ID_RE.test(values.ID)) fail(`the ID "${values.ID}" is not a task id (YYYY-MM-DD-<slug>-<four hex digits>)`);
+  if (!isId(values.ID)) fail(`the ID "${values.ID}" is not a task id (YYYY-MM-DD-<slug>-<four hex digits>)`);
   if (!TASK_STATES.includes(values.State)) fail(`the State "${values.State}" is not one of: ${TASK_STATES.join(", ")}`);
   if (/\s/.test(values.Branch)) fail(`the Branch "${values.Branch}" contains a space, which no branch name can`);
   if (Number.isNaN(Date.parse(values.Updated))) fail(`the Updated value "${values.Updated}" is not a date and time`);
@@ -306,7 +287,7 @@ export function listTasks(project, { all = false } = {}) {
     const label = `${rel}/${entry.name}`;
     const id = entry.name.slice(0, -3);
     try {
-      if (!TASK_ID_RE.test(id)) throw new TaskRecordError(label, "the file name is not a task id (YYYY-MM-DD-<slug>-<four hex digits>.md)");
+      if (!isId(id)) throw new TaskRecordError(label, "the file name is not a task id (YYYY-MM-DD-<slug>-<four hex digits>.md)");
       tasks.push(readTask(join(dir, entry.name), { label }));
     } catch (e) {
       if (!(e instanceof TaskRecordError)) throw e;
@@ -406,7 +387,7 @@ export function createTask(project, { title, criteria = [], branch, owner = "una
   const dir = tasksDirOf(project);
   if (existsSync(dir) && !statSync(dir).isDirectory()) throw new Refused(`the tasks folder ${project.directories.tasks} is not a folder`);
   const attempt = () => {
-    const id = newTaskId(cleanTitle);
+    const id = newId(cleanTitle, { fallback: "task" });
     const rel = taskRel(project, id);
     checkRecordPath(project.root, rel, "the task record");
     return { id, rel, content: renderTask({ id, title: cleanTitle, state, branch: cleanBranch, owner: cleanOwner, updated: at, criteria: cleanCriteria }) };

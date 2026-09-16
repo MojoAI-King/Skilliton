@@ -72,7 +72,7 @@ Kind: Living. This repository's own lessons, specific and technical, in the form
 2. **The mechanism:** a Codex session had created worktrees (`~/Desktop/Skilliton-security-0916`, `~/Desktop/Skilliton-autopilot-0916`) and branches in this repository; `--all` includes every local branch, pushed or not.
 3. **The fix:** only `main` was pushed; the other branches were left untouched and recorded as owner decision O11, with a trial merge showing no conflicts.
 4. **The rule:** before pushing or scanning history, run `git worktree list` and `git for-each-ref refs/heads`, and scope pushes and scans to your own refs.
-5. **What now enforces it:** nothing yet (DECISIONS.md O13: `scrub-check.sh --history` still scans every ref).
+5. **What now enforces it:** `scrub-check.sh --history` scans only what the checked-out branch reaches, and `--history-all` (which CI runs) every ref; the self-test proves both scopes (DECISIONS.md O13, closed).
 
 ## 2026-09-16 A local-folder plugin install shipped files that were never committed
 
@@ -121,3 +121,43 @@ Kind: Living. This repository's own lessons, specific and technical, in the form
 3. **The fix:** the run was stopped and repeated with the grant; the command is now written next to the evidence.
 4. **The rule:** record the exact eval command with its results, and compare runs only when the commands match.
 5. **What now enforces it:** docs/MAINTAIN.md step 4 names the full command; nothing checks it automatically yet.
+
+## 2026-09-16 The first live Codex rehearsal wrote trust entries into the owner's Codex configuration
+
+1. **What broke:** while checking what was installed on this machine, `~/.codex/config.toml` held `[projects."<temporary folder>"] trust_level = "trusted"` entries for the rehearsal's two deleted folders, `codex-guard` and `codex-control`.
+2. **The mechanism:** the first live Codex run of `scripts/rehearsals/live-clients.mjs` used the default Codex home, because that is where the login was, and ran `codex exec` in those folders with and without a `-c projects.<path>.trust_level` override. Something in those runs persisted a trusted-project table for each folder; which step wrote it was not isolated.
+3. **The fix:** the two entries (six lines) were removed on 2026-09-16 and nothing else in the file changed; the script had already been changed to run Codex only from an isolated home given with `--codex-home`.
+4. **The rule:** a scripted client run uses its own configuration home and asks the owner for a login there; a side effect in the owner's real configuration is reported and removed.
+5. **What now enforces it:** `live-clients.mjs` marks the Codex steps NOT RUN without `--codex-home`; nothing compares the owner's configuration before and after a run yet.
+
+## 2026-09-16 A client path that did not run was silently replaced by another client
+
+1. **What broke:** `node scripts/rehearsals/live-clients.mjs --claude /nonexistent/claude`, meant as a quick check that nothing runs without a client, started Claude Code steps anyway; they failed with exit 1.
+2. **The mechanism:** `findClient` in `scripts/rehearsals/lib.mjs` tried the `--claude` value, then `SKILLGATE_CLAUDE`, then `claude` on PATH, and took the first that answered `--version`. The terminal's `claude` is 2.1.92, which lacks flags the rehearsal passes, so it failed before starting a session (no transcript or configuration entry appeared). With a newer `claude` on PATH, the rehearsal would have run paid sessions and recorded evidence for a client nobody chose.
+3. **The fix:** `findClient` uses the first value given and never falls back from it; both rehearsals stop with NOT RUN (exit 2) when that client does not run. Steps whose prerequisite is missing return `{ notRun }` and are recorded as NOT RUN rather than FAIL.
+4. **The rule:** a tool that is told which binary to use either uses it or stops; it never substitutes another one.
+5. **What now enforces it:** nothing automated; `node scripts/rehearsals/live-clients.mjs --claude /nonexistent/claude` exits 2 before any session (checked 2026-09-16).
+
+## 2026-09-16 index would have told readers of a 30-entry DECISIONS.md that there were no decisions yet
+
+1. **What broke:** before committing, `skillgate index` on this repository previewed appending a section reading "No decision entries yet." to DECISIONS.md, and the same for docs/LESSONS.md, both of which hold many entries written before Skillgate.
+2. **The mechanism:** `regenerateIndexes` in `runtime/lib/records.mjs` appended a section to any record without markers, including when `docs/decisions/` held no entry files; an adopted monolith is exactly such a record. Tests covered appending only with entries present.
+3. **The fix:** a record without markers and with nothing to list is left unchanged and the output says the section arrives with the first entry (`deferred` in the plan; `commands/index.mjs`).
+4. **The rule:** a generated section must not contradict the human record it is added to; when there is nothing to generate, add nothing.
+5. **What now enforces it:** `scripts/records.test.mjs` "index leaves an adopted record without markers alone" (fails when the deferral is removed).
+
+## 2026-09-16 The ID rule lived in three modules, and the open item named two
+
+1. **What broke:** DECISIONS.md O20 said entry IDs were generated in `records.mjs` and `tasks.mjs`. Unifying them found a third copy in `commands/propose.mjs`, whose pattern accepted slugs with a trailing or doubled hyphen that the other two refuse.
+2. **The mechanism:** each lane implemented the contract's `YYYY-MM-DD-<slug>-<hex4>` sentence on its own; the search behind O20 looked for the generator functions, and `propose` had only a pattern and a private date helper.
+3. **The fix:** `packs/base/plugins/workflow/runtime/lib/ids.mjs` holds the rule (`newId`, `isId`, `slugify`, `localDate`); records, tasks and propose import it.
+4. **The rule:** before declaring how many copies of a rule exist, search for the rule's shape (here `[0-9a-f]{4}`), not only for function names.
+5. **What now enforces it:** `scripts/records.test.mjs` fails when any runtime module other than `ids.mjs` contains the pattern or defines its own generator (proved by adding one).
+
+## 2026-09-16 releases/SCHEMA.md still called built behavior "design, not built" after the rehearsal proved it
+
+1. **What broke:** after the M3 rehearsal passed 18 of 18, `releases/SCHEMA.md` still said the rehearsal "is still required", listed a contract gap that CONTRACTS section 9 had closed, and titled the update and recovery section "design, not built".
+2. **The mechanism:** docs/MAINTAIN.md step 6 asked for SCHEMA.md only "when release contracts change"; the integration changed code and evidence, not the schema's formats, so nobody reread its status sections.
+3. **The fix:** the sections were rewritten from the evidence (measured installs, what is built, what is not).
+4. **The rule:** when a milestone's evidence lands, reread every status claim it could have changed, not only the files whose formats changed.
+5. **What now enforces it:** docs/MAINTAIN.md step 6 now includes a sweep for "not built", "still required", "not verified" and similar phrases; nothing runs it automatically.

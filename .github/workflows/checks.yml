@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # scrub-check --history reads every commit
+          fetch-depth: 0 # scrub-check --history-all reads every commit on every fetched ref
 
       - uses: actions/setup-node@v4
         with:
@@ -56,6 +56,9 @@ jobs:
       - name: Status line
         run: bash scripts/statusline.test.sh
 
+      - name: Config drift check
+        run: bash scripts/drift-check.test.sh
+
       - name: Session-start handoff hook
         run: bash scripts/handoff-hook.test.sh
 
@@ -89,7 +92,7 @@ jobs:
       - name: Public-safety scrub (dashes and home paths; names need the private denylist)
         run: |
           set +e
-          bash scripts/scrub-check.sh --history
+          bash scripts/scrub-check.sh --history-all
           rc=$?
           set -e
           if [ "$rc" -eq 2 ]; then
