@@ -11,9 +11,11 @@
 # Requires jq.
 
 set -u
-LOG="${SKILLGATE_USAGE_LOG:-$HOME/.claude/usage-log.jsonl}"
-KEYS_LOG="${SKILLGATE_KEYS_LOG:-$HOME/.claude/statusline-keys-seen.log}"
-mkdir -p "$(dirname "$LOG")"
+# Default logs live in their own directory: another status-line logger may already write a
+# different record shape to ~/.claude/usage-log.jsonl, and two schemas in one log is a collision.
+LOG="${SKILLGATE_USAGE_LOG:-$HOME/.claude/skillgate/usage-log.jsonl}"
+KEYS_LOG="${SKILLGATE_KEYS_LOG:-$HOME/.claude/skillgate/statusline-keys-seen.log}"
+mkdir -p "$(dirname "$LOG")" "$(dirname "$KEYS_LOG")"
 
 PAYLOAD=$(cat)
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -45,5 +47,5 @@ PRESENT=$(printf "%s" "$QUOTA" | jq -r '.rate_limits_present')
 Q="5h ${FH}% | 7d ${SD}% | per-model wk: record from /usage"
 [ "$PRESENT" != "true" ] && Q="quota: not in payload (log manually)"
 FLAG=""
-if [ -n "${CTX:-}" ] && [ "${CTX%.*}" -ge 60 ] 2>/dev/null; then FLAG=" CLEAR ME"; fi
+if [ -n "${CTX:-}" ] && [ "${CTX%.*}" -ge 60 ] 2>/dev/null; then FLAG=" HANDOFF? finish the step, write a handoff"; fi
 printf "%s | ctx %s%% | %s%s\n" "$MODEL" "${CTX:-?}" "$Q" "$FLAG"
