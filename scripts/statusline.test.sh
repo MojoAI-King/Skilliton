@@ -8,7 +8,7 @@
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$here/.." && pwd)"
-SL="$root/packs/context-hygiene/plugins/context-hygiene/hooks/statusline-quota.sh"
+SL="$root/packs/base/plugins/context-hygiene/hooks/statusline-quota.sh"
 
 if ! command -v jq >/dev/null 2>&1; then echo "NOT RUN: jq missing"; exit 2; fi
 if [ ! -f "$SL" ]; then echo "FAIL: status line script not found"; exit 1; fi

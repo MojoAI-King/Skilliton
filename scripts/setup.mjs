@@ -21,7 +21,7 @@ const HOME = homedir();
 const SETTINGS = process.env.SKILLGATE_SETTINGS ?? join(HOME, ".claude", "settings.json");
 const BACKUPS = process.env.SKILLGATE_BACKUPS ?? join(HOME, ".claude", "backups", "skillgate");
 const here = dirname(fileURLToPath(import.meta.url));
-const STATUSLINE = resolve(here, "..", "packs/context-hygiene/plugins/context-hygiene/hooks/statusline-quota.sh");
+const STATUSLINE = resolve(here, "..", "packs/base/plugins/context-hygiene/hooks/statusline-quota.sh");
 const mode = process.argv.includes("--apply") ? "apply" : process.argv.includes("--undo") ? "undo" : "show";
 
 const read = () => existsSync(SETTINGS) ? readFileSync(SETTINGS, "utf8") : "";

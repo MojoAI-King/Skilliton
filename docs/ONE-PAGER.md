@@ -72,7 +72,7 @@ node scripts/setup.mjs --apply                     # back up, then set statusLin
 
 | What changes | Path | Done by | Source |
 |---|---|---|---|
-| Skill | `packs/context-hygiene/plugins/context-hygiene/skills/context-hygiene/SKILL.md` | plugin install | `.claude-plugin/plugin.json` |
+| Skill | `packs/base/plugins/context-hygiene/skills/context-hygiene/SKILL.md` | plugin install | `.claude-plugin/plugin.json` |
 | SessionStart hook | `hooks/session-start-checklist.sh`, registered in `hooks/hooks.json` | plugin install | `hooks/hooks.json` |
 | `statusLine` key (only that key) | `~/.claude/settings.json`, command = absolute path to `hooks/statusline-quota.sh` inside your clone | `setup.mjs --apply` | `scripts/setup.mjs` |
 | Settings backup | `~/.claude/backups/skillgate/<timestamp>/settings.json` | `setup.mjs --apply` | `scripts/setup.mjs` |
@@ -92,7 +92,7 @@ Behavior, with the file each claim comes from:
 - **Failures are shown, not hidden** (tested in `scripts/statusline.test.sh`, cases e and f): without `jq` the bar reads `statusline: jq not installed; quota NOT logged`, and if the log cannot be written the bar shows `LOG WRITE FAILED` with the path.
 - **Bounded session start:** the hook fix reduced an over-injected block to the intended section. Reproduce the before and after with `bash scripts/hook-fixture.test.sh`.
 - **Gate wrapper, not wired into the pack yet (Day 2):** `node scripts/gate.mjs --lane <name> --cmd "<your verify command>"` runs the command, writes full stdout and stderr to `.gate/<lane>.log` (relative to the current directory, gitignored), prints one summary line, prints the last 40 lines on failure, and exits with the command's own status (`scripts/gate.mjs`). The default command is `npm run verify`; this repo has no `package.json`, so pass `--cmd` here.
-- **Drift check, nothing runs it automatically yet** (`hooks/config-drift-check.sh`, requires `jq`): run `bash packs/context-hygiene/plugins/context-hygiene/hooks/config-drift-check.sh` by hand. It prints the `model` declared in `~/.claude/settings.json`, the model and version in the newest transcript under `~/.claude/projects`, and the CLI version. It prints `DRIFT` only for a model mismatch (versions are printed, not compared), and it prints `DRIFT` whenever `settings.json` has no `model` key, because `(unset)` never matches a real model name.
+- **Drift check, nothing runs it automatically yet** (`hooks/config-drift-check.sh`, requires `jq`): run `bash packs/base/plugins/context-hygiene/hooks/config-drift-check.sh` by hand. It prints the `model` declared in `~/.claude/settings.json`, the model and version in the newest transcript under `~/.claude/projects`, and the CLI version. It prints `DRIFT` only for a model mismatch (versions are printed, not compared), and it prints `DRIFT` whenever `settings.json` has no `model` key, because `(unset)` never matches a real model name.
 
 ### 4. What you're still responsible for
 

@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "context-hygiene",
-      "source": "./packs/context-hygiene/plugins/context-hygiene",
+      "source": "./packs/base/plugins/context-hygiene",
       "description": "Bounded session-start checklist hook and a context-hygiene skill. A separate, reversible setup script adds a status line that logs real quota. The gate wrapper and drift check exist in the repo but are not wired into the plugin yet.",
       "author": { "name": "MojoAI" },
       "homepage": "https://github.com/MojoAI-King/Skilliton",
