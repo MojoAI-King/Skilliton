@@ -11,7 +11,7 @@ Kind: Living. For anyone who will build in a company's prepared repository with 
 
 ## 1. Install the company tools (once per computer)
 
-You need Claude Code (logged in), Node.js 18 or later, and git.
+You need Claude Code (logged in), Node.js 18 or later, and git, on macOS or Linux. The checks have run on Node.js 22 and 25; Node.js 18 has not been run yet, and Windows has not been tried (docs/COVERAGE.md).
 
 1. Add the company marketplace. Your company gives you its name and location, for example `claude plugin marketplace add <company>/<skills-repo>`.
 2. Install the base plugins: `claude plugin install workflow@<marketplace>`, `claude plugin install guardrails@<marketplace>`, and optionally `claude plugin install context-hygiene@<marketplace>`.

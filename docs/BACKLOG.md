@@ -15,5 +15,6 @@ The open acceptance items after the 2026-09-16 integration. Details and history 
 | B7 | Applicability decisions for this repository's own security register | needs the owner | `skillgate security status`, then `skillgate security applicability ... --decided-by <owner> --apply` |
 | B8 (O10, O19, O21, O22) | Smaller follow-ups: guardrails allowlist for env files, verify's tag policy, guardrails client detection, secrets tiering review | open; O21 needs the Codex run in B2 and O22 a real application | DECISIONS.md open items (O18 and O20 closed; docs/BACKLOG_ARCHIVE.md) |
 | B9 (O2, O3) | Usage reproduction before any savings claim | blocked on the owner's original scope and cutoff | DECISIONS.md O2 |
+| B11 | The stated Node.js 18 floor either run in CI or raised to a version CI runs, and supported operating systems stated as exercised | open, no owner input needed | docs/COVERAGE.md |
 
 Give each item a stable ID and link its task and decisions. Move a completed item to `docs/BACKLOG_ARCHIVE.md` with its closure date and evidence.
