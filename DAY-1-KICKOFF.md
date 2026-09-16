@@ -1,6 +1,6 @@
 # Day 1 kickoff prompt (paste into Claude Code in this repo)
 
-Kind: Reference. The Day 1 prompt as written on 2026-09-16; superseded by PLAN.md v3 and docs/HANDOFF.md.
+Kind: Reference. The Day 1 prompt as written on 2026-09-16; superseded by the current PLAN.md and docs/HANDOFF.md.
 
 We are on Day 1 of PLAN.md. Read PLAN.md and CLAUDE.md first. Scope for this session is ONLY the Day 1 gate:
 
