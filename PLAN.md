@@ -94,12 +94,12 @@ Withdrawal prevents future approval/distribution according to policy; it must no
 
 ## 6. Current implementation and evidence
 
-Updated 2026-09-16 after the M1-M4 integration and five follow-ups (workflow 0.3.1, guardrails 0.2.0, context-hygiene 0.1.3). "Local" means committed on this machine's `main`; PUBLISHED, INSTALLED and VERIFIED states are named in docs/HANDOFF.md.
+Updated 2026-09-16 after the M1-M4 integration, the follow-ups and the task and security eval cases (workflow 0.3.3, guardrails 0.2.0, context-hygiene 0.1.3). "Local" means committed on this machine's `main`; PUBLISHED, INSTALLED and VERIFIED states are named in docs/HANDOFF.md.
 
 | Capability | Current state | Evidence or remaining proof |
 |---|---|---|
-| Runtime and CLI (`doctor`, `harness`, `project-settings`, `new-skill`, `import`, `prepare`, `migrate`, `remove`, `status`, `task`, `checkpoint`, `record`, `index`, `security`, `hook`, `propose`, `release`, `verify`, `trust`, `delivery`) | Implemented inside the workflow plugin; one config contract; exit codes 0, 1, 2, 3 | CLI 149 checks; prepare, migrate and records 43; lifecycle 32; security 52; release 21; delivery 10; demo; project rehearsal 9 of 9 |
-| Workflow skills (`task`, `dispatch`, `review`, `handoff`, `maintain`, `security`) | Implemented; instructed behavior | Evals at 0.3.0: 4 of 4 cases, score 1.00, mean difference 0.55 over no plugin (evidence/325d38f.../SUMMARY.md); 0.3.1 changed runtime code only, not skill text; the task and security skills have no eval cases yet (docs/BACKLOG.md B10) |
+| Runtime and CLI (`doctor`, `harness`, `project-settings`, `new-skill`, `import`, `prepare`, `migrate`, `remove`, `status`, `task`, `checkpoint`, `record`, `index`, `security`, `hook`, `propose`, `release`, `verify`, `trust`, `delivery`) | Implemented inside the workflow plugin; one config contract; exit codes 0, 1, 2, 3 | CLI 149 checks; prepare, migrate and records 44; lifecycle 32; security 52; release 21; delivery 10; demo; project rehearsal 9 of 9 |
+| Workflow skills (`task`, `dispatch`, `review`, `handoff`, `maintain`, `security`) | Implemented; instructed behavior | Evals: the review and handoff cases at 0.3.0, 4 of 4, score 1.00, mean difference 0.55 over no plugin (evidence/325d38f.../SUMMARY.md); the task and security cases at 0.3.3, score 1.00 each, difference 0.39 with the sonnet judge and 0.33 (evidence/e87d2d1.../). In eval runs `skillgate` is not on the shell path, and the skills fall back to the plugin's `bin/skillgate` |
 | Lifecycle hooks (session start, stop reminder, pre-compact, session end) | Implemented | Measured in real headless Claude Code sessions (evidence/rehearsals/2026-09-16-live-clients); interactive sessions and Codex not observed |
 | Guardrails | Implemented; asks in Claude Code, refuses in Codex | 487 checks; live denials (force-push; `git reset --hard` with a control) |
 | Project security evidence | Implemented: applicability, expiry, collectors, findings, 15-control catalog | 52 tests; stale evidence in the project rehearsal and the demo |

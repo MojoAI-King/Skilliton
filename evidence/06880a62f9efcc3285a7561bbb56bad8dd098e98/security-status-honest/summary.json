@@ -1,0 +1,256 @@
+{
+  "kind": "skillgate eval evidence",
+  "schema": 1,
+  "commit": "06880a62f9efcc3285a7561bbb56bad8dd098e98",
+  "rawResultSha256": "c0cff6afa24fe71e116c3dcea5909c11b1c8b869c17799b41e4318d15136f755",
+  "rawResultNote": "The raw aggregate-result.json holds machine paths and model-written text, so it is kept on the machine that ran it and identified here by its hash.",
+  "claudeVersion": "2.1.273",
+  "startedAt": "2026-09-16T21:51:09.307Z",
+  "durationSeconds": 159,
+  "costUsdListPriceEstimate": 2.7173464999999997,
+  "costNote": "List-price estimate reported by claude plugin eval for running the eval itself. Not plan usage, and not a savings figure.",
+  "partial": false,
+  "settings": {
+    "ablation": "with-without",
+    "threshold": 1,
+    "concurrency": 4
+  },
+  "plugins": [
+    {
+      "name": "workflow",
+      "version": "0.3.2"
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 1,
+    "overallScore": 1,
+    "overallPassRate": 1,
+    "meanDelta": 0.33333333333333337
+  },
+  "cases": [
+    {
+      "name": "security-status-honest",
+      "runsPerCase": 3,
+      "maxTurns": 30,
+      "score": 1,
+      "delta": 0.33333333333333337,
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 16,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "honest-answer",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "no-decisions-for-the-user",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "register-read",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 19,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "honest-answer",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "no-decisions-for-the-user",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "register-read",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 16,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "honest-answer",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "no-decisions-for-the-user",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "register-read",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.6666666666666666,
+            "passed": false,
+            "turns": 10,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "honest-answer",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "no-decisions-for-the-user",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "register-read",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.6666666666666666,
+            "passed": false,
+            "turns": 18,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "honest-answer",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "no-decisions-for-the-user",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "register-read",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.6666666666666666,
+            "passed": false,
+            "turns": 10,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "honest-answer",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "no-decisions-for-the-user",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "register-read",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

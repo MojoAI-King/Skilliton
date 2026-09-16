@@ -14,7 +14,7 @@ One integrating session (Claude Code) wrote integration contract v1, moved the r
 | I2 | Prepare adapted; one explicit target; records and settings preserved; failure and repeat setup exercised | Done. 41 tests including the 16 prototype cases; project rehearsal N1, A1, A2 |
 | I3 | One instruction writer; prototype markers migrated; human text preserved | Done. Blocks come only from `planHarnessFile`; migration `0002-integrated-layout` (project rehearsal G1); template changes arrive as `0100-instructions-<hash>` |
 | I4 | Runtime in the approved distribution; moving a toolkit clone does not break a project; copied runtime migrated | Done. Runtime inside the workflow plugin; company release rehearsal P2; 0002 removes the copied runtime only when its bytes match |
-| I5 | Maintain, Handoff, Review, Dispatch use adopted records and security status; single-task work recorded; workers do not overwrite shared handoffs | Done in skill text and runtime (task records, branch-aware handoff, dispatch base check); lifecycle tests; live Claude Code sessions L1 and L2; workflow evals at 0.3.0, 4 of 4 cases |
+| I5 | Maintain, Handoff, Review, Dispatch use adopted records and security status; single-task work recorded; workers do not overwrite shared handoffs | Done in skill text and runtime (task records, branch-aware handoff, dispatch base check); lifecycle tests; live Claude Code sessions L1 and L2; workflow evals at 0.3.0, 4 of 4 cases, and the task and security cases at 0.3.3 (1.00 each) |
 | I6 | Combined validation and an existing-repo walkthrough | Done. Full suite on the combined tree; project rehearsal including adoption of a clone of this repository |
 
 ## M2 to M5
