@@ -66,6 +66,16 @@ run_all() {
   echo
 
   echo "== Part 2: the hook script itself"
+  # Claude Code runs the hook by path (hooks.json), not through bash. A missing executable bit makes
+  # every check below pass while the real hook never runs, so check it the way it is actually invoked.
+  if [ -x "$HOOK" ]; then
+    echo "ok   (0) hook is executable (hooks.json runs it by path)"
+    direct=$(env -u SKILLGATE_CHECKLIST_HEADING SKILLGATE_LESSONS="$here/fixtures/hook/lessons-sample.md" "$HOOK" 2>&1)
+    if printf "%s\n" "$direct" | grep -q -- '- step three'; then echo "ok   (0) invoked by path, the hook prints the checklist"
+    else echo "FAIL (0) invoked by path, the hook did not print the checklist"; fails=$((fails+1)); fi
+  else
+    echo "FAIL (0) hook is not executable; Claude Code runs it by path and it would never run"; fails=$((fails+1))
+  fi
 
   # check_section <label> <lessons file>: output must contain "- step three" and no "## Lesson" line
   check_section() {

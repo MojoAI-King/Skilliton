@@ -77,6 +77,11 @@ printf "%s" "$B" | env -u SKILLGATE_USAGE_LOG -u SKILLGATE_KEYS_LOG HOME="$tmp/f
 [ -s "$tmp/fakehome/.claude/skillgate/statusline-keys-seen.log" ] && ok "(d) default keys log is ~/.claude/skillgate/statusline-keys-seen.log" || bad "(d) default keys log not at ~/.claude/skillgate/statusline-keys-seen.log"
 [ ! -e "$tmp/fakehome/.claude/usage-log.jsonl" ] && ok "(d) nothing written to ~/.claude/usage-log.jsonl" || bad "(d) wrote to ~/.claude/usage-log.jsonl (schema collision)"
 
+echo "== (g) invoked by path, the way setup.mjs configures the status line"
+if [ -x "$SL" ]; then ok "(g) status line script is executable"; else bad "(g) status line script is not executable; Claude Code runs it by path and would show nothing"; fi
+disp=$(printf "%s" "$A" | SKILLGATE_USAGE_LOG="$tmp/g/usage.jsonl" SKILLGATE_KEYS_LOG="$tmp/g/keys.log" "$SL" 2>&1); rc=$?
+[ "$rc" -eq 0 ] && contains "(g) direct invocation prints the quota line" "$disp" "5h 42%" || bad "(g) direct invocation failed (exit $rc): $disp"
+
 echo "== (e) jq missing: says so, never claims the payload lacked quota"
 mkdir -p "$tmp/nojq"
 for t in bash cat date mkdir dirname grep printf tr; do p=$(command -v "$t" 2>/dev/null); [ -n "$p" ] && [ -x "$p" ] && ln -sf "$p" "$tmp/nojq/$t"; done

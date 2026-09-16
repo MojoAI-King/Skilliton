@@ -5,14 +5,27 @@
     "url": "https://github.com/MojoAI-King"
   },
   "metadata": {
-    "description": "Skillgate: installable packs of skills, hooks, and setup steps for Claude Code."
+    "description": "Skillgate: a ready-made way of working for AI-assisted development. Base plugins: context-hygiene, workflow, guardrails."
   },
   "plugins": [
     {
       "name": "context-hygiene",
       "source": "./packs/base/plugins/context-hygiene",
       "description": "Bounded session-start checklist hook and a context-hygiene skill. A separate, reversible setup script adds a status line that logs real quota. The gate wrapper and drift check exist in the repo but are not wired into the plugin yet.",
-      "author": { "name": "MojoAI" },
+      "author": {
+        "name": "MojoAI"
+      },
+      "homepage": "https://github.com/MojoAI-King/Skilliton",
+      "repository": "https://github.com/MojoAI-King/Skilliton",
+      "license": "MIT"
+    },
+    {
+      "name": "workflow",
+      "source": "./packs/base/plugins/workflow",
+      "description": "dispatch turns notes into verified parallel lanes; maintain keeps living docs, decisions, and lessons current; handoff writes a resume note that the next session is shown at start; review explains uncommitted changes in plain English with a commit verdict.",
+      "author": {
+        "name": "MojoAI"
+      },
       "homepage": "https://github.com/MojoAI-King/Skilliton",
       "repository": "https://github.com/MojoAI-King/Skilliton",
       "license": "MIT"

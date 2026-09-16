@@ -99,3 +99,10 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 **Alternatives rejected:** Per-skill config files; describing every behavior as automatic.
 **Risk:** A reader skims past the labels. The one-pagers repeat them in plain language.
 **Reversibility:** EASY. Evidence: docs/CONTRACTS.md, templates/harness.md.
+
+## 2026-09-16 Hook scripts must be executable, and tests must run them the way Claude Code does
+**Decision:** Every shell script a plugin runs by path is committed executable, and the tests invoke scripts by path, not only through `bash <script>`. A new packaging test (`scripts/packs.test.mjs`) fails on any non-executable hook script, any plugin missing from the marketplace, any skill without a valid `name`, and any description over 1024 characters.
+**Why:** Measured: the `context-hygiene` session-start hook and status line were committed without the executable bit (mode 644) since the first commit, including the published one. `hooks.json` and `setup.mjs` run both by path, so in real use the hook would never have injected anything and the status line would have shown nothing, while every test passed, because every test ran them through `bash`. Separately, `claude plugin validate --strict` passes a plugin skill with no `name`, and `workflow` was not in the marketplace, so it could not be installed.
+**Alternatives rejected:** Changing `hooks.json` to run `bash <script>` (hides the same mistake for the next script a company adds).
+**Risk:** A company fork adds a script and forgets the bit. The packaging test catches it in CI; its self-test proves each check can fail.
+**Reversibility:** EASY. Evidence: `node scripts/packs.test.mjs --self-test`; `bash scripts/hook-fixture.test.sh --hook <non-executable copy>` exits 1.
