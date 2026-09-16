@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 # guardrails.test.sh: tests the guardrails plugin hooks (packs/base/plugins/guardrails/hooks/)
-# with synthetic Claude Code hook input against throwaway git repositories in a temp dir.
+# with synthetic hook input against throwaway git repositories in a temp dir.
 # The hook is only asked for a decision; no command under test is ever run. Nothing outside the
 # temp dir is touched, and git's global and system config are replaced by empty ones.
+#
+# Every decision check runs the hook twice: with Claude-shaped input (the PreToolUse keys measured
+# from Claude Code 2.1.273) and with Codex-shaped input (the fields Codex CLI documents, including
+# turn_id and model). Codex cannot ask for confirmation from a hook, so where Claude-shaped input
+# asks, Codex-shaped input must be denied with the ask reason kept inside the deny reason; every
+# other decision and reason must be the same. The Codex shape comes from Codex documentation; no
+# live Codex session has produced it here.
 #
 #   bash scripts/guardrails.test.sh              check the shipped hooks
 #   bash scripts/guardrails.test.sh --hook FILE  run every check with FILE as guard-bash.sh
@@ -46,25 +53,46 @@ SS="$(dirname "$HOOK")/session-start-guardrails.sh"
 export HOME="$TMP/home" GIT_CONFIG_GLOBAL="$TMP/gitconfig" GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
 mkdir -p "$HOME"; : > "$GIT_CONFIG_GLOBAL"
-unset SKILLGATE_GUARDRAILS CLAUDE_PROJECT_DIR
+unset SKILLGATE_GUARDRAILS SKILLGATE_GUARDRAILS_CLIENT CLAUDE_PROJECT_DIR CLAUDE_PLUGIN_ROOT CLAUDE_PLUGIN_DATA PLUGIN_ROOT PLUGIN_DATA
 
 fails=0; oks=0
 ok()  { echo "ok   $1"; oks=$((oks + 1)); }
 bad() { echo "FAIL $1"; fails=$((fails + 1)); }
-section() { echo; echo "== $1"; }
-
-jstr() { printf '%s' "$1" | jq -Rs .; }
-payload() { # payload <cwd> <command>
-  printf '{"session_id":"guardrails-test","transcript_path":%s,"cwd":%s,"permission_mode":"default","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":%s,"description":"guardrails test"}}' \
-    "$(jstr "$TMP/transcript.jsonl")" "$(jstr "$1")" "$(jstr "$2")"
+# MUTE names a file while the mutation check runs: section headings are not printed, and each verdict
+# is written there as "<kind> <pass|fail>" instead of being counted in oks and fails.
+MUTE=""; SEEN_ALL=0; SEEN_CONV=0
+section() { [ -n "$MUTE" ] || { echo; echo "== $1"; }; }
+# verdict <kind> <pass|fail> <message>. Kinds: claude (a result from Claude-shaped input), conv (a
+# result from Codex-shaped input that needs ask turned into deny), same (a result from Codex-shaped
+# input that must not depend on that conversion).
+verdict() {
+  if [ -n "$MUTE" ]; then printf '%s %s\n' "$1" "$2" >> "$MUTE"; return 0; fi
+  SEEN_ALL=$((SEEN_ALL + 1))
+  if [ "$1" = conv ]; then SEEN_CONV=$((SEEN_CONV + 1)); fi
+  if [ "$2" = pass ]; then ok "$3"; else bad "$3"; fi
 }
 
-# hook <cwd> <command> [VAR=value...]: runs the hook the way Claude Code does, by path, JSON on stdin.
-# CLAUDE_PROJECT_DIR defaults to <cwd>; a later VAR=value overrides it.
-hook() {
-  local cwd=$1 cmd=$2; shift 2
-  payload "$cwd" "$cmd" > "$TMP/payload.json"
-  OUT=$(env CLAUDE_PROJECT_DIR="$cwd" "$@" "$HOOK" < "$TMP/payload.json" 2>"$TMP/stderr"); RC=$?
+# The first line of every deny that Codex-shaped input gets where Claude-shaped input is asked.
+CODEX_LEAD='Blocked: this command would normally need your confirmation. Codex cannot ask for confirmation from a hook, so it was blocked. If you meant it, run it yourself in your terminal. The confirmation would have said:'
+OVERRIDE_NOTE='Note: SKILLGATE_GUARDRAILS_CLIENT is set, but not to claude-code or codex, so it was ignored and the client was worked out from the hook input.'
+
+jstr() { printf '%s' "$1" | jq -Rs .; }
+TRANSCRIPT_JSON=$(jstr "$TMP/transcript.jsonl"); SCRATCH_JSON=$(jstr "$TMP/scratchpad")
+# payload <cwd> <command>: Claude-shaped. The top-level keys are the PreToolUse input keys measured
+# from Claude Code 2.1.273 (no model, no turn_id); the values are placeholders.
+payload() {
+  printf '{"session_id":"guardrails-test","transcript_path":%s,"cwd":%s,"scratchpad_dir":%s,"prompt_id":"guardrails-test-prompt","permission_mode":"default","effort":"guardrails-test-effort","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":%s,"description":"guardrails test"},"tool_use_id":"toolu_guardrails_test"}' \
+    "$TRANSCRIPT_JSON" "$(jstr "$1")" "$SCRATCH_JSON" "$(jstr "$2")"
+}
+# payload_codex <cwd> <command>: Codex-shaped. The fields Codex documents for PreToolUse: session_id,
+# transcript_path, cwd, hook_event_name, and model on every hook input, plus turn_id, tool_name,
+# tool_use_id, and tool_input.command. The values are placeholders.
+payload_codex() {
+  printf '{"session_id":"guardrails-test","transcript_path":%s,"cwd":%s,"hook_event_name":"PreToolUse","model":"guardrails-test-model","turn_id":"guardrails-test-turn","tool_name":"Bash","tool_use_id":"guardrails-test-call","tool_input":{"command":%s}}' \
+    "$TRANSCRIPT_JSON" "$(jstr "$1")" "$(jstr "$2")"
+}
+
+read_result() { # sets DECISION and REASON_TEXT from OUT
   DECISION=allow; REASON_TEXT=""
   case "$OUT" in
     '') DECISION=allow ;;
@@ -76,6 +104,27 @@ hook() {
   return 0
 }
 
+# hook <cwd> <command> [VAR=value...]: runs the hook the way the client does, by path, JSON on stdin.
+# SHAPE=claude (the default): Claude-shaped input, and CLAUDE_PROJECT_DIR defaults to <cwd>.
+# SHAPE=codex: Codex-shaped input, and no CLAUDE_PROJECT_DIR (Codex does not document one).
+# A later VAR=value overrides either.
+SHAPE=claude
+hook() {
+  local cwd=$1 cmd=$2; shift 2
+  if [ "$SHAPE" = codex ]; then
+    payload_codex "$cwd" "$cmd" > "$TMP/payload.json"
+    OUT=$(env "$@" "$HOOK" < "$TMP/payload.json" 2>"$TMP/stderr"); RC=$?
+  else
+    payload "$cwd" "$cmd" > "$TMP/payload.json"
+    OUT=$(env CLAUDE_PROJECT_DIR="$cwd" "$@" "$HOOK" < "$TMP/payload.json" 2>"$TMP/stderr"); RC=$?
+  fi
+  read_result
+}
+hook_file() { # hook_file [VAR=value...]: runs the hook by path on $TMP/payload.json exactly as written
+  OUT=$(env "$@" "$HOOK" < "$TMP/payload.json" 2>"$TMP/stderr"); RC=$?
+  read_result
+}
+
 valid_decision_json() { # empty output, or exactly one well-formed deny or ask object
   [ -n "$OUT" ] || return 0
   printf '%s' "$OUT" | jq -e -s 'length == 1 and (.[0] | keys == ["hookSpecificOutput"])
@@ -85,18 +134,40 @@ valid_decision_json() { # empty output, or exactly one well-formed deny or ask o
     and ((.[0].hookSpecificOutput.permissionDecisionReason | length) > 0)' >/dev/null 2>&1
 }
 
-# expect <label> <deny|ask|allow> <cwd> <command> [VAR=value...]
-expect() {
-  local label=$1 want=$2; shift 2
-  hook "$@"
-  if [ "$RC" -ne 0 ]; then bad "$label: hook exited $RC (it must always exit 0)"; return 0; fi
-  if ! valid_decision_json; then bad "$label: output is not a valid PreToolUse decision"; return 0; fi
-  if [ "$DECISION" = "$want" ]; then ok "$label -> $DECISION"
-  else bad "$label -> expected $want, got $DECISION${REASON_TEXT:+ [reason: $REASON_TEXT]}"; fi
+# judge <kind> <label> <deny|ask|allow> [exact reason]: checks the last run (OUT, RC, DECISION, REASON_TEXT)
+judge() {
+  local kind=$1 label=$2 want=$3
+  if [ "$RC" -ne 0 ]; then verdict "$kind" fail "$label: hook exited $RC (it must always exit 0)"; return 0; fi
+  if ! valid_decision_json; then verdict "$kind" fail "$label: output is not a valid PreToolUse decision"; return 0; fi
+  if [ "$DECISION" != "$want" ]; then verdict "$kind" fail "$label -> expected $want, got $DECISION${REASON_TEXT:+ [reason: $REASON_TEXT]}"; return 0; fi
+  if [ $# -ge 4 ] && [ "$REASON_TEXT" != "$4" ]; then verdict "$kind" fail "$label -> $DECISION, but not with the expected reason [reason: $REASON_TEXT]"; return 0; fi
+  verdict "$kind" pass "$label -> $DECISION"
   return 0
 }
-reason_has()   { case "$REASON_TEXT" in *"$2"*) ok "$1" ;; *) bad "$1 [reason: $REASON_TEXT]" ;; esac; }
-reason_lacks() { case "$OUT" in *"$2"*) bad "$1" ;; *) ok "$1" ;; esac; }   # never prints the needle
+
+# expect <label> <deny|ask|allow> <cwd> <command> [VAR=value...]
+# Runs the call with Codex-shaped input, then with Claude-shaped input. The Claude-shaped result must
+# be <want>. The Codex-shaped result must be the same decision with the same reason, except that an
+# ask must be a deny whose reason is CODEX_LEAD, a newline, and the Claude-shaped ask reason unchanged.
+# OUT and REASON_TEXT are left holding the Claude-shaped result for the reason checks that follow.
+expect() {
+  local label=$1 want=$2 cx_out cx_rc cx_decision cx_reason cl_out cl_rc cl_decision cl_reason; shift 2
+  SHAPE=codex; hook "$@"; SHAPE=claude
+  cx_out=$OUT; cx_rc=$RC; cx_decision=$DECISION; cx_reason=$REASON_TEXT
+  hook "$@"
+  judge claude "$label" "$want"
+  cl_out=$OUT; cl_rc=$RC; cl_decision=$DECISION; cl_reason=$REASON_TEXT
+  OUT=$cx_out; RC=$cx_rc; DECISION=$cx_decision; REASON_TEXT=$cx_reason
+  case "$want" in
+    ask) judge conv "$label [codex-shaped]" deny "$CODEX_LEAD"$'\n'"$cl_reason" ;;
+    deny) judge same "$label [codex-shaped]" deny "$cl_reason" ;;
+    *) judge same "$label [codex-shaped]" "$want" ;;
+  esac
+  OUT=$cl_out; RC=$cl_rc; DECISION=$cl_decision; REASON_TEXT=$cl_reason
+  return 0
+}
+reason_has()   { case "$REASON_TEXT" in *"$2"*) verdict claude pass "$1" ;; *) verdict claude fail "$1 [reason: $REASON_TEXT]" ;; esac; }
+reason_lacks() { case "$OUT" in *"$2"*) verdict claude fail "$1" ;; *) verdict claude pass "$1" ;; esac; }   # never prints the needle
 
 new_repo() { # new_repo <dir>: branch main with one commit (README.md, deploy.key) and a feature branch
   mkdir -p "$1" && git init -q "$1" && git -C "$1" symbolic-ref HEAD refs/heads/main || return 1
@@ -136,7 +207,9 @@ RI="$TMP/repo-ignored" # .env present but listed in .gitignore
 RD="$TMP/repo-remove"  # a committed .env.production staged for removal
 RU="$TMP/repo-upstream" # branch topic pushes to origin/main (push.default=upstream)
 RCFG="$TMP/repo-config"  # .skillgate/config.json rewritten per case
-for d in "$R" "$RF" "$RS" "$RA" "$RI" "$RD" "$RU" "$RCFG"; do
+RDH="$TMP/repo-detached" # HEAD detached, so there is no current branch
+RMANY="$TMP/repo-many"   # 2001 new files, more than guardrails scans for secrets
+for d in "$R" "$RF" "$RS" "$RA" "$RI" "$RD" "$RU" "$RCFG" "$RDH" "$RMANY"; do
   new_repo "$d" || { echo "FAIL: could not build fixture repository $d"; exit 1; }
 done
 printf 'SECRET=placeholder\n' > "$R/.env"
@@ -156,6 +229,13 @@ git -C "$RU" remote add origin "$TMP/remote.git" && git -C "$RU" push -q origin 
   || { echo "FAIL: could not build the upstream fixture"; exit 1; }
 printf 'SECRET=placeholder\n' > "$RCFG/.env"; mkdir -p "$RCFG/.skillgate"
 write_config() { printf '%s\n' "$1" > "$RCFG/.skillgate/config.json"; }
+git -C "$RDH" checkout -q --detach || { echo "FAIL: could not build the detached HEAD fixture"; exit 1; }
+i=0; while [ "$i" -lt 2001 ]; do : > "$RMANY/new-$i.txt"; i=$((i + 1)); done
+NOREPO="$TMP/not-a-repo"; mkdir -p "$NOREPO"      # a folder that is not a git repository
+NOFIND="$TMP/bin-nofind"; make_bin "$NOFIND" bash cat env jq git awk grep
+BADAWK="$TMP/bin-badawk"; make_bin "$BADAWK" bash cat env jq git grep find
+printf '#!/bin/sh\nexit 1\n' > "$BADAWK/awk"; chmod +x "$BADAWK/awk"   # an awk that always fails
+TOO_LARGE=$(head -c 4000000 /dev/zero | tr '\0' 'x')   # with "git status " in front, over the hook's size limit
 
 # ---------------------------------------------------------------- packaging
 section "packaging: hooks.json and executable bits (Claude Code runs the scripts by path)"
@@ -292,33 +372,39 @@ expect "git add app.js && git commit -m x"            deny "$RA" 'git add app.js
 expect "git add clean.txt"                            allow "$RA" 'git add clean.txt'
 
 # ---------------------------------------------------------------- ask rules
-section "ask: commands that throw away uncommitted work"
-expect "git reset --hard"                             ask "$R" 'git reset --hard'
-reason_has "reset reason ends with what to do instead" "confirm only if losing it is intended."
-expect "git reset --hard HEAD~1"                      ask "$R" 'git reset --hard HEAD~1'
-expect "git clean -f"                                 ask "$R" 'git clean -f'
-expect "git clean -fd"                                ask "$R" 'git clean -fd'
-expect "git clean -xdf"                               ask "$R" 'git clean -xdf'
-expect "git checkout -- ."                            ask "$R" 'git checkout -- .'
-expect "git checkout ."                               ask "$R" 'git checkout .'
-expect "git restore ."                                ask "$R" 'git restore .'
-expect "git restore --staged --worktree ."            ask "$R" 'git restore --staged --worktree .'
-expect "git stash drop"                               ask "$R" 'git stash drop'
-expect "git stash drop stash@{1}"                     ask "$R" 'git stash drop stash@{1}'
-expect "git stash clear"                              ask "$R" 'git stash clear'
-expect "git branch -D feature"                        ask "$R" 'git branch -D feature'
-expect "git branch --delete --force feature"          ask "$R" 'git branch --delete --force feature'
-section "allow: safe neighbours of the ask rules (negative controls)"
-expect "git reset --soft HEAD~1"                      allow "$R" 'git reset --soft HEAD~1'
-expect "git reset HEAD notes.txt"                     allow "$R" 'git reset HEAD notes.txt'
-expect "git clean -n"                                 allow "$R" 'git clean -n'
-expect "git clean -fn (dry run)"                      allow "$R" 'git clean -fn'
-expect "git checkout feature"                         allow "$R" 'git checkout feature'
-expect "git checkout -b topic"                        allow "$R" 'git checkout -b topic'
-expect "git restore --staged ."                       allow "$R" 'git restore --staged .'
-expect "git stash"                                    allow "$R" 'git stash'
-expect "git stash list"                               allow "$R" 'git stash list'
-expect "git branch -d feature"                        allow "$R" 'git branch -d feature'
+# A function, so the mutation check at the end can run the same checks against a broken copy.
+ask_rule_checks() {
+  section "ask: commands that throw away uncommitted work (a deny with the ask reason inside, for Codex-shaped input)"
+  expect "git reset --hard"                             ask "$R" 'git reset --hard'
+  reason_has "reset reason ends with what to do instead" "confirm only if losing it is intended."
+  expect "git reset --hard HEAD~1"                      ask "$R" 'git reset --hard HEAD~1'
+  expect "git clean -f"                                 ask "$R" 'git clean -f'
+  expect "git clean -fd"                                ask "$R" 'git clean -fd'
+  expect "git clean -xdf"                               ask "$R" 'git clean -xdf'
+  expect "git checkout -- ."                            ask "$R" 'git checkout -- .'
+  expect "git checkout ."                               ask "$R" 'git checkout .'
+  expect "git restore ."                                ask "$R" 'git restore .'
+  expect "git restore --staged --worktree ."            ask "$R" 'git restore --staged --worktree .'
+  expect "git stash drop"                               ask "$R" 'git stash drop'
+  expect "git stash drop stash@{1}"                     ask "$R" 'git stash drop stash@{1}'
+  expect "git stash clear"                              ask "$R" 'git stash clear'
+  expect "git branch -D feature"                        ask "$R" 'git branch -D feature'
+  expect "git branch --delete --force feature"          ask "$R" 'git branch --delete --force feature'
+  section "allow: safe neighbours of the ask rules (negative controls)"
+  expect "git reset --soft HEAD~1"                      allow "$R" 'git reset --soft HEAD~1'
+  expect "git reset HEAD notes.txt"                     allow "$R" 'git reset HEAD notes.txt'
+  expect "git clean -n"                                 allow "$R" 'git clean -n'
+  expect "git clean -fn (dry run)"                      allow "$R" 'git clean -fn'
+  expect "git checkout feature"                         allow "$R" 'git checkout feature'
+  expect "git checkout -b topic"                        allow "$R" 'git checkout -b topic'
+  expect "git restore --staged ."                       allow "$R" 'git restore --staged .'
+  expect "git stash"                                    allow "$R" 'git stash'
+  expect "git stash list"                               allow "$R" 'git stash list'
+  expect "git branch -d feature"                        allow "$R" 'git branch -d feature'
+}
+SECT_ALL=$SEEN_ALL; SECT_CONV=$SEEN_CONV
+ask_rule_checks
+SECT_ALL=$((SEEN_ALL - SECT_ALL)); SECT_CONV=$((SEEN_CONV - SECT_CONV))
 section "precedence: any segment that denies decides the call"
 expect "git reset --hard && git push --force origin main" deny "$R" 'git reset --hard && git push --force origin main'
 expect "git push -f origin main; git reset --hard"    deny "$R" 'git push -f origin main; git reset --hard'
@@ -413,6 +499,15 @@ ss "$RCFG"
 if [ "$OUT" = "[guardrails] on. Blocked: --no-verify and secret files. Turned off in .skillgate/config.json: force-push to protected branches." ]; then
   ok "a rule turned off in the config is named in the line"
 else bad "rule turned off not reported as expected: $OUT"; fi
+# Codex-shaped SessionStart input (a model key) and no CLAUDE_PROJECT_DIR: the project comes from the input cwd
+printf '{"session_id":"t","transcript_path":null,"cwd":%s,"hook_event_name":"SessionStart","model":"guardrails-test-model","source":"startup"}' "$(jstr "$RCFG")" > "$TMP/ss-codex.json"
+OUT=$("$SS" < "$TMP/ss-codex.json" 2>/dev/null); RC=$?
+if [ "$RC" -eq 0 ] && [ "$OUT" = "[guardrails] on. Blocked: --no-verify and secret files. Turned off in .skillgate/config.json: force-push to protected branches." ]; then
+  ok "Codex-shaped SessionStart input: the config is found from the input cwd"
+else bad "Codex-shaped SessionStart input with a config: exit $RC, got: $OUT"; fi
+printf '{"session_id":"t","transcript_path":null,"cwd":%s,"hook_event_name":"SessionStart","model":"guardrails-test-model","source":"startup"}' "$(jstr "$R")" > "$TMP/ss-codex.json"
+OUT=$("$SS" < "$TMP/ss-codex.json" 2>/dev/null); RC=$?
+if [ "$RC" -eq 0 ] && [ "$OUT" = "$HEALTHY" ]; then ok "Codex-shaped SessionStart input: exactly the on line"; else bad "Codex-shaped SessionStart input: exit $RC, got: $OUT"; fi
 write_config '{"guardrails": '
 ss "$RCFG"
 case "$OUT" in "$HEALTHY"$'\n'*"could not be read"*) ok "unreadable config: on line plus a could-not-be-read line" ;; *) bad "unreadable config not reported: $OUT" ;; esac
@@ -428,9 +523,16 @@ make_bin "$NOP" bash cat env dirname basename tr head tail wc ls mkdir rm sort c
 for p in jq node python3; do
   if env PATH="$NOP" "$NOP/bash" -c "command -v $p" >/dev/null 2>&1; then bad "precondition: $p is still visible on the no-parser PATH"; else ok "precondition: $p is not on the no-parser PATH"; fi
 done
-np_hook() { # np_hook <cwd> <command>
-  payload "$1" "$2" > "$TMP/payload.json"
-  OUT=$(env PATH="$NOP" CLAUDE_PROJECT_DIR="$1" "$NOP/bash" "$HOOK" < "$TMP/payload.json" 2>/dev/null); RC=$?
+np_hook() { # np_hook <cwd> <command> [VAR=value...]: like hook (SHAPE picks the input), with only bash and core tools on PATH
+  local cwd=$1 cmd=$2; shift 2
+  if [ "$SHAPE" = codex ]; then
+    payload_codex "$cwd" "$cmd" > "$TMP/payload.json"
+    OUT=$(env PATH="$NOP" "$@" "$NOP/bash" "$HOOK" < "$TMP/payload.json" 2>/dev/null); RC=$?
+  else
+    payload "$cwd" "$cmd" > "$TMP/payload.json"
+    OUT=$(env PATH="$NOP" CLAUDE_PROJECT_DIR="$cwd" "$@" "$NOP/bash" "$HOOK" < "$TMP/payload.json" 2>/dev/null); RC=$?
+  fi
+  read_result
 }
 NOPARSER_REASON='guardrails cannot inspect this git command because jq, node, and python3 are all missing; confirm it yourself'
 np_hook "$R" 'git push --force origin main'
@@ -465,6 +567,10 @@ for P in node python3; do
   expect "[$P] quotes and backslashes, then force-push" deny "$R" 'echo "a \"quoted\" \\ word" && git push -f origin main' PATH="$BIN"
   expect "[$P] heredoc body"                          allow "$R" $'cat <<EOF > f.md\ngit push --force origin main\nEOF' PATH="$BIN"
   expect "[$P] non-ASCII commit message, clean staged content" allow "$R" $'git commit -m "caf\xc3\xa9 notes"' PATH="$BIN"
+  expect "[$P] git reset --hard ($P reads the top-level turn_id and model keys)" ask "$R" 'git reset --hard' PATH="$BIN"
+  payload "$R" 'git reset --hard' | jq -c '.tool_input.model = "guardrails-test-model" | .tool_input.turn_id = "guardrails-test-turn"' > "$TMP/payload.json"
+  hook_file PATH="$BIN"
+  judge claude "[$P] model and turn_id nested inside tool_input only: still Claude Code" ask
   printf 'const token = "%s";\n' "$FAKE_STRIPE" > "$RS/config.js"; git -C "$RS" add config.js
   expect "[$P] staged Stripe key"                     deny "$RS" 'git commit -m "x"' PATH="$BIN"
   reason_lacks "[$P] reason does not contain the key" "$FAKE_STRIPE"
@@ -477,18 +583,185 @@ for P in node python3; do
   rm -f "$RCFG/.skillgate/config.json"
 done
 
+# ---------------------------------------------------------------- Codex: cannot decide
+# Each place where guardrails cannot check a command asks under Claude Code. Codex would run the
+# command anyway after an ask, so under Codex each must be a deny.
+cannot_decide_checks() {
+  local base j
+  section "cannot decide: each path that asks under Claude Code is a deny under Codex, never silent permission"
+  expect "cd \$UNKNOWN_DIR && git commit -m x (folder unknown, so the files cannot be listed)" ask "$TMP" 'cd "$UNKNOWN_DIR" && git commit -m "x"'
+  expect "cd \$UNKNOWN_DIR && git add . (folder unknown)" ask "$TMP" 'cd "$UNKNOWN_DIR" && git add .'
+  expect "cd \$UNKNOWN_DIR && git push --force --all origin (branches cannot be listed)" ask "$TMP" 'cd "$UNKNOWN_DIR" && git push --force --all origin'
+  if git -C "$NOREPO" rev-parse --git-dir >/dev/null 2>&1; then
+    verdict claude fail "precondition: $NOREPO is inside a git repository, so the not-a-repository case cannot run"
+  else
+    expect "git add . in a folder that is not a git repository" ask "$NOREPO" 'git add .'
+  fi
+  expect "git add --pathspec-from-file=paths.txt (the file list is not read)" ask "$R" 'git add --pathspec-from-file=paths.txt'
+  expect "git push -f on a detached HEAD (the branch cannot be told)" ask "$RDH" 'git push -f'
+  expect "git add . with 2001 new files (too many to scan)" ask "$RMANY" 'git add .'
+  expect "find is not installed" ask "$R" 'git status' PATH="$NOFIND"
+  expect "awk fails, so the command cannot be split" ask "$R" 'git status' PATH="$BADAWK"
+  expect "a git command over 4000000 characters (too large to inspect in time)" ask "$R" "git status $TOO_LARGE"
+
+  # no JSON reader: the input is never parsed, so the client comes from the raw text or the environment
+  SHAPE=claude; np_hook "$R" 'git reset --hard'
+  judge claude "no JSON reader, Claude-shaped input" ask "$NOPARSER_REASON"
+  SHAPE=codex; np_hook "$R" 'git reset --hard'; SHAPE=claude
+  judge conv "no JSON reader, Codex-shaped input (turn_id and model keys found in the text)" deny "$CODEX_LEAD"$'\n'"$NOPARSER_REASON"
+  np_hook "$R" 'git reset --hard' PLUGIN_ROOT="$TMP/plugin-root" CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
+  judge conv "no JSON reader, Claude-shaped input, PLUGIN_ROOT equal to CLAUDE_PLUGIN_ROOT" deny "$CODEX_LEAD"$'\n'"$NOPARSER_REASON"
+  np_hook "$R" 'git reset --hard' SKILLGATE_GUARDRAILS_CLIENT=codex
+  judge conv "no JSON reader, SKILLGATE_GUARDRAILS_CLIENT=codex" deny "$CODEX_LEAD"$'\n'"$NOPARSER_REASON"
+  np_hook "$R" "git commit -m '{\"model\": 1, \"turn_id\": 2}'"
+  judge claude "no JSON reader, a command whose text holds \"model\": and \"turn_id\": (escaped in JSON, so not keys)" ask "$NOPARSER_REASON"
+  SHAPE=codex; np_hook "$R" 'ls -la'; SHAPE=claude
+  judge same "no JSON reader, Codex-shaped input: ls -la" allow
+
+  # unreadable hook input
+  printf '%s' 'not json at all, but it says git reset --hard' > "$TMP/payload.json"
+  hook_file CLAUDE_PROJECT_DIR="$R"
+  judge claude "unreadable input that mentions git" ask; base=$REASON_TEXT
+  hook_file CLAUDE_PROJECT_DIR="$R" PLUGIN_ROOT="$TMP/plugin-root" CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
+  judge conv "unreadable input, PLUGIN_ROOT equal to CLAUDE_PLUGIN_ROOT" deny "$CODEX_LEAD"$'\n'"$base"
+  j=$(payload_codex "$R" 'git reset --hard'); printf '%s' "${j%??}" > "$TMP/payload.json"
+  hook_file
+  judge conv "Codex-shaped input cut short (unreadable; turn_id and model keys found in the text)" deny "$CODEX_LEAD"$'\n'"$base"
+
+  # a crash inside the hook
+  awk '/^  walk_segments$/ { print "  : \"$GUARDRAILS_TEST_UNSET\"" } { print }' "$HOOK" > "$TMP/cd-crash-before.sh"
+  awk '{ print } /^  walk_segments$/ { print "  : \"$GUARDRAILS_TEST_UNSET\"" }' "$HOOK" > "$TMP/cd-crash-after.sh"
+  if grep -q GUARDRAILS_TEST_UNSET "$TMP/cd-crash-before.sh" && grep -q GUARDRAILS_TEST_UNSET "$TMP/cd-crash-after.sh"; then
+    payload "$R" 'git reset --hard' > "$TMP/payload.json"
+    OUT=$(env CLAUDE_PROJECT_DIR="$R" bash "$TMP/cd-crash-before.sh" < "$TMP/payload.json" 2>/dev/null); RC=$?; read_result
+    judge claude "crash before deciding, Claude-shaped input" ask; base=$REASON_TEXT
+    case "$base" in *'internal error'*) verdict claude pass "  the crash reason says guardrails stopped with an internal error" ;; *) verdict claude fail "  the crash reason does not mention the internal error [reason: $base]" ;; esac
+    payload_codex "$R" 'git reset --hard' > "$TMP/payload.json"
+    OUT=$(bash "$TMP/cd-crash-before.sh" < "$TMP/payload.json" 2>/dev/null); RC=$?; read_result
+    judge conv "crash before deciding, Codex-shaped input" deny "$CODEX_LEAD"$'\n'"$base"
+    payload "$R" 'git push --force origin main' > "$TMP/payload.json"
+    OUT=$(env CLAUDE_PROJECT_DIR="$R" bash "$TMP/cd-crash-after.sh" < "$TMP/payload.json" 2>/dev/null); RC=$?; read_result
+    judge claude "crash after a deny was decided, Claude-shaped input" deny; base=$REASON_TEXT
+    payload_codex "$R" 'git push --force origin main' > "$TMP/payload.json"
+    OUT=$(bash "$TMP/cd-crash-after.sh" < "$TMP/payload.json" 2>/dev/null); RC=$?; read_result
+    judge same "crash after a deny was decided, Codex-shaped input: the same deny" deny "$base"
+  else
+    verdict claude fail "could not build the crashing copies (walk_segments call not found in the hook under test)"
+  fi
+}
+
+# ---------------------------------------------------------------- Codex: which client ran the hook
+client_detection_checks() {
+  local base fp
+  section "client: Codex is recognized by a top-level turn_id or model key, or PLUGIN_ROOT equal to CLAUDE_PLUGIN_ROOT"
+  SHAPE=claude
+  hook "$R" 'git reset --hard'; base=$REASON_TEXT
+  judge claude "Claude-shaped input, no client variables" ask
+  hook "$R" 'git push --force origin main'; fp=$REASON_TEXT
+  judge claude "Claude-shaped force-push" deny
+  payload "$R" 'git reset --hard' | jq -c '. + {turn_id: "guardrails-test-turn"}' > "$TMP/payload.json"; hook_file
+  judge conv "Claude-shaped input plus a top-level turn_id key" deny "$CODEX_LEAD"$'\n'"$base"
+  payload "$R" 'git reset --hard' | jq -c '. + {model: "guardrails-test-model"}' > "$TMP/payload.json"; hook_file
+  judge conv "Claude-shaped input plus a top-level model key" deny "$CODEX_LEAD"$'\n'"$base"
+  payload "$R" 'git reset --hard' | jq -c '. + {model: null}' > "$TMP/payload.json"; hook_file
+  judge conv "a top-level model key whose value is null (the key decides, not its value)" deny "$CODEX_LEAD"$'\n'"$base"
+  payload_codex "$R" 'git reset --hard' | jq -c 'del(.model)' > "$TMP/payload.json"; hook_file
+  judge conv "Codex-shaped input with turn_id but no model" deny "$CODEX_LEAD"$'\n'"$base"
+  payload_codex "$R" 'git reset --hard' | jq -c 'del(.turn_id)' > "$TMP/payload.json"; hook_file
+  judge conv "Codex-shaped input with model but no turn_id" deny "$CODEX_LEAD"$'\n'"$base"
+  payload "$R" 'git reset --hard' | jq -c '.tool_input.model = "guardrails-test-model" | .tool_input.turn_id = "guardrails-test-turn"' > "$TMP/payload.json"; hook_file
+  judge claude "model and turn_id nested inside tool_input only (not top-level)" ask "$base"
+
+  section "client: the plugin root variables"
+  payload "$R" 'git reset --hard' > "$TMP/payload.json"
+  hook_file CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
+  judge claude "CLAUDE_PLUGIN_ROOT alone" ask "$base"
+  hook_file PLUGIN_ROOT="$TMP/plugin-root" CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
+  judge conv "PLUGIN_ROOT set and equal to CLAUDE_PLUGIN_ROOT" deny "$CODEX_LEAD"$'\n'"$base"
+  hook_file PLUGIN_ROOT="$TMP/plugin-root" CLAUDE_PLUGIN_ROOT="$TMP/other-root"
+  judge claude "PLUGIN_ROOT set but different from CLAUDE_PLUGIN_ROOT" ask "$base"
+  hook_file PLUGIN_ROOT="$TMP/plugin-root"
+  judge claude "PLUGIN_ROOT set without CLAUDE_PLUGIN_ROOT" ask "$base"
+  hook_file PLUGIN_ROOT= CLAUDE_PLUGIN_ROOT=
+  judge claude "PLUGIN_ROOT and CLAUDE_PLUGIN_ROOT both empty" ask "$base"
+
+  section "client: SKILLGATE_GUARDRAILS_CLIENT wins both ways"
+  payload "$R" 'git reset --hard' > "$TMP/payload.json"
+  hook_file SKILLGATE_GUARDRAILS_CLIENT=codex CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
+  judge conv "SKILLGATE_GUARDRAILS_CLIENT=codex with Claude-shaped input" deny "$CODEX_LEAD"$'\n'"$base"
+  hook_file SKILLGATE_GUARDRAILS_CLIENT=CODEX
+  judge conv "SKILLGATE_GUARDRAILS_CLIENT=CODEX (letter case does not matter)" deny "$CODEX_LEAD"$'\n'"$base"
+  payload_codex "$R" 'git reset --hard' > "$TMP/payload.json"
+  hook_file PLUGIN_ROOT="$TMP/plugin-root" CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
+  judge conv "every Codex signal at once: turn_id, model, and PLUGIN_ROOT" deny "$CODEX_LEAD"$'\n'"$base"
+  hook_file SKILLGATE_GUARDRAILS_CLIENT=claude-code PLUGIN_ROOT="$TMP/plugin-root" CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
+  judge claude "SKILLGATE_GUARDRAILS_CLIENT=claude-code with every Codex signal" ask "$base"
+  hook_file SKILLGATE_GUARDRAILS_CLIENT=codex-cli
+  judge conv "unrecognized SKILLGATE_GUARDRAILS_CLIENT, Codex-shaped input: detected, and a note says so" deny "$CODEX_LEAD"$'\n'"$base"$'\n'"$OVERRIDE_NOTE"
+  payload "$R" 'git reset --hard' > "$TMP/payload.json"
+  hook_file SKILLGATE_GUARDRAILS_CLIENT=codex-cli
+  judge claude "unrecognized SKILLGATE_GUARDRAILS_CLIENT, Claude-shaped input: detected, and a note says so" ask "$base"$'\n'"$OVERRIDE_NOTE"
+  payload "$R" 'git push --force origin main' > "$TMP/payload.json"
+  hook_file SKILLGATE_GUARDRAILS_CLIENT=codex
+  judge same "SKILLGATE_GUARDRAILS_CLIENT=codex: a force-push is the same deny" deny "$fp"
+  payload_codex "$R" 'git push --force origin main' > "$TMP/payload.json"
+  hook_file SKILLGATE_GUARDRAILS_CLIENT=claude-code
+  judge same "SKILLGATE_GUARDRAILS_CLIENT=claude-code with Codex-shaped input: a force-push is the same deny" deny "$fp"
+  payload "$R" 'git status' > "$TMP/payload.json"
+  hook_file SKILLGATE_GUARDRAILS_CLIENT=codex
+  judge same "SKILLGATE_GUARDRAILS_CLIENT=codex: git status is allowed" allow
+  payload_codex "$R" 'git status' > "$TMP/payload.json"
+  hook_file PLUGIN_ROOT="$TMP/plugin-root" CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
+  judge same "every Codex signal at once: git status is allowed" allow
+}
+MARK_ALL=$SEEN_ALL; MARK_CONV=$SEEN_CONV
+cannot_decide_checks
+client_detection_checks
+SECT_ALL=$((SECT_ALL + SEEN_ALL - MARK_ALL)); SECT_CONV=$((SECT_CONV + SEEN_CONV - MARK_CONV))
+
+# ---------------------------------------------------------------- mutation check
+section "mutation: the Codex checks fail against a copy of the hook without the ask-to-deny conversion"
+MUTANT="$TMP/mutant/guard-bash.sh"; mkdir -p "$TMP/mutant"
+awk -v want='    if [ "$GUARD_CLIENT" = codex ]; then' \
+  '$0 == want { print "    if false; then # mutation check: the ask-to-deny conversion is disabled"; n++; next } { print } END { exit (n == 1 ? 0 : 1) }' \
+  "$HOOK" > "$MUTANT"
+mutant_rc=$?
+chmod +x "$MUTANT"
+if [ "$mutant_rc" -ne 0 ]; then
+  bad "could not build the copy: the conversion line was not found exactly once in the hook under test"
+else
+  ok "built a copy of the hook under test with only the conversion line changed"
+  MUTE="$TMP/mutant.log"; : > "$MUTE"
+  SAVED_HOOK=$HOOK; HOOK=$MUTANT
+  ask_rule_checks
+  cannot_decide_checks
+  client_detection_checks
+  HOOK=$SAVED_HOOK; MUTE_LOG=$MUTE; MUTE=""
+  m_all=$(grep -c . "$MUTE_LOG"); m_conv=$(grep -c '^conv ' "$MUTE_LOG")
+  m_conv_fail=$(grep -c '^conv fail$' "$MUTE_LOG"); m_other_fail=$(grep -c -E '^(claude|same) fail$' "$MUTE_LOG")
+  if [ "$m_all" -eq "$SECT_ALL" ] && [ "$m_conv" -eq "$SECT_CONV" ]; then
+    ok "the copy ran the same $m_all checks as the hook under test ($m_conv of them need the conversion)"
+  else bad "the copy ran $m_all checks ($m_conv need the conversion); the hook under test ran $SECT_ALL ($SECT_CONV)"; fi
+  if [ "$m_conv" -gt 0 ] && [ "$m_conv_fail" -eq "$m_conv" ]; then
+    ok "all $m_conv Codex checks that need the conversion fail against the copy"
+  else bad "only $m_conv_fail of $m_conv Codex checks that need the conversion fail against the copy"; fi
+  if [ "$m_other_fail" -eq 0 ]; then
+    ok "the other $((m_all - m_conv)) checks still pass against the copy, so it differs only in the conversion"
+  else bad "$m_other_fail checks that do not need the conversion fail against the copy"; fi
+fi
+
 # ---------------------------------------------------------------- size and time
 section "large commands finish well inside the 10 second hook timeout"
 big_body=$(printf 'git push --force origin main\n%.0s' $(seq 1 30000))
 start=$(date +%s)
 expect "heredoc of $(printf '%s' "$big_body" | wc -c | tr -d ' ') bytes" allow "$R" "cat <<'EOF' > big.txt"$'\n'"$big_body"$'\n'"EOF"
 elapsed=$(( $(date +%s) - start ))
-if [ "$elapsed" -le 5 ]; then ok "  finished in ${elapsed}s (limit 5s)"; else bad "  took ${elapsed}s (limit 5s)"; fi
+if [ "$elapsed" -le 5 ]; then ok "  both input shapes finished in ${elapsed}s (limit 5s)"; else bad "  both input shapes took ${elapsed}s (limit 5s)"; fi
 long_line=$(head -c 400000 /dev/zero | tr '\0' 'x')
 start=$(date +%s)
 expect "400000-byte single line, then a force-push" deny "$R" "echo \"$long_line\" && git push --force origin main"
 elapsed=$(( $(date +%s) - start ))
-if [ "$elapsed" -le 5 ]; then ok "  finished in ${elapsed}s (limit 5s)"; else bad "  took ${elapsed}s (limit 5s)"; fi
+if [ "$elapsed" -le 5 ]; then ok "  both input shapes finished in ${elapsed}s (limit 5s)"; else bad "  both input shapes took ${elapsed}s (limit 5s)"; fi
 
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
