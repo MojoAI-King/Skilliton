@@ -1,0 +1,817 @@
+// delivery.mjs: trusted delivery checks for shared branches. Contract: docs/CONTRACTS.md section 14; the plain-language
+// guide is docs/DELIVERY.md. This is the engine behind `skillgate delivery install | gate | check`.
+//
+// A shared bare repository runs `delivery gate` from its pre-receive hook. For each update to a protected branch the
+// gate, in this order:
+//   1. rejects deleting the branch and non-fast-forward updates;
+//   2. reads the delivery policy from the branch's current tip, never from the pushed commits (a push that creates a
+//      protected branch is the one exception: its tip must carry a valid policy and an approver's SSH signature);
+//   3. requires every pushed commit whose change against its first parent touches a policy path to verify with
+//      `git -c gpg.ssh.allowedSignersFile=<approvers> verify-commit`;
+//   4. refuses a pushed tip whose own policy is missing or invalid, because accepting it would reject every later push;
+//   5. materializes the pushed tip with `git archive` into a temporary folder (never a checkout inside the bare
+//      repository) and confirms every extracted file matches the commit, because .gitattributes export rules can
+//      drop or rewrite files in an archive;
+//   6. runs each check's argument list there, with its timeout and a minimal environment (PATH, a temporary HOME,
+//      LANG), and rejects on the first failure with the check's name and the last lines of its output.
+//
+// Which branches are protected: the policy on the repository's default branch (the bare repository's HEAD) lists
+// them. While the default branch does not exist or holds no policy, the default branch alone is protected. An invalid
+// policy on the default branch rejects every push, because the protected branches cannot be determined.
+//
+// Node built-ins only; nothing here imports from outside the plugin folder. Programs run from argument lists, never
+// through a shell. The gate fails closed: an error it cannot handle rejects the push and says why.
+
+import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import {
+  accessSync, chmodSync, constants as fsConstants, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync,
+  readlinkSync, realpathSync, renameSync, rmSync, statSync, writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, dirname, join, resolve, sep } from "node:path";
+import { argPath, backupFile, isDir, isPlainObject, newStamp, refuse, runProgram } from "./core.mjs";
+
+export const POLICY_FILE = ".skillgate/delivery.json";
+export const POLICY_SCHEMA = "skillgate.delivery/1";
+export const DEFAULT_TIMEOUT_SECONDS = 600;
+export const MAX_TIMEOUT_SECONDS = 86400;
+export const TAIL_LINES = 20;
+export const HOOK_MARKER = "# skillgate:delivery-hook v1";
+const HOOK_MARKER_RE = /^# skillgate:delivery-hook v\d+[ \t]*$/m;
+const MAX_POLICY_BYTES = 256 * 1024;
+const MAX_APPROVERS_BYTES = 1024 * 1024;
+const GIT_MAX_BUFFER = 512 * 1024 * 1024;
+const POLICY_KEYS = ["schema", "protectedBranches", "checks", "policyPaths"];
+const CHECK_KEYS = ["name", "command", "timeoutSeconds"];
+const CHECK_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 ._:+/-]{0,63}$/;
+
+// An error the gate cannot turn into a policy decision (git failed, a file could not be written). The gate reports it
+// as a rejection with its reason; the command line exits 3.
+export class DeliveryError extends Error {}
+
+const short = (id) => String(id).slice(0, 12);
+export const isZeroId = (id) => /^0+$/.test(id);
+const zeroIdLike = (id) => "0".repeat(id.length);
+function lastLines(text, n) {
+  return String(text ?? "").replace(/\r/g, "").split("\n").map((l) => l.trimEnd()).filter(Boolean).slice(-n);
+}
+
+// ---------- policy ----------
+
+// A plain branch name as a policy lists it: "main", "release/2.x". No "refs/" prefix, wildcards or spaces.
+export function validBranchName(name) {
+  if (typeof name !== "string" || name.length === 0 || name.length > 200) return false;
+  if (name === "HEAD" || name === "@" || name.startsWith("refs/") || name.startsWith("-")) return false;
+  if (name.startsWith("/") || name.endsWith("/") || name.endsWith(".") || name.includes("..") || name.includes("@{")) return false;
+  if (/[\x00-\x20\x7f~^:?*[\\]/.test(name)) return false;
+  return name.split("/").every((part) => part.length > 0 && !part.startsWith(".") && !part.endsWith(".lock"));
+}
+
+// A policy path: a repository-relative file path, or a folder when it ends with "/".
+export function validPolicyPath(entry) {
+  if (typeof entry !== "string" || entry.length === 0 || entry.length > 400) return false;
+  if (entry.startsWith("/") || entry.includes("\\") || /[\x00-\x1f\x7f]/.test(entry)) return false;
+  const body = entry.endsWith("/") ? entry.slice(0, -1) : entry;
+  return body.length > 0 && body.split("/").every((part) => part.length > 0 && part !== "." && part !== "..");
+}
+
+// The policy entry that covers a changed path, or null. An entry covers its exact path and everything below it.
+export function matchPolicyPath(path, policyPaths) {
+  for (const entry of policyPaths) {
+    const body = entry.endsWith("/") ? entry.slice(0, -1) : entry;
+    if (path === body || path.startsWith(body + "/")) return entry;
+  }
+  return null;
+}
+
+// Every problem with a parsed policy value, in plain words. An empty list means the policy is valid.
+export function policyProblems(value) {
+  if (!isPlainObject(value)) return ["the file must hold a JSON object"];
+  const problems = [];
+  for (const key of Object.keys(value)) {
+    if (!POLICY_KEYS.includes(key)) problems.push(`unknown key "${key}" (allowed: ${POLICY_KEYS.join(", ")})`);
+  }
+  if (value.schema !== POLICY_SCHEMA) {
+    problems.push(`"schema" must be "${POLICY_SCHEMA}" (${value.schema === undefined ? "missing" : `found ${JSON.stringify(value.schema)}`})`);
+  }
+
+  if (!Array.isArray(value.protectedBranches)) problems.push(`"protectedBranches" must be an array of branch names, for example ["main"]`);
+  else {
+    const seen = new Set();
+    value.protectedBranches.forEach((branch, i) => {
+      if (!validBranchName(branch)) problems.push(`"protectedBranches"[${i}] ${JSON.stringify(branch)} is not a plain branch name (for example "main": no "refs/" prefix, spaces or wildcards)`);
+      else if (seen.has(branch)) problems.push(`"protectedBranches" lists "${branch}" more than once`);
+      seen.add(branch);
+    });
+  }
+
+  if (!Array.isArray(value.checks)) problems.push(`"checks" must be an array of checks (it may be empty)`);
+  else {
+    const names = new Set();
+    value.checks.forEach((check, i) => {
+      const at = `"checks"[${i}]`;
+      if (!isPlainObject(check)) { problems.push(`${at} must be an object with "name", "command" and optionally "timeoutSeconds"`); return; }
+      for (const key of Object.keys(check)) {
+        if (!CHECK_KEYS.includes(key)) problems.push(`${at} has unknown key "${key}" (allowed: ${CHECK_KEYS.join(", ")})`);
+      }
+      if (typeof check.name !== "string" || !CHECK_NAME_RE.test(check.name)) problems.push(`${at} "name" must be 1 to 64 letters, digits, spaces or . _ : + / - characters, starting with a letter or digit`);
+      else if (names.has(check.name)) problems.push(`${at} "name" "${check.name}" is used by more than one check`);
+      else names.add(check.name);
+      if (!Array.isArray(check.command) || check.command.length === 0) problems.push(`${at} "command" must be a non-empty array of strings: an argument list, never a shell string`);
+      else if (!check.command.every((arg) => typeof arg === "string" && !arg.includes("\0"))) problems.push(`${at} "command" must hold only strings`);
+      else if (check.command[0].trim() === "") problems.push(`${at} "command"[0] must name the program to run`);
+      if (check.timeoutSeconds !== undefined && !(Number.isInteger(check.timeoutSeconds) && check.timeoutSeconds >= 1 && check.timeoutSeconds <= MAX_TIMEOUT_SECONDS)) {
+        problems.push(`${at} "timeoutSeconds" must be a whole number from 1 to ${MAX_TIMEOUT_SECONDS}`);
+      }
+    });
+  }
+
+  if (!Array.isArray(value.policyPaths) || value.policyPaths.length === 0) problems.push(`"policyPaths" must be a non-empty array of repository paths (a trailing "/" means a folder)`);
+  else {
+    value.policyPaths.forEach((entry, i) => {
+      if (!validPolicyPath(entry)) problems.push(`"policyPaths"[${i}] ${JSON.stringify(entry)} is not a repository-relative path`);
+    });
+    if (value.policyPaths.every(validPolicyPath) && !matchPolicyPath(POLICY_FILE, value.policyPaths)) {
+      problems.push(`"policyPaths" must cover ${POLICY_FILE} itself; otherwise a change to the policy would need no approval`);
+    }
+  }
+  return problems;
+}
+
+// Parse policy text: { policy } with defaults filled in, or { problems }.
+export function parsePolicyText(text) {
+  const body = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+  let value;
+  try { value = JSON.parse(body); } catch (e) { return { problems: [`not valid JSON (${e.message})`] }; }
+  const problems = policyProblems(value);
+  if (problems.length) return { problems };
+  return {
+    policy: {
+      schema: value.schema,
+      protectedBranches: [...value.protectedBranches],
+      checks: value.checks.map((c) => ({ name: c.name, command: [...c.command], timeoutSeconds: c.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS })),
+      policyPaths: [...value.policyPaths],
+    },
+  };
+}
+
+// ---------- approvers file (ssh allowed_signers format) ----------
+
+const KEY_TYPE_RE = /^(ssh-ed25519|ssh-rsa|ssh-dss|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)$/;
+
+function splitSignersLine(line) {
+  const tokens = [];
+  let current = "", quoted = false, started = false;
+  for (const ch of line) {
+    if (ch === "\"") { quoted = !quoted; current += ch; started = true; continue; }
+    if (!quoted && (ch === " " || ch === "\t")) {
+      if (started) { tokens.push(current); current = ""; started = false; }
+      continue;
+    }
+    current += ch;
+    started = true;
+  }
+  if (started) tokens.push(current);
+  return tokens;
+}
+
+// Problems with allowed_signers text: each line is "<principals> [options] <key type> <base64 key>".
+export function approversProblems(text) {
+  if (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(text)) {
+    return ["holds a private key; an approvers file lists public keys only, in ssh allowed_signers format"];
+  }
+  const problems = [];
+  let keys = 0;
+  text.split("\n").forEach((raw, i) => {
+    const line = raw.replace(/\r$/, "").trim();
+    if (!line || line.startsWith("#")) return;
+    const tokens = splitSignersLine(line);
+    const at = tokens.findIndex((token, k) => k > 0 && KEY_TYPE_RE.test(token));
+    if (at < 1 || !/^[A-Za-z0-9+/]+={0,3}$/.test(tokens[at + 1] ?? "")) {
+      problems.push(`line ${i + 1} is not "<principals> [options] <key type> <base64 public key>"`);
+      return;
+    }
+    keys++;
+  });
+  if (!problems.length && keys === 0) problems.push("lists no keys");
+  return problems;
+}
+
+// Read and check an approvers file: { text } or { problems } (each problem reads after the file's path).
+export function readApproversFile(path) {
+  let st;
+  try { st = statSync(path); } catch (e) { return { problems: [e.code === "ENOENT" ? "does not exist" : `cannot be read (${e.code ?? e.message})`] }; }
+  if (!st.isFile()) return { problems: ["is not a regular file"] };
+  if (st.size > MAX_APPROVERS_BYTES) return { problems: [`is ${st.size} bytes; the limit is ${MAX_APPROVERS_BYTES}`] };
+  let text;
+  try { text = readFileSync(path, "utf8"); } catch (e) { return { problems: [`cannot be read (${e.code ?? e.message})`] }; }
+  const problems = approversProblems(text);
+  return problems.length ? { problems } : { text };
+}
+
+// ---------- git ----------
+
+// A git runner bound to one repository: where is ["--git-dir", <bare repository>] or ["-C", <working tree>]. The
+// environment passes through unchanged, so inside a pre-receive hook git still sees the quarantined pushed objects.
+export function gitRunner(where, env = process.env) {
+  const git = (args, { allowExit = [0], buffer = false } = {}) => {
+    const r = spawnSync("git", [...where, ...args], {
+      env, encoding: buffer ? "buffer" : "utf8", maxBuffer: GIT_MAX_BUFFER, stdio: ["ignore", "pipe", "pipe"],
+    });
+    if (r.error) throw new DeliveryError(r.error.code === "ENOENT" ? "git was not found on PATH" : `git could not run (${r.error.message})`);
+    if (allowExit !== "any" && !allowExit.includes(r.status)) {
+      const detail = lastLines(buffer ? r.stderr?.toString("utf8") : r.stderr, 2).join(" / ");
+      const shown = args.filter((a) => a !== "-c" && !a.includes("=")).slice(0, 2).join(" ");
+      throw new DeliveryError(`git ${shown} failed (${r.status === null ? `signal ${r.signal}` : `exit ${r.status}`})${detail ? `: ${detail}` : ""}`);
+    }
+    return { status: r.status, stdout: r.stdout ?? (buffer ? Buffer.alloc(0) : ""), stderr: buffer ? String(r.stderr ?? "") : r.stderr ?? "" };
+  };
+  git.where = where;
+  git.env = env;
+  return git;
+}
+
+export function revParseCommit(git, name) {
+  const r = git(["rev-parse", "--verify", "-q", `${name}^{commit}`], { allowExit: [0, 1] });
+  return r.status === 0 ? r.stdout.trim() : null;
+}
+
+// The policy at a commit: { state: "absent" } | { state: "invalid", problems } | { state: "valid", policy }.
+export function readPolicyAt(git, commit) {
+  const listing = git(["ls-tree", "-z", "--full-tree", commit, "--", POLICY_FILE]).stdout;
+  const entry = listing.split("\0").find(Boolean);
+  if (!entry) return { state: "absent" };
+  const m = /^(\d{6}) (\w+) ([0-9a-f]{40,64})\t([\s\S]*)$/.exec(entry);
+  if (!m) throw new DeliveryError(`unexpected git ls-tree output for ${POLICY_FILE} at ${short(commit)}`);
+  if (m[2] !== "blob" || (m[1] !== "100644" && m[1] !== "100755")) {
+    return { state: "invalid", problems: [`${POLICY_FILE} must be a regular file (found a ${m[2]} with mode ${m[1]})`] };
+  }
+  const size = Number(git(["cat-file", "-s", m[3]]).stdout.trim());
+  if (!(size <= MAX_POLICY_BYTES)) return { state: "invalid", problems: [`${POLICY_FILE} is ${size} bytes; the limit is ${MAX_POLICY_BYTES}`] };
+  const parsed = parsePolicyText(git(["cat-file", "blob", m[3]]).stdout);
+  return parsed.policy ? { state: "valid", policy: parsed.policy } : { state: "invalid", problems: parsed.problems };
+}
+
+// Where branch tips and the default branch come from. The gate reads the bare repository's own refs; `delivery check`
+// reads a working repository's remote-tracking refs for one remote.
+export function bareView(git) {
+  return {
+    defaultBranch() {
+      const r = git(["symbolic-ref", "-q", "HEAD"], { allowExit: [0, 1] });
+      const ref = r.stdout.trim();
+      return r.status === 0 && ref.startsWith("refs/heads/") && validBranchName(ref.slice(11)) ? ref.slice(11) : null;
+    },
+    tip: (branch) => revParseCommit(git, `refs/heads/${branch}`),
+  };
+}
+
+export function remoteView(git, remote) {
+  const prefix = `refs/remotes/${remote}/`;
+  return {
+    defaultBranch() {
+      const r = git(["symbolic-ref", "-q", `${prefix}HEAD`], { allowExit: [0, 1] });
+      const ref = r.stdout.trim();
+      return r.status === 0 && ref.startsWith(prefix) && validBranchName(ref.slice(prefix.length)) ? ref.slice(prefix.length) : null;
+    },
+    tip: (branch) => revParseCommit(git, `${prefix}${branch}`),
+  };
+}
+
+// Which branch names are protected: { names: Set, defaultBranch, basis } or { error }.
+export function protectionFor(git, view) {
+  const def = view.defaultBranch();
+  if (!def) return { error: "the repository's HEAD does not name a default branch, so the protected branches cannot be determined" };
+  const tip = view.tip(def);
+  if (!tip) return { names: new Set([def]), defaultBranch: def, basis: `the default branch ${def} does not exist yet, so it is protected` };
+  const found = readPolicyAt(git, tip);
+  if (found.state === "absent") return { names: new Set([def]), defaultBranch: def, basis: `the default branch ${def} has no delivery policy, so it alone is protected` };
+  if (found.state === "invalid") {
+    return { error: `the delivery policy on the default branch ${def} is invalid (${found.problems.join("; ")}), so the protected branches cannot be determined` };
+  }
+  return { names: new Set(found.policy.protectedBranches), defaultBranch: def, basis: `the delivery policy on the default branch ${def}`, policy: found.policy };
+}
+
+// ---------- signatures ----------
+
+// The signature header of a raw commit object, or null when it has none.
+export function commitSignature(raw) {
+  const end = raw.indexOf("\n\n");
+  const lines = (end < 0 ? raw : raw.slice(0, end)).split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^(gpgsig|gpgsig-sha256) (.*)$/.exec(lines[i]);
+    if (!m) continue;
+    const parts = [m[2]];
+    while (i + 1 < lines.length && lines[i + 1].startsWith(" ")) parts.push(lines[++i].slice(1));
+    return parts.join("\n");
+  }
+  return null;
+}
+
+// { state: "verified", detail } | { state: "unverified", reason } | { state: "not-checked" } (no approvers file).
+function signatureStatus(ctx, commit) {
+  if (!ctx.approvers) return { state: "not-checked" };
+  const signature = commitSignature(ctx.git(["cat-file", "commit", commit]).stdout);
+  if (!signature) return { state: "unverified", reason: "the commit is not signed" };
+  // Only SSH signatures are accepted: an OpenPGP or X.509 signature would be judged by whatever keyring the server
+  // happens to have, not by the approvers file.
+  if (!signature.startsWith("-----BEGIN SSH SIGNATURE-----")) {
+    return { state: "unverified", reason: "the commit carries a non-SSH signature, which the approvers file cannot verify" };
+  }
+  const r = ctx.git(["-c", `gpg.ssh.allowedSignersFile=${ctx.approvers}`, "verify-commit", commit], { allowExit: "any" });
+  if (r.status === 0) return { state: "verified", detail: lastLines(r.stderr, 1)[0] ?? "good signature" };
+  return { state: "unverified", reason: `its signature is not from a key in the approvers file (${lastLines(r.stderr, 1)[0] ?? `verify-commit exit ${r.status}`})` };
+}
+
+// ---------- commits and paths ----------
+
+function commitsBetween(git, oldId, newId) {
+  return git(["rev-list", "--reverse", "--topo-order", "--parents", `${oldId}..${newId}`]).stdout
+    .split("\n").filter(Boolean).map((line) => { const [id, parent = null] = line.split(" "); return { id, parent }; });
+}
+
+function changedPaths(git, id, parent) {
+  const args = parent
+    ? ["diff-tree", "-r", "-z", "--no-commit-id", "--name-only", "--no-renames", parent, id]
+    : ["diff-tree", "-r", "-z", "--root", "--no-commit-id", "--name-only", "--no-renames", id];
+  return git(args).stdout.split("\0").filter(Boolean);
+}
+
+// ---------- materializing a commit ----------
+
+function waitFor(child, program) {
+  return new Promise((done) => {
+    let settled = false;
+    child.on("error", (e) => { if (!settled) { settled = true; done({ error: e.code === "ENOENT" ? `${program} was not found on PATH` : e.message }); } });
+    child.on("close", (code, signal) => { if (!settled) { settled = true; done({ code, signal }); } });
+  });
+}
+
+// git archive <commit> | tar -x, with both programs started from argument lists.
+async function extractArchive(git, commit, dir) {
+  const archive = spawn("git", [...git.where, "-c", "core.autocrlf=false", "archive", "--format=tar", commit], { env: git.env, stdio: ["ignore", "pipe", "pipe"] });
+  const tar = spawn("tar", ["-x", "-f", "-", "-C", dir], { env: git.env, stdio: ["pipe", "ignore", "pipe"] });
+  let archiveErr = "", tarErr = "";
+  archive.stderr.on("data", (c) => { if (archiveErr.length < 8192) archiveErr += c; });
+  tar.stderr.on("data", (c) => { if (tarErr.length < 8192) tarErr += c; });
+  archive.stdout.on("error", () => {});
+  tar.stdin.on("error", () => {});
+  // If tar stops reading, close the pipe so git archive cannot block forever on a full buffer.
+  const stopArchive = () => { archive.stdout.destroy(); if (archive.exitCode === null) archive.kill("SIGKILL"); };
+  tar.on("error", stopArchive);
+  tar.on("close", () => archive.stdout.destroy());
+  archive.stdout.pipe(tar.stdin);
+  const [a, t] = await Promise.all([waitFor(archive, "git"), waitFor(tar, "tar")]);
+  const why = (r) => r.error ?? (r.code === null ? `signal ${r.signal}` : `exit ${r.code}`);
+  if (a.error || a.code !== 0) throw new DeliveryError(`git archive of ${short(commit)} failed (${why(a)})${archiveErr.trim() ? `: ${lastLines(archiveErr, 2).join(" / ")}` : ""}`);
+  if (t.error || t.code !== 0) throw new DeliveryError(`extracting the archive of ${short(commit)} failed (${why(t)})${tarErr.trim() ? `: ${lastLines(tarErr, 2).join(" / ")}` : ""}`);
+}
+
+function blobId(bytes, hexLength) {
+  return createHash(hexLength === 64 ? "sha256" : "sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+}
+
+// Every way the extracted folder differs from the commit's tree. Paths are compared as raw bytes.
+function treeDifferences(git, commit, dir) {
+  const listing = git(["ls-tree", "-r", "-z", "--full-tree", commit], { buffer: true }).stdout;
+  const expected = new Map();
+  let start = 0;
+  for (let i = 0; i < listing.length; i++) {
+    if (listing[i] !== 0) continue;
+    const entry = listing.subarray(start, i);
+    start = i + 1;
+    const tab = entry.indexOf(9);
+    const m = tab > 0 ? /^(\d{6}) (blob|tree|commit) ([0-9a-f]{40}|[0-9a-f]{64})$/.exec(entry.subarray(0, tab).toString("latin1")) : null;
+    if (!m) throw new DeliveryError(`unexpected git ls-tree output for ${short(commit)}`);
+    expected.set(entry.subarray(tab + 1).toString("latin1"), { mode: m[1], type: m[2], oid: m[3] });
+  }
+  const root = Buffer.from(dir + sep);
+  const onDisk = (key) => Buffer.concat([root, Buffer.from(key, "latin1")]);
+  const shown = (key) => Buffer.from(key, "latin1").toString("utf8");
+  const differences = [];
+  for (const [key, e] of expected) {
+    if (e.type !== "blob") continue; // a submodule's content is not part of the commit
+    let st;
+    try { st = lstatSync(onDisk(key)); } catch { differences.push(`${shown(key)} is missing`); continue; }
+    let bytes;
+    if (e.mode === "120000") {
+      if (!st.isSymbolicLink()) { differences.push(`${shown(key)} is not a symbolic link`); continue; }
+      bytes = readlinkSync(onDisk(key), { encoding: "buffer" });
+    } else {
+      if (!st.isFile()) { differences.push(`${shown(key)} is not a regular file`); continue; }
+      bytes = readFileSync(onDisk(key));
+    }
+    if (blobId(bytes, e.oid.length) !== e.oid) differences.push(`${shown(key)} differs from the committed content`);
+  }
+  const pending = [Buffer.alloc(0)];
+  while (pending.length) {
+    const rel = pending.pop();
+    const abs = rel.length ? Buffer.concat([root, rel]) : Buffer.from(dir);
+    for (const d of readdirSync(abs, { withFileTypes: true, encoding: "buffer" })) {
+      const childRel = rel.length ? Buffer.concat([rel, Buffer.from("/"), d.name]) : d.name;
+      if (d.isDirectory()) pending.push(childRel);
+      else if (!expected.has(childRel.toString("latin1"))) differences.push(`${childRel.toString("utf8")} is not in the commit`);
+    }
+  }
+  return differences;
+}
+
+// ---------- running one check ----------
+
+// Runs a check's argument list with cwd in the materialized tree. Resolves { ok, how, seconds, tail }.
+function runCheck(check, { cwd, home }) {
+  return new Promise((done) => {
+    const began = Date.now();
+    const tail = [];
+    const keep = (line) => {
+      tail.push(line.length > 400 ? `${line.slice(0, 400)} ...` : line);
+      if (tail.length > TAIL_LINES) tail.shift();
+    };
+    const env = { PATH: process.env.PATH || "/usr/bin:/bin", HOME: home, LANG: process.env.LANG || "C" };
+    const group = process.platform !== "win32";
+    let child;
+    try {
+      child = spawn(check.command[0], check.command.slice(1), { cwd, env, stdio: ["ignore", "pipe", "pipe"], detached: group });
+    } catch (e) {
+      done({ ok: false, how: `could not start: ${e.message}`, seconds: 0, tail });
+      return;
+    }
+    const partial = { out: "", err: "" };
+    const feed = (key) => (chunk) => {
+      const lines = (partial[key] + chunk.toString("utf8")).replace(/\r(?=\n)/g, "").split("\n");
+      partial[key] = lines.pop();
+      lines.forEach(keep);
+    };
+    child.stdout.on("data", feed("out"));
+    child.stderr.on("data", feed("err"));
+    let timedOut = false, settled = false, exit = null, grace = null;
+    // Kill the whole process group: a test runner's own children must not outlive the check or hold its pipes open.
+    const killAll = () => {
+      try { if (child.pid) process.kill(group ? -child.pid : child.pid, "SIGKILL"); } catch { /* already gone */ }
+    };
+    const timer = setTimeout(() => { timedOut = true; killAll(); }, check.timeoutSeconds * 1000);
+    const finish = (how) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      clearTimeout(grace);
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      for (const key of ["out", "err"]) if (partial[key]) { keep(partial[key]); partial[key] = ""; }
+      const seconds = Math.round((Date.now() - began) / 100) / 10;
+      const ok = !timedOut && how === null && exit?.code === 0;
+      const reason = timedOut ? `timed out after ${check.timeoutSeconds}s`
+        : how ?? (exit.code === null ? `killed by ${exit.signal}` : `exit ${exit.code}`);
+      done({ ok, how: reason, seconds, tail });
+    };
+    const program = check.command[0];
+    child.on("error", (e) => finish(e.code === "ENOENT" ? `could not start: ${program} was not found${program.includes("/") ? "" : " on PATH"}` : `could not start: ${e.message}`));
+    child.on("exit", (code, signal) => {
+      exit = { code, signal };
+      killAll();
+      grace = setTimeout(() => { child.stdout.destroy(); child.stderr.destroy(); finish(null); }, 5000);
+    });
+    child.on("close", (code, signal) => {
+      if (!exit) exit = { code, signal };
+      finish(null);
+    });
+  });
+}
+
+// ---------- evaluating one update to a protected branch ----------
+
+const checkSummary = (names) => (names.length ? `${names.length} check(s) passed (${names.join(", ")})` : "the policy lists no checks");
+
+// update: { ref, branch, oldId, newId }. ctx: { git, approvers (path or null), say (progress line) }.
+// Resolves { verdict: "accepted", checks, notChecked } or { verdict: "rejected", reason, tail?, notChecked }.
+export async function evaluateUpdate(ctx, update) {
+  const { git, say } = ctx;
+  const { branch, oldId, newId } = update;
+  const notChecked = [];
+  const reject = (reason, tail) => ({ verdict: "rejected", reason, tail, notChecked });
+
+  if (isZeroId(newId)) return reject("deleting a protected branch is not allowed");
+  let policy, source;
+  if (isZeroId(oldId)) {
+    // Creating a protected branch: there is no current tip to read a policy from, so the pushed tip must carry a
+    // valid policy and an approver's signature.
+    const pushed = readPolicyAt(git, newId);
+    if (pushed.state === "absent") return reject(`creating the protected branch ${branch} needs a delivery policy (${POLICY_FILE}) in the pushed commit ${short(newId)}`);
+    if (pushed.state === "invalid") return reject(`creating the protected branch ${branch}: the delivery policy in the pushed commit ${short(newId)} is invalid: ${pushed.problems.join("; ")}`);
+    const sig = signatureStatus(ctx, newId);
+    if (sig.state === "unverified") return reject(`creating the protected branch ${branch} needs its tip commit ${short(newId)} signed by an approver: ${sig.reason}`);
+    if (sig.state === "not-checked") notChecked.push(`commit ${short(newId)} creates the protected branch and needs an approver signature`);
+    policy = pushed.policy;
+    source = `the policy in the pushed commit ${short(newId)}${sig.state === "verified" ? ", signed by an approver" : ""}`;
+  } else {
+    const ff = git(["merge-base", "--is-ancestor", oldId, newId], { allowExit: [0, 1] });
+    if (ff.status !== 0) return reject(`non-fast-forward update: the pushed commit ${short(newId)} does not contain the current tip ${short(oldId)}; fetch and merge (or rebase), then push again`);
+    const current = readPolicyAt(git, oldId);
+    if (current.state === "absent") return reject("no delivery policy on the protected branch");
+    if (current.state === "invalid") return reject(`the delivery policy on the protected branch (${POLICY_FILE} at ${short(oldId)}) is invalid: ${current.problems.join("; ")}`);
+    policy = current.policy;
+    source = `the policy at the current tip ${short(oldId)}`;
+    for (const { id, parent } of commitsBetween(git, oldId, newId)) {
+      const touched = changedPaths(git, id, parent).filter((path) => matchPolicyPath(path, policy.policyPaths));
+      if (!touched.length) continue;
+      const what = `commit ${short(id)} changes the policy path ${touched[0]}${touched.length > 1 ? ` (and ${touched.length - 1} more)` : ""}`;
+      const sig = signatureStatus(ctx, id);
+      if (sig.state === "unverified") return reject(`${what} without an approver signature: ${sig.reason}`);
+      if (sig.state === "not-checked") notChecked.push(`${what} and needs an approver signature`);
+    }
+    const next = readPolicyAt(git, newId);
+    if (next.state === "absent") return reject(`the pushed commit ${short(newId)} removes ${POLICY_FILE}; accepting it would reject every later push to this branch`);
+    if (next.state === "invalid") return reject(`the delivery policy in the pushed commit ${short(newId)} is invalid (${next.problems.join("; ")}); accepting it would reject every later push to this branch`);
+  }
+
+  if (!policy.checks.length) {
+    say(`checking ${update.ref} at ${short(newId)} with ${source}: it lists no checks, so nothing was run`);
+    return { verdict: "accepted", checks: [], notChecked };
+  }
+  const work = mkdtempSync(join(tmpdir(), "skillgate-delivery-"));
+  try {
+    const tree = join(work, "tree");
+    const home = join(work, "home");
+    mkdirSync(tree);
+    mkdirSync(home);
+    say(`checking ${update.ref} at ${short(newId)} with ${source}: ${policy.checks.length} check(s)`);
+    await extractArchive(git, newId, tree);
+    const differences = treeDifferences(git, newId, tree);
+    if (differences.length) {
+      const shown = differences.slice(0, 3).join("; ");
+      return reject(`the archive of ${short(newId)} does not match the commit (${shown}${differences.length > 3 ? `; ${differences.length} differences in all` : ""}). A .gitattributes export rule or a content filter changed it, and checks run only on exactly the committed files`);
+    }
+    const passed = [];
+    for (const check of policy.checks) {
+      const outcome = await runCheck(check, { cwd: tree, home });
+      if (!outcome.ok) return reject(`check "${check.name}" failed (${outcome.how})`, outcome.tail);
+      say(`check "${check.name}" passed in ${outcome.seconds}s`);
+      passed.push(check.name);
+    }
+    return { verdict: "accepted", checks: passed, notChecked };
+  } finally {
+    try { rmSync(work, { recursive: true, force: true }); } catch (e) { say(`note: the temporary folder ${work} could not be removed (${e.code ?? e.message})`); }
+  }
+}
+
+// ---------- the gate (pre-receive) ----------
+
+// "<old> <new> <ref>" lines, as git feeds a pre-receive hook.
+export function parseRefUpdates(text) {
+  const updates = [];
+  const problems = [];
+  const lines = String(text).split("\n");
+  if (lines[lines.length - 1] === "") lines.pop();
+  lines.forEach((line, i) => {
+    const m = /^([0-9a-f]{40}|[0-9a-f]{64}) ([0-9a-f]{40}|[0-9a-f]{64}) (refs\/[^\s]+)$/.exec(line);
+    if (!m || m[1].length !== m[2].length) problems.push(`input line ${i + 1} is not "<old> <new> <ref>": ${JSON.stringify(line.slice(0, 120))}`);
+    else updates.push({ oldId: m[1], newId: m[2], ref: m[3] });
+  });
+  return { updates, problems };
+}
+
+function approversSetting(git) {
+  const r = git(["config", "--get", "skillgate.approvers"], { allowExit: [0, 1] });
+  const path = r.status === 0 ? r.stdout.replace(/\n$/, "") : "";
+  if (!path) return { problem: "skillgate.approvers is not set in this repository's git config; run skillgate delivery install" };
+  const found = readApproversFile(path);
+  if (found.problems) return { problem: `the approvers file ${path} ${found.problems.join("; ")}` };
+  return { path };
+}
+
+// Evaluates a whole push. Returns 0 (accept), 1 (reject) or 3 (the gate could not finish, so it rejects).
+export async function runGate({ bare, input, print = (line) => console.log(line) }) {
+  const say = (text) => print(`skillgate delivery: ${text}`);
+  let current = "this push";
+  try {
+    const { updates, problems } = parseRefUpdates(input);
+    if (problems.length) { say(`rejected ${current}: ${problems[0]}`); return 1; }
+    if (!updates.length) { say(`rejected ${current}: no ref updates arrived on standard input, so nothing could be checked`); return 1; }
+    const git = gitRunner(["--git-dir", bare]);
+    const approvers = approversSetting(git);
+    if (approvers.problem) { say(`rejected ${updates[0].ref}: ${approvers.problem}`); return 1; }
+    const protection = protectionFor(git, bareView(git));
+    if (protection.error) { say(`rejected ${updates[0].ref}: ${protection.error}`); return 1; }
+    const accepted = [];
+    for (const update of updates) {
+      current = update.ref;
+      const branch = update.ref.startsWith("refs/heads/") ? update.ref.slice("refs/heads/".length) : null;
+      if (branch === null || !protection.names.has(branch)) {
+        accepted.push(`accepted ${update.ref} without checks: not a protected branch`);
+        continue;
+      }
+      const result = await evaluateUpdate({ git, approvers: approvers.path, say }, { ...update, branch });
+      if (result.verdict !== "accepted") {
+        say(`rejected ${update.ref}: ${result.reason}`);
+        for (const line of result.tail ?? []) print(`  | ${line}`);
+        if (updates.length > 1) say("the whole push was rejected; no ref in it was updated");
+        return 1;
+      }
+      accepted.push(`accepted ${update.ref}: ${checkSummary(result.checks)}`);
+    }
+    accepted.forEach(say);
+    return 0;
+  } catch (e) {
+    say(`rejected ${current}: the gate could not finish (${e?.message ?? e}), so the push was not accepted`);
+    return 3;
+  }
+}
+
+// ---------- delivery check (by hand, before pushing) ----------
+
+export async function runLocalCheck({ repo, ref, remote = "origin", approvers, print = (line) => console.log(line) }) {
+  const say = (text) => print(`skillgate delivery check: ${text}`);
+  const dir = resolve(repo ?? process.cwd());
+  if (!isDir(dir)) refuse(`--repo ${dir} is not an existing folder`);
+  const top = gitRunner(["-C", dir])(["rev-parse", "--show-toplevel"], { allowExit: "any" });
+  if (top.status !== 0 || !top.stdout.trim()) refuse(`${dir} is not inside a git working tree`);
+  const git = gitRunner(["-C", top.stdout.trim()]);
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(remote)) refuse(`--remote "${remote}" is not a remote name`);
+  if (git(["config", "--get", `remote.${remote}.url`], { allowExit: [0, 1] }).status !== 0) refuse(`the repository has no remote named "${remote}" (pass --remote <name>)`);
+  let branch = ref;
+  if (!branch) {
+    const r = git(["symbolic-ref", "-q", "--short", "HEAD"], { allowExit: [0, 1] });
+    if (r.status !== 0) refuse("HEAD is not on a branch; pass --ref <branch> to name the shared branch to check against");
+    branch = r.stdout.trim();
+  }
+  if (!validBranchName(branch)) refuse(`"${branch}" is not a plain branch name`);
+  const head = revParseCommit(git, "HEAD");
+  if (!head) refuse("the repository has no commit to check");
+  let approversPath = null;
+  if (approvers) {
+    approversPath = resolve(approvers);
+    const found = readApproversFile(approversPath);
+    if (found.problems) refuse(`the approvers file ${approversPath} ${found.problems.join("; ")}`);
+  }
+
+  const old = revParseCommit(git, `refs/remotes/${remote}/${branch}`);
+  say(`HEAD ${short(head)} as a push to ${branch} on ${remote}, compared with ${remote}/${branch} ${old ? short(old) : "(absent, so the push would create the branch)"} as last fetched; run git fetch ${remote} first for a current answer`);
+  const dirty = git(["status", "--porcelain"]).stdout.split("\n").filter(Boolean).length;
+  if (dirty) say(`note: ${dirty} uncommitted or untracked change(s) are not part of this check; only commit ${short(head)} is tested`);
+  if (old === head) { say(`nothing to check: HEAD is already ${remote}/${branch}, so a push would change nothing`); return 0; }
+
+  const view = remoteView(git, remote);
+  let protection;
+  if (view.defaultBranch() === null) {
+    say(`note: ${remote}'s default branch is not recorded in this clone (git remote set-head ${remote} --auto records it), so ${branch} is evaluated as a protected branch`);
+    protection = { names: new Set([branch]) };
+  } else {
+    protection = protectionFor(git, view);
+  }
+  if (protection.error) { say(`would be rejected: ${protection.error}`); return 1; }
+  if (!protection.names.has(branch)) { say(`${branch} is not a protected branch (${protection.basis}); a push to it would be accepted without checks`); return 0; }
+
+  const result = await evaluateUpdate({ git, approvers: approversPath, say }, { ref: `refs/heads/${branch}`, branch, oldId: old ?? zeroIdLike(head), newId: head });
+  if (result.verdict !== "accepted") {
+    say(`would be rejected: ${result.reason}`);
+    for (const line of result.tail ?? []) print(`  | ${line}`);
+    return 1;
+  }
+  if (result.notChecked.length) {
+    say(`${checkSummary(result.checks)}, but approver signatures were NOT CHECKED here because no --approvers file was given: ${result.notChecked.join("; ")}. The shared repository verifies them when you push.`);
+    return 1;
+  }
+  say(`would be accepted: ${checkSummary(result.checks)}`);
+  return 0;
+}
+
+// ---------- install ----------
+
+// The pre-receive hook. It reads the runtime path from the repository's git config at push time and fails closed.
+export function hookScript() {
+  return [
+    "#!/bin/sh",
+    HOOK_MARKER,
+    "# Written by `skillgate delivery install`; run install again instead of editing this file. Git runs this hook before",
+    "# it updates any ref in this repository, with one \"<old> <new> <ref>\" line per update on standard input. The lines",
+    "# go to the Skillgate delivery gate, and the hook exits with the gate's status: anything but 0 rejects the whole",
+    "# push. It fails closed: when the runtime, its setting or node is missing, the push is rejected.",
+    "",
+    "reject() {",
+    "  printf 'skillgate delivery: rejected: %s\\n' \"$1\"",
+    "  exit 1",
+    "}",
+    "repo=$(cd \"${GIT_DIR:-.}\" 2>/dev/null && pwd -P) || reject \"cannot resolve the repository folder\"",
+    "runtime=$(git config --get skillgate.runtime 2>/dev/null) || runtime=",
+    "[ -n \"$runtime\" ] || reject \"skillgate.runtime is not set in this repository's git config; run skillgate delivery install again\"",
+    "[ -f \"$runtime\" ] && [ -x \"$runtime\" ] || reject \"the delivery runtime $runtime is missing or not executable\"",
+    "command -v node >/dev/null 2>&1 || reject \"node was not found on PATH, so the delivery checks cannot run\"",
+    "\"$runtime\" delivery gate --bare \"$repo\"",
+    "status=$?",
+    "if [ \"$status\" -ne 0 ]; then",
+    "  [ \"$status\" -eq 1 ] || printf 'skillgate delivery: rejected: the delivery gate exited with status %s\\n' \"$status\"",
+    "  exit \"$status\"",
+    "fi",
+    "exit 0",
+    "",
+  ].join("\n");
+}
+
+function lstatOrNull(path) {
+  try { return lstatSync(path); } catch (e) { if (e.code === "ENOENT" || e.code === "ENOTDIR") return null; throw e; }
+}
+
+function canonicalFile(path) {
+  try { return join(realpathSync(dirname(path)), basename(path)); } catch { return resolve(path); }
+}
+
+function configValue(git, key) {
+  const r = git(["config", "--get", key], { allowExit: [0, 1] });
+  return r.status === 0 ? r.stdout.replace(/\n$/, "") : null;
+}
+
+// Everything install would do, checked before anything is written. Throws Refused (exit 2) for any refusal.
+export function planInstall({ bare, approvers, runtime, defaultRuntime }) {
+  if (!bare) refuse("--bare <repo.git> is required: the shared bare repository to protect");
+  if (!approvers) refuse("--approvers <file> is required: an ssh allowed_signers file with the keys that may approve policy changes");
+  const bareDir = resolve(bare);
+  if (!isDir(bareDir)) refuse(`--bare ${bareDir} is not an existing folder`);
+  const git = gitRunner(["--git-dir", bareDir]);
+  const isBare = git(["rev-parse", "--is-bare-repository"], { allowExit: "any" });
+  if (isBare.status !== 0 || isBare.stdout.trim() !== "true") refuse(`${bareDir} is not a bare git repository`);
+
+  const hookPath = join(bareDir, "hooks", "pre-receive");
+  const effective = resolve(bareDir, git(["rev-parse", "--git-path", "hooks/pre-receive"]).stdout.trim());
+  if (canonicalFile(effective) !== canonicalFile(hookPath)) {
+    refuse(`git runs this repository's hooks from ${dirname(effective)} (core.hooksPath is set), so a hook written to ${dirname(hookPath)} would never run. Unset core.hooksPath for this repository, then run install again.`);
+  }
+  const head = bareView(git).defaultBranch();
+  if (!head) refuse(`the repository's HEAD does not name a default branch; set it first, for example: git --git-dir ${argPath(bareDir)} symbolic-ref HEAD refs/heads/main`);
+
+  const approversPath = resolve(approvers);
+  const found = readApproversFile(approversPath);
+  if (found.problems) refuse(`the approvers file ${approversPath} ${found.problems.join("; ")}`);
+
+  const runtimePath = resolve(runtime ?? defaultRuntime);
+  const rst = lstatOrNull(runtimePath) && statSync(runtimePath, { throwIfNoEntry: false });
+  if (!rst || !rst.isFile()) refuse(`the runtime ${runtimePath} is not a file (--runtime names the bin/skillgate launcher of the workflow plugin)`);
+  try { accessSync(runtimePath, fsConstants.X_OK); } catch { refuse(`the runtime ${runtimePath} is not executable`); }
+  const probe = runProgram(runtimePath, ["delivery", "--help"], 60000);
+  if (!probe.ok) refuse(`the runtime ${runtimePath} failed to run "delivery --help" (${probe.failure}); a hook using it would reject every push`);
+
+  const hookText = hookScript();
+  const existing = lstatOrNull(hookPath);
+  let hookAction = "create";
+  if (existing) {
+    if (!existing.isFile()) refuse(`${hookPath} exists but is not a regular file; it was left untouched`);
+    const text = readFileSync(hookPath, "utf8");
+    if (!HOOK_MARKER_RE.test(text)) {
+      refuse(`${hookPath} already exists and was not written by skillgate delivery install (it has no "${HOOK_MARKER}" line); it was left untouched. Combine the two hooks by hand or move the existing one away, then run install again.`);
+    }
+    hookAction = text === hookText && (existing.mode & 0o111) === 0o111 ? "unchanged" : "replace";
+  }
+
+  const config = [["skillgate.approvers", approversPath], ["skillgate.runtime", runtimePath]]
+    .map(([key, to]) => ({ key, from: configValue(git, key), to }));
+
+  const notes = [];
+  const protection = protectionFor(git, bareView(git));
+  if (protection.error) notes.push(`attention: ${protection.error}. Every push will be rejected until the policy on ${head} is fixed outside the gate.`);
+  else if (!bareView(git).tip(head)) notes.push(`the default branch ${head} does not exist yet: the push that creates it must contain ${POLICY_FILE} and have its tip commit signed by an approver`);
+  else if (!protection.policy) notes.push(`attention: the default branch ${head} has no ${POLICY_FILE}, so every push to ${head} will be rejected ("no delivery policy on the protected branch"). The gate accepts a new policy only on a branch it creates; add the policy to ${head} before installing the hook.`);
+  else {
+    const p = protection.policy;
+    notes.push(`the policy on ${head} protects ${p.protectedBranches.length ? p.protectedBranches.join(", ") : "no branches"}; checks: ${p.checks.length ? p.checks.map((c) => c.name).join(", ") : "none"}`);
+  }
+  return { bare: bareDir, hookPath, hookText, hookAction, config, notes, defaultBranch: head };
+}
+
+export function describeInstall(plan) {
+  const lines = [];
+  const hookWords = { create: "create", replace: "replace (the current file is backed up first)", unchanged: "already current, unchanged" };
+  lines.push(`hook:   ${plan.hookPath}: ${hookWords[plan.hookAction]}`);
+  for (const c of plan.config) {
+    lines.push(`config: ${c.key} = ${c.to}${c.from === c.to ? " (unchanged)" : c.from === null ? " (not set before)" : ` (was ${c.from})`}`);
+  }
+  for (const note of plan.notes) lines.push(`policy: ${note}`);
+  return lines;
+}
+
+// Writes the plan. The hook is checked again right before it is replaced, and written last, so a failure part way
+// leaves either no new hook or a hook that rejects pushes, never an unprotected half state.
+export function applyInstall(plan, { stamp = newStamp() } = {}) {
+  const now = lstatOrNull(plan.hookPath);
+  let backup = null;
+  if (plan.hookAction !== "unchanged") {
+    if (now && (!now.isFile() || !HOOK_MARKER_RE.test(readFileSync(plan.hookPath, "utf8")))) {
+      refuse(`${plan.hookPath} changed after it was checked and is no longer a hook written by install; nothing was written`);
+    }
+    if (!now && plan.hookAction === "replace") refuse(`${plan.hookPath} disappeared after it was checked; nothing was written. Run install again.`);
+    if (now && plan.hookAction === "create") refuse(`${plan.hookPath} appeared after it was checked; nothing was written. Run install again.`);
+  }
+  const git = gitRunner(["--git-dir", plan.bare]);
+  if (now && plan.hookAction === "replace") backup = backupFile("delivery", plan.hookPath, stamp);
+  for (const c of plan.config) if (c.from !== c.to) git(["config", c.key, c.to]);
+  if (plan.hookAction !== "unchanged") {
+    mkdirSync(dirname(plan.hookPath), { recursive: true });
+    const temp = join(dirname(plan.hookPath), `.pre-receive.skillgate-${process.pid}`);
+    writeFileSync(temp, plan.hookText, { mode: 0o755 });
+    chmodSync(temp, 0o755);
+    renameSync(temp, plan.hookPath);
+  }
+  const written = statSync(plan.hookPath);
+  if ((written.mode & 0o111) !== 0o111 || readFileSync(plan.hookPath, "utf8") !== plan.hookText) {
+    throw new DeliveryError(`${plan.hookPath} was written but does not read back as the executable hook`);
+  }
+  return { backup };
+}
