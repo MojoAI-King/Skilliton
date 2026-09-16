@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 # guard-bash.sh: the guardrails PreToolUse hook for the Bash tool.
 #
-# Claude Code sends the proposed Bash command as JSON on stdin. This script reads the command
-# text and answers with one decision:
+# Claude Code sends the proposed Bash command as JSON on stdin; Codex CLI runs the same plugin hook
+# with the same tool_name and tool_input.command. This script reads the command text and answers
+# with one decision:
 #   deny   force-pushing a protected branch; skipping git hooks with --no-verify; staging or
 #          committing a file whose name or added content looks like a secret
 #   ask    git commands that throw away uncommitted work: reset --hard, clean -f, checkout .,
 #          restore . (without --staged), stash drop, stash clear, branch -D
 #   allow  everything else, by printing nothing
+# Under Codex every "ask" is written as "deny", with a reason that says so, because Codex cannot ask
+# for confirmation from a hook: the command would run anyway. See detect_client.
 # A decision is JSON on stdout. The exit status is always 0. A hook that crashes with another
-# status does not block anything, so a failure inside this script becomes "ask" for any command
-# that mentions git, never silent permission.
+# status does not block anything, so a failure inside this script becomes "ask" (a deny under
+# Codex) for any command that mentions git, never silent permission.
 #
 # What it can see, stated as a limit rather than left to be discovered:
 #   It reads the command TEXT. It splits on && || ; | & newlines and parentheses, respects
@@ -24,6 +27,7 @@
 # ($CLAUDE_PROJECT_DIR, else "cwd" from the hook input, else $PWD). Keys and defaults are in
 # docs/CONTRACTS.md. Only a JSON false turns a rule off. A config that cannot be read leaves
 # every default on and says so. SKILLGATE_GUARDRAILS=off allows everything for the session.
+# SKILLGATE_GUARDRAILS_CLIENT=claude-code or codex names the client instead of detecting it.
 #
 # Needs: bash 3.2 or later, git, awk, grep, find, and one of jq, node, or python3.
 #   guard-bash.sh                  PreToolUse mode (stdin: the PreToolUse JSON)
@@ -36,8 +40,8 @@ GUARD_MODE=pretooluse
 [ "${1:-}" = "--session-start" ] && GUARD_MODE=session-start
 
 SEP=$'\036'
-GUARD_RAW=""; GUARD_EMITTED=0; GUARD_PARSER=""
-IN_CWD=""; IN_CMD=""; PROJECT_DIR=""
+GUARD_RAW=""; GUARD_EMITTED=0; GUARD_PARSER=""; GUARD_CLIENT=""; CLIENT_NOTE=""
+IN_KEYS=""; IN_CWD=""; IN_CMD=""; PROJECT_DIR=""
 CFG_FP=true; CFG_NV=true; CFG_SF=true; CFG_PB=$'main\nmaster'; CFG_STATE=default
 DENY_REASON=""; ASK_REASON=""
 TOKS=(); SEGW=(); ARGS=(); GARGS=(); PA=(); FILES=()
@@ -45,6 +49,9 @@ EFF_DIR=""; GDIR=""; RESOLVED=""; CUR_BRANCH=""; SC_LETTERS=""; SC_NEXT=0
 SN_RULE=""; HIT_FILE=""; HIT_RULE=""; REASON=""; ESCAPED=""
 
 CONFIG_NOTE="Note: .skillgate/config.json could not be read, so the default guardrails settings were used."
+CODEX_ASK_LEAD="Blocked: this command would normally need your confirmation. Codex cannot ask for confirmation from a hook, so it was blocked. If you meant it, run it yourself in your terminal. The confirmation would have said:"
+CLIENT_OVERRIDE_NOTE="Note: SKILLGATE_GUARDRAILS_CLIENT is set, but not to claude-code or codex, so it was ignored and the client was worked out from the hook input."
+CODEX_KEY_RE='"(turn_id|model)"[[:space:]]*:'
 
 # A word "git" as a command would appear, case-insensitively. "github", ".git", "digit", and a
 # folder path segment like /git/ do not count, so a project under a folder named github does not
@@ -65,9 +72,50 @@ json_escape() { # sets ESCAPED to $1 as the inside of a JSON string
   ESCAPED=$s
 }
 
-emit_decision() { # emit_decision <deny|ask> <reason>
-  json_escape "$2"
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"%s","permissionDecisionReason":"%s"}}\n' "$1" "$ESCAPED"
+# detect_client: sets GUARD_CLIENT to codex or claude-code, and CLIENT_NOTE when the override is unusable.
+# Why: Codex CLI runs this same hook, but its hooks documentation says permissionDecision "ask" is
+# parsed but not supported yet (the hook run is marked failed and the tool call continues), so an
+# ask under Codex would be silent permission.
+# Signals, all from Codex's hooks documentation: every hook input carries session_id,
+# transcript_path, cwd, hook_event_name, and model, and turn-scoped events such as PreToolUse add
+# turn_id; plugin hooks run with PLUGIN_ROOT and PLUGIN_DATA set, as well as CLAUDE_PLUGIN_ROOT. The
+# PreToolUse input measured from Claude Code 2.1.273 has no model and no turn_id key.
+# UNVERIFIED in a live Codex session: no Codex session has run this hook yet.
+# SKILLGATE_GUARDRAILS_CLIENT=claude-code or codex (any letter case) wins over the detection.
+detect_client() {
+  CLIENT_NOTE=""
+  case "${SKILLGATE_GUARDRAILS_CLIENT:-}" in
+    [Cc][Oo][Dd][Ee][Xx]) GUARD_CLIENT=codex; return 0 ;;
+    [Cc][Ll][Aa][Uu][Dd][Ee]-[Cc][Oo][Dd][Ee]) GUARD_CLIENT=claude-code; return 0 ;;
+    '') ;;
+    *) CLIENT_NOTE=$CLIENT_OVERRIDE_NOTE ;;
+  esac
+  GUARD_CLIENT=claude-code
+  if [ "$IN_KEYS" = codex ]; then
+    GUARD_CLIENT=codex   # a top-level turn_id or model key, read by the JSON reader
+  elif [ -z "$IN_KEYS" ] && [[ $GUARD_RAW =~ $CODEX_KEY_RE ]]; then
+    # The input was not parsed (no JSON reader, unreadable JSON, or a crash first). In JSON text a
+    # quote inside a string is escaped, so "turn_id": or "model": can only be a key, at any depth.
+    # A wrong match here can only turn an ask into a deny.
+    GUARD_CLIENT=codex
+  elif [ -n "${PLUGIN_ROOT:-}" ] && [ "${CLAUDE_PLUGIN_ROOT:-}" = "$PLUGIN_ROOT" ]; then
+    GUARD_CLIENT=codex
+  fi
+  return 0
+}
+
+emit_decision() { # emit_decision <deny|ask> <reason>. Under Codex an ask is written as a deny.
+  local decision=$1 reason=$2
+  if [ "$decision" = ask ]; then
+    detect_client
+    [ -z "$CLIENT_NOTE" ] || reason="$reason"$'\n'"$CLIENT_NOTE"
+    if [ "$GUARD_CLIENT" = codex ]; then
+      decision=deny
+      reason="$CODEX_ASK_LEAD"$'\n'"$reason"
+    fi
+  fi
+  json_escape "$reason"
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"%s","permissionDecisionReason":"%s"}}\n' "$decision" "$ESCAPED"
   GUARD_EMITTED=1
 }
 
@@ -108,8 +156,10 @@ pick_parser() { # sets GUARD_PARSER to the first usable JSON reader
   return 1
 }
 
-JQ_INPUT='(.cwd // "" | tostring), (.tool_input.command // "" | tostring)'
-NODE_INPUT='let s="";process.stdin.setEncoding("utf8");process.stdin.on("data",d=>{s+=d});process.stdin.on("end",()=>{let j;try{j=JSON.parse(s)}catch(e){process.exit(3)}if(!j||typeof j!=="object"||Array.isArray(j)){process.exit(3)}const t=(j.tool_input&&typeof j.tool_input==="object")?j.tool_input:{};const c=typeof j.cwd==="string"?j.cwd:"";const k=typeof t.command==="string"?t.command:"";process.stdout.write(c+"\n"+k)})'
+# Each reader prints three parts: "codex" when the input has a top-level turn_id or model key (else
+# "none"), then cwd, then the command (which may hold newlines). See detect_client.
+JQ_INPUT='(if type == "object" then (if has("turn_id") or has("model") then "codex" else "none" end) else "none" end), (.cwd // "" | tostring), (.tool_input.command // "" | tostring)'
+NODE_INPUT='let s="";process.stdin.setEncoding("utf8");process.stdin.on("data",d=>{s+=d});process.stdin.on("end",()=>{let j;try{j=JSON.parse(s)}catch(e){process.exit(3)}if(!j||typeof j!=="object"||Array.isArray(j)){process.exit(3)}const h=(n)=>Object.prototype.hasOwnProperty.call(j,n);const f=(h("turn_id")||h("model"))?"codex":"none";const t=(j.tool_input&&typeof j.tool_input==="object")?j.tool_input:{};const c=typeof j.cwd==="string"?j.cwd:"";const k=typeof t.command==="string"?t.command:"";process.stdout.write(f+"\n"+c+"\n"+k)})'
 PY_INPUT='import sys, json
 try:
     j = json.loads(sys.stdin.buffer.read().decode("utf-8", "replace"))
@@ -117,12 +167,13 @@ except Exception:
     sys.exit(3)
 if not isinstance(j, dict):
     sys.exit(3)
+f = "codex" if ("turn_id" in j or "model" in j) else "none"
 t = j.get("tool_input") if isinstance(j.get("tool_input"), dict) else {}
 c = j.get("cwd") if isinstance(j.get("cwd"), str) else ""
 k = t.get("command") if isinstance(t.get("command"), str) else ""
-sys.stdout.buffer.write((c + "\n" + k).encode("utf-8"))'
+sys.stdout.buffer.write((f + "\n" + c + "\n" + k).encode("utf-8"))'
 
-read_input() { # sets IN_CWD and IN_CMD from GUARD_RAW; returns 1 when the JSON cannot be read
+read_input() { # sets IN_KEYS, IN_CWD and IN_CMD from GUARD_RAW; returns 1 when the JSON cannot be read
   local out rc
   case "$GUARD_PARSER" in
     jq) out=$(printf '%s' "$GUARD_RAW" | jq -r "$JQ_INPUT" 2>/dev/null); rc=$? ;;
@@ -131,6 +182,9 @@ read_input() { # sets IN_CWD and IN_CMD from GUARD_RAW; returns 1 when the JSON 
     *) return 1 ;;
   esac
   [ "$rc" -eq 0 ] || return 1
+  IN_KEYS=${out%%$'\n'*}
+  case "$IN_KEYS" in codex|none) ;; *) IN_KEYS=""; return 1 ;; esac
+  case "$out" in *$'\n'*) out=${out#*$'\n'} ;; *) out="" ;; esac
   IN_CWD=${out%%$'\n'*}
   case "$out" in *$'\n'*) IN_CMD=${out#*$'\n'} ;; *) IN_CMD="" ;; esac
   return 0
