@@ -8,7 +8,7 @@
 // Prints ok or FAIL for each check. Exit 0: all ok. Exit 1: at least one FAIL (temp files are kept for inspection).
 
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -82,7 +82,7 @@ const backupsOf = (root, command) => (existsSync(join(root, command)) ? readdirS
 section("command line basics");
 {
   const help = cli(["--help"]);
-  const commands = ["doctor", "harness", "project-settings", "new-skill", "import"];
+  const commands = ["doctor", "harness", "company", "new-plugin", "project-settings", "new-skill", "import"];
   check("--help exits 0 and lists each command on its own line", help.code === 0 && commands.every((c) => new RegExp(`^  ${c} +\\S`, "m").test(help.out)), help.out);
   const unknown = cli(["frobnicate"]);
   check("an unknown command is refused with exit 2", unknown.code === 2 && /unknown command "frobnicate"/.test(unknown.all), unknown.all);
@@ -380,6 +380,115 @@ section("new-skill");
   check("a plugin name in two packs is refused, asking for --pack", ambiguous.code === 2 && /more than one pack \(acme, base\); add --pack/.test(ambiguous.all), ambiguous.all);
   const chosen = cli(["new-skill", "workflow", "other-skill", "--repo", root, "--pack", "acme"], { SKILLGATE_BACKUPS: backups });
   check("--pack picks the plugin", chosen.code === 0 && versionIn(root, "acme") === "0.1.1" && versionIn(root) === "0.1.4", chosen.all);
+}
+
+// ---------------------------------------------------------------- company init and new-plugin
+// A fork fixture: this repository's packs, catalog and team template, copied, so the commands meet the real files.
+function forkRepo(name) {
+  const root = folder(name);
+  for (const part of ["packs", ".claude-plugin", "templates"]) cpSync(join(repo, part), join(root, part), { recursive: true });
+  return root;
+}
+const readJson = (p) => JSON.parse(readFileSync(p, "utf8"));
+const INIT = ["company", "init", "--name", "acme", "--marketplace-repo", "acme/skills", "--marketplace-name", "acme-skills"];
+
+section("company init: preview, apply, repeat");
+{
+  const root = forkRepo("fork-init");
+  const backups = join(tmp, "b-company");
+  const before = snapshot(root);
+  const catalogPath = join(root, ".claude-plugin", "marketplace.json");
+  const templatePath = join(root, "templates", "project-settings.json");
+  const catalogBytes = bytes(catalogPath), templateBytes = bytes(templatePath);
+  const preview = cli([...INIT, "--repo", root], { SKILLGATE_BACKUPS: backups });
+  check("preview exits 0 and shows both files changing", preview.code === 0 && preview.out.includes("+  \"name\": \"acme-skills\",") && preview.out.includes("+        \"repo\": \"acme/skills\""), preview.all);
+  check("preview writes nothing and makes no backup", snapshot(root) === before && !existsSync(backups));
+
+  const r = cli([...INIT, "--repo", root, "--apply"], { SKILLGATE_BACKUPS: backups });
+  check("apply exits 0", r.code === 0, r.all);
+  const catalog = readJson(catalogPath), template = readJson(templatePath);
+  check("the catalog is named acme-skills and owned by acme", catalog.name === "acme-skills" && catalog.owner?.name === "acme" && catalog.owner?.url === "https://github.com/acme");
+  check("the catalog's plugin entries are unchanged", JSON.stringify(catalog.plugins) === JSON.stringify(CATALOG.plugins));
+  check("the template names acme-skills at acme/skills and enables every base plugin under it",
+    Object.keys(template.extraKnownMarketplaces).join() === "acme-skills" && template.extraKnownMarketplaces["acme-skills"].source.repo === "acme/skills"
+    && Object.keys(template.enabledPlugins).sort().join() === Object.keys(SETTINGS_TEMPLATE.enabledPlugins).map((id) => id.replace(/@skillgate$/, "@acme-skills")).sort().join(), JSON.stringify(template));
+  const stamps = backupsOf(backups, "company-init");
+  check("both files were backed up byte for byte", stamps.length === 1 && sameBytes(bytes(join(backups, "company-init", stamps[0], "marketplace.json")), catalogBytes) && sameBytes(bytes(join(backups, "company-init", stamps[0], "project-settings.json")), templateBytes));
+  check("apply names the next commands and the trust command developers run", /new-plugin <plugin> --pack acme --apply/.test(r.out) && /trust add --company acme/.test(r.out), r.out);
+
+  const after = snapshot(root);
+  const again = cli([...INIT, "--repo", root, "--apply"], { SKILLGATE_BACKUPS: backups });
+  check("repeating it changes nothing and says so", again.code === 0 && /nothing to change, nothing written/.test(again.out) && snapshot(root) === after && backupsOf(backups, "company-init").length === 1, again.all);
+}
+
+section("company init: refusals");
+{
+  const root = forkRepo("fork-refuse");
+  const before = snapshot(root);
+  const noRepo = cli(["company", "init", "--name", "acme", "--repo", root]);
+  check("without --marketplace-repo it is refused, naming the upstream risk", noRepo.code === 2 && /projects would keep installing the upstream plugins/.test(noRepo.all), noRepo.all);
+  const badRepo = cli(["company", "init", "--name", "acme", "--marketplace-repo", "https://example.com/acme.git", "--repo", root]);
+  check("a repository that is not owner/repo is refused", badRepo.code === 2 && /must look like owner\/repo/.test(badRepo.all), badRepo.all);
+  const badName = cli(["company", "init", "--name", "Acme Corp", "--marketplace-repo", "acme/skills", "--repo", root]);
+  check("a company name outside the naming rule is refused", badName.code === 2 && /lowercase letters, digits, and hyphens/.test(badName.all), badName.all);
+  const noVerb = cli(["company", "--repo", root]);
+  check("company without init is refused with the command to use", noVerb.code === 2 && /company init/.test(noVerb.all), noVerb.all);
+  check("no refusal wrote anything", snapshot(root) === before);
+  const catalogPath = join(root, ".claude-plugin", "marketplace.json");
+  writeFileSync(catalogPath, JSON.stringify(readJson(catalogPath)) + "\n");
+  const squeezed = snapshot(root);
+  const layout = cli([...INIT, "--repo", root, "--apply"]);
+  check("a catalog in another JSON layout is refused, not reformatted", layout.code === 2 && /not laid out the way this command writes JSON/.test(layout.all) && snapshot(root) === squeezed, layout.all);
+}
+
+section("new-plugin: a company plugin a fresh fork can add skills to");
+{
+  const root = forkRepo("fork-plugin");
+  const backups = join(tmp, "b-new-plugin");
+  check("a fork set up with company init", cli([...INIT, "--repo", root, "--apply"], { SKILLGATE_BACKUPS: backups }).code === 0);
+  const missing = cli(["new-skill", "acme-review", "billing-check", "--pack", "acme", "--repo", root]);
+  check("new-skill into a plugin that does not exist yet names new-plugin", missing.code === 2 && /To create it: .* new-plugin acme-review --pack acme --apply/.test(missing.all), missing.all);
+
+  const before = snapshot(root);
+  const preview = cli(["new-plugin", "acme-review", "--pack", "acme", "--description", "Company review rules.", "--repo", root], { SKILLGATE_BACKUPS: backups });
+  check("preview exits 0, shows the manifest and notes the private license", preview.code === 0 && preview.out.includes('"name": "acme-review"') && /UNLICENSED, which marks a private plugin/.test(preview.out), preview.all);
+  check("preview writes nothing", snapshot(root) === before);
+
+  const r = cli(["new-plugin", "acme-review", "--pack", "acme", "--description", "Company review rules.", "--repo", root, "--apply"], { SKILLGATE_BACKUPS: backups });
+  check("apply exits 0", r.code === 0, r.all);
+  const manifest = readJson(join(root, "packs", "acme", "plugins", "acme-review", ".claude-plugin", "plugin.json"));
+  check("plugin.json has name, description, version 0.1.0, the catalog owner, the fork's repository and a license",
+    manifest.name === "acme-review" && manifest.description === "Company review rules." && manifest.version === "0.1.0" && manifest.author?.name === "acme"
+    && manifest.repository === "https://github.com/acme/skills" && manifest.license === "UNLICENSED", JSON.stringify(manifest));
+  const catalog = readJson(join(root, ".claude-plugin", "marketplace.json"));
+  check("the catalog lists the plugin at its folder, after the base plugins", catalog.plugins.length === CATALOG.plugins.length + 1 && catalog.plugins.at(-1).name === "acme-review" && catalog.plugins.at(-1).source === "./packs/acme/plugins/acme-review");
+  check("the team template enables acme-review@acme-skills", readJson(join(root, "templates", "project-settings.json")).enabledPlugins["acme-review@acme-skills"] === true);
+  check("the catalog and template were backed up", backupsOf(backups, "new-plugin").length === 1);
+
+  const skill = cli(["new-skill", "acme-review", "billing-check", "--pack", "acme", "--repo", root, "--description", "Use when a change touches billing."], { SKILLGATE_BACKUPS: backups });
+  check("new-skill --pack acme now works and bumps the new plugin to 0.1.1", skill.code === 0 && readJson(join(root, "packs", "acme", "plugins", "acme-review", ".claude-plugin", "plugin.json")).version === "0.1.1", skill.all);
+  const packs = spawnSync(process.execPath, [join(here, "packs.test.mjs"), "--root", root], { encoding: "utf8" });
+  check("the packaging checks pass on the fork the two commands made", packs.status === 0, `${packs.stdout}${packs.stderr}`);
+
+  const settled = snapshot(root);
+  const taken = cli(["new-plugin", "workflow", "--pack", "acme", "--repo", root, "--apply"]);
+  check("a name another pack already uses is refused", taken.code === 2 && /already exists \(packs\/base\/plugins\/workflow\)/.test(taken.all), taken.all);
+  const noPack = cli(["new-plugin", "acme-other", "--repo", root, "--apply"]);
+  check("a plugin without --pack is refused", noPack.code === 2 && /needs --pack/.test(noPack.all), noPack.all);
+  const badLicense = cli(["new-plugin", "acme-other", "--pack", "acme", "--license", "MIT OR other", "--repo", root, "--apply"]);
+  check("a license that is not an identifier is refused", badLicense.code === 2 && /not a license identifier/.test(badLicense.all), badLicense.all);
+  check("no refusal wrote anything", snapshot(root) === settled);
+}
+
+section("new-plugin: the catalog and template must name the same marketplace");
+{
+  const root = forkRepo("fork-mismatch");
+  const catalogPath = join(root, ".claude-plugin", "marketplace.json");
+  writeFileSync(catalogPath, JSON.stringify({ ...readJson(catalogPath), name: "acme-skills" }, null, 2) + "\n");
+  const before = snapshot(root);
+  const r = cli(["new-plugin", "acme-review", "--pack", "acme", "--repo", root, "--apply"]);
+  check("a catalog renamed by hand without the template is refused, pointing at company init", r.code === 2 && /names the marketplace "acme-skills", but templates\/project-settings.json names "skillgate"/.test(r.all) && /company init/.test(r.all), r.all);
+  check("nothing was written", snapshot(root) === before);
 }
 
 // ---------------------------------------------------------------- import
