@@ -22,6 +22,8 @@ The message names the file and the rule, never the secret itself. Removing a sec
 
 These throw away work that was never committed: `git reset --hard`, `git clean -f` (not with `-n`), `git checkout .` or `git checkout -- .`, `git restore .` (not `--staged` alone), `git stash drop`, `git stash clear`, `git branch -D`. Before the user confirms, offer the safer step from the message: commit or stash first, preview with `git clean -n`, or use `git branch -d`.
 
+**In Codex** these are blocked instead. Codex runs the same hook but cannot ask for confirmation from one (its documentation says the command would simply run), so every command above, and every command guardrails cannot check (no JSON reader, a folder it cannot work out, too many files, an internal error), is blocked with a message that says so and keeps the usual warning. If the user meant it, they run the command themselves in their own terminal. The hook recognizes Codex from a `turn_id` or `model` field in its input, or from `PLUGIN_ROOT`; `SKILLGATE_GUARDRAILS_CLIENT=claude-code` or `codex` sets the client outright. This has not yet been checked in a live Codex session.
+
 ## Settings, for a team lead
 
 `.skillgate/config.json` at the repository root. Every key is optional; these are the defaults:
@@ -37,4 +39,4 @@ These throw away work that was never committed: `git reset --hard`, `git clean -
 
 ## Limits
 
-It reads the command text. It follows `&&`, `;`, pipes, `cd`, and `git -C`, and ignores text inside quotes and heredocs. It does not see inside scripts, `bash -c`, `eval`, or git aliases, and it does not cover `git push --delete`. Files over 10 MB are checked by name only. If `jq`, `node`, and `python3` are all missing, every git command asks for confirmation instead of being checked.
+It reads the command text. It follows `&&`, `;`, pipes, `cd`, and `git -C`, and ignores text inside quotes and heredocs. It does not see inside scripts, `bash -c`, `eval`, or git aliases, and it does not cover `git push --delete`. Files over 10 MB are checked by name only. If `jq`, `node`, and `python3` are all missing, every git command asks for confirmation (in Codex, is blocked) instead of being checked.
