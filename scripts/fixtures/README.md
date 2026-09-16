@@ -1,13 +1,26 @@
 # Meter fixtures
 
-Synthetic transcripts with hand-computed expected totals, so the meter's correctness is checkable by anyone, independent of the investigation that produced it.
+Kind: Living.
 
-Expected (see token-cost.test.mjs):
-- records with usage: 7 (3 dup + 1 + 1 top-level, 2 dup subagent). The user record with no usage is ignored.
-- distinct requests: 4 (r1, r2, r3, r4). The naive sum that was wrong by 3.28x would count 7.
-- top-level: input 115, output 75, cache_read 4000, cache_write_5m 600 (200 + 400), cache_write_1h 600
-- subagent:  input 7,   output 9,  cache_read 500,  cache_write_5m 100, cache_write_1h 0
+Synthetic transcripts with hand-computed expected totals, so the meter's correctness is checkable by anyone, independent of the investigation that produced it. Every expected value in `scripts/token-cost.test.mjs` was computed by hand from these files, with the arithmetic written beside it in the test, not by running the meter.
 
-Field names here mirror the Claude Code JSONL shape as understood on Sep 15, 2026. If your real transcripts differ, fix the meter's field mapping first, then re-run the real-window reproduction ($407.68 / $70.72 for Sep 14 to 15).
+## `transcripts/proj-a` (the original dedup cases)
+- r1 appears 3 times with identical cumulative usage; r4 (in `subagents/`) appears twice. The naive sum that was wrong by 3.28x counts every copy; the meter must count each (requestId, message.id) once.
+- r1 and r4 carry only `cache_creation_input_tokens` (no TTL breakdown), so they are priced at the 5m rate and reported as `ttl_unknown_tokens`.
+- r3 carries the per-TTL breakdown (400 at 5m, 600 at 1h).
+- A user record with no usage is ignored.
 
-`hook/` holds the original and repaired awk forms plus a sample lessons file, so the before-and-after of the SessionStart fix is reproducible.
+## `transcripts/proj-b` (everything that must be counted and reported, never silently dropped)
+- r5: a second model (`claude-opus-5`), duplicated, with a 1h cache write. Proves per-record model pricing.
+- A record with no requestId and no message id: counted as `no_ids`, never summed.
+- r6: ids but no timestamp: counted as `no_timestamp`, never summed.
+- r7: a model with no price: tokens counted, cost omitted, the run is flagged `incomplete`.
+- r8: a truncated JSON line: counted as `unparseable_lines`.
+
+## Proving the test can fail
+Removing the dedup line, or pricing every record at one model, turns the test red (checked 2026-09-16 on a scratch copy). A test that cannot fail on the bug it names is not a test.
+
+## Field names
+They mirror the Claude Code JSONL shape as measured on real transcripts on 2026-09-16: top-level `requestId`, `timestamp`, `isSidechain`; `message.id`, `message.model`, `message.usage` with `cache_creation.ephemeral_5m_input_tokens` and `ephemeral_1h_input_tokens`. `usage.iterations` is a per-message breakdown and is not summed separately.
+
+`hook/` holds the original and repaired awk forms plus sample lessons files, so the before-and-after of the SessionStart fix is reproducible.

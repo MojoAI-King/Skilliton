@@ -29,3 +29,6 @@ docs/usage-baseline-raw.txt
 # this rule is a second line of defense, not the first
 *.private.md
 PLAN.private*
+
+# git worktrees created by parallel agent lanes; each is its own checkout, never content of this one
+.claude/worktrees/
