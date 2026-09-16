@@ -39,6 +39,8 @@ const GROUPS = [
     commands: [
       { name: "doctor", summary: "check Claude Code, the marketplace, base plugins, harness block, config, and hook tools (writes nothing)", run: cmdDoctor },
       { name: "harness", summary: "show the harness block change for CLAUDE.md and AGENTS.md; --apply writes it, --undo removes it", run: cmdHarness },
+      { name: "company", summary: "company init: give a fork its own marketplace name, owner and team settings template (--apply writes)" },
+      { name: "new-plugin", summary: "create a plugin for the company's own skills and list it in the catalog and team template (--apply writes)" },
       { name: "project-settings", summary: "show the team .claude/settings.json built from the template; --apply merges it into the project", run: cmdProjectSettings },
       { name: "new-skill", summary: "create a SKILL.md skeleton in a plugin and bump the plugin's version", run: cmdNewSkill },
       { name: "import", summary: "scan an existing skill folder, then copy it into a plugin and bump the plugin's version", run: cmdImport },

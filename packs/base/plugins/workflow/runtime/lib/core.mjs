@@ -1,5 +1,5 @@
 // core.mjs: shared helpers and the original five commands (doctor, harness, project-settings, new-skill, import) of
-// the Skillgate command line. Node only, no dependencies. The entry point is ../skillgate.mjs; scripts/skillgate.mjs in
+// the Skillgate command line (company and new-plugin are modules in ../commands/, with their engine in fork.mjs). Node only, no dependencies. The entry point is ../skillgate.mjs; scripts/skillgate.mjs in
 // a company skills repo and bin/skillgate in an installed plugin both run it.
 //
 // This file lives inside the workflow plugin so that an installed copy of the plugin carries the exact runtime its
@@ -588,7 +588,7 @@ function findPlugin(repo, plugin, pack) {
   const hits = packs.filter((p) => isDir(join(repo, "packs", p, "plugins", plugin)));
   if (!hits.length) {
     const known = listDirNames(join(repo, "packs")).flatMap((p) => listDirNames(join(repo, "packs", p, "plugins")).map((n) => `${n} (pack ${p})`));
-    refuse(`no plugin "${plugin}" under packs/${pack ?? "*"}/plugins/ in ${tilde(repo)}. Plugins that exist: ${known.length ? known.join(", ") : "none"}`);
+    refuse(`no plugin "${plugin}" under packs/${pack ?? "*"}/plugins/ in ${tilde(repo)}. Plugins that exist: ${known.length ? known.join(", ") : "none"}. To create it: ${selfCommand()} new-plugin ${plugin} --pack ${pack ?? "<pack>"} --apply`);
   }
   if (hits.length > 1) refuse(`plugin "${plugin}" exists in more than one pack (${hits.join(", ")}); add --pack <pack> to choose one`);
   const rel = `packs/${hits[0]}/plugins/${plugin}`;
@@ -1146,17 +1146,17 @@ function cmdDoctor(argv) {
   });
   guarded("skills repo catalog", false, () => {
     const listed = catalog.plugins.map((p) => p.name);
-    const baseDirs = basePluginDirs();
+    const pluginDirs = SKILLS_REPO ? listDirNames(join(SKILLS_REPO, "packs")).flatMap((pack) => listDirNames(join(SKILLS_REPO, "packs", pack, "plugins")).map((name) => ({ pack, name }))) : [];
     const enabledByTemplate = isPlainObject(template?.enabledPlugins) ? Object.keys(template.enabledPlugins).map((id) => id.split("@")[0]) : [];
     const templateMarkets = isPlainObject(template?.extraKnownMarketplaces) ? Object.keys(template.extraKnownMarketplaces) : [];
     const problems = [];
-    const unlisted = baseDirs.filter((d) => !listed.includes(d));
+    const unlisted = pluginDirs.filter((d) => !listed.includes(d.name));
     const notInCatalog = enabledByTemplate.filter((n) => !listed.includes(n));
-    if (unlisted.length) problems.push(`packs/base/plugins holds ${unlisted.join(", ")}, which .claude-plugin/marketplace.json does not list, so it cannot be installed`);
+    if (unlisted.length) problems.push(`${unlisted.map((d) => `packs/${d.pack}/plugins/${d.name}`).join(", ")} ${unlisted.length === 1 ? "is" : "are"} not listed in .claude-plugin/marketplace.json, so ${unlisted.length === 1 ? "it cannot" : "they cannot"} be installed`);
     if (notInCatalog.length) problems.push(`templates/project-settings.json enables ${notInCatalog.join(", ")}, which the catalog does not list`);
     if (templateMarkets.length && !templateMarkets.includes(market)) problems.push(`templates/project-settings.json names the marketplace ${templateMarkets.join(", ")}, but the catalog is named ${market}`);
     if (problems.length) report("WARN", "skills repo catalog", problems.join("; "));
-    else report("OK", "skills repo catalog", `lists all ${baseDirs.length} base plugin folder(s) and every plugin the team template enables`);
+    else report("OK", "skills repo catalog", `lists all ${pluginDirs.length} plugin folder(s) under packs/ and every plugin the team template enables`);
   });
   guarded(`auto-update (${market})`, false, () => {
     const label = `auto-update (${market})`;
