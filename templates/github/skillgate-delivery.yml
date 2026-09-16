@@ -1,0 +1,179 @@
+# Skillgate trusted delivery checks: the GitHub adapter. See docs/DELIVERY.md in the Skillgate skills repository.
+#
+# Copy this file to .github/workflows/skillgate-delivery.yml in an application repository whose protected branches
+# carry a .skillgate/delivery.json policy. NOT VERIFIED ON GITHUB: until a hosted rehearsal runs, this adapter is
+# documented, not proved.
+#
+# What it does, on every pull request and every merge queue group:
+#   1. checks out the merge result GitHub built (never the pull request branch on its own);
+#   2. reads .skillgate/delivery.json from the base side of that merge, never from the pull request;
+#   3. fails when the change touches a policy path: this workflow cannot prove who approved a policy change, so such
+#      changes need code-owner review enforced by branch protection, and a repository administrator decides how they
+#      merge;
+#   4. runs every check in the base policy, each with its timeout and a minimal environment (PATH, a temporary HOME,
+#      LANG), and fails with the check's name and the last 20 lines of its output.
+#
+# What it needs from branch protection on each protected branch (not verified until a hosted rehearsal runs):
+#   - this job, "skillgate-delivery", as a required status check;
+#   - "Require branches to be up to date before merging", or a merge queue, so the checks ran on the combined result;
+#   - "Require review from Code Owners", with CODEOWNERS covering every policy path, including .github/workflows/.
+# A pull request runs its own copy of this file, so that code-owner review is what keeps a pull request from
+# weakening the workflow itself. This workflow is not an approval record and does not replace review.
+
+name: skillgate-delivery
+
+on:
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  skillgate-delivery:
+    name: skillgate-delivery
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # The checks run code from the pull request; keep the token out of the checkout's git config.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Add the application's own setup here (language runtimes, dependency installs), before the checks run.
+
+      - name: Delivery checks from the base branch policy
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          MERGE_GROUP_BASE_REF: ${{ github.event.merge_group.base_ref }}
+        run: |
+          node --input-type=module - <<'SKILLGATE_DELIVERY'
+          import { spawn, spawnSync } from "node:child_process";
+          import { mkdtempSync, rmSync } from "node:fs";
+          import { tmpdir } from "node:os";
+          import { join } from "node:path";
+
+          const POLICY_FILE = ".skillgate/delivery.json";
+          const TAIL_LINES = 20;
+          const say = (line) => console.log(`skillgate delivery: ${line}`);
+          function stop(line) {
+            say(`rejected: ${line}`);
+            console.log(`::error title=skillgate delivery::${line.replace(/\r?\n/g, " ")}`);
+            process.exit(1);
+          }
+          function git(args) {
+            const r = spawnSync("git", args, { encoding: "utf8", maxBuffer: 512 * 1024 * 1024 });
+            if (r.error || r.status !== 0) stop(`git ${args[0]} failed: ${String(r.error ? r.error.message : r.stderr).trim()}`);
+            return r.stdout;
+          }
+
+          // The merge result and its base.
+          const head = git(["rev-parse", "HEAD"]).trim();
+          let base, baseBranch;
+          if (process.env.EVENT_NAME === "pull_request") {
+            const parents = git(["rev-list", "--parents", "-n", "1", head]).trim().split(" ").slice(1);
+            if (parents.length !== 2 || parents[1] !== process.env.PR_HEAD_SHA) {
+              stop(`the checked-out commit ${head} is not GitHub's merge result for this pull request (parents: ${parents.join(", ") || "none"})`);
+            }
+            base = parents[0];
+            baseBranch = process.env.PR_BASE_REF;
+          } else if (process.env.EVENT_NAME === "merge_group") {
+            base = process.env.MERGE_GROUP_BASE_SHA;
+            baseBranch = String(process.env.MERGE_GROUP_BASE_REF).replace(/^refs\/heads\//, "");
+            if (!/^[0-9a-f]{40,64}$/.test(String(base)) || spawnSync("git", ["merge-base", "--is-ancestor", base, head]).status !== 0) {
+              stop(`the merge group commit ${head} does not contain its base ${base}`);
+            }
+          } else {
+            stop(`unsupported event "${process.env.EVENT_NAME}"; this workflow runs on pull_request and merge_group`);
+          }
+
+          // The policy, from the base side only. These rules match the local gate (runtime/lib/delivery.mjs).
+          if (!git(["ls-tree", "-z", "--full-tree", base, "--", POLICY_FILE])) stop(`no delivery policy (${POLICY_FILE}) on the base branch ${baseBranch} at ${base}`);
+          let policy;
+          try { const text = git(["cat-file", "blob", `${base}:${POLICY_FILE}`]); policy = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text); } catch (e) { stop(`the delivery policy on ${baseBranch} is not valid JSON (${e.message})`); }
+          const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+          const branchName = (b) => typeof b === "string" && b.length > 0 && b.length <= 200 && b !== "HEAD" && !/^(refs\/|-|\/)|\/$|\.$|\.\.|@\{|[\x00-\x20\x7f~^:?*[\\]/.test(b) && b.split("/").every((p) => p && !p.startsWith(".") && !p.endsWith(".lock"));
+          const policyPath = (p) => typeof p === "string" && p.length > 0 && p.length <= 400 && !p.startsWith("/") && !/[\\\x00-\x1f\x7f]/.test(p) && p.replace(/\/$/, "").split("/").every((s) => s && s !== "." && s !== "..");
+          const covering = (path, entries) => entries.find((e) => { const b = e.replace(/\/$/, ""); return path === b || path.startsWith(`${b}/`); });
+          const problems = [];
+          if (!isObject(policy)) problems.push("the file must hold a JSON object");
+          else {
+            for (const k of Object.keys(policy)) if (!["schema", "protectedBranches", "checks", "policyPaths"].includes(k)) problems.push(`unknown key "${k}"`);
+            if (policy.schema !== "skillgate.delivery/1") problems.push(`"schema" must be "skillgate.delivery/1"`);
+            if (!Array.isArray(policy.protectedBranches) || !policy.protectedBranches.every(branchName) || new Set(policy.protectedBranches).size !== policy.protectedBranches.length) problems.push(`"protectedBranches" must be an array of distinct plain branch names`);
+            if (!Array.isArray(policy.checks)) problems.push(`"checks" must be an array`);
+            else {
+              const names = new Set();
+              policy.checks.forEach((c, i) => {
+                const ok = isObject(c) && Object.keys(c).every((k) => ["name", "command", "timeoutSeconds"].includes(k))
+                  && typeof c.name === "string" && /^[A-Za-z0-9][A-Za-z0-9 ._:+/-]{0,63}$/.test(c.name) && !names.has(c.name)
+                  && Array.isArray(c.command) && c.command.length > 0 && c.command.every((a) => typeof a === "string" && !a.includes("\0")) && c.command[0].trim() !== ""
+                  && (c.timeoutSeconds === undefined || (Number.isInteger(c.timeoutSeconds) && c.timeoutSeconds >= 1 && c.timeoutSeconds <= 86400));
+                if (!ok) problems.push(`"checks"[${i}] must be { "name", "command": ["program", "argument", "..."], "timeoutSeconds" } with a unique name`);
+                if (isObject(c)) names.add(c.name);
+              });
+            }
+            if (!Array.isArray(policy.policyPaths) || policy.policyPaths.length === 0 || !policy.policyPaths.every(policyPath) || !covering(POLICY_FILE, policy.policyPaths)) problems.push(`"policyPaths" must be repository paths that cover ${POLICY_FILE}`);
+          }
+          if (problems.length) stop(`the delivery policy on ${baseBranch} is invalid: ${problems.join("; ")}`);
+          if (!policy.protectedBranches.includes(baseBranch)) {
+            say(`${baseBranch} is not listed in its policy's protectedBranches, so no checks run for this change`);
+            process.exit(0);
+          }
+
+          // A change to a policy path cannot be approved by this workflow.
+          const changed = git(["diff", "--name-only", "-z", "--no-renames", base, head]).split("\0").filter(Boolean);
+          const touched = changed.filter((p) => covering(p, policy.policyPaths));
+          if (touched.length) {
+            stop(`this change touches policy paths (${touched.slice(0, 5).join(", ")}${touched.length > 5 ? `, and ${touched.length - 5} more` : ""}). This workflow cannot prove who approved a policy change: such changes require code-owner review enforced by branch protection, and an administrator decides how they merge.`);
+          }
+
+          // Every check, in order, on the merge result.
+          const home = mkdtempSync(join(tmpdir(), "skillgate-delivery-home-"));
+          const env = { PATH: process.env.PATH, HOME: home, LANG: process.env.LANG || "C.UTF-8" };
+          say(`checking ${head} (merge result into ${baseBranch}) with the policy at ${base}: ${policy.checks.length} check(s)`);
+          for (const check of policy.checks) {
+            const timeoutSeconds = check.timeoutSeconds ?? 600;
+            const outcome = await new Promise((done) => {
+              const tail = [];
+              const keep = (line) => { tail.push(line); if (tail.length > TAIL_LINES) tail.shift(); };
+              const child = spawn(check.command[0], check.command.slice(1), { cwd: process.cwd(), env, stdio: ["ignore", "pipe", "pipe"], detached: true });
+              const partial = { out: "", err: "" };
+              const feed = (key, sink) => (chunk) => {
+                sink.write(chunk);
+                const lines = (partial[key] + chunk.toString("utf8")).split(/\r?\n/);
+                partial[key] = lines.pop();
+                lines.forEach(keep);
+              };
+              child.stdout.on("data", feed("out", process.stdout));
+              child.stderr.on("data", feed("err", process.stderr));
+              let timedOut = false;
+              const timer = setTimeout(() => { timedOut = true; try { process.kill(-child.pid, "SIGKILL"); } catch {} }, timeoutSeconds * 1000);
+              child.on("error", (e) => { clearTimeout(timer); done({ ok: false, how: `could not start: ${e.message}`, tail }); });
+              child.on("close", (code, signal) => {
+                clearTimeout(timer);
+                try { process.kill(-child.pid, "SIGKILL"); } catch {}
+                for (const key of ["out", "err"]) if (partial[key]) keep(partial[key]);
+                done({ ok: !timedOut && code === 0, how: timedOut ? `timed out after ${timeoutSeconds}s` : code === null ? `killed by ${signal}` : `exit ${code}`, tail });
+              });
+            });
+            if (!outcome.ok) {
+              say(`rejected: check "${check.name}" failed (${outcome.how})`);
+              for (const line of outcome.tail) console.log(`  | ${line}`);
+              console.log(`::error title=skillgate delivery::check "${check.name}" failed (${outcome.how})`);
+              rmSync(home, { recursive: true, force: true });
+              process.exit(1);
+            }
+            say(`check "${check.name}" passed`);
+          }
+          rmSync(home, { recursive: true, force: true });
+          say(`accepted: ${policy.checks.length ? `${policy.checks.length} check(s) passed (${policy.checks.map((c) => c.name).join(", ")})` : "the policy lists no checks"}`);
+          SKILLGATE_DELIVERY
