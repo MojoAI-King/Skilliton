@@ -15,6 +15,9 @@
 #   bash scripts/scrub-check.sh              tree only
 #   bash scripts/scrub-check.sh --history    tree plus every commit (diffs, messages, author fields)
 #   bash scripts/scrub-check.sh --self-test  positive control: proves each scan can fail
+#   bash scripts/scrub-check.sh --path <dir> one directory instead of the repo: every regular file under it,
+#                                            tracked by git or not (skipping .git/ and .DS_Store), because it is
+#                                            meant for material about to be copied in. Same scans, same exit codes.
 
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -26,7 +29,7 @@ HOMEPATH='(/Users|/home)/[A-Za-z0-9._-]+/'
 deny_patterns() { grep -v '^[[:space:]]*#' "$DENY" | grep -v '^[[:space:]]*$'; }
 
 list_files() {
-  if git -C "$1" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if [ -z "${PATH_MODE:-}" ] && git -C "$1" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     git -C "$1" ls-files -co --exclude-standard
   else
     (cd "$1" && find . -type f -not -path '*/.git/*' -not -name '.DS_Store' | sed 's|^\./||')
@@ -42,14 +45,14 @@ scan_tree() {
   echo "scanned files: $(printf '%s\n' "$files" | wc -l | tr -d ' ')"
 
   if [ -f "$DENY" ]; then
-    hits=$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 grep -I -n -i -E -f <(deny_patterns) 2>/dev/null)
+    hits=$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 grep ${PATH_MODE:+-H} -I -n -i -E -f <(deny_patterns) 2>/dev/null)
     if [ -n "$hits" ]; then echo "FAIL names: $(printf '%s\n' "$hits" | wc -l | tr -d ' ') line(s)"; printf '%s\n' "$hits" | cut -d: -f1,2 | sed 's/^/  /'; fails=$((fails+1)); else echo "ok   names: 0 hits ($(deny_patterns | wc -l | tr -d ' ') patterns)"; fi
   fi
 
-  hits=$(printf '%s\n' "$files" | tr '\n' '\0' | LC_ALL=C xargs -0 grep -I -n -e "$EN" -e "$EM" 2>/dev/null)
+  hits=$(printf '%s\n' "$files" | tr '\n' '\0' | LC_ALL=C xargs -0 grep ${PATH_MODE:+-H} -I -n -e "$EN" -e "$EM" 2>/dev/null)
   if [ -n "$hits" ]; then echo "FAIL dashes: $(printf '%s\n' "$hits" | wc -l | tr -d ' ') line(s)"; printf '%s\n' "$hits" | cut -d: -f1,2 | sed 's/^/  /'; fails=$((fails+1)); else echo "ok   dashes: 0 hits"; fi
 
-  hits=$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 grep -I -n -E "$HOMEPATH" 2>/dev/null)
+  hits=$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 grep ${PATH_MODE:+-H} -I -n -E "$HOMEPATH" 2>/dev/null)
   if [ -n "$hits" ]; then echo "FAIL home paths: $(printf '%s\n' "$hits" | wc -l | tr -d ' ') line(s)"; printf '%s\n' "$hits" | cut -d: -f1,2 | sed 's/^/  /'; fails=$((fails+1)); else echo "ok   home paths: 0 hits"; fi
   return $fails
 }
@@ -84,6 +87,20 @@ if [ "${1:-}" = "--self-test" ]; then
   done
   [ $pass -eq 3 ] && { echo "self-test passed: clean tree passes; names, dashes, and home paths each fail"; exit 0; }
   echo "SELF-TEST FAIL: only $pass of 3 bad inputs were caught"; exit 1
+fi
+
+if [ "${1:-}" = "--path" ]; then
+  target="${2:-}"
+  if [ -z "$target" ] || [ ! -d "$target" ]; then echo "scrub-check: NOT RUN: --path needs an existing directory"; exit 2; fi
+  target="$(cd "$target" && pwd)"
+  # PATH_MODE: list every file (not only what git tracks), and make grep print the file name even when the folder
+  # holds one file; without -H a lone file's hits print as line:text, and cut would show the matched text.
+  PATH_MODE=1
+  if [ ! -f "$DENY" ]; then echo "NAME SCAN NOT RUN: no denylist at the configured path (set SKILLGATE_DENYLIST)"; fi
+  scan_tree "$target"; total=$?
+  if [ $total -gt 0 ]; then echo "scrub-check: FAIL ($total scan(s) failed)"; exit 1; fi
+  if [ ! -f "$DENY" ]; then echo "scrub-check: INCOMPLETE (dashes and paths clean; names not scanned)"; exit 2; fi
+  echo "scrub-check: PASS"; exit 0
 fi
 
 total=0
