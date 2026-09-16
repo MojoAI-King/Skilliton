@@ -71,7 +71,7 @@ The file a company commits as `.claude/settings.json` in its product repos, to d
 Every writing command shows its change first, writes only with `--apply` (or its own explicit verb), backs up what it overwrites, and exits non-zero with a plain-English reason when it refuses.
 
 
-Current CLI exit contract: `0` completed, `1` required doctor checks unresolved, `2` refused/invalid invocation, `3` internal error. The prototype security runtime has different exits; do not forward them as if they already matched this CLI.
+Current CLI exit contract: `0` completed, `1` required doctor checks unresolved, `2` refused/invalid invocation, `3` internal error. The standalone prototype security runtime now present in scripts/security-evidence.mjs has different exits; do not forward them as if they already matched this CLI. Source availability does not mean the commands have been wired together.
 
 ## Target integration contracts (M1-M4, not yet implemented)
 

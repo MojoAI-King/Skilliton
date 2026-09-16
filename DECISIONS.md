@@ -13,6 +13,15 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 **Evidence:** Owner alignment request; comparison of main at 243afee with foundation at 23aae41; refreshed against cacf480. The foundation already contains the security branch's matching script/tests. The two evidence tools serve different purposes and output paths. Their combination still requires lifecycle, update and shared-check proof.
 **Validation:** Documentation alignment passed the 142 existing CLI checks and 104 handoff-hook checks. Local links, code fences, exact managed-block/template equality and the handoff byte bound were checked. No model evaluations or live client rehearsals were rerun; implementation gates remain open.
 
+## 2026-09-16 Keep all foundation material in the main working tree
+
+**Decision:** Merge the existing standalone preparation/security scripts, their tests and demo into the local main checkout. Preserve the original plan, handoff and decision under docs/history/autopilot-foundation/. Save the build-goal instructions and link every artifact from docs/AUTOPILOT_START_HERE.md.
+**Why:** The owner wants the next assistant to read and use all work from repository files without relying on chat history or discovering a separate worktree.
+**Alternatives rejected:** Leaving code only on a local branch; replacing the aligned plan with older prototype instructions; claiming source availability completes the CLI and lifecycle integration.
+**Risk:** A reader could mistake standalone prototype commands for the production onboarding path. README, handoff and integration instructions explicitly preserve the remaining M1 seams. The imported source remains unchanged from the tested foundation snapshot.
+**Reversibility:** EASY for the import and documentation; no client configuration, hosted policy or production environment changes. Main's existing CLI/plugins are preserved.
+**Evidence:** Source provenance `23aae41`; code and test bytes checked against that snapshot. New local validation is recorded in evidence/autopilot-foundation/import-validation.md. PLAN.md v4 remains authoritative.
+
 ## Open items
 
 | # | Item | Status | Next step |
@@ -26,7 +35,7 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 | O7 | Deny path CLOSED 2026-09-16: a real headless Claude Code session, allowed to run `git push`, was stopped from force-pushing main by the guardrails hook, and the same request without the plugin went through (`evidence/live/2026-09-16-guardrails-force-push.md`). Still UNVERIFIED: the `ask` decision (commands that discard uncommitted work) in a live session. | PARTLY CLOSED | Use a disposable repo with synthetic uncommitted work to observe the interactive confirmation path |
 | O8 | Team settings (`extraKnownMarketplaces`, `autoUpdate`, `enabledPlugins`) and auto-update are documented, not yet exercised on a clean machine or user. | OPEN | PLAN.md M3 company-update rehearsal |
 | O10 | Guardrails' `.env.*` rule has no per-file allowlist; a team that commits `.env.development` on purpose can only turn off every secret-file check. | OPEN | Add an `allowSecretFiles` list to the guardrails config |
-| O11 | Direction aligned 2026-09-16: retain main CLI/plugins and integrate foundation 23aae41 through PLAN.md v4 M1. Its security script tracks project observations; main scripts/evidence.mjs tracks skill evaluations. Foundation already includes the security branch. | DIRECTION RESOLVED; INTEGRATION OPEN | Follow docs/AUTOPILOT_INTEGRATION.md; reconcile shared contracts; do not merge both Codex branches or reintroduce their old roadmaps |
+| O11 | Foundation code, tests, demo and evidence are now present in the local main working tree; old design notes are archived and the goal is saved in docs/BUILD_GOAL.md. Existing CLI/plugins still need M1 wiring and shared-contract reconciliation. | MATERIAL AVAILABLE; INTEGRATION OPEN | Start at docs/AUTOPILOT_START_HERE.md and adapt the scripts in place. Do not merge foundation/security branches again |
 | O12 | The default eval judge model failed a phrasing its rubric explicitly allows (evidence/15b842e). | OPEN | Re-run with a stronger `--judge-model` and compare before adding more cases |
 | O13 | `scrub-check.sh --history` scans every local ref (`git log --all`), including other sessions' unpushed branches, so it can fail or pass on work that is not being pushed. | OPEN | Scan the ref being pushed by default, with `--all` as an option |
 | O14 | The dispatch skill's lane brief checks the branch name but not that the lane has the base commit; agent worktrees here were created from the remote's commit. | OPEN | Add a base-commit check to the brief (`git merge-base --is-ancestor`) |
