@@ -1,0 +1,48 @@
+# Evidence: bash scripts/hook-fixture.test.sh --write-evidence
+# written 2026-09-16T15:52:34Z, exit status 0
+
+hook-fixture test
+hook under test: packs/context-hygiene/plugins/context-hygiene/hooks/session-start-checklist.sh (shipped)
+
+== Part 1: original vs repaired awk on fixtures/hook/lessons-sample.md
+original awk: 53652 bytes injected
+repaired awk: 66 bytes injected
+---- repaired output ends with:
+- step two
+- step three
+ok   awk comparison: repaired form stops at the next heading; original form did not
+
+== Part 2: the hook script itself
+-- (a) lessons-sample.md: exit 0, 67 bytes of raw output
+   | ## The new-app wiring checklist
+   | - step one
+   | - step two
+   | - step three
+ok   (a) lessons-sample.md: exit 0
+ok   (a) lessons-sample.md: contains '- step three'
+ok   (a) lessons-sample.md: no '## Lesson' line
+-- (b) lessons-sample-suffixed.md: exit 0, 94 bytes of raw output
+   | ## The new-app wiring checklist (the shortcuts, condensed)
+   | - step one
+   | - step two
+   | - step three
+ok   (b) lessons-sample-suffixed.md: exit 0
+ok   (b) lessons-sample-suffixed.md: contains '- step three'
+ok   (b) lessons-sample-suffixed.md: no '## Lesson' line
+-- (c) missing-heading control: exit 0
+   | [context-hygiene] checklist heading not found in SKILLGATE_LESSONS; injecting nothing. (Reported, not silent.)
+ok   (c) missing-heading control: exit 0
+ok   (c) missing-heading control: output is exactly the expected notice
+-- (d) SKILLGATE_LESSONS unset: exit 0
+   | [context-hygiene] SKILLGATE_LESSONS not set or file missing; injecting nothing. (Reported, not silent.)
+ok   (d) SKILLGATE_LESSONS unset: exit 0
+ok   (d) SKILLGATE_LESSONS unset: output is exactly the expected notice
+-- (e) heading present, empty checklist: exit 0
+   | [context-hygiene] checklist heading not found in SKILLGATE_LESSONS; injecting nothing. (Reported, not silent.)
+ok   (e) heading present, empty checklist: exit 0
+ok   (e) heading present, empty checklist: output is exactly the expected notice
+
+== Informational (not a check): the originating lessons file (private, not in this repo)
+exit 0; injected 19232 bytes of raw output, 267 lines (content not printed)
+
+RESULT: PASS (all checks ok)
