@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": "skillgate-starter-1",
+  "description": "Partial original practice summaries. Related references are not equivalence or compliance claims. Applicability requires project review.",
+  "controls": [
+    {
+      "id": "SG-CHECK-CRITERIA",
+      "title": "Define the security checks a change needs",
+      "mappings": [
+        {
+          "framework": "NIST SSDF",
+          "version": "1.1",
+          "reference": "PO.4.1",
+          "url": "https://csrc.nist.gov/pubs/sp/800/218/final",
+          "relationship": "related"
+        }
+      ],
+      "expectedEvidence": [
+        "Reviewed project criteria and the check definitions that implement them"
+      ]
+    },
+    {
+      "id": "SG-CHECK-EVIDENCE",
+      "title": "Retain evidence for security decisions",
+      "mappings": [
+        {
+          "framework": "NIST SSDF",
+          "version": "1.1",
+          "reference": "PO.4.2",
+          "url": "https://csrc.nist.gov/pubs/sp/800/218/final",
+          "relationship": "related"
+        }
+      ],
+      "expectedEvidence": [
+        "A scoped review record linked to its actual execution artifacts"
+      ]
+    },
+    {
+      "id": "SG-SECURITY-TESTS",
+      "title": "Test security behavior and record findings",
+      "mappings": [
+        {
+          "framework": "NIST SSDF",
+          "version": "1.1",
+          "reference": "PW.8.2",
+          "url": "https://csrc.nist.gov/pubs/sp/800/218/final",
+          "relationship": "related"
+        }
+      ],
+      "expectedEvidence": [
+        "Results for authorized scoped tests, including denied and legitimate behavior"
+      ]
+    },
+    {
+      "id": "SG-ROOT-CAUSE",
+      "title": "Explain the mechanism behind a discovered vulnerability",
+      "mappings": [
+        {
+          "framework": "NIST SSDF",
+          "version": "1.1",
+          "reference": "RV.3.1",
+          "url": "https://csrc.nist.gov/pubs/sp/800/218/final",
+          "relationship": "related"
+        }
+      ],
+      "expectedEvidence": [
+        "Finding with root-cause analysis and linked correction"
+      ]
+    },
+    {
+      "id": "SG-RECURRING-PATTERNS",
+      "title": "Look for recurring causes across findings",
+      "mappings": [
+        {
+          "framework": "NIST SSDF",
+          "version": "1.1",
+          "reference": "RV.3.2",
+          "url": "https://csrc.nist.gov/pubs/sp/800/218/final",
+          "relationship": "related"
+        }
+      ],
+      "expectedEvidence": [
+        "Review of related findings and the resulting prevention work"
+      ]
+    },
+    {
+      "id": "SG-WORKFLOW-IMPROVEMENT",
+      "title": "Turn supported lessons into tested workflow improvements",
+      "mappings": [
+        {
+          "framework": "NIST SSDF",
+          "version": "1.1",
+          "reference": "RV.3.4",
+          "url": "https://csrc.nist.gov/pubs/sp/800/218/final",
+          "relationship": "related"
+        }
+      ],
+      "expectedEvidence": [
+        "Reviewed prevention change, regression scenario, and release record"
+      ]
+    },
+    {
+      "id": "SG-COMMAND-INJECTION",
+      "title": "Assess operating-system command construction",
+      "mappings": [
+        {
+          "framework": "OWASP ASVS",
+          "version": "5.0.0",
+          "reference": "v5.0.0-1.2.5",
+          "url": "https://github.com/OWASP/ASVS/releases/tag/v5.0.0_release",
+          "relationship": "related"
+        }
+      ],
+      "expectedEvidence": [
+        "Reviewed command entry points and tests of untrusted input, or a scoped explanation requiring human assessment"
+      ]
+    }
+  ]
+}
