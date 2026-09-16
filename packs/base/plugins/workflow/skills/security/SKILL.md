@@ -18,7 +18,7 @@ Run `skillgate security status`. Explain the result in plain words:
 - **needs a person / undecided**: a human has to decide or assess it;
 - **invalid**: a record or the catalog is broken; fix that before anything else.
 
-If `skillgate` is not found or the project has no security register, say so and offer `skillgate prepare` (it adds the register). Do not improvise one.
+If `skillgate` is not found on the shell path, say so and run the plugin's own copy by its path: `bin/skillgate` in the workflow plugin folder, two folders above this skill's base directory. If the project has no security register, say so and offer `skillgate prepare` (it adds the register). Do not improvise one.
 
 ## 2. Decide what applies, with a named person
 
