@@ -137,13 +137,13 @@ let lessonFile = null;
 await R.step("L1", "a lesson recorded in the project is proposed to the company fork, scrubbed", () => {
   if (!built("record") || !built("propose")) return { ok: false, detail: "record or propose is not built yet" };
   const bin = join(installedPath("workflow"), "bin", "skillgate");
-  const rec = run(bin, ["record", "lesson", "A removed delivery check was only flagged, not stopped", "--dir", app, "--apply"], { env, cwd: app });
+  const rec = run(bin, ["record", "lesson", "A billing change merged without the payments lead's review", "--dir", app, "--apply"], { env, cwd: app });
   const dir = join(app, "docs", "lessons");
   lessonFile = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".md") && f !== "README.md").map((f) => join(dir, f))[0] : null;
   if (!lessonFile) return { ok: false, detail: `record exit ${rec.code}; no lesson entry file found: ${rec.all.slice(-300)}` };
   const text = readFileSync(lessonFile, "utf8")
-    .replace(/## What broke\n+[^#]*/, "## What broke\n\nA change removed the test check from .skillgate/delivery.json together with a code change. Review said NEEDS ATTENTION and it was merged.\n\n")
-    .replace(/## The rule\n+[^#]*/, "## The rule\n\nRemoving or loosening a validation check is a STOP in review until whoever approves the checks agrees.\n\n");
+    .replace(/## What broke\n+[^#]*/, "## What broke\n\nA change to invoice rounding under billing/ was reviewed and merged without the payments lead, and invoices went out rounded.\n\n")
+    .replace(/## The rule\n+[^#]*/, "## The rule\n\nEvery change under billing/ needs the payments lead's review before it merges, and the review says so.\n\n");
   writeFileSync(lessonFile, text);
   commitAll(app, "Lesson: removed delivery check", [lessonFile.slice(app.length + 1)]);
   const prop = sg(["propose", lessonFile, "--repo", fork, "--apply"], { cwd: fork });
@@ -152,56 +152,65 @@ await R.step("L1", "a lesson recorded in the project is proposed to the company 
   return { ok: prop.code === 0 && proposals.length === 1, detail: `record exit ${rec.code}; propose exit ${prop.code}; proposals: ${proposals.length}` };
 }, { requires: ["P1"] });
 
-const improvementDir = join(REPO, "scripts", "rehearsals", "fixtures", "improvement-policy-weakening");
+const improvementDir = join(REPO, "scripts", "rehearsals", "fixtures", "improvement-billing-review");
+const EVAL_CASE = "review-billing-owner";
+const EVAL_GRADER = "names-payments-lead";
 let evalEvidence = [];
+let evalSummaryRel = null;
 async function runEval(label) {
   const out = join(ws, `eval-${label}`);
-  const e = run(claude.path, ["plugin", "eval", join(fork, "packs", "base", "plugins", "workflow"), "--case", "review-policy-weakening", "--runs", "1", "--ablation", "none", "--scaffold", "--trust-plugin", "--no-publish", "--output-dir", out], { env: { ...process.env, SKILLGATE_DENYLIST: denylist }, timeoutMs: 900000 });
+  const e = run(claude.path, ["plugin", "eval", join(fork, "packs", "base", "plugins", "workflow"), "--case", EVAL_CASE, "--runs", "1", "--ablation", "none", "--scaffold", "--trust-plugin", "--no-publish", "--output-dir", out], { env: { ...process.env, SKILLGATE_DENYLIST: denylist }, timeoutMs: 900000 });
   const agg = existsSync(join(out, "aggregate-result.json")) ? readJson(join(out, "aggregate-result.json")) : null;
   // aggregate-result.json schemaVersion 1: cases[].arms[arm][] runs, each with graders[] { name, passed } (scripts/evidence.mjs reads the same).
-  const runs = agg?.schemaVersion === 1 ? Object.values(agg.cases?.find((c) => c.name === "review-policy-weakening")?.arms ?? {}).flat() : [];
-  const stopPassed = runs.length > 0 && runs.every((r) => (r.graders ?? []).find((g) => g.name === "verdict-stop")?.passed === true);
+  const runs = agg?.schemaVersion === 1 ? Object.values(agg.cases?.find((c) => c.name === EVAL_CASE)?.arms ?? {}).flat() : [];
+  const stopPassed = runs.length > 0 && runs.every((r) => (r.graders ?? []).find((g) => g.name === EVAL_GRADER)?.passed === true);
   return { exit: e.code, agg, out, stopPassed, tail: e.all.slice(-300) };
 }
 
 await R.step("I1", "the improvement: review skill rule, template sentence, eval case, version bump, offline checks", async () => {
-  const rule = readJson(join(improvementDir, "review-stop-rule.json"));
+  const rule = readJson(join(improvementDir, "review-rule.json"));
+  const templateRule = readJson(join(improvementDir, "template-rule.json"));
   const skillFile = join(fork, rule.file);
   const skill = readFileSync(skillFile, "utf8");
-  if (skill.split(rule.find).length !== 2) return { ok: false, critical: true, detail: "the review skill no longer contains the anchor text the improvement replaces" };
-  cpSync(join(improvementDir, "evals", "review-policy-weakening"), join(fork, "packs", "base", "plugins", "workflow", "evals", "review-policy-weakening"), { recursive: true });
+  const tpl = join(fork, templateRule.file);
+  const tplText = readFileSync(tpl, "utf8");
+  if (skill.split(rule.find).length !== 2 || tplText.split(templateRule.find).length !== 2) return { ok: false, critical: true, detail: "the review skill or the template no longer contains the anchor text the improvement replaces" };
+  cpSync(join(improvementDir, "evals", EVAL_CASE), join(fork, "packs", "base", "plugins", "workflow", "evals", EVAL_CASE), { recursive: true });
   if (flags["with-eval"]) {
     const before = await runEval("before");
-    R.note(`eval before the improvement: exit ${before.exit}; STOP grader passed: ${before.stopPassed}`);
+    R.note(`eval before the improvement: exit ${before.exit}; ${EVAL_GRADER} passed: ${before.stopPassed}; list-price cost estimate ${before.agg?.costUsd ?? "unknown"} USD`);
     evalEvidence.push(["before", before]);
   }
-  writeFileSync(skillFile, skill.replace(rule.find, rule.replace));
-  const tpl = join(fork, "packs", "base", "plugins", "workflow", "templates", "harness.md");
-  const anchor = "### Before committing\n";
-  writeFileSync(tpl, readFileSync(tpl, "utf8").replace(anchor, `${anchor}- **Instructed:** a change that removes or loosens a check in \`.skillgate/delivery.json\` or a CI workflow gets a STOP verdict in review until whoever approves the repository's checks agrees.\n`));
+  writeFileSync(skillFile, skill.split(rule.find).join(rule.replace));
+  writeFileSync(tpl, tplText.split(templateRule.find).join(templateRule.replace));
   const from = pluginVersion(fork);
   bumpWorkflow(fork, nextPatch(from));
   const checks = ["packs.test.mjs", "skillgate.test.mjs"].map((t) => [t, run(process.execPath, [join(fork, "scripts", t)], { cwd: fork, env })]);
   const evDir = join(fork, "evidence", "releases", "1.1.0");
   mkdirSync(evDir, { recursive: true });
   writeFileSync(join(evDir, "offline-checks.txt"), checks.map(([t, r]) => `== node scripts/${t}: exit ${r.code}\n${r.out.split("\n").slice(-3).join("\n")}`).join("\n"));
-  const paths = [rule.file, "packs/base/plugins/workflow/templates/harness.md", "packs/base/plugins/workflow/.claude-plugin/plugin.json", "packs/base/plugins/workflow/evals/review-policy-weakening", "evidence/releases/1.1.0/offline-checks.txt"];
+  const paths = [rule.file, templateRule.file, "packs/base/plugins/workflow/.claude-plugin/plugin.json", `packs/base/plugins/workflow/evals/${EVAL_CASE}`, "evidence/releases/1.1.0/offline-checks.txt"];
   if (flags["with-eval"]) {
     const after = await runEval("after");
-    R.note(`eval after the improvement: exit ${after.exit}; STOP grader passed: ${after.stopPassed}`);
+    R.note(`eval after the improvement: exit ${after.exit}; ${EVAL_GRADER} passed: ${after.stopPassed}; list-price cost estimate ${after.agg?.costUsd ?? "unknown"} USD`);
     evalEvidence.push(["after", after]);
     if (after.agg) {
-      const summary = run(process.execPath, [join(fork, "scripts", "evidence.mjs"), join(after.out, "aggregate-result.json"), "--sha", git(fork, ["rev-parse", "HEAD"], { env }).out.trim()], { cwd: fork, env });
-      R.note(`eval evidence summary: exit ${summary.code}`);
+      const sha = git(fork, ["rev-parse", "HEAD"], { env }).out.trim();
+      const summary = run(process.execPath, [join(fork, "scripts", "evidence.mjs"), join(after.out, "aggregate-result.json"), "--sha", sha], { cwd: fork, env });
+      R.note(`eval evidence summary written by scripts/evidence.mjs: exit ${summary.code}`);
+      if (summary.code === 0 && existsSync(join(fork, "evidence", sha, "summary.json"))) {
+        evalSummaryRel = `evidence/${sha}/summary.json`;
+        paths.push(evalSummaryRel, `evidence/${sha}/SUMMARY.md`);
+      }
     }
   }
-  commitAll(fork, `Review stops on removed validation checks (workflow ${nextPatch(from)})`, paths);
+  commitAll(fork, `Company review rule: billing changes need the payments lead (workflow ${nextPatch(from)})`, paths);
   const ok = checks.every(([, r]) => r.code === 0) && (!flags["with-eval"] || (evalEvidence.length === 2 && !evalEvidence[0][1].stopPassed && evalEvidence[1][1].stopPassed));
-  return { ok, critical: true, detail: `workflow ${from} to ${nextPatch(from)}; offline checks ${checks.map(([t, r]) => `${t}:${r.code}`).join(" ")}${flags["with-eval"] ? `; eval STOP grader before ${evalEvidence[0]?.[1].stopPassed}, after ${evalEvidence[1]?.[1].stopPassed}` : "; behavior eval not run (pass --with-eval)"}` };
+  return { ok, critical: true, detail: `workflow ${from} to ${nextPatch(from)}; offline checks ${checks.map(([t, r]) => `${t}:${r.code}`).join(" ")}${flags["with-eval"] ? `; eval grader ${EVAL_GRADER} passed before ${evalEvidence[0]?.[1].stopPassed} (expected false), after ${evalEvidence[1]?.[1].stopPassed} (expected true)` : "; behavior eval not run (pass --with-eval)"}` };
 }, { requires: ["L1"] });
 
 await R.step("I2", "release 1.1.0 created with its evidence and signed", () => {
-  const create = sg(["release", "create", "--version", "1.1.0", "--evidence", "evidence/releases/1.1.0/offline-checks.txt", "--apply"], { cwd: fork });
+  const create = sg(["release", "create", "--version", "1.1.0", "--evidence", "evidence/releases/1.1.0/offline-checks.txt", ...(evalSummaryRel ? ["--evidence", evalSummaryRel] : []), "--apply"], { cwd: fork });
   if (create.code) return { ok: false, critical: true, detail: `create exit ${create.code}: ${create.all.slice(-400)}` };
   commitAll(fork, "Release 1.1.0 manifest", ["releases/1.1.0.json"]);
   const sign = sg(["release", "sign", "1.1.0", "--apply"], { cwd: fork });
@@ -213,17 +222,25 @@ await R.step("U1", "the Claude Code environment receives the improved skill and 
   const mu = cc(["plugin", "marketplace", "update", "skillgate"]);
   const pu = cc(["plugin", "update", "workflow@skillgate"]);
   const version = installedVersion("workflow");
-  const rule = readJson(join(improvementDir, "review-stop-rule.json"));
+  const rule = readJson(join(improvementDir, "review-rule.json"));
   const hasRule = readFileSync(join(installedPath("workflow"), "skills", "review", "SKILL.md"), "utf8").includes(rule.replace);
   const v = verifyB();
   return { ok: mu.code === 0 && pu.code === 0 && version === pluginVersion(fork) && hasRule && v.code === 0, detail: `marketplace update ${mu.code}; plugin update ${pu.code}; installed ${version}; improved rule present: ${hasRule}; verify exit ${v.code} (${jsonResult(v)?.summary ?? ""})` };
 }, { requires: ["I2", "C1"] });
 
 await R.step("U2", "the Codex environment receives the improved skill and verifies it", () => {
+  // Measured on Codex CLI 0.154.0-alpha.6.2: upgrade refreshes Git marketplaces only; a local-path marketplace is read
+  // directly and upgrade exits 1 saying so. That case is expected; the new version must still be what Codex installs.
   const up = cx(["plugin", "marketplace", "upgrade", "skillgate"]);
+  const upExpected = up.code === 0 || /not configured as a Git marketplace/.test(up.all);
   const add = cx(["plugin", "add", "workflow@skillgate", "--json"]);
+  const cacheDir = join(codexC, "plugins", "cache", "skillgate", "workflow");
+  const versions = existsSync(cacheDir) ? readdirSync(cacheDir).sort() : [];
+  const rule = readJson(join(improvementDir, "review-rule.json"));
+  const newVersion = pluginVersion(fork);
+  const hasRule = versions.includes(newVersion) && readFileSync(join(cacheDir, newVersion, "skills", "review", "SKILL.md"), "utf8").includes(rule.replace);
   const v = sg(["verify", "--client", "codex", "--config-dir", codexC, "--source", fork, "--company", "acme", "--json"]);
-  return { ok: up.code === 0 && add.code === 0 && v.code === 0, detail: `marketplace upgrade ${up.code}; plugin add ${add.code}; verify exit ${v.code} (${jsonResult(v)?.summary ?? v.all.slice(-200)})` };
+  return { ok: upExpected && add.code === 0 && hasRule && v.code === 0, detail: `marketplace upgrade exit ${up.code}${up.code ? " (expected for a local-path marketplace, which Codex reads directly)" : ""}; plugin add ${add.code}; installed versions ${versions.join(", ")}; improved rule present in ${newVersion}: ${hasRule}; verify exit ${v.code} (${jsonResult(v)?.summary ?? v.all.slice(-200)})` };
 }, { requires: ["I2", "X1"] });
 
 await R.step("M1", "the project applies the release's migration, rolls it back, and applies it again, keeping human text", () => {
@@ -235,12 +252,12 @@ await R.step("M1", "the project applies the release's migration, rolls it back, 
   const apply = run(bin, ["migrate", "--dir", app, "--apply", "--json"], { env });
   const receipts = existsSync(join(app, ".skillgate", "migrations")) ? readdirSync(join(app, ".skillgate", "migrations")) : [];
   const text = readFileSync(join(app, "CLAUDE.md"), "utf8");
-  const refreshed = text.includes("gets a STOP verdict in review") && text.includes("A note a person added after preparing.") && text.includes("Human notes that Skillgate must keep.");
+  const refreshed = text.includes("needs the payments lead's review before it merges") && text.includes("A note a person added after preparing.") && text.includes("Human notes that Skillgate must keep.");
   const id = receipts[0]?.replace(/\.json$/, "");
   const rollback = id ? run(bin, ["migrate", "--dir", app, "--rollback", id, "--apply"], { env }) : { code: -1, all: "no receipt" };
-  const rolledBack = !readFileSync(join(app, "CLAUDE.md"), "utf8").includes("gets a STOP verdict in review");
+  const rolledBack = !readFileSync(join(app, "CLAUDE.md"), "utf8").includes("needs the payments lead's review before it merges");
   const again = run(bin, ["migrate", "--dir", app, "--apply"], { env });
-  const final = readFileSync(join(app, "CLAUDE.md"), "utf8").includes("gets a STOP verdict in review");
+  const final = readFileSync(join(app, "CLAUDE.md"), "utf8").includes("needs the payments lead's review before it merges");
   return { ok: preview.code === 1 && apply.code === 0 && receipts.length === 1 && refreshed && rollback.code === 0 && rolledBack && again.code === 0 && final, detail: `preview exit ${preview.code} (1 = migration pending); apply ${apply.code}; receipts ${receipts.length}; block refreshed with human text kept: ${refreshed}; rollback ${rollback.code} restored: ${rolledBack}; reapply ${again.code}` };
 }, { requires: ["U1", "P1"] });
 

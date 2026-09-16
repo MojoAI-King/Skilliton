@@ -1,5 +1,0 @@
-{
-  "file": "packs/base/plugins/workflow/skills/review/SKILL.md",
-  "find": "tests deleted, switched off, or weakened without a reason the user agreed to.",
-  "replace": "tests deleted, switched off, or weakened without a reason the user agreed to; a validation check removed or loosened (a check deleted from `.skillgate/delivery.json` or a CI workflow, a test excluded, a required review or status check dropped) without a reason the user says was approved by whoever approves the repository's checks."
-}

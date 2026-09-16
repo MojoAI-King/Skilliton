@@ -1,0 +1,5 @@
+{
+  "file": "packs/base/plugins/workflow/templates/harness.md",
+  "find": "### Before committing\n",
+  "replace": "### Before committing\n- **Instructed:** a change under `billing/` needs the payments lead's review before it merges; say so in the review.\n"
+}
