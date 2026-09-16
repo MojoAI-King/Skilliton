@@ -15,7 +15,7 @@
 //   node scripts/packs.test.mjs --self-test   prove each check can fail
 
 import { readFileSync, readdirSync, statSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, cpSync, chmodSync, rmSync } from "node:fs";
-import { join, dirname, resolve } from "node:path";
+import { join, dirname, resolve, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
@@ -129,7 +129,12 @@ if (argv.includes("--self-test")) {
   if (clean.failures.length) { console.log(`SELF-TEST NOT RUN: this repository fails its own checks first:\n  ${clean.failures.join("\n  ")}`); process.exit(1); }
   for (const [label, mutate, expect] of cases) {
     const d = join(tmp, label.replace(/\W+/g, "-"));
-    cpSync(repo, d, { recursive: true, filter: (s) => !s.includes("/.git") && !s.includes("/node_modules") && !s.includes("/.claude/worktrees") });
+    // Filter on the path inside the repository, not the absolute path: a checkout that itself lives under
+    // .claude/worktrees/ (an agent lane) must still copy its own files.
+    cpSync(repo, d, { recursive: true, filter: (s) => {
+      const parts = relative(repo, s).split(sep);
+      return !parts.includes(".git") && !parts.includes("node_modules") && !(parts[0] === ".claude" && parts[1] === "worktrees");
+    } });
     mutate(d);
     const r = check(d);
     const caught = r.failures.some((f) => expect.test(f));
