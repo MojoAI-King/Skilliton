@@ -1,0 +1,50 @@
+{
+  "rehearsal": "live-clients",
+  "steps": [
+    {
+      "id": "L1",
+      "label": "Claude Code: the handoff and the Project state reach the model at session start",
+      "status": "PASS",
+      "detail": "session exit 0; SessionStart hook responses 3, one with the Project state: true; model quoted the nonce: true, the task: true; journal session-start: true"
+    },
+    {
+      "id": "L2",
+      "label": "Claude Code: after a change, the Stop hook blocks once and the assistant records a checkpoint",
+      "status": "PASS",
+      "detail": "session exit 0; Stop blocks 1; assistant ran skillgate checkpoint: true; task record checkpoints 0 before, 1 after; journal checkpoint event: true; stop-reminded events 1"
+    },
+    {
+      "id": "L3",
+      "label": "Claude Code: guardrails asks before discarding uncommitted work; with nobody to answer it is denied; without guardrails the work is lost",
+      "status": "PASS",
+      "detail": "with guardrails: exit 0, permission_denied true, change survived true; control without guardrails: exit 0, change survived false"
+    },
+    {
+      "id": "L4",
+      "label": "Claude Code: a session killed mid-task is reported as interrupted to the next session",
+      "status": "PASS",
+      "detail": "first session killed: true (draft written: true); journal starts 1, ends 0; next session exit 0, said it was interrupted: true"
+    },
+    {
+      "id": "X1",
+      "label": "Codex: a project SessionStart hook's Project state reaches the model",
+      "status": "FAIL",
+      "detail": "codex exec exit 0; journal session-start written by the hook: false; model named the task: false"
+    },
+    {
+      "id": "X2",
+      "label": "Codex: guardrails refuses a command that discards uncommitted work (ask becomes deny); without the hook the work is lost",
+      "status": "FAIL",
+      "detail": "with the guardrails hook: exit 0, change survived true; control without it: exit 0, change survived true"
+    }
+  ],
+  "notes": [
+    "Claude Code plugins were loaded with --plugin-dir for each session; marketplace installation is shown by the company release rehearsal. The interactive confirmation a person would see for an ask decision was not observed (headless sessions have no one to answer).",
+    "Codex hooks ran as project hooks trusted for each run; plugin-bundled hooks under Codex and the /hooks trust review a person performs were not exercised."
+  ],
+  "meta": {
+    "Claude Code": "2.1.273 (Claude Code)",
+    "Codex": "codex-cli 0.154.0-alpha.6.2",
+    "Node": "v25.8.1"
+  }
+}
