@@ -6,6 +6,8 @@ Kind: Living.
 
 **Skillgate is a forkable development autopilot for teams using AI coding tools.** A company decides once how it builds software: its records, habits, reviews, security evidence and checks. Every contributor, technical or not, then works inside that arrangement. They describe what they need, the assistant carries the work through the team's workflow, progress survives interruptions, and company-approved improvements arrive without anyone copying skills by hand.
 
+**New here? [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) walks through the whole path with diagrams:** fork it, make it yours, release it, install it on every machine, work in any codebase, and feed lessons back.
+
 [PLAN.md](PLAN.md) is the direction and the milestone status. [docs/CONTRACTS.md](docs/CONTRACTS.md) defines every shared format and command. [docs/HANDOFF.md](docs/HANDOFF.md) says where the work stands. [docs/CLIENTS.md](docs/CLIENTS.md) says what Claude Code and Codex actually do, measured or documented.
 
 ## Try it in two minutes
@@ -25,7 +27,7 @@ It prepares a disposable project, turns a request into a task with a checkpoint,
 | **Workflow skills** | `task`, `dispatch`, `review` (plain-English review with a READY TO COMMIT, NEEDS ATTENTION or STOP verdict), `handoff`, `maintain`, `security`. Skills are instructions the assistant follows; the instruction block labels each behavior as enforced, instructed or checked at merge. | [skill evaluations](evidence/) |
 | **Guardrails** | A hook reads each shell command the assistant runs: blocks force-pushes to protected branches, skipped git hooks and secret-shaped commits; asks before commands that discard uncommitted work (Codex cannot ask from a hook, so it refuses them). It does not cover other terminals or deliberately hidden commands. | 487 checks; live denials of a force-push and of `git reset --hard` |
 | **Project security evidence** | Observations tied to file fingerprints go stale when their sources change or expire; applicability is decided by a named person; collectors gather test results, a secret-shape scan and the delivery policy; open gaps become one backlog row each. A 15-control starter catalog references NIST SSDF 1.1 and OWASP ASVS 5.0.0. Evidence is not certification. | 52 tests; [catalog sources](docs/security-catalog-sources.md) |
-| **Company releases and updates** | A release manifest hashes every installable file; approval is a tag signed by a trusted approver; `verify` reports VERIFIED, TAMPERED, UNKNOWN VERSION, WITHDRAWN or NOT INSTALLED for Claude Code and Codex installs; lessons become scrubbed proposals; template changes reach projects as receipted migrations. | 21 tests; [company release rehearsal](evidence/rehearsals/2026-09-16-company-release/SUMMARY.md), 18 of 18 on real installs |
+| **Company releases and updates** | `company init` gives a fork its own marketplace name and points projects at the fork; `new-plugin` and `new-skill` add the company's own skills. A release manifest hashes every installable file; approval is a tag signed by a trusted approver; `verify` reports VERIFIED, TAMPERED, UNKNOWN VERSION, WITHDRAWN or NOT INSTALLED for Claude Code and Codex installs; lessons become scrubbed proposals; template changes reach projects as receipted migrations. | 21 tests; [company release rehearsal](evidence/rehearsals/2026-09-16-company-release/SUMMARY.md), 18 of 18 on real installs; [fork rehearsal](evidence/rehearsals/2026-09-16-fork/SUMMARY.md), 7 of 7, a renamed fork with its own plugin installed and verified on Claude Code and Codex |
 | **Trusted delivery checks** | `skillgate delivery install` puts a check in a shared repository that tests the combined result of every push to a protected branch, reads its policy from the branch rather than from the push, and requires an approver's signature for policy changes. A GitHub workflow template follows the same rules. | 10 tests with real pushes; the demo above |
 
 ## Not proven yet
@@ -41,10 +43,12 @@ Each is recorded as an open item in [DECISIONS.md](DECISIONS.md) with the input 
 
 ## For a company maintainer
 
-Fork this repository, add your skills beside `packs/base/`, and publish signed releases. [docs/RELEASING.md](docs/RELEASING.md) walks through the fork, the lesson-to-release loop, verification, withdrawal and rollback. [docs/DELIVERY.md](docs/DELIVERY.md) sets up the delivery check.
+Fork this repository, give the fork its own name, add your skills beside `packs/base/`, and publish signed releases. [docs/RELEASING.md](docs/RELEASING.md) walks through the fork, the lesson-to-release loop, verification, withdrawal and rollback. [docs/DELIVERY.md](docs/DELIVERY.md) sets up the delivery check.
 
 ```bash
-node scripts/skillgate.mjs new-skill <plugin> <skill> --pack <company>
+node scripts/skillgate.mjs company init --name <company> --marketplace-repo <owner>/<repo> --apply
+node scripts/skillgate.mjs new-plugin <plugin> --pack <company> --apply
+node scripts/skillgate.mjs new-skill <plugin> <skill> --pack <company> --description "<when to use it>"
 node scripts/skillgate.mjs release create --version 1.0.0 --apply   # then commit the manifest
 node scripts/skillgate.mjs release sign 1.0.0 --apply               # with your own signing key
 ```
@@ -55,8 +59,8 @@ node scripts/skillgate.mjs release sign 1.0.0 --apply               # with your 
 
 ```bash
 claude plugin marketplace add <company>/<skills-repo>
-claude plugin install workflow@skillgate
-claude plugin install guardrails@skillgate
+claude plugin install workflow@<marketplace>
+claude plugin install guardrails@<marketplace>
 skillgate trust add --company <company> --signers <file from your company> --apply
 skillgate prepare --dir <project>          # preview; add --apply to write
 ```
@@ -65,7 +69,7 @@ Inside a Claude Code session the workflow plugin puts `skillgate` on the shell p
 
 ## Checks
 
-Credential-free checks run in [CI](.github/workflows/checks.yml) on every push and pull request: packaging and its self-test, strict plugin validation, the CLI, prepare and migrate, lifecycle, security evidence, releases, the delivery gate, guardrails, hooks, the meter, setup, the demo and the offline project rehearsal. `docs/MAINTAIN.md` lists each command.
+Credential-free checks run in [CI](.github/workflows/checks.yml) on every push and pull request: packaging and its self-test, strict plugin validation, the CLI, prepare and migrate, lifecycle, security evidence, releases, the delivery gate, guardrails, hooks, the meter, setup, the guides' commands and links, the demo and the offline project rehearsal. `docs/MAINTAIN.md` lists each command.
 
 Checks that use an account and cost usage run by hand and write their results under `evidence/`: `scripts/live-capability-probe.sh`, `scripts/live-guardrails-probe.sh`, `scripts/rehearsals/live-clients.mjs`, `scripts/rehearsals/company-release.mjs --with-eval`, and `claude plugin eval`. `scripts/codex-offline-probe.sh` checks Codex without a model call.
 

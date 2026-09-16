@@ -5,9 +5,11 @@ Kind: Living. For the technical lead or maintainer who owns a company's fork of 
 ## 1. Make the company fork
 
 1. Fork this repository into the company's source host, or clone it into a private repository. Keep `packs/base/` unchanged, apart from the instruction template `packs/base/plugins/workflow/templates/harness.md`, which is yours to adapt.
-2. Rename the marketplace if you want (`.claude-plugin/marketplace.json` `name`) and point the team settings template at the fork: `node scripts/skillgate.mjs project-settings --marketplace-repo <owner>/<repo> --marketplace-name <name>` previews what projects will receive.
-3. Add company skills beside the base: `node scripts/skillgate.mjs new-skill <plugin> <skill> --pack <company>`, or bring in an existing skill folder after it is scanned for names, secrets and home paths: `node scripts/skillgate.mjs import <folder> --into <plugin> --pack <company>`.
+2. Give the fork its own name and point projects at it: `node scripts/skillgate.mjs company init --name <company> --marketplace-repo <owner>/<repo>` previews the change to `.claude-plugin/marketplace.json` (marketplace name and owner) and `templates/project-settings.json` (the marketplace, its GitHub repository and the enabled plugins); add `--apply` to write it. Skipping this leaves projects installing the upstream plugins. `--name` is the short company name developers also pass to `skillgate trust add --company`; `--marketplace-name` defaults to it.
+3. Add company skills beside the base: create a plugin in your own pack with `node scripts/skillgate.mjs new-plugin <plugin> --pack <company> --apply` (it lists the plugin in the catalog and enables it in the team template), then `node scripts/skillgate.mjs new-skill <plugin> <skill> --pack <company> --description "<when to use it>"`, or bring in an existing skill folder after it is scanned for names, secrets and home paths: `node scripts/skillgate.mjs import <folder> --into <plugin> --pack <company>`.
 4. Create the release signers file. Each person allowed to approve releases adds one line to an SSH `allowed_signers` file: `<their email> namespaces="git" <their public key>`. Give developers this file through a channel an attacker cannot also edit (device management, an internal page), never only from the repository itself.
+
+Measured in `evidence/rehearsals/2026-09-16-fork/`: a fork renamed with `company init`, a company plugin and skill, strict validation, a signed release, and installs from the renamed marketplace verified on Claude Code and Codex.
 
 ## 2. From a lesson to an approved improvement
 

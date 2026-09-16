@@ -282,4 +282,5 @@ Decision entries in `docs/decisions/`, sorted by ID. `skillgate index` writes th
 | ID | Title | Status | Date |
 |---|---|---|---|
 | [2026-09-16-new-decisions-and-lessons-in-this-reposi-35d6](docs/decisions/2026-09-16-new-decisions-and-lessons-in-this-reposi-35d6.md) | New decisions and lessons in this repository are entry files | accepted | 2026-09-16 |
+| [2026-09-16-roadmap-after-m5-make-it-yours-one-comma-b003](docs/decisions/2026-09-16-roadmap-after-m5-make-it-yours-one-comma-b003.md) | Roadmap after M5: make it yours, one command per machine, autopilot on arrival | accepted | 2026-09-16 |
 <!-- skillgate:index:decisions:end -->

@@ -22,7 +22,7 @@ Kind: Living. Updated 2026-09-16 with the integrated build. What is proved and w
 
 | You manage | Where | How you check it |
 |---|---|---|
-| The skills and plugins your team gets | your fork of this repository: `packs/base/` plus your own `packs/<company>/` | `node scripts/skillgate.mjs doctor`, `node scripts/packs.test.mjs` |
+| The skills and plugins your team gets | your fork of this repository: `packs/base/` plus your own `packs/<company>/`, named with `skillgate company init` and extended with `new-plugin` and `new-skill` | `node scripts/skillgate.mjs doctor`, `node scripts/packs.test.mjs` |
 | What the assistant is told | `packs/base/plugins/workflow/templates/harness.md` | changes reach projects through `skillgate migrate` (preview, receipt, rollback) |
 | Approved releases | `releases/<version>.json`, signed tags | `skillgate release list`; each developer runs `skillgate verify` |
 | A project's records | the project's own `docs/`, `DECISIONS.md` and `.skillgate/` | `skillgate status --dir <project>` |
@@ -33,4 +33,4 @@ Kind: Living. Updated 2026-09-16 with the integrated build. What is proved and w
 
 **Keep three kinds of evidence apart:** skill evaluation results (`evidence/<commit>/`), project security evidence (each project's `.skillgate/security/`), and release approval (signed tags). One never stands in for another.
 
-**Guides:** [RELEASING.md](RELEASING.md) for the fork and releases, [ONBOARDING.md](ONBOARDING.md) for your developers, [DELIVERY.md](DELIVERY.md) for merge checks, [CLIENTS.md](CLIENTS.md) for what each coding client supports.
+**Guides:** [HOW-IT-WORKS.md](HOW-IT-WORKS.md) for the whole path with diagrams, [RELEASING.md](RELEASING.md) for the fork and releases, [ONBOARDING.md](ONBOARDING.md) for your developers, [DELIVERY.md](DELIVERY.md) for merge checks, [CLIENTS.md](CLIENTS.md) for what each coding client supports.

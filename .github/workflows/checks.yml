@@ -34,6 +34,12 @@ jobs:
       - name: Packaging checks can fail
         run: node scripts/packs.test.mjs --self-test
 
+      - name: Guides name real commands and working links
+        run: node scripts/docs.test.mjs
+
+      - name: Guides checks can fail
+        run: node scripts/docs.test.mjs --self-test
+
       - name: Plugin and marketplace validation (Claude Code CLI)
         run: |
           npm install --global @anthropic-ai/claude-code

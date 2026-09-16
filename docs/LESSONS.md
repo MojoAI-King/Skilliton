@@ -191,6 +191,7 @@ Lesson entries in `docs/lessons/`, sorted by ID. `skillgate index` writes this l
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| [2026-09-16-a-documented-maintainer-command-refused-1178](lessons/2026-09-16-a-documented-maintainer-command-refused-1178.md) | A documented maintainer command refused on a fresh fork because its test built the fixture by hand | accepted | 2026-09-16 |
 | [2026-09-16-decisions-and-lessons-went-into-the-mono-0925](lessons/2026-09-16-decisions-and-lessons-went-into-the-mono-0925.md) | Decisions and lessons went into the monoliths although the instructions say entry files | accepted | 2026-09-16 |
 | [2026-09-16-the-lanes-not-verified-lists-lived-only-c61d](lessons/2026-09-16-the-lanes-not-verified-lists-lived-only-c61d.md) | The lanes' not-verified lists lived only in worktrees marked removable | accepted | 2026-09-16 |
 <!-- skillgate:index:lessons:end -->

@@ -24,7 +24,8 @@ Kind: Living. Where Skillgate has and has not actually been run: platforms, vers
 
 ## Releases and signing
 
-- Exercised: git SSH signing with throwaway ed25519 keys that have no passphrase (`scripts/release.test.mjs`, the company release rehearsal).
+- Exercised: git SSH signing with throwaway ed25519 keys that have no passphrase (`scripts/release.test.mjs`, the company release rehearsal). A fork renamed with `company init` (marketplace `acme-skills`) with a plugin outside `packs/base` (license `UNLICENSED`, accepted by `claude plugin validate --strict` on 2.1.273), released, installed from a local folder and verified on Claude Code 2.1.273 and Codex 0.154.0-alpha.6.2 (fork rehearsal).
+- Not exercised: a marketplace added from a GitHub `owner/repo` source (every install so far is from a local folder; M7); update, tamper, rollback and withdrawal under a renamed marketplace (the company release rehearsal keeps the default name).
 - Not exercised: passphrase-protected keys, ssh-agent, third-party signing programs; a present `.agents/plugins/marketplace.json` (the Codex catalog path, its path-mismatch refusal and `clients.codex` recording); `release create` with evidence of kind `skill-evaluation` or `other`; which cached version Codex loads when several are cached; whether a client's marketplace clone holds release tags.
 
 ## Security evidence
