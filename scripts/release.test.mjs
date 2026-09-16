@@ -29,6 +29,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(here, "..");
 const CLI = join(REPO, "scripts", "skillgate.mjs");
 const PLUGINS = join(REPO, "packs", "base", "plugins");
+// The migrations a release records come from the workflow runtime's registry when this build has one.
+const MIGRATIONS_MODULE = join(PLUGINS, "workflow", "runtime", "lib", "migrations.mjs");
+const EXPECTED_MIGRATIONS = existsSync(MIGRATIONS_MODULE) ? (await import(pathToFileURL(MIGRATIONS_MODULE).href)).MIGRATIONS.map((m) => m.id) : [];
 const CATALOG = JSON.parse(readFileSync(join(REPO, ".claude-plugin", "marketplace.json"), "utf8"));
 const MARKETPLACE = CATALOG.name;
 const PLUGIN_NAMES = CATALOG.plugins.map((p) => p.name);
@@ -305,8 +308,8 @@ boxed("release create: preview writes nothing; --apply writes a manifest with ev
   assert.ok(!Number.isNaN(Date.parse(m.createdAt)));
   assert.equal(m.marketplace, MARKETPLACE);
   assert.equal(m.projectLayout, 2);
-  assert.deepEqual(m.migrations, []);
-  assert.ok(m.notes.some((n) => /not available in this build/.test(n)), JSON.stringify(m.notes));
+  assert.deepEqual(m.migrations, EXPECTED_MIGRATIONS);
+  if (!EXPECTED_MIGRATIONS.length) assert.ok(m.notes.some((n) => /not available in this build/.test(n)), JSON.stringify(m.notes));
   assert.deepEqual(m.components.map((c) => c.name), PLUGIN_NAMES);
   for (const c of m.components) {
     assert.equal(c.kind, "plugin");
@@ -606,8 +609,10 @@ boxed("ref drift: the marketplace branch moves to an unsigned commit with a bump
   const { repo } = signedRelease(box);
   const guardrails = join(repo, "packs", "base", "plugins", "guardrails");
   const manifestPath = join(guardrails, ".claude-plugin", "plugin.json");
-  writeFileSync(manifestPath, readFileSync(manifestPath, "utf8").replace(/"version": "0\.1\.0"/, "\"version\": \"0.1.1\""));
-  assert.equal(pluginVersion(guardrails), "0.1.1", "the fixture must bump the version");
+  const from = pluginVersion(guardrails);
+  const bumped = from.replace(/(\d+)$/, (n) => String(Number(n) + 1));
+  writeFileSync(manifestPath, readFileSync(manifestPath, "utf8").replace(`"version": "${from}"`, `"version": "${bumped}"`));
+  assert.equal(pluginVersion(guardrails), bumped, "the fixture must bump the version");
   appendFileSync(join(guardrails, "hooks", "guard-bash.sh"), "# unreviewed change\n");
   commitAll(box, repo, "unreviewed bump");
   expectCode(cli(box, ["release", "create", "--version", "1.0.1", "--repo", repo, "--apply"]), 0, "an unapproved manifest");
@@ -616,7 +621,7 @@ boxed("ref drift: the marketplace branch moves to an unsigned commit with a bump
 
   const v = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"]), 1, "verify after drift");
   assert.equal(verifyLine(v.out, "guardrails").state, "UNKNOWN VERSION", v.out);
-  assert.match(verifyLine(v.out, "guardrails").line, /no approved release has guardrails 0\.1\.1/);
+  assert.match(verifyLine(v.out, "guardrails").line, new RegExp(`no approved release has guardrails ${bumped.replace(/\./g, "\\.")}`));
   assert.equal(verifyLine(v.out, "workflow").state, "VERIFIED", "unchanged plugins still match release 1.0.0");
   const list = expectCode(cli(box, ["release", "list", "--company", "acme", "--repo", repo]), 0, "list");
   assert.match(list.out, /^unapproved +1\.0\.1 +releases\/1\.0\.1\.json exists, but there is no skillgate-release\/1\.0\.1 tag/m);

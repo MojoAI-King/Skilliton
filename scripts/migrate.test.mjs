@@ -25,7 +25,15 @@ const FIXTURE = join(here, "fixtures", "prototype-v1");
 const RUNTIME = ".skillgate/bin/security-evidence.mjs";
 const RECEIPT = ".skillgate/migrations/0002-integrated-layout.json";
 const TEMPLATE = readFileSync(join(PLUGIN, "templates", "harness.md"), "utf8");
-const BLOCK = `<!-- skillgate:harness:start v1 -->\n${TEMPLATE.endsWith("\n") ? TEMPLATE : `${TEMPLATE}\n`}<!-- skillgate:harness:end -->\n`;
+// The template names project record files as {{key}}. Every project in these tests uses the contract defaults
+// (docs/CONTRACTS.md sections 2 and 4), written out here rather than imported from config.mjs.
+const DEFAULT_VARS = {
+  status: "docs/STATUS.md", backlog: "docs/BACKLOG.md", backlogArchive: "docs/BACKLOG_ARCHIVE.md", roadmap: "docs/ROADMAP.md",
+  decisions: "DECISIONS.md", lessons: "docs/LESSONS.md", handoff: "docs/HANDOFF.md", handoffArchive: "docs/HANDOFF_ARCHIVE.md",
+  maintain: "docs/MAINTAIN.md", tasksDir: "docs/tasks", decisionsDir: "docs/decisions", lessonsDir: "docs/lessons", integrationBranches: "main, master",
+};
+const RENDERED = TEMPLATE.replace(/\{\{([A-Za-z]+)\}\}/g, (_, key) => { if (!Object.hasOwn(DEFAULT_VARS, key)) throw new Error(`test: template names unknown value {{${key}}}`); return DEFAULT_VARS[key]; });
+const BLOCK = `<!-- skillgate:harness:start v1 -->\n${RENDERED.endsWith("\n") ? RENDERED : `${RENDERED}\n`}<!-- skillgate:harness:end -->\n`;
 const VERSION = JSON.parse(readFileSync(join(PLUGIN, ".claude-plugin", "plugin.json"), "utf8")).version;
 const lib = (name) => import(pathToFileURL(join(PLUGIN, "runtime", "lib", name)).href);
 const proto = await lib("prototype-v1.mjs");
