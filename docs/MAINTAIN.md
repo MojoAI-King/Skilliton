@@ -1,0 +1,10 @@
+# Maintain: this repository's own steps
+
+Kind: Living. Run these as part of `/maintain` (or `/workflow:maintain`) in this repository, in addition to the generic ritual. Every gate runs as its own step with its exit status read on its own line; never pipe a gate into `head`, `tail`, or `grep` before a commit (docs/LESSONS.md).
+
+1. **Look for other sessions first.** `git worktree list` and `git for-each-ref refs/heads`. Another agent may be working here; never stage, merge, or push its branches, and record what you find in DECISIONS.md.
+2. **Run the offline checks, one step each:** `node scripts/packs.test.mjs`, `node scripts/packs.test.mjs --self-test`, `bash scripts/guardrails.test.sh`, `bash scripts/handoff-hook.test.sh`, `node scripts/skillgate.test.mjs`, `node scripts/setup.test.mjs`, `bash scripts/hook-fixture.test.sh`, `bash scripts/statusline.test.sh`, `node scripts/token-cost.test.mjs`, `node scripts/evidence.test.mjs`, `bash scripts/scrub-check.sh`, `bash scripts/scrub-check.sh --self-test`, and `claude plugin validate --strict` for `.` and each `packs/*/plugins/*/` (use the 2.1.273 binary if the terminal one is older).
+3. **Plugins changed?** Bump that plugin's `version` in `.claude-plugin/plugin.json` (installed copies update only when it changes).
+4. **Eval run?** Never commit its raw result. `node scripts/evidence.mjs <aggregate-result.json> --sha <commit> --notes <notes.md>`, with every failed check diagnosed from its kept transcript in the notes.
+5. **Docs:** `docs/HANDOFF.md` (new RESUME HERE, previous block to Earlier), `DECISIONS.md` (entries and the open-items table), `docs/LESSONS.md` (five-part entries), `docs/CONTRACTS.md` when a shared name or format changed, `PLAN.md` schedule status, and a BEHIND label on any Living doc that is out of date.
+6. **Before pushing:** `bash scripts/scrub-check.sh --history` as its own step (it needs `~/.config/skillgate/denylist`; it currently scans every local branch, O13), then push `main` only, then read the CI run's step results, not just its colour.

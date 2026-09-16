@@ -8,7 +8,7 @@ Kind: Living.
 
 Built for Claude Code first; the skills use the open Agent Skills format that Codex also reads (see "Codex" below for what is verified).
 
-Status: week-one build, September 16 to 23, 2026. `PLAN.md` is the build contract, `DECISIONS.md` records every choice in plain English, and `docs/CONTRACTS.md` lists the names and formats the pieces share.
+Status: week-one build, September 16 to 23, 2026. `PLAN.md` is the build contract, `DECISIONS.md` records every choice in plain English, `docs/CONTRACTS.md` lists the names and formats the pieces share, `docs/HANDOFF.md` says where things stand, and `docs/LESSONS.md` records what went wrong and what now prevents it.
 
 ## Why this exists
 

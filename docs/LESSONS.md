@@ -49,3 +49,27 @@ Kind: Living. This repository's own lessons, specific and technical, in the form
 3. **The fix:** lanes fast-forwarded to local `main` before committing; one was sent the contract values directly.
 4. **The rule:** push (or otherwise publish) the commit a parallel lane must build on before dispatching it, and name that commit in the brief.
 5. **What now enforces it:** nothing yet; the dispatch skill's lane brief checks the branch name, not the base commit.
+
+## 2026-09-16 "Enforced" in the harness block was only true with the plugins installed
+
+1. **What broke:** the first harness template told the model that the handoff display and the git blocks were **enforced**, and this repository applied it before the plugins that enforce them were installed on the machine.
+2. **The mechanism:** a hook enforces a behavior only while its plugin is installed and enabled; the block is written into `CLAUDE.md` independently of installation, so the label could state a guarantee that did not exist.
+3. **The fix:** `templates/harness.md` now says enforced behaviors hold only while `workflow` and `guardrails` are installed and enabled, and names `skillgate doctor` as the check (commit 1bdf74e).
+4. **The rule:** a claim that something is enforced names the condition it depends on, wherever the claim can outlive that condition.
+5. **What now enforces it:** `node scripts/skillgate.mjs doctor` reports whether the base plugins are installed and enabled and whether the block is current; nothing checks the wording itself.
+
+## 2026-09-16 A live probe whose success is "nothing changed" nearly passed without running
+
+1. **What broke:** the first run of the committed `scripts/live-guardrails-probe.sh` never started a Claude Code session, and the protected branch did not move.
+2. **The mechanism:** `--allowedTools` takes a list (`<tools...>`), so it consumed the prompt placed after it; the CLI exited with "Input must be provided". An unchanged remote is exactly what a successful block looks like.
+3. **The fix:** the prompt goes right after `-p`, before any list-taking flag, and stdin is `/dev/null`; the probe checks the session's exit status before judging the result and ships a `--control` run that must move the branch without the plugin.
+4. **The rule:** a check that passes on absence of change first proves the actor ran, and carries a control that shows the change happening without the protection.
+5. **What now enforces it:** the probe itself (exit 2, NOT RUN, when the session fails); `--control` must report the branch moved.
+
+## 2026-09-16 Another agent session was working the same repository
+
+1. **What broke:** a pre-push secret scan over `git rev-list --all` matched strings in a file nobody in this session had written.
+2. **The mechanism:** a Codex session had created worktrees (`~/Desktop/Skilliton-security-0916`, `~/Desktop/Skilliton-autopilot-0916`) and branches in this repository; `--all` includes every local branch, pushed or not.
+3. **The fix:** only `main` was pushed; the other branches were left untouched and recorded as owner decision O11, with a trial merge showing no conflicts.
+4. **The rule:** before pushing or scanning history, run `git worktree list` and `git for-each-ref refs/heads`, and scope pushes and scans to your own refs.
+5. **What now enforces it:** nothing yet (DECISIONS.md O13: `scrub-check.sh --history` still scans every ref).

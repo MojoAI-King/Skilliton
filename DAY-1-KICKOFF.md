@@ -1,5 +1,7 @@
 # Day 1 kickoff prompt (paste into Claude Code in this repo)
 
+Kind: Reference. The Day 1 prompt as written on 2026-09-16; superseded by PLAN.md v3 and docs/HANDOFF.md.
+
 We are on Day 1 of PLAN.md. Read PLAN.md and CLAUDE.md first. Scope for this session is ONLY the Day 1 gate:
 
 1. Run `node scripts/token-cost.test.mjs`. It must pass. Then run `node scripts/token-cost.mjs 2026-09-14 2026-09-15` and compare against the known-correct figures in docs/USAGE_BASELINE.md. If either fails, fix the meter (inspect the actual JSONL field names in ~/.claude/projects first; the script's field names are guesses, and the fixtures mirror those guesses). Do not proceed until both pass.

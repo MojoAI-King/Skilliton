@@ -62,9 +62,9 @@ The file a company commits as `.claude/settings.json` in its product repos, so a
 | Command | Does | Writes |
 |---|---|---|
 | `doctor` | reports what is installed, enabled, and at which version; whether auto-update is on; whether the harness block is present and current; whether `.skillgate/config.json` parses | nothing |
-| `harness [--apply] [--undo] [--file CLAUDE.md\|AGENTS.md]` | shows, applies, or removes the harness block | the named file, after a backup |
-| `project-settings [--apply]` | shows or writes `.claude/settings.json` from the template, merging with an existing file | `.claude/settings.json`, after a backup |
-| `new-skill <plugin> <skill>` | scaffolds `packs/<pack>/plugins/<plugin>/skills/<skill>/SKILL.md` with frontmatter and bumps the plugin version | the new skill, `plugin.json` |
-| `import <skill-dir> --into <plugin>` | copies an existing personal skill into a company plugin after the scrub check passes on the copy | the copied skill, `plugin.json` |
+| `harness [--apply] [--undo] [--file CLAUDE.md\|AGENTS.md] [--dir <project>] [--template <file>]` | shows, applies, or removes the harness block | the named file, after a backup |
+| `project-settings [--apply] [--dir <project>] [--marketplace-repo owner/repo] [--marketplace-name <name>] [--template <file>]` | shows or writes `.claude/settings.json` from the template, merging with an existing file | `.claude/settings.json`, after a backup |
+| `new-skill <plugin> <skill> [--pack <pack>] [--repo <dir>] [--description <text>]` | scaffolds `packs/<pack>/plugins/<plugin>/skills/<skill>/SKILL.md` with frontmatter and bumps the plugin version | the new skill, `plugin.json` |
+| `import <skill-dir> --into <plugin> [--pack <pack>] [--repo <dir>] [--name <skill>]` | scans the source (scrub check, secret shapes, home paths; refuses when no denylist is configured), then copies it into a company plugin | the copied skill, `plugin.json` |
 
 Every writing command shows its change first, writes only with `--apply` (or its own explicit verb), backs up what it overwrites, and exits non-zero with a plain-English reason when it refuses.
