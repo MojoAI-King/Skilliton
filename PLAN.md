@@ -1,175 +1,167 @@
-# Skillgate: Master Plan (v2)
+# Skillgate: Master Plan (v3)
 
-Prepared September 15, 2026, final revision September 16, 2026 (clock start). Build window: September 16, 8:00 a.m. to September 23, 8:00 a.m. Eastern.
-This file is meant to live at the root of the Skillgate repository so Claude Code reads it every session.
+Kind: Living. The build contract; Claude Code reads it every session. Build window: September 16, 8:00 a.m. to September 23, 8:00 a.m. Eastern.
 
-This version replaces the earlier trust-chain-first draft. The product changed after real conversation and one real data point (Section 5). Section 0 explains what changed and why, so nobody building from this file wonders why it looks different from the first brief.
+v3 replaces v2 on September 16, after the owner steered the product (Section 0). v2 is in git history (commit `bf07bee`) for anyone who needs the earlier reasoning.
 
 ---
 
-## 0. What changed, and why
+## 0. What changed in v3, and why
 
-The original brief framed Skillgate as a governance and approval system for AI skills: propose, review, approve, release, verify. That system still exists in this plan, but it moved from the headline to the plumbing.
+v2 made a usage-savings pack the product and treated packaging as plumbing. The owner's direction on September 16 is broader and clearer:
 
-The actual product is simpler to say and easier to feel the value of: a company packages the skills that make its engineers work well, ships that pack to every developer's coding tool, the pack keeps their AI behavior healthy and cheap automatically, and new hires learn "how we work here" from a doc that ships in the same box. The trust chain is what makes that safe to hand out company-wide. It earns its place; it just isn't the pitch anymore.
+**Skillgate is a ready-made way of working for a whole company's AI-assisted development.** It ships an opinionated base skill set (keep the codebase healthy, spend tokens well, never lose context between sessions or people, review work in plain language, block the git mistakes that hurt) that makes Claude Code safe and fast for everyone, including the non-technical people now building with vibe-coding tools. A company forks the repository, keeps the base, adds its own skills, and every new hire gets the whole environment in one onboarding step. Improvements then arrive automatically.
 
-The other change: a real, measured token-burn investigation on a live client project (Section 5) turned out to be exactly the kind of skill this product should ship first. It has a working, twice-verified fix, a corrected measurement method with tests, and a mechanism that generalizes to any team using Claude Code. That becomes the flagship pack, not an example.
+What that changes:
+- **The base skill set is the product.** The usage investigation (Section 6) becomes the evidence behind one base plugin, not the headline.
+- **Fork and extend is the distribution model.** A company's fork is its own skill marketplace. Base packs stay read-only in the fork so upstream improvements merge cleanly.
+- **Onboarding is a feature, not a document.** One step gives a new hire the marketplace, auto-update, the base plugins, and the instructions block that tells the model when to use which skill.
+- **Auto-update raises the trust bar.** When one merge reaches every developer's machine within a session, release pinning, verification, and the security review (Section 9) matter more than in v2, not less.
 
-One more correction, folded in after this file was first drafted: the investigation behind that flagship pack had a 3.28x accounting error in its first pass, caught by an independent model cross-check, not by re-reading the same script harder. Section 5 reflects the corrected version. Catching and owning that error became part of the pack's own story, not a footnote to hide.
+What did not change: nothing silent, no unverified capability claims, no savings figures that the corrected meter did not produce and a second check did not confirm, and no client material in this repository.
 
 ---
 
 ## 1. The one sentence
 
-Skillgate is how a company packages the skills, guardrails, and habits that make its AI coding tools work well, ships them to every developer's environment so the behavior is automatic rather than tribal knowledge, and gives new hires a way to learn the company's practices while the tooling is already enforcing them.
+Skillgate is a forkable, ready-made way of working for AI-assisted development: a base skill set that keeps codebases healthy, spends tokens well, and never loses context, which a company extends with its own skills and hands to every developer, technical or not, in one onboarding step.
 
 ---
 
-## 2. Why this is the right project for this assessment
+## 2. Who it is for
 
-| Assessment rule | How this plan meets it |
-|---|---|
-| Solve a real problem, in a cool way | The problem is real and already cost real money (Section 5). The cool part is that the fix ships as an installable pack instead of a one-off cleanup. |
-| Build it as if it would be in use | The flagship pack is not hypothetical. It is derived from a real investigation on a real, running project, with a second person installing it fresh. |
-| Sharp, unusual answer to a small problem | Not "AI governance for enterprises." One narrow claim: install this pack, your team's AI stops wasting context and money, and here is how you check whether it actually did. |
-| Teach us something | The token-burn investigation itself is a teaching moment (Section 11), and it is one most people evaluating AI tooling have not personally measured. |
-| Survive a real user | The pack has to work for someone who never reads a rule and just uses their editor. That is why enforcement lives in hooks and settings, not in a document people are supposed to follow. |
+| Person | What they need | What Skillgate gives them |
+|---|---|---|
+| **Tech lead** (owns how the company builds) | One place to define "how we work here" that actually changes behavior | A fork that is their company's skill marketplace; `new-skill` and `import` to package the skills they already rely on; release and verify to control what ships |
+| **Developer** | Good defaults without reading a wiki; their own skills left alone | One onboarding step; namespaced company skills that never collide with personal ones; updates that arrive by themselves |
+| **Non-technical builder** | To build without breaking things or getting stressed | Guardrails that stop the dangerous git mistakes and explain why; a plain-English review before committing; a handoff so work is never lost |
 
 ---
 
-## 3. The three things Skillgate does
+## 3. What Skillgate does
 
-**Package.** A company authors skills (behavioral instructions, small helper scripts, hooks, plus a setup step for the settings a plugin cannot carry) and Skillgate turns them into a versioned, installable pack using Claude Code's native plugin and marketplace system. One command line installs the whole pack into a developer's environment, whatever editor they sit in (Claude Code directly, or Claude Code running inside VS Code or Cursor). Skillgate itself ships the same way it asks companies to ship their own packs: as a forkable starter repo, not a hosted product a company depends on someone else to run. Fork it, make it yours, extend it. That is the intended path, not a workaround.
+**Base skills (the harness).** Behavior that ships in the box. Where a behavior must always happen, a hook enforces it. Where it needs judgment, a skill guides it and triggers from its description, so nobody has to remember a command. Every behavior is labelled **enforced** or **instructed**, and nothing instructed is described as guaranteed.
 
-**Harness.** The pack does not just suggest good behavior, it enforces or automates as much of it as the platform allows: a skill that tells the AI what to do when context gets large (with an optional snippet the setup step offers for the project's own `CLAUDE.md`), a session-start hook that loads exactly the checklist it should and nothing more, a gate wrapper that keeps test output out of the context window while preserving the real result, a status line that logs real quota usage so nobody is flying blind, and a drift check that says when the settings file and the running session disagree. This is the part that makes the product feel like it is "working better for people of all skill levels" without anyone having to be disciplined about it.
+**Fork and extend (the package).** The repository is a Claude Code plugin marketplace. A company forks it, adds `packs/<company>/plugins/<plugin>/`, and never edits `packs/base/`. Company skills are namespaced by Claude Code (`/<plugin>:<skill>`), so they cannot collide with a developer's personal skills in `~/.claude/skills/`.
 
-One technical fact governs how this is built (verified in the plugins reference): a plugin can carry skills, agents, hooks, MCP and LSP servers, and its own `settings.json` supports only the `agent` and `subagentStatusLine` keys. A `CLAUDE.md` inside a plugin is not loaded as project context. So the hook and the skill install by themselves, but the main-session status line, any model or effort default, and project instructions do not. Those go through a small, explicit setup step (`skillgate setup`) that shows the proposed changes, backs up the existing files, applies only with consent, and can undo itself. Installation makes the system work; it does not silently rewrite a developer's configuration.
+**Onboard (one step).** A new hire either opens a company repository that carries the team settings (Claude Code offers the marketplace and plugins on trust) or runs one command. `skillgate harness` writes the instructions block into `CLAUDE.md` and `AGENTS.md`; `skillgate doctor` says in plain language what is working and what is not.
 
-**Onboard.** A one-pager per pack: what it does, why, and how to work within it, written so a brand-new hire and a ten-year veteran both get something out of it. It is meant to be up on someone's second monitor during their first week, not buried in a wiki.
+**Keep current (auto-update).** The team settings turn on Claude Code's own marketplace auto-update. Every plugin change bumps its version, because installed copies only update when the version changes. Updates are checked after a session starts and apply to the next session; the docs and the onboarding one-pager say so.
 
-Packaging is the mechanism. Harness is the value. Onboard is what makes the value transferable to a person instead of just a machine.
+**Trust (release and verify).** A release binds an approval to an exact commit. `skillgate verify` checks what is installed on a machine against the release record: VERIFIED, TAMPERED, UNKNOWN VERSION, or WITHDRAWN.
+
+**Where it runs.** Built for Claude Code first, and portable to Codex where Codex documents the same mechanism: skills use the open Agent Skills format both tools read (Codex discovers them in `.agents/skills/` and `~/.agents/skills/`), the harness block goes into `AGENTS.md` as well as `CLAUDE.md`, and Codex hooks accept the same deny decision shape. Codex requires each hook to be reviewed and trusted once, and its IDE extension has no plugins, so for Codex the skills are linked as plain folders. Each of these is stated per feature and exercised before it is claimed.
 
 ---
 
 ## 4. Scope this week
 
 **In:**
-- One flagship pack, built from Section 5, shipped, installed by a second person, with before-and-after evidence.
-- The onboarding one-pager for that pack.
-- The packaging and verification plumbing (Section 8), enough to prove the chain works, not enough to be a product on its own.
-- A security review of that plumbing (Section 9), because the evaluator asked for one directly.
-- If time allows after Day 4: a second, smaller pack to prove the system generalizes beyond the flagship.
+- The base pack: `context-hygiene`, `workflow` (dispatch, maintain, handoff, review), `guardrails`.
+- Onboarding: team settings template, harness block, `skillgate doctor`, `harness`, `project-settings`, `new-skill`, `import`.
+- Proof that the fork-and-extend loop works: a rehearsal fork adds a company skill, releases it, and a second machine receives it by auto-update.
+- Release, verify, and tamper detection for installed copies.
+- The security review (Section 9), extended to auto-update and skill import.
+- Real use in the owner's own software, and a fresh install by a non-technical second person using only the README and one-pager.
+- The usage evidence (Section 6), still open where it was open.
 
 **Out, deliberately:**
-- Unrelated client automation work. Separate build, separate week. Not touched here.
 - A web dashboard, accounts, or a hosted service.
-- Fleet-wide mandatory enforcement across an organization, autonomous self-approval, a marketplace business.
-- Any claim that this controls a model's maximum context window. It does not, and saying so would be a mistake in front of a security-literate evaluator. What it controls is how much context gets loaded and paid for on every request, which is the thing that actually costs money.
+- Mandatory fleet-wide enforcement. Managed settings can force a marketplace and plugins; the docs explain how, and building an enforcement product is out.
+- Tools other than Claude Code and Codex.
+- Any claim that this controls a model's maximum context window. It controls what gets loaded and paid for.
+- Client material of any kind. Examples are generic.
 
 ---
 
-## 5. The flagship pack: Context and Cost Hygiene
+## 5. The base pack
 
-Built from a real, ongoing investigation on a live client project, not a hypothetical. The investigation corrected itself mid-flight, and that correction is part of what makes this pack worth shipping rather than a liability to hide.
+| Plugin | Skill or hook | Enforced or instructed | Why it exists |
+|---|---|---|---|
+| `context-hygiene` | SessionStart hook: inject one bounded checklist section | Enforced | A one-line bug once injected a whole lessons file into every session (Section 6) |
+| `context-hygiene` | status line: log real quota (applied by `scripts/setup.mjs`) | Enforced once applied | Real metered use is the only number that decides whether anyone runs out |
+| `context-hygiene` | skill: never load large files raw, end work deliberately, subagents cost real money | Instructed | Measured causes of cache-write cost |
+| `workflow` | skill `dispatch`: notes into verified parallel lanes with a coverage ledger that must sum | Instructed | Large batches of notes lose items and collide in merges |
+| `workflow` | skill `maintain`: living docs, resume marker, plain-English decisions, two-file lessons | Instructed | Work done in a conversation vanishes when the conversation ends |
+| `workflow` | skill `handoff` plus SessionStart hook showing the latest `RESUME HERE` | Hook enforced, writing instructed | The next session or person starts from the state, not from zero |
+| `workflow` | skill `review`: plain-English risk review of the working tree | Instructed | Non-developers need to know what they are about to commit |
+| `guardrails` | PreToolUse hook: deny force-push to protected branches, `--no-verify`, secret files; ask before destroying uncommitted work | Enforced | The mistakes that cost teams the most are a handful of git commands |
 
-**What is verified, independently, twice, and has not moved:** a one-line `awk` bug in a SessionStart hook was injecting far more of a lessons file into every session than intended, because `{f=1} f` sets a flag and then prints to end of file instead of stopping at the next heading. Measured before and after, on two separate passes: 102,941 bytes down to 19,233 bytes. Nothing deleted, the source file untouched. This is the one number in the whole investigation that has been checked twice and hasn't changed. It ships as the pack's first, unambiguous win.
+The motivating example for the whole pack: before Skillgate, one in-house skill existed in about sixty copies across project folders in six different versions, and nobody could say which was current. A marketplace with versions and auto-update makes that impossible.
 
-**What was wrong, and matters more than the fix itself:** the first pass at measuring total spend, which mechanism was expensive, and what the likely saving would be contained a 3.28x accounting error, caught by an independent model reviewing the same transcripts. The cause: Claude Code writes several JSONL records per response and each carries the same cumulative usage total, and summing every record instead of deduplicating by request and message id inflated everything downstream. A reported $1,568.88 for one window corrected to $478.40. A month-long session reported at $22,959 corrected to roughly $7,183. Several structural claims flipped outright: subagents were reported near 1% of spend and were actually 13%; a claim that a particular hook could not modify tool output turned out to be false; a theory that gate output dominated cost turned out to be about 4% of it; a claimed 46% saving was withdrawn as unsupported.
+---
 
-**What the corrected measurement shows, as findings with their uncertainty attached:** cache writes, not fresh input or output, are the largest cost component. The evidence points at two causes: large single tool results (reads or writes in the hundreds of kilobytes) forcing a full context rebuild, and sessions left idle long enough for the cache's time-to-live to lapse before returning to a large context. Thirteen of twenty-two large writes followed a gap past the TTL; several others followed short gaps with no obvious large result, and those remain unattributed. Fixing the arithmetic did not establish every causal story, and the pack's docs say so. The two supported causes are addressable by specific, narrow behavior: never load a large file into context raw, summarize or grep it from disk instead; end finished work with a short handoff note rather than leaving a large context warm and walking away for hours.
+## 6. The flagship evidence: context and cost hygiene
 
-**What is still open, and correctly labeled open:** the true size of any saving. Reconstructed dollars are not the plan's own subscription meter, and the honest position, stated inside the investigation itself, is that the size of the win is unknown until a corrected measurement script runs for a full batch and is checked against real quota consumption, not against its own earlier draft.
+Built from a real, ongoing investigation on a live client project. The investigation corrected itself mid-flight, and that correction is part of why the evidence is worth shipping.
 
-### How the pack's own claims get checked, in three tiers
+**Verified twice and unchanged:** a one-line `awk` bug in a SessionStart hook injected far more of a lessons file than intended, because `{f=1} f` sets a flag and prints to the end of the file instead of stopping at the next heading. Measured on the originating file: 102,941 bytes down to 19,233 (September 15). The shipped hook had a second, silent bug (an exact heading match that found nothing); it is fixed and its test now exercises the shipped script.
 
-**Tier 1, the only number that decides whether anyone runs out.** The status line does not just display quota, it logs it: every refresh appends quota percentages to a local file, because that is actual metered consumption and no reconstruction of spend can substitute for it. What is now verified about the payload: on Pro and Max plans it carries `rate_limits.five_hour` and `rate_limits.seven_day` (each with `used_percentage` and `resets_at`), only after the first response in a session, and users have reported the object going missing entirely at times. What it does not carry, per an open issue from September 3: the model-specific weekly bar that `/usage` shows as a third line. If the ceiling hit on September 15 was that per-model window, the status line cannot see it. So Tier 1 is two logged numbers plus one hand-recorded number, and the log treats an absent field as unavailable, never as zero.
+**What was wrong in the first measurement:** a 3.28x accounting error, caught by an independent model cross-check. Claude Code writes several JSONL records per response carrying the same cumulative usage; summing every record instead of deduplicating by request and message id inflated everything. A reported $1,568.88 for one window corrected to $478.40. Several structural claims flipped: subagents were about 13% of spend, not 1%; gate output was about 4%; a claimed 46% saving was withdrawn.
 
-**Tier 2, a frozen baseline, committed before anything changes.** Run the corrected meter over a window before the pack ships anything, and commit the result as `docs/USAGE_BASELINE.md` with the exact script version that produced it. A baseline written after the change is not a baseline.
+**What the corrected measurement suggests, with uncertainty attached:** cache writes are the largest cost component, driven by large single tool results and by returning to a large context after the cache lifetime lapsed. Thirteen of twenty-two large writes followed a gap past the lifetime; the rest remain unattributed.
 
-**Tier 3, per merged batch, not per day.** The work is batch-shaped, and a day-over-day comparison is confounded by how heavy any given day happened to be. The metric is quota percentage points per merged batch, not per calendar day. But one batch is not a controlled unit either: two batches differ in complexity, other account activity shares the same quota, reset boundaries fall wherever they fall, and a small real effect can hide inside the resolution of a percentage. So Tier 3 is repeated comparisons of similar work, and every comparison records completion quality, runtime, and interventions beside quota. Reduced context is only a win if the developer still got the necessary result.
+**Still open:** the meter (`scripts/token-cost.mjs`) passes 42 hand-computed fixture checks but does not yet reproduce the investigation's own figure for September 14 to 15 (DECISIONS.md O2). No baseline is recorded with an untrusted meter.
 
-**The scorecard**, so a null result is attributable rather than mysterious. Every counter below comes from the plan's own transcripts, not from a reconstruction:
+### How claims get checked, in three tiers
+- **Tier 1, real quota.** The status line logs `rate_limits.five_hour` and `rate_limits.seven_day` when the payload carries them (logged as null, never 0, when absent). The per-model weekly bar in `/usage` is not in the payload and is recorded by hand.
+- **Tier 2, a frozen baseline** committed before anything changes, with the meter version that produced it. Blocked on O2.
+- **Tier 3, comparisons of similar work,** with completion quality, runtime, and interventions recorded beside quota. One batch supports "demonstrated" or "not yet demonstrated", nothing stronger. "Batch" gets a written definition before the first comparison (O3).
 
+### Scorecard
 | Fix | Counter | Baseline | Target |
 |---|---|---|---|
-| Hook fix | Starting context tokens | Reproduce from fixture: original awk vs repaired awk on the same lessons file | The first draft estimated about 27K from bytes/4; do not state a number until re-measured with `claude plugin details` or `count_tokens` |
+| Hook fix | Starting context tokens | Reproduce from fixtures; measure with `claude plugin details` | No number until measured |
 | No large file reads | Results over 50KB per batch | 433 to 476KB reads observed | Zero over 200KB |
 | Idle-gap discipline | Cache writes of 50K+ tokens per batch | 26 events, 7.59M tokens | Under 5 |
-| Idle-gap discipline | Share following a TTL-expiring gap | 13 of 22 | Under 3 |
+| Idle-gap discipline | Share following a lifetime-lapsing gap | 13 of 22 | Under 3 |
 | Gate wrapper | Gate bytes entering context | About 214KB of 5.48MB | Under 20KB |
 | Subagent discipline | Subagent share of spend | 13% | Flat, same work done |
 
-**The failure condition, stated in advance and sized honestly.** After one batch, if the Tier 3 counters move and Tier 1 quota does not, the correct label is "quota benefit not yet demonstrated," not "the fixes did not matter." One batch cannot carry that conclusion. If the pattern holds across several comparable batches, with other account activity and reset boundaries accounted for, then the reconstructed cost model is not tracking what the plan actually meters, and the work should rebuild on Tier 1 alone rather than keep optimizing a proxy. No published formula translates cost to plan consumption, so this is a live possibility, not a formality, which is why Tier 1 is logged from Day 1: to make the question answerable in days rather than weeks. A fix that moves its own counter but never moves the number that actually matters is a fix that did not matter, and this scorecard is what makes the difference visible instead of silent.
+**The failure condition, stated in advance:** if the Tier 3 counters move across several comparable batches and Tier 1 quota does not, the reconstructed cost model is not tracking what the plan meters, and the work rebuilds on Tier 1 alone.
 
-**The hook is already fixed, so tomorrow's baseline is not its "before."** Preserve both awk forms as fixtures with a sample lessons file and a test that runs them side by side, so the before-and-after is reproducible by anyone. The Tier 2 baseline then covers the state after the hook fix, and measures the effect of everything that ships next.
-
-### What this pack ships as
-
-- `skills/context-hygiene/SKILL.md`: the behavioral rules that survived correction (end sessions deliberately rather than clearing mid-task or letting a large context idle past the cache time-to-live; never load a large file raw, summarize or grep it on disk; batch independent shell commands; fan-out reads belong in subagents, which are real cost, not free workers).
-- `hooks/session-start-checklist.sh`: the fixed, bounded version of the awk script. The one component shipped with full confidence.
-- `scripts/token-cost.mjs`: a corrected usage meter, deduplicated by request and message id, walking subagent transcripts, with an explicit timezone. It ships with a fixture set of synthetic transcripts with known expected totals (duplicate records, separate requests, subagent records, each cache-usage category) and a test that asserts them, so "we corrected our measurement" is something a stranger can verify by running one command, not something they take on the word of a second model that read the same transcripts. Then it reproduces a real window. Shipping the meter and its tests, not just a number it once produced, is the point.
-- `hooks/statusline-quota.sh`: a status line that logs the two quota windows the payload carries (`five_hour`, `seven_day`), records an absent object as unavailable, and prints a standing reminder that the per-model weekly window has to be read from `/usage` by hand. Any reconstructed dollar figure, if shown at all, is labeled reconstructed and secondary.
-- `hooks/config-drift-check.sh`: flags when a settings file's declared model or version does not match what the running session actually reports, since this investigation caught exactly that kind of silent drift by accident.
-- `scripts/gate.mjs`: wraps the existing test or verify command rather than duplicating a second list of checks that will drift from it, preserves the real exit status, writes complete output to a log, and prints one deterministic summary. This is what the scorecard's "gate bytes entering context" counter measures.
-- `scripts/setup.mjs`: the setup step. Shows the diff it would make to `~/.claude/settings.json` (status line) and offers the `CLAUDE.template.md` snippet for the project's own `CLAUDE.md`, backs up before writing, applies only on `--apply`, and restores from backup on `--undo`. Because a plugin cannot set these itself, this is what turns "installed" into "working."
-- `CLAUDE.template.md`: a trimmed, table-shaped snippet a team merges into its project `CLAUDE.md` via the setup step, kept honest about which rules in it are enforced by a hook and which depend on a person choosing to follow them. Behavioral rules that must load into the model's context ship in the skill, not here.
-
-### The honesty rule for this pack's evidence, non-negotiable
-
-Do not put a specific dollar figure or percentage saving on this pack's evidence card, in the README, in the one-pager, or in the recording, unless it was produced by the corrected meter and cross-checked the way this investigation was cross-checked. The story of catching a 3.28x error reads as more credible in front of a security-literate evaluator than a clean, unverified number ever would. Say plainly what is known for certain (the hook fix), what is still being narrowed (cache-write causes), and what tool exists so the customer never has to trust anyone's arithmetic (the corrected meter).
+### The honesty rule, non-negotiable
+No dollar figure or percentage saving on a card, in the README, in a one-pager, or in the recording unless the corrected meter produced it and it was cross-checked. Say plainly what is known (the hook fix), what is still being narrowed (cache-write causes), and what tool exists so nobody has to trust anyone's arithmetic (the meter and its fixtures).
 
 ---
 
-## 6. Second pack, if time allows (optional, Day 4 onward)
+## 7. Onboarding
 
-`wording-guard`: enforces a client's restricted-wording list (phrases the product may never use in its copy) in AI-produced copy. Kept in the plan because its acceptance check is a zero-cost regex over produced text, which makes it cheap to prove and a good second data point that the packaging system generalizes past the flagship. Cut without guilt if Days 1 through 3 run long.
+**The new hire's path, simplest first:**
+1. **Zero commands:** the company commits `.claude/settings.json` from `templates/project-settings.json` (generated by `skillgate project-settings`) into its repositories. Opening and trusting one in Claude Code offers the company marketplace, with auto-update on and the base plugins enabled. Documented behavior; exercised on a clean machine on Day 3.
+2. **One command:** `claude plugin marketplace add <company>/<fork>` then install the plugins, for people outside a company repository.
+3. **Then, once per repository:** `skillgate harness --apply` writes the instructions block into `CLAUDE.md` and `AGENTS.md`; `node scripts/setup.mjs --apply` adds the quota status line; `skillgate doctor` reports what is working in plain language.
 
----
-
-## 7. The onboarding one-pager
-
-One page, per pack, structured the same way every time so a person who has read one has read them all:
-
-1. What this pack does, in one sentence.
-2. What changes on your machine the moment you install it (be exact: which files, which settings, which hooks).
-3. What you'll notice day to day (the quota status line, shorter session starts, gate output landing in a log file instead of the conversation).
-4. What you're still responsible for (the behavior-dependent habits from Section 5, named as habits, not guarantees).
-5. Who to ask, and how to propose a change to the pack.
-6. The question a technical evaluator or a skeptical engineer asks first: why not build this ourselves. Answer it directly, in the README, not just in a sales conversation: you can, this exists so you do not start from zero, it is time-tested against a real measured problem with real numbers behind it, and forking it to make it yours is the intended path, not a fallback.
-
-Written twice in tone, not content: a "for your first week" pass with no jargon, and a "for the person maintaining this" pass with the file paths and commands. Same facts, different reader.
+**The one-pager per plugin,** same structure every time: what it does in one sentence; what changes on your machine (exact files, settings, hooks); what you will notice day to day; what you are still responsible for (instructed habits, named as habits); who to ask and how to propose a change; why not build this yourself. Written twice in tone: a first-week version with no jargon, and a maintainer version with paths and commands.
 
 ---
 
-## 8. Packaging and plumbing (condensed from the original plan)
+## 8. Packaging, updates, and trust
 
-This section exists to make Package and Harness safe to hand to a whole company, not to be the pitch.
-
-- Each pack lives at `packs/<pack>/plugins/<plugin>/`, installed through Claude Code's native plugin and marketplace system (`.claude-plugin/marketplace.json`, `/plugin marketplace add`, `/plugin install`).
-- A proposal is a pull request. CI runs `claude plugin validate` and, where the pack has behavior to test, `claude plugin eval`, and commits the result under `evidence/<commit-sha>/`. Claude Code's own eval command already produces the with-plugin vs without-plugin comparison; Skillgate does not rebuild that.
-- A release binds an approval to an exact commit SHA and content hash, not a branch name. The marketplace entry is pinned by SHA, not just by ref, because a ref-only pin is silently mutable.
-- `skillgate verify` hashes what actually got installed on a machine and compares it against the release record: VERIFIED, TAMPERED, UNKNOWN VERSION, or WITHDRAWN. Withdrawing a release removes it from the catalog; it does not, and must never be described as, disabling copies already installed elsewhere.
-- `claude plugin eval` runs in isolation: no personal or project settings, hooks, or `CLAUDE.md` load. A passing eval proves the skill steers the model; it proves nothing about whether the setup step, an existing status line, and a developer's own hooks coexist on a real machine. The fresh-install walkthrough (Day 6) is the only test of that, and it must end with a clean removal (`skillgate setup --undo`, `claude plugin uninstall`). For any eval run against client material, pass `--no-publish` and review the report before anything reaches the public repo.
-- Where the commands live: `setup`, `gate`, and the meter exist today as `scripts/*.mjs`. `evidence`, `release`, and `verify` are built on Days 2 and 3 and do not exist at clock start. Nothing in this plan should be read as claiming they already work.
-- Personal skills outside the pack are never touched. This is what keeps "harnessing" from feeling like surveillance: the pack governs what the company ships, not what an individual does on their own.
+- Each pack lives at `packs/<pack>/plugins/<plugin>/` and is listed in `.claude-plugin/marketplace.json`.
+- **Every plugin change bumps the plugin's `version`;** installed copies only update when it changes.
+- A proposal is a pull request. CI runs `claude plugin validate --strict`, the repository's tests, `scripts/scrub-check.sh --history`, and `claude plugin eval` where a plugin has behavior to test, and commits the result under `evidence/<commit-sha>/`.
+- A release binds an approval to an exact commit SHA and content hash. The released marketplace entry is pinned by `sha`, because a ref-only pin is silently mutable.
+- `skillgate verify` hashes what is installed and compares it with the release record: VERIFIED, TAMPERED, UNKNOWN VERSION, or WITHDRAWN. Withdrawing a release removes it from the catalog; it does not disable copies already installed, and is never described as doing so.
+- `claude plugin eval` runs in isolation from personal settings and hooks. A passing eval proves a skill steers the model; it proves nothing about coexistence on a real machine. The fresh installs (Days 3 and 6) are the test of that, and each ends with a clean removal.
+- Personal skills are never touched. The pack governs what the company ships, not what an individual does on their own.
 
 ---
 
 ## 9. Security review
 
-The evaluator asked directly for penetration testing and a security review of how skills are packaged and distributed. Keep this section even though it is not the headline.
-
-**Scope statement, verbatim in the report:** this is a targeted security review of Skillgate's own release and installation path, performed in disposable repositories and environments. It is not a penetration test of the evaluator, any client, or any production system, and it is not independent certification.
-
-**Attack cases:**
+**Scope statement, verbatim in the report:** this is a targeted security review of Skillgate's own release, update, import, and installation paths, performed in disposable repositories and environments. It is not a penetration test of the evaluator, any client, or any production system, and it is not independent certification.
 
 | # | Attempt | Expected result | What it teaches |
 |---|---|---|---|
-| A1 | A pack whose eval suite scores a perfect result while its hook reads a dummy secret from the environment and writes it out | Eval passes. The hook still ran, because hooks execute as the user, outside the eval sandbox. | A passing test suite is not a safety guarantee. |
-| A2 | Approve at commit A, push commit B to the same branch, install from a ref-only entry and from a SHA-pinned entry; then modify a file in the installed copy of A | Ref-only entry installs B. SHA-pinned entry keeps installing A (the docs say the pinned commit is checked out directly; that is the protection working, not a refusal). `skillgate verify` reports three distinct states: approved A installed = VERIFIED; unapproved B installed = UNKNOWN VERSION; A's files modified after install = TAMPERED. | A branch pin is not an approval, and "unapproved" and "tampered" are different failures with different remedies. |
-| A3 | A path in a plugin manifest that tries to escape the plugin directory | Rejected by the platform's own loader. | Confirm native controls actually hold before claiming credit for them. |
-| A4 | Release attempted without a required review passing, and separately, an attempt to run the release workflow from a branch or identity that should not hold release credentials | Branch protection refuses the merge. The release job itself, under environment protection, refuses to run without an approved deployment and never exposes the publish credential to the eval job. Branch protection alone proves nothing about who can publish; the actual workflow and its credentials are what get tested. | Authorization is checked by the system that receives the action, never by what a screen displays. |
-| A5 | A withdrawn release, still installed, run again | It still runs. `verify` reports WITHDRAWN. | Withdrawal is not revocation; never imply otherwise in the docs. |
+| A1 | A pack whose eval scores perfectly while its hook reads a dummy secret from the environment and writes it out | Eval passes; the hook still ran, as the user | A passing test suite is not a safety guarantee |
+| A2 | Approve commit A, push commit B to the branch; install from a ref-only entry and a SHA-pinned entry; modify a file in the installed copy of A | Ref-only installs B; SHA-pinned keeps A; verify reports VERIFIED, UNKNOWN VERSION, and TAMPERED for the three states | A branch pin is not an approval; unapproved and tampered are different failures |
+| A3 | A manifest path that tries to escape the plugin directory | Rejected by the platform loader | Confirm native controls hold before claiming credit |
+| A4 | Release without a passing review, and release attempted from an identity that should not hold release credentials | Branch protection refuses the merge; the release job refuses without an approved environment and never exposes the credential to the eval job | Authorization is checked by the system that receives the action |
+| A5 | A withdrawn release, still installed, run again | It still runs; verify reports WITHDRAWN | Withdrawal is not revocation |
+| A6 | A malicious hook merged into a company fork with auto-update on | Measure how fast it reaches a second machine, and whether SHA pinning plus verify catches it | Auto-update turns one bad merge into every machine's problem; the release gate is the control |
+| A7 | `skillgate import` of a personal skill containing a secret-shaped string and a client name | Import refuses, names the file and rule, never prints the secret | The easiest leak is a helpful skill copied without reading |
+| A8 | Guardrails bypass attempts: compound commands, quoting, `git -c`, aliases | Documented as caught or not caught, per case | A guard is only as good as the cases it was tested against; say which were not |
 
 Report structure: scope, threat model, each case's setup and result, fixes and retests, and a closing list of what was not tested and why.
 
@@ -177,68 +169,74 @@ Report structure: scope, threat model, each case's setup and result, fixes and r
 
 ## 10. Schedule with gates
 
-**Day 0 (the evening of September 15; anything not done rolls into the first hour of Day 1).** Confirm `claude --version` is 2.1.269 or later and that `claude plugin eval --help` responds. Confirm your machine's sandbox backend. Decide the CLI language (TypeScript, for the Node-native fit with the plugin ecosystem, per our earlier conversation) and the license. Reply to the evaluator naming September 16 as the clock start.
+**Day 1 (September 16), done except as noted.** Meter fixture test passes; hook fix packaged and its test exercises the shipped script; status line tested (present, absent, jq missing, log unwritable); public repository scrubbed and pushed; v3 direction set. Open and owner-dependent: meter reproduction (O2), the live status-line session check, the hand-recorded `/usage` numbers, and observing the SessionStart hook in a live session (O6).
 
-**Day 1.** In this order. Run the meter's fixture test and make it pass. Reproduce the known real-window figures with it. Only then commit the Tier 2 baseline (`docs/USAGE_BASELINE.md`) with the meter's script version, before anything else changes. Run `scripts/setup.mjs` (show, apply, undo, confirm byte-identical, apply again and leave it on) so the status line is logging `five_hour` and `seven_day`; if the payload lacks them on your account, note that in the baseline and record by hand. Record the per-model weekly percentage from `/usage` by hand regardless. Pull the fixed hook and the trimmed `CLAUDE.md` shape out of the live client-project investigation and into the `context-hygiene` pack structure. Commit both awk forms as fixtures and run the side-by-side hook test so the before-and-after is reproducible. Write the onboarding one-pager's first draft.
-Demo: the committed baseline, the passing meter test, the packaged hook fix verified with a fresh session, the status line logging `five_hour` and `seven_day`, and the per-model weekly number recorded by hand from `/usage`.
+**Day 2 (September 17). The base pack is real.** `workflow` (dispatch, maintain, handoff, review) and `guardrails` merged with their tests; `skillgate` CLI (`doctor`, `harness`, `project-settings`, `new-skill`, `import`); every plugin validates with `--strict`; guardrails proven to block in a live Claude Code session, not only in fixtures; the harness block applied to this repository itself. First `claude plugin eval` cases for `review` and `handoff`.
+Demo: a live session where a force-push to main is blocked with a plain-language reason, a review of a real working tree, and a handoff that the next session shows automatically.
 
-**Day 2.** Harden `scripts/setup.mjs` against a settings file that already has a status line (chain, don't clobber) and wire the gate wrapper (`scripts/gate.mjs`) into the pack. Start `skillgate evidence` and the release record writer. Test the gate wrapper both ways: a passing run prints one summary line, a deliberately broken run prints the failure and a log path and exits non-zero. Open the pack as a pull request; CI runs validate and, where applicable, eval; evidence is committed against the PR's commit SHA.
-Demo: `setup --apply` then `setup --undo` leaving the settings file byte-identical, the status line logging a real quota read, and the gate wrapper catching a real failure.
+**Day 3 (September 18). The fork-and-extend loop.** A rehearsal fork adds a company plugin with `new-skill` and `import`; release pins it by SHA; a clean machine or user joins through the team settings with auto-update on; a new company skill arrives by auto-update; `skillgate verify` passes, then catches a tampered file.
+Demo: fork, add, release, auto-update, verify, tamper. This is the minimum credible submission.
 
-**Day 3.** Merge, release, pin by SHA. Fresh install on a clean machine or directory. `skillgate verify` passes. Tamper a file in the installed cache; `verify` catches it.
-Demo: install to verify to tamper, the full loop. This is the minimum credible submission; everything after this is additive.
+**Day 4 (September 19). Real use.** The base pack in the owner's own software for a full working day; Tier 3 comparison where the meter allows; friction recorded and fixed. Codex support stated per feature from verified documentation.
 
-**Day 4.** Put the pack into real use on ongoing client-project work: the first real batch since the Tier 2 baseline. Run the Tier 3 comparison and check every row of the scorecard against it, recording completion quality, runtime, and interventions beside quota. One batch yields "demonstrated" or "not yet demonstrated," nothing stronger. If time allows, start the `wording-guard` pack as the second proof point.
+**Day 5 (September 20). Security day.** A1 through A8 in disposable repositories. Fix what is fixable. Draft the report.
 
-**Day 5.** Security day. Run A1 through A5 in a disposable repo. Fix what is fixable. Draft the report.
+**Day 6 (September 21). A non-technical second person** installs the company environment fresh on their own machine using only the README and the one-pager, builds something small, commits it through review and guardrails, writes a handoff, then removes everything cleanly and confirms their configuration is back to what it was. Every point where they got stuck is fixed; the friction log is part of the submission.
 
-**Day 6.** A second person installs the pack fresh on their own machine, using only the one-pager and the README, runs the setup step, gets useful behavior, then removes it cleanly (`setup --undo`, `plugin uninstall`) and confirms their configuration is back to what it was. Fix every point where they got stuck. That friction log, including the removal, becomes part of the submission.
-
-**Day 7.** No new work. Recording, the note, the security report, a limitations section, final pass on the one-pager for an inheritor who was not in the room this week, and an explicit statement of what Tier 1 showed: demonstrated, not yet demonstrated, or contradicted, with the batch count behind it. The submission stands on the honesty of that statement, not on which of the three it is.
+**Day 7 (September 22). No new work.** Recording, the note, the security report, limitations, a final pass on every one-pager for a reader who was not in the room, and an explicit statement of what Tier 1 showed: demonstrated, not yet demonstrated, or contradicted, with the batch count behind it.
 
 ---
 
 ## 11. What you will teach them
 
-1. **The bug that was quietly taxing every session.** A one-line `awk` mistake injecting far more of a lessons file into every session than intended. Concrete, fixable, verified twice, and it happened on a real project.
-2. **Your own first measurement was wrong, and catching it is the actual lesson.** A 3.28x accounting error in how token usage was summed, caught by an independent model cross-check rather than by re-reading the same script. Several confident claims from the first pass, including which mechanism was expensive and by how much, did not survive. Teaching evaluators that verifying your own tooling's claims matters more than the size of a savings number is a stronger moment than a clean, unchecked statistic would have been.
-3. **A passing test is not a safety guarantee.** A1 from the security review, live: a pack that scores perfectly on its eval while its hook quietly reads a secret. Passing behavior tests and being safe are different claims.
-4. **The failure condition was written down before the result was, and sized to what one week can prove.** The scorecard states in advance what would eventually prove the cost model wrong: proxy counters moving, repeatedly, while the real quota number does not. It also states what one batch can say, which is only "demonstrated" or "not yet." Naming the disproof before running the test, and refusing to overclaim from a single run, is what turns a measurement into something other than a marketing claim.
+1. **A skill copied is a skill forked.** One in-house skill in sixty copies across six versions, nobody sure which was current. Distribution with versions is not bureaucracy; it is how a team knows what it is running.
+2. **The bug that quietly taxed every session,** and the second bug hiding in its fix: a test that certified a copy of the code instead of the code that shipped.
+3. **The first measurement was wrong, and catching it is the lesson.** A 3.28x accounting error caught by an independent cross-check, and a meter that still refuses to be believed until it reproduces a known figure.
+4. **Enforced versus instructed.** Instructions steer a model; hooks bind it. A product that tells a non-technical team it is "safe" has to say which is which.
+5. **A passing test is not a safety guarantee** (A1), and **auto-update is a supply chain** (A6).
 
 ---
 
 ## 12. Submission package
 
-- Runnable: the pack, installable with one marketplace add and one install command, plus the plumbing behind it.
-- The one-pager, in both its first-week and maintainer forms.
-- Recording, eight to twelve minutes: the real cost investigation and the bug, the packaged fix, install, verify, tamper, the security case, the second install by someone else.
-- The note: what it is, what you would do next (a second and third pack, an org-wide adoption view, per-team customization of the harness rules), what you learned (Section 11, plus anything that surprised you this week).
+- Runnable: the base pack and the onboarding CLI, installable with one marketplace add, plus the release and verify plumbing.
+- A rehearsal company fork showing fork, extend, release, auto-update, verify.
+- The one-pagers, in first-week and maintainer forms.
+- Recording, eight to twelve minutes: the drift problem, the base pack in a live session (guardrail block, review, handoff), the fork-and-extend loop, the security cases, the non-technical person's install, and the honest state of the usage evidence.
+- The note: what it is, what you would do next, what you learned.
 
 ---
 
 ## 13. Do not
 
 - Build a web dashboard or anything with a login.
-- Rebuild `claude plugin eval`. Use it.
-- Claim this changes a model's maximum context window. It changes what gets loaded and paid for.
-- Put any specific dollar figure or percentage saving on a card, in the README, or in the recording that was not produced by the corrected meter (`scripts/token-cost.mjs`) and cross-checked. The investigation's first pass was wrong by 3.28x; treat every number from it as provisional until re-measured.
+- Rebuild `claude plugin eval`, `claude plugin init`, or marketplace auto-update. Use them.
+- Describe an instructed behavior as enforced, or a documented behavior as verified before it has been run.
+- Claim this changes a model's maximum context window.
+- Put a dollar figure or percentage saving anywhere that the corrected meter did not produce and a cross-check did not confirm.
 - Call the security review a penetration test of the evaluator or any client.
-- Touch unrelated client automation work this week.
-- Let a gate ship wide enough that its first false positive gets it disabled.
-- Trust or publish any fix's effect before the Tier 2 baseline is committed and Tier 1's quota logging path is confirmed working. A baseline written after the change is not a baseline.
-- Say or imply that installing the plugin configures everything. It installs the skill and the hook. The status line, any defaults, and project instructions are applied by the setup step, visibly and reversibly, or not at all.
-- Conclude from one batch that the fixes did or did not matter. One batch supports "demonstrated" or "not yet demonstrated" and nothing stronger.
+- Put client material, client names, or personal names anywhere in this repository. Run `scripts/scrub-check.sh --history` before every push.
+- Edit `packs/base/` in a company fork; extend beside it.
+- Change a plugin without bumping its version.
+- Let a guardrail ship so wide that its first false positive gets it switched off.
+- Conclude from one batch that a fix did or did not matter.
 
 ---
 
 ## 14. Verified facts this plan relies on (as of September 16, 2026)
 
-- `claude plugin eval` exists from Claude Code v2.1.269 onward: runs a plugin's behavior against test cases, compares with-plugin and without-plugin results, and writes a JSON and HTML report.
-- Git-based plugin sources accept both a ref and a SHA; when both are set, the SHA is the effective, immovable pin.
-- The plugin loader and marketplace validator reject manifest paths that try to escape the plugin directory.
-- Plugin hooks and MCP servers run as the user, outside the eval sandbox; a passing eval suite does not certify that a plugin's hooks are safe.
-- The dollar and token figures originally drafted for Section 5 were checked and found wrong by 3.28x, due to a JSONL deduplication error; Section 5 above reflects the corrected investigation as of September 15. Treat even the corrected figures as provisional until `scripts/token-cost.mjs` runs clean and reproduces them independently.
-- The status line payload carries `rate_limits.five_hour` and `rate_limits.seven_day` on Pro and Max plans (each with `used_percentage` and `resets_at`), appearing after the first response of a session; users have reported the object absent at times, so the logger treats a missing field as unavailable. The model-specific weekly window shown as a third bar in `/usage` is not in the payload (open issue, September 3, 2026) and must be recorded by hand.
-- A plugin's `settings.json` supports only the `agent` and `subagentStatusLine` keys, and a `CLAUDE.md` at the plugin root is not loaded as project context. Main-session status line, defaults, and project instructions require the setup step.
-- A SHA-pinned git plugin source checks out the pinned commit directly, so it keeps installing the approved commit after the branch moves; it does not refuse. Verified in the marketplace docs; this corrects an earlier draft of A2.
-- `claude plugin details <name>` reports a plugin's always-on and on-invoke token cost using the `count_tokens` API. Use it, not bytes divided by four, for any token figure on a card.
+From official Claude Code documentation, quoted by a research pass, unless marked as run here:
+- **Run here:** Claude Code 2.1.273 (the editor-bundled binary) has `claude plugin eval`, `claude plugin details` (component inventory and projected token cost), and `claude plugin init`. The terminal binary on this machine is 2.1.92, which has none of the three.
+- **Run here:** `claude plugin validate --strict` passes for `context-hygiene` and `workflow` on 2.1.273.
+- A project's `.claude/settings.json` can declare `extraKnownMarketplaces` (with `autoUpdate`) and `enabledPlugins`; after a person trusts the folder, the marketplace is added. Plugins from an external source still need an install; plugins with relative paths inside the marketplace can be enabled directly.
+- Managed settings can allowlist or block marketplaces (`strictKnownMarketplaces`, `blockedMarketplaces`) and force `enabledPlugins`; nothing below managed settings overrides them.
+- Marketplace auto-update is on by default for the official marketplace and off by default for others; it is toggled per marketplace. If a plugin sets `version`, installed copies update only when it changes. Checks run after a session starts, with a random delay of up to ten minutes; `claude plugin update` says a restart is required to apply.
+- Git plugin sources accept `ref` and `sha`; when both are set, `sha` wins.
+- Plugin skills are always namespaced (`/plugin:skill`); personal skills live in `~/.claude/skills/`, project skills in `.claude/skills/`. Plugin skills require `name` in frontmatter. `${CLAUDE_SKILL_DIR}` resolves to a skill's own folder.
+- Plugins can declare `dependencies` on other plugins, and `userConfig` options exposed to hooks as `CLAUDE_PLUGIN_OPTION_<KEY>`. `CLAUDE_PLUGIN_DATA` is a persistent per-plugin data directory.
+- PreToolUse hooks receive `tool_name` and `tool_input.command` for Bash and can deny with `hookSpecificOutput.permissionDecision` and a reason. SessionStart stdout is added to the model's context; no size cap is documented. Default command hook timeout is 600 seconds and can be set per hook.
+- Plugin hooks and MCP servers run as the user, outside the eval sandbox; a passing eval does not certify that a plugin's hooks are safe.
+- A plugin's `settings.json` supports only a small set of keys, and a `CLAUDE.md` inside a plugin is not loaded as project context, which is why the harness block and the status line are applied by explicit, reversible commands.
+- The status line payload carries `rate_limits.five_hour` and `rate_limits.seven_day` on Pro and Max plans after the first response; observed present on this machine on September 16. The model-specific weekly window is not in the payload.
+- **Codex (official OpenAI documentation, fetched September 16):** skills follow the open Agent Skills standard (agentskills.io) with required `name` and `description`; Codex scans `.agents/skills` from the working directory up to the repository root and `~/.agents/skills` for the user, follows symlinked skill folders, and does not merge same-name skills. The skills list is capped at 2% of the context window. `AGENTS.md` is read from `~/.codex` and from the repository root down to the working directory, capped by `project_doc_max_bytes` (32 KiB by default; the docs disagree on whether that cap is per file or combined). Codex hooks include `SessionStart` (stdout added as context) and `PreToolUse` (deny via `permissionDecision`), load from `~/.codex/hooks.json` or a trusted repository's `.codex/hooks.json`, and run only after the person reviews and trusts each hook's exact definition. Codex sets `CLAUDE_PLUGIN_ROOT` and `CLAUDE_PLUGIN_DATA` for compatibility. `codex plugin marketplace add owner/repo` exists; plugins are not available in the Codex IDE extension. Codex does not read `CLAUDE.md` at runtime. **Run here:** Codex CLI 0.154.0-alpha is bundled with the desktop app and the IDE extension on this machine.
+- **Not yet verified by running:** the `ask` permission decision; auto-update end to end on a clean machine; team settings on a clean machine; any Codex behavior above.
