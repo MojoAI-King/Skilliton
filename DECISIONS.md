@@ -275,3 +275,11 @@ Details recorded from the lane's report, measured:
 **Alternatives rejected:** Local checks only (nothing stops an unchecked merge).
 **Risk:** A green run that checked nothing. The first run (GitHub run 35131047580, 36 seconds) was opened step by step: every suite printed its passing result, including guardrails 246 of 246 and the handoff hook 104 of 104 on Linux (bash 5.2, git 2.55), which closes the "only tested on macOS" items both hook lanes reported. The private name scan printed NOT RUN and INCOMPLETE with a warning annotation, never a pass.
 **Reversibility:** EASY.
+
+<!-- skillgate:index:decisions:start -->
+Decision entries in `docs/decisions/`, sorted by ID. `skillgate index` writes this list from the entries; edit the entries, not the list.
+
+| ID | Title | Status | Date |
+|---|---|---|---|
+| [2026-09-16-new-decisions-and-lessons-in-this-reposi-35d6](docs/decisions/2026-09-16-new-decisions-and-lessons-in-this-reposi-35d6.md) | New decisions and lessons in this repository are entry files | accepted | 2026-09-16 |
+<!-- skillgate:index:decisions:end -->

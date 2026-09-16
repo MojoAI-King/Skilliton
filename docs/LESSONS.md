@@ -185,3 +185,12 @@ Kind: Living. This repository's own lessons, specific and technical, in the form
 3. **The fix:** the same case at the same commit with `--judge-model sonnet` passed all three with-plugin runs and failed a without-plugin reply that really omitted a rubric element; docs/MAINTAIN.md step 4 now passes `--judge-model sonnet`.
 4. **The rule:** before changing a skill or a rubric over an llm check, read the reply; when the judge is wrong, test a stronger judge on the same case and check that it still fails what should fail.
 5. **What now enforces it:** the recorded command in docs/MAINTAIN.md step 4 and the notes requirement to diagnose every failed check from its transcript; nothing checks the judge model automatically.
+
+<!-- skillgate:index:lessons:start -->
+Lesson entries in `docs/lessons/`, sorted by ID. `skillgate index` writes this list from the entries; edit the entries, not the list.
+
+| ID | Title | Status | Date |
+|---|---|---|---|
+| [2026-09-16-decisions-and-lessons-went-into-the-mono-0925](lessons/2026-09-16-decisions-and-lessons-went-into-the-mono-0925.md) | Decisions and lessons went into the monoliths although the instructions say entry files | accepted | 2026-09-16 |
+| [2026-09-16-the-lanes-not-verified-lists-lived-only-c61d](lessons/2026-09-16-the-lanes-not-verified-lists-lived-only-c61d.md) | The lanes' not-verified lists lived only in worktrees marked removable | accepted | 2026-09-16 |
+<!-- skillgate:index:lessons:end -->
