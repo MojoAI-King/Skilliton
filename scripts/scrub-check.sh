@@ -7,7 +7,7 @@
 #   3. an absolute home-directory path (macOS or Linux style)
 #
 # The denylist is NOT in this repo, because a list of names to keep out of the repo is itself
-# a list of names. It lives at $SKILLGATE_DENYLIST (default ~/.config/skilliton/denylist),
+# a list of names. It lives at $SKILLGATE_DENYLIST (default ~/.config/skillgate/denylist),
 # one case-insensitive extended regex per line, # for comments.
 # If the denylist is missing, the name scan did not run, and this script says so and exits 2.
 # A check that cannot run is never reported as a check that found nothing.
@@ -22,7 +22,7 @@
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$here/.." && pwd)"
-DENY="${SKILLGATE_DENYLIST:-$HOME/.config/skilliton/denylist}"
+DENY="${SKILLGATE_DENYLIST:-$HOME/.config/skillgate/denylist}"
 EN=$(printf '\xe2\x80\x93'); EM=$(printf '\xe2\x80\x94')
 HOMEPATH='(/Users|/home)/[A-Za-z0-9._-]+/'
 
@@ -45,14 +45,14 @@ scan_tree() {
   echo "scanned files: $(printf '%s\n' "$files" | wc -l | tr -d ' ')"
 
   if [ -f "$DENY" ]; then
-    hits=$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 grep ${PATH_MODE:+-H} -I -n -i -E -f <(deny_patterns) 2>/dev/null)
+    hits=$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 grep -H -I -n -i -E -f <(deny_patterns) 2>/dev/null)
     if [ -n "$hits" ]; then echo "FAIL names: $(printf '%s\n' "$hits" | wc -l | tr -d ' ') line(s)"; printf '%s\n' "$hits" | cut -d: -f1,2 | sed 's/^/  /'; fails=$((fails+1)); else echo "ok   names: 0 hits ($(deny_patterns | wc -l | tr -d ' ') patterns)"; fi
   fi
 
-  hits=$(printf '%s\n' "$files" | tr '\n' '\0' | LC_ALL=C xargs -0 grep ${PATH_MODE:+-H} -I -n -e "$EN" -e "$EM" 2>/dev/null)
+  hits=$(printf '%s\n' "$files" | tr '\n' '\0' | LC_ALL=C xargs -0 grep -H -I -n -e "$EN" -e "$EM" 2>/dev/null)
   if [ -n "$hits" ]; then echo "FAIL dashes: $(printf '%s\n' "$hits" | wc -l | tr -d ' ') line(s)"; printf '%s\n' "$hits" | cut -d: -f1,2 | sed 's/^/  /'; fails=$((fails+1)); else echo "ok   dashes: 0 hits"; fi
 
-  hits=$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 grep ${PATH_MODE:+-H} -I -n -E "$HOMEPATH" 2>/dev/null)
+  hits=$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 grep -H -I -n -E "$HOMEPATH" 2>/dev/null)
   if [ -n "$hits" ]; then echo "FAIL home paths: $(printf '%s\n' "$hits" | wc -l | tr -d ' ') line(s)"; printf '%s\n' "$hits" | cut -d: -f1,2 | sed 's/^/  /'; fails=$((fails+1)); else echo "ok   home paths: 0 hits"; fi
   return $fails
 }
