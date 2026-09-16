@@ -1,0 +1,126 @@
+{
+  "rehearsal": "company-release",
+  "steps": [
+    {
+      "id": "F1",
+      "label": "company fork with an approver key and a trusted signers file",
+      "status": "PASS",
+      "detail": "fork at ef4c522; trust add exit 0"
+    },
+    {
+      "id": "F2",
+      "label": "release 1.0.0 created, committed and signed; listed as approved",
+      "status": "PASS",
+      "detail": "sign exit 0; list exit 0; 1.0.0 approved"
+    },
+    {
+      "id": "C1",
+      "label": "clean Claude Code configuration installs the company plugins and verifies them",
+      "status": "PASS",
+      "detail": "marketplace add exit 0; installs workflow:0 guardrails:0 context-hygiene:0; verify exit 0 (all 3 company plugin install(s) on this client are VERIFIED against approved releases.)"
+    },
+    {
+      "id": "X1",
+      "label": "clean Codex home installs the company plugins and verifies them",
+      "status": "PASS",
+      "detail": "marketplace add exit 0; installs workflow:0 guardrails:0 context-hygiene:0; verify exit 0 (all 3 company plugin install(s) on this client are VERIFIED against approved releases.)"
+    },
+    {
+      "id": "P1",
+      "label": "a new application is prepared with the installed plugin's own runtime",
+      "status": "PASS",
+      "detail": "prepare exit 0; check exit 0; human text kept: true"
+    },
+    {
+      "id": "P2",
+      "label": "moving the company fork does not break the prepared project or verification",
+      "status": "PASS",
+      "detail": "installed runtime status exit 1 (0 or 1 is a completed evaluation); verify exit 0"
+    },
+    {
+      "id": "L1",
+      "label": "a lesson recorded in the project is proposed to the company fork, scrubbed",
+      "status": "PASS",
+      "detail": "record exit 0; propose exit 0; proposals: 1"
+    },
+    {
+      "id": "I1",
+      "label": "the improvement: review skill rule, template sentence, eval case, version bump, offline checks",
+      "status": "FAIL",
+      "detail": "workflow 0.3.0 to 0.3.1; offline checks packs.test.mjs:0 skillgate.test.mjs:0; eval STOP grader before true, after true"
+    },
+    {
+      "id": "I2",
+      "label": "release 1.1.0 created with its evidence and signed",
+      "status": "NOT RUN",
+      "detail": "an earlier required step failed (I1)"
+    },
+    {
+      "id": "U1",
+      "label": "the Claude Code environment receives the improved skill and verifies it",
+      "status": "NOT RUN",
+      "detail": "an earlier required step failed (I1)"
+    },
+    {
+      "id": "U2",
+      "label": "the Codex environment receives the improved skill and verifies it",
+      "status": "NOT RUN",
+      "detail": "an earlier required step failed (I1)"
+    },
+    {
+      "id": "M1",
+      "label": "the project applies the release's migration, rolls it back, and applies it again, keeping human text",
+      "status": "NOT RUN",
+      "detail": "an earlier required step failed (I1)"
+    },
+    {
+      "id": "T1",
+      "label": "a tampered install is reported TAMPERED with the file named, and a reinstall restores VERIFIED",
+      "status": "NOT RUN",
+      "detail": "an earlier required step failed (I1)"
+    },
+    {
+      "id": "A1",
+      "label": "an unauthorized release (unsigned bump with a changed hook, plus a tag signed by an untrusted key) reaches the environment and is not VERIFIED",
+      "status": "NOT RUN",
+      "detail": "an earlier required step failed (I1)"
+    },
+    {
+      "id": "R1",
+      "label": "rollback: the company removes the bad tag and reverts; the environment downgrades and verifies",
+      "status": "NOT RUN",
+      "detail": "an earlier required step failed (I1)"
+    },
+    {
+      "id": "W1",
+      "label": "withdrawal: a signed withdrawal makes the installed release WITHDRAWN",
+      "status": "NOT RUN",
+      "detail": "an earlier required step failed (I1)"
+    },
+    {
+      "id": "S1",
+      "label": "a skill folder holding a secret-shaped value is refused at import",
+      "status": "NOT RUN",
+      "detail": "an earlier required step failed (I1)"
+    },
+    {
+      "id": "D1",
+      "label": "removal: plugins uninstalled, managed content removed, records and history kept",
+      "status": "NOT RUN",
+      "detail": "an earlier required step failed (I1)"
+    }
+  ],
+  "notes": [
+    "eval before the improvement: exit 0; STOP grader passed: true",
+    "eval after the improvement: exit 0; STOP grader passed: true",
+    "eval evidence summary: exit 0",
+    "Security-review cases (PLAN.md section 8): ref drift and an unauthorized release reaching an environment (A1); exact approved content versus tampering (T1); withdrawn but installed code (W1); private material in a skill import (S1). Escaping manifest paths are covered by scripts/release.test.mjs; local guardrail bypass limits by scripts/guardrails.test.sh and the guardrails skill.",
+    "What this does not show: a malicious hook that an approver reviewed and signed would verify. Release verification proves the installed bytes are what was approved, not that what was approved is safe; review of executable files (hooks, bin, runtime) is the control for that."
+  ],
+  "meta": {
+    "Claude Code": "2.1.273 (Claude Code)",
+    "Codex": "codex-cli 0.154.0-alpha.6.2",
+    "Behavior eval": "run",
+    "Node": "v25.8.1"
+  }
+}

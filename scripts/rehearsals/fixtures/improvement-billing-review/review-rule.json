@@ -1,0 +1,5 @@
+{
+  "file": "packs/base/plugins/workflow/skills/review/SKILL.md",
+  "find": "- **Auth or permission code:** sign-in, sessions, tokens, roles, permissions, access checks, CORS.\n",
+  "replace": "- **Auth or permission code:** sign-in, sessions, tokens, roles, permissions, access checks, CORS.\n- **Company review rule, billing:** any change under `billing/` needs the payments lead's review before it merges. Name the payments lead as a required reviewer.\n"
+}
