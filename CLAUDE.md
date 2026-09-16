@@ -2,6 +2,8 @@
 
 Kind: Living.
 
+All preparation/security source, tests, demo, verification and archived design notes are in this checkout. Read docs/AUTOPILOT_START_HERE.md for the material index and docs/BUILD_GOAL.md for the full execution objective; no earlier chat or sibling worktree is required.
+
 Read PLAN.md v4 before doing anything. It is the canonical development-autopilot direction; its milestones supersede the older day-by-day scope. Then read docs/HANDOFF.md (where things stand), DECISIONS.md (every choice and the open items), docs/CONTRACTS.md (shared names and formats), and docs/LESSONS.md (what went wrong here and what now prevents it). docs/MAINTAIN.md lists this repo's own end-of-session steps.
 
 Rules for every session in this repo:

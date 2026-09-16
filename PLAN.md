@@ -2,7 +2,7 @@
 
 Kind: Living. Canonical product direction and delivery gates. Updated 2026-09-16 after the owner aligned the parallel build sessions.
 
-This version supersedes v3's product scope and day-by-day ordering. Earlier plans remain in Git history. Existing evidence and unresolved checks remain valid at their recorded scope; a new plan does not close them. There is one roadmap here. Prototype plans on other branches are implementation history, not competing instructions.
+This version supersedes v3's product scope and day-by-day ordering. Earlier plans remain in Git history. Existing evidence and unresolved checks remain valid at their recorded scope; a new plan does not close them. There is one roadmap here. Original prototype plans are archived under docs/history/autopilot-foundation/ as implementation history, not competing instructions. All source material is indexed in docs/AUTOPILOT_START_HERE.md; the saved execution objective is docs/BUILD_GOAL.md.
 
 ## 0. The product
 
@@ -64,7 +64,7 @@ Start with repository-local policy and existing reviewer/ownership configuration
 Keep two evidence types separate:
 
 - **Skill evaluation evidence:** whether a packaged skill behaved as intended in specified evaluation cases. Existing `scripts/evidence.mjs` writes this under `evidence/<commit>/`.
-- **Project security evidence:** what was assessed in a project, the mapped practice, actual supporting sources/artifacts, unresolved gaps, and whether the observation is still current. This exists as a local prototype, not an integrated main-branch feature.
+- **Project security evidence:** what was assessed in a project, the mapped practice, actual supporting sources/artifacts, unresolved gaps, and whether the observation is still current. Its standalone prototype scripts are present in this checkout; the current CLI and lifecycle do not yet invoke them.
 
 Use versioned framework references and explicit applicability decisions. The prototype has seven original practice summaries related to NIST SSDF 1.1 and OWASP ASVS 5.0.0. That is a starter baseline, not a whole-framework assessment. Broader OWASP, ISO and assessment guidance belong in reviewed catalog expansions, with permission for any restricted material and preserved attribution.
 
@@ -98,7 +98,7 @@ Withdrawal prevents future approval/distribution according to policy; it must no
 |---|---|---|
 | Base `workflow`, `guardrails`, `context-hygiene` plugins | Implemented on main | Repository fixtures, recorded workflow evaluations and one live headless force-push probe |
 | `doctor`, `harness`, `project-settings`, `new-skill`, `import` | Implemented on main | CLI tests; install/update rehearsal still open |
-| Prepare and project security runtime | Locally tested prototype on `codex/autopilot-foundation-0916` at `23aae41`; not integrated | 41 tests and synthetic stale-evidence walkthrough reported in that branch's verification record; rerun after integration |
+| Prepare and project security runtime | Standalone scripts/tests/demo imported from `23aae41` into this checkout; current CLI and lifecycle wiring still open | See evidence/autopilot-foundation/import-validation.md for local results; M1 still requires combined behavior proof |
 | Ongoing event-driven checkpoints and security refresh | Instructed in parts; integrated lifecycle not proven | Exercise actual supported client events and recovery behavior |
 | `release`, `verify`, approved update and tamper detection | Planned | Release schema exists; end-to-end distribution proof remains open |
 | Application merge enforcement | Target capability | Package CI is not a company's application merge gate |
@@ -140,4 +140,4 @@ First deliver a local-first, Git-backed system that a solo builder or small team
 
 Company device onboarding can install prerequisites and the approved tools; it cannot prove repository controls or application behavior by itself. Keep project rules in the repository and organizational authority with the company. No private client content, credential values or personal material goes into this public starter.
 
-Official platform behavior is verified per feature when implemented or changed. See the current platform documentation instead of carrying an untested list of capabilities forward from an older plan: https://code.claude.com/docs/en/plugin-marketplaces and https://developers.openai.com/codex/skills/ . Framework source/version research is recorded with the foundation prototype and must be rechecked for catalog expansion.
+Official platform behavior is verified per feature when implemented or changed. See the current platform documentation instead of carrying an untested list of capabilities forward from an older plan: https://code.claude.com/docs/en/plugin-marketplaces and https://developers.openai.com/codex/skills/ . Framework source/version research is preserved in docs/history/autopilot-foundation/PLAN.md and must be rechecked for catalog expansion.

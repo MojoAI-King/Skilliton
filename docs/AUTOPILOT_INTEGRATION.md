@@ -6,9 +6,11 @@ Kind: Living. Execution detail for PLAN.md v4, not a second roadmap. Updated 202
 
 The owner has aligned the product around the development autopilot: prepared repositories, routine workflow execution, durable project knowledge, continuous security evidence, and company-approved improvements. PLAN.md v4 supersedes the narrower v3 day ordering. Preserve working main-branch plugins, CLI, tests and evidence.
 
-The foundation at `codex/autopilot-foundation-0916`, commit `23aae41`, contains the work from `codex/security-evidence-0916`. The security script and tests match across both branches. Integrate the foundation once; do not independently merge both. Its older `docs/AUTOPILOT_PLAN.md` and `docs/AUTOPILOT_HANDOFF.md` are historical implementation notes, not new authorities to add beside PLAN.md v4.
+All foundation material is now in this working tree. Start at [AUTOPILOT_START_HERE.md](AUTOPILOT_START_HERE.md) for source files, tests, demo, verification, historical notes and the saved [build goal](BUILD_GOAL.md). No sibling folder, branch checkout or earlier chat is required.
 
-The foundation and main changed the same existing path only in DECISIONS.md as of the comparison at main `243afee`. Main subsequently advanced. Recompare against the current base before integration. A clean textual merge would not resolve the behavioral seams below.
+The scripts came from foundation commit `23aae41`, which already included the security branch. That source has now been merged for local availability. Adapt it in place; do not merge either branch again. The original plan, handoff and decision are archived under `docs/history/autopilot-foundation/` and do not replace PLAN.md v4.
+
+Source availability does not close M1. The existing main CLI still needs the configuration, renderer, packaging and workflow changes below. No existing client settings were changed by the import.
 
 ## M1: integrate a prepared repository
 
@@ -21,7 +23,7 @@ The foundation and main changed the same existing path only in DECISIONS.md as o
 | I5 | Update Maintain, Handoff and Review to use adopted records/security status; update Dispatch write boundaries | Full initial structure is created by Prepare; one-task work is recorded; workers do not overwrite shared handoffs; relevant plugin versions bumped |
 | I6 | Run combined validation and one existing-repo walkthrough | Original CLI/plugin checks plus foundation tests pass; fresh/repeated adoption and stale observation behavior are demonstrated on the integrated tree |
 
-Do not cherry-pick obsolete planning prose over the aligned plan. Preserve the useful prototype code and regression cases, then adapt them to the shared contracts. The 41 prototype tests are prior evidence, not a substitute for integrated validation.
+Preserve the imported regression cases and adapt the existing scripts to the shared contracts. The standalone tests and walkthrough can now run from this checkout. Their results do not replace the combined CLI/client acceptance gates.
 
 ## M2-M5: prove the complete experience
 

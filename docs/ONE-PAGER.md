@@ -17,7 +17,7 @@ Today, plugins help the assistant organize work, review changes, save a handoff,
 
 These steps are instructions, not all forced by software today. Have the assistant explain any block and a safe next step. Ask your maintainer about unclear setup or review results.
 
-**What comes next:** preparation of status, backlog, roadmap, decisions, lessons, handoffs, and security records; better interrupted-work recovery; security evidence that shows when supporting information changes; and trusted checks before merging. Preparation and evidence tracking have a locally tested prototype, outside the main install.
+**What comes next:** preparation of status, backlog, roadmap, decisions, lessons, handoffs, and security records; better interrupted-work recovery; security evidence that shows when supporting information changes; and trusted checks before merging. Preparation and evidence tracking have standalone prototype scripts in this checkout, with tests and a runnable demo. They are not yet wired into the normal install; [start here](AUTOPILOT_START_HERE.md) lists the material.
 
 **How improvements arrive:** your company approves changes to its shared tools. Plugin updates then reach installed copies through the marketplace. Updating project instructions and structure is separate; automatic migrations remain planned and must preserve project history. Product changes still follow the normal review process.
 
@@ -35,7 +35,7 @@ Use the [README](../README.md) for current install commands. [PLAN.md](../PLAN.m
 | Setup health | `node scripts/skillgate.mjs doctor --dir <project-folder>`; inspect missing and unverified checks |
 | Existing handoff display | `workflow` SessionStart hook; default project record is `docs/HANDOFF.md` |
 | Skill evaluation evidence | `scripts/evidence.mjs` and `evidence/`; these measure selected skill behavior, not project compliance |
-| Local project preparation and security prototype | `codex/autopilot-foundation-0916` at `23aae41`; integrate through the existing CLI rather than installing a second onboarding system |
+| Project preparation and security prototype | `scripts/prepare.mjs`, `scripts/security-evidence.mjs`, tests and demo in this checkout; [material index](AUTOPILOT_START_HERE.md). Adapt them through the existing CLI rather than adding a second onboarding system |
 
 Run the subcommands through `node scripts/skillgate.mjs` from the company fork. `harness` and `project-settings` preview by default; `--apply` writes with backups. `harness --undo --dir <project-folder>` removes the managed block, preserving surrounding text.
 

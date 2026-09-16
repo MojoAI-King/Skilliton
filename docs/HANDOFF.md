@@ -4,8 +4,20 @@ Kind: Living.
 
 ## RESUME HERE
 
-Written: 2026-09-16 14:23 EDT
+Written: 2026-09-16 14:41 EDT
 
+- **State:** All foundation code, tests, demo, prior verification, original design notes and build-goal instructions are now present in the main working tree. Start at docs/AUTOPILOT_START_HERE.md; no prior chat, branch checkout or sibling worktree is required. PLAN.md v4 remains authoritative. The standalone source is available, but existing CLI/plugin/lifecycle integration remains M1 work. This local import is not a published release.
+- **Next:**
+  1. Read docs/BUILD_GOAL.md, PLAN.md and docs/AUTOPILOT_INTEGRATION.md. The owner wants the complete M1-M5 implementation and acceptance proof. docs/GOAL_COMMAND.md provides a 1,369-character launcher after the earlier long prompt was rejected by the 4,000-character limit; saving it does not start a goal.
+  2. Adapt the existing scripts/prepare.mjs, project-files.mjs and security-evidence.mjs through scripts/skillgate.mjs. Reconcile artifact config, result semantics, the single harness renderer, package-owned runtime and workflow readers before claiming M1 complete.
+  3. Use scripts/autopilot-demo.mjs for the disposable standalone walkthrough and the paired preparation/evidence test files for regressions. See evidence/autopilot-foundation/import-validation.md for this import's checks.
+  4. Continue M2-M5: actual client checkpoints/recovery, approved company updates and migrations, scoped security evidence plus trusted application checks, and a real new-builder rehearsal.
+- **Blocked:** No missing source material blocks implementation. Actual interactive-client, clean-environment and human usability evidence still need those environments or participation. Historical usage inputs block cost claims only.
+- **Watch out:** Foundation 23aae41 already included the security implementation and has now been imported; do not merge either prototype branch again. Original notes under docs/history/autopilot-foundation/ are historical. The current CLI still does not invoke Prepare or security status, and these scripts retain the prototype contracts until adapted. Never interpret source availability, local fixture success or evidence freshness as a completed autopilot or security certification.
+
+## Earlier
+
+### 2026-09-16 14:23 EDT
 - **State:** PLAN.md v4 now aligns the shared build around the development autopilot. Main's existing plugins/CLI remain the implementation base. README, one-pager, shared contracts, client instructions and release design distinguish implemented behavior from the unintegrated preparation/security prototype and future work. This alignment is local; it does not publish a release or close implementation gates.
 - **Next:**
   1. Start M1 using docs/AUTOPILOT_INTEGRATION.md and the target section of docs/CONTRACTS.md. One integrating session owns the CLI/config/harness interfaces before lanes implement them.
@@ -14,8 +26,6 @@ Written: 2026-09-16 14:23 EDT
   4. Continue the approved-release/verify design and M3 company-fork rehearsal, including one skill improvement, one preserved project migration, update verification and recovery. Follow M2-M5 acceptance rather than the old day numbers.
 - **Blocked:** Live interactive session-start/confirmation, clean-environment updates and Codex behavior still need rehearsal. O2/O3 historical usage inputs block cost claims only; they do not block core integration. The earlier O11 direction question is resolved; implementation remains open.
 - **Watch out:** `scripts/evidence.mjs` measures skill evaluations; the foundation security runtime tracks project observations. Current doctor does not recognize prototype prepare config. Two managed instruction writers and differing exit meanings must be reconciled. Guardrails cover supported enabled Claude Bash calls, not all developer actions. Use disposable synthetic projects for destructive-command tests. No paid eval or live test was rerun during documentation alignment.
-
-## Earlier
 
 ### 2026-09-16 14:20 EDT
 - **State:** Day 1 code gates and Day 2's build list are done and pushed (`main` at 243afee plus this maintenance commit). Base pack: `context-hygiene` 0.1.2, `workflow` 0.2.4 (dispatch, maintain, handoff, review), `guardrails` 0.1.0; onboarding CLI `scripts/skillgate.mjs`; CI green on Linux. Guardrails proven to block a force-push in a live headless session (`evidence/live/`); workflow evals 0.98 with the plugin, mean difference 0.51 (`evidence/15b842e.../SUMMARY.md`). A Codex session has two unpushed branches in this repository (DECISIONS.md O11).

@@ -1,0 +1,9 @@
+# Paste-ready goal command
+
+Kind: Living. Updated 2026-09-16.
+
+Paste the command below into the goal runner from this repository's root. It is 1,369 characters including `/goal`, below the 4,000-character input limit. The full instructions remain in [BUILD_GOAL.md](BUILD_GOAL.md); this shorter launcher does not reduce their scope. Saving this file does not start a goal.
+
+```text
+/goal Complete Skillgate's development autopilot through all M1-M5 acceptance gates in PLAN.md v4. First read AGENTS.md, CLAUDE.md, docs/AUTOPILOT_START_HERE.md, docs/BUILD_GOAL.md, docs/HANDOFF.md, docs/CONTRACTS.md, docs/AUTOPILOT_INTEGRATION.md, DECISIONS.md and docs/LESSONS.md. Treat BUILD_GOAL.md as the full execution instructions, subordinate to PLAN.md. Inspect the current tree and preserve other sessions' work. The foundation source, tests, demo and evidence are already in this repo; adapt them in place, without remerging historical branches. Use one integrating session and explicit write sets for parallel work. Complete repository preparation, everyday workflow and durable context, company-approved package updates and safe repo migrations, scoped security evidence and trusted delivery checks, and the required end-to-end rehearsals. Test Claude Code and Codex separately and preserve the real new-builder rehearsal requirement. Keep code, README, contracts, decisions, evidence and handoff aligned. Proceed autonomously within existing authorization; request only missing access, approval or human participation and continue independent work. Do not replace missing proof with simulation or mark unverified gates complete. Finish with integrated code, a runnable demo, reproducible evidence and exact local, published, installed and verified status.
+```

@@ -8,7 +8,7 @@ Kind: Living.
 
 The full product prepares repositories, preserves decisions and unfinished work, gathers security evidence, connects changes to trusted team checks, and delivers company-approved improvements. Parts work today; the complete lifecycle is still being integrated.
 
-[PLAN.md](PLAN.md) is the canonical direction and roadmap. [CONTRACTS.md](docs/CONTRACTS.md) distinguishes implemented interfaces from target contracts. [AUTOPILOT_INTEGRATION.md](docs/AUTOPILOT_INTEGRATION.md) reconciles the existing build and the separate prototype. [HANDOFF.md](docs/HANDOFF.md) records the next work.
+[PLAN.md](PLAN.md) is the canonical direction and roadmap. [CONTRACTS.md](docs/CONTRACTS.md) distinguishes implemented interfaces from target contracts. [AUTOPILOT_INTEGRATION.md](docs/AUTOPILOT_INTEGRATION.md) guides adaptation of the included standalone prototype to the existing CLI and workflows. [HANDOFF.md](docs/HANDOFF.md) records the next work. [Start here](docs/AUTOPILOT_START_HERE.md) indexes all implementation material and the saved [build goal](docs/BUILD_GOAL.md).
 
 ## The workflow we are building
 
@@ -32,7 +32,7 @@ Project records are useful inputs for a board or roadmap; a web dashboard is not
 | `context-hygiene` plugin | Provides a bounded session-start checklist and working habits. A separate optional setup adds a quota status line. No usage-savings claim is made. |
 | Tests and evaluation evidence | Fixture tests and packaging checks run in CI. Separate model evaluations measure selected skill scenarios; `scripts/evidence.mjs` summarizes those results. This is not evidence of a customer's security compliance. |
 
-**Separate, locally tested prototype:** repository preparation and project security evidence exist on `codex/autopilot-foundation-0916` at `23aae41`. They are not installed by the commands below and have not been integrated into the main CLI. The prototype preserves observations and detects changes to their recorded source files, artifacts, and control definitions. It is a partial starter mapping, not a complete security assessment.
+**Standalone prototype, included in this checkout:** repository preparation and project security evidence are available in `scripts/prepare.mjs` and `scripts/security-evidence.mjs`, with their tests and `scripts/autopilot-demo.mjs`. They were imported from `23aae41`; the existing onboarding commands below do not yet invoke them. See [source, usage and remaining integration](docs/AUTOPILOT_START_HERE.md). The prototype preserves observations and detects changes to their recorded source files, artifacts, and control definitions. It is a partial starter mapping, not a complete security assessment.
 
 **Still to integrate or prove:** automatic lifecycle execution, preparation within onboarding, broader framework applicability and gap tracking, trusted application merge checks, approved release verification, safe project-file migrations, and the full company-fork/update rehearsal. Codex has not had a fresh end-to-end rehearsal here. See the [plan](PLAN.md) for acceptance gates.
 
