@@ -4,8 +4,11 @@ Kind: Living. Each row says how it is known: **measured** (a command or session 
 
 | Behavior Skillgate relies on | Claude Code 2.1.273 | Codex CLI 0.154.0-alpha.6.2 |
 |---|---|---|
-| Install plugins from this repository's marketplace | documented; M3 rehearsal pending | **measured**: local-path marketplace add and `plugin add` work in an isolated home (probe X1, X2) |
-| Installed copy contents | unverified | **measured**: a local-path install copies the whole plugin folder, including git-ignored files (probe X3) |
+| Install plugins from this repository's marketplace | **measured**: `claude plugin marketplace add <local folder>` and `claude plugin install` work in a fresh `CLAUDE_CONFIG_DIR` without logging in | **measured**: local-path marketplace add and `plugin add` work in an isolated home (probe X1, X2) |
+| Update and roll back | **measured**: `claude plugin marketplace update` then `claude plugin update` follows the marketplace version up (0.2.4 to 0.2.5) and down (0.2.5 to 0.2.4); older version folders stay in the cache | `codex plugin marketplace upgrade` documented; unverified here |
+| Install record | **measured** (format undocumented): `plugins/installed_plugins.json` version 2 lists per plugin `scope`, `installPath`, `version`, `installedAt`, `lastUpdated`, `gitCommitSha` (the marketplace checkout's commit); `claude plugin list --json` also reports `installPath` | **measured**: `$CODEX_HOME/plugins/cache/<marketplace>/<plugin>/<version>/`, enabled in `$CODEX_HOME/config.toml` |
+| Marketplace sources | **measured**: a local folder is recorded as source `directory`; a `file://` git URL is refused ("Invalid marketplace source format"); GitHub `owner/repo` and `#ref` pins are documented, unverified here | **measured**: local path; `owner/repo[@ref]` and `--ref` documented |
+| Installed copy contents | **measured**: a `directory` marketplace install copies uncommitted files in the plugin folder | **measured**: a local-path install copies the whole plugin folder, including git-ignored files (probe X3) |
 | Plugin skills visible to the model | **measured** with `--plugin-dir` (probe C5 skill listed as `sgprobe:probe-paths`) | **measured**: `workflow:<skill>` with its SKILL.md path (probe X4) |
 | Instruction file read | `CLAUDE.md` | **measured**: `AGENTS.md` (probe X5); `CLAUDE.md` is not read unless configured as a fallback name (documented) |
 | SessionStart hook output reaches the model | **measured** headless (probe C1); interactive unverified | documented (plain stdout becomes developer context); unverified here |
@@ -19,7 +22,7 @@ Kind: Living. Each row says how it is known: **measured** (a command or session 
 | Separate clean configuration on one machine | **measured**: a fresh `CLAUDE_CONFIG_DIR` starts logged out (`claude auth status`) | documented: `CODEX_HOME` isolates config, plugins, hook trust and login; **measured**: plugin install and prompt rendering work in a fresh one |
 | Observe hooks without a person | **measured**: `--output-format stream-json --verbose --include-hook-events` | `codex exec --json`; hooks under exec need trust or the bypass flag (documented) |
 
-Evidence: `evidence/live/2026-09-16-client-capability-probes.md`. Reproduce: `bash scripts/live-capability-probe.sh` (one short paid Claude Code session) and `bash scripts/codex-offline-probe.sh` (no model call).
+Evidence: `evidence/live/2026-09-16-client-capability-probes.md`; the install, update and downgrade rows were measured the same day with a clone of this repository as the marketplace and a fresh `CLAUDE_CONFIG_DIR` (no model call; the M3 rehearsal records them again with release verification). Reproduce: `bash scripts/live-capability-probe.sh` (one short paid Claude Code session) and `bash scripts/codex-offline-probe.sh` (no model call).
 
 ## What this means for a team
 
