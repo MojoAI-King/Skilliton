@@ -27,6 +27,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const REPO = join(here, "..");
 const CLI = join(here, "skillgate.mjs");
 const PLUGIN = join(REPO, "packs", "base", "plugins", "workflow");
+// Whether the cross-lane modules status reads are in this build (they are optional to the lifecycle engine).
+const HAS_MIGRATIONS = existsSync(join(PLUGIN, "runtime", "lib", "migrations.mjs"));
+const HAS_SECURITY = existsSync(join(PLUGIN, "runtime", "lib", "security.mjs"));
 const BIN = join(PLUGIN, "bin", "skillgate");
 const HOOKS_JSON = join(PLUGIN, "hooks", "hooks.json");
 const INSTALLED = JSON.parse(readFileSync(join(PLUGIN, ".claude-plugin", "plugin.json"), "utf8")).version;
@@ -637,13 +640,13 @@ test("session-start names every missing piece and stays within handoff.maxBytes"
   const expectLine = (pattern) => assert.ok(lines.some((line) => pattern.test(line)), `${pattern}\n${full.out}`);
   expectLine(/^- Branch: main @ [0-9a-f]{7,}, 1 uncommitted$/);
   expectLine(/^- Layout \(needs attention\): not prepared by Skillgate \(no prepare\.version/);
-  expectLine(/^- Pending migrations \(not run\): not available in this build \(runtime\/lib\/migrations\.mjs is not present\)$/);
+  expectLine(HAS_MIGRATIONS ? /^- Pending migrations: none pending \(layout unknown, target 2\)$/ : /^- Pending migrations \(not run\): not available in this build \(runtime\/lib\/migrations\.mjs is not present\)$/);
   expectLine(new RegExp(`^- Versions: workflow runtime ${escape(INSTALLED)} installed; the project names no minimum version`));
   expectLine(/^- Records \(needs attention\): 9 of 9 missing: docs\/STATUS\.md \(status\), /);
   expectLine(/^- Current task: none \(no open task on branch main\); to start one: skillgate task start "<title>" --apply$/);
   expectLine(/^- Shared handoff: docs\/HANDOFF\.md is missing \(see records\)$/);
   expectLine(/^- Previous session: none recorded in this worktree's journal$/);
-  expectLine(/^- Security \(not run\): not available in this build \(runtime\/lib\/security\.mjs is not present\)$/);
+  expectLine(HAS_SECURITY ? /^- Security \(not run\): security evidence not available: no security catalog at \.skillgate\/security\/catalog\.json/ : /^- Security \(not run\): not available in this build \(runtime\/lib\/security\.mjs is not present\)$/);
   assert.equal(full.out.includes("truncated"), false);
   const recorded = readEvents(wide, env);
   assert.equal(recorded.length, 1);
@@ -915,14 +918,14 @@ test("status exits 0 for a clean prepared project, and --json is exactly one res
   assert.equal(r.code, 0, r.all);
   for (const pattern of [
     /^OK         layout: layout 2 \(current for this runtime\)$/m,
-    /^NOT RUN    migrations: not available in this build \(runtime\/lib\/migrations\.mjs is not present\)$/m,
+    HAS_MIGRATIONS ? /^OK         migrations: none pending \(layout 2, target 2\)$/m : /^NOT RUN    migrations: not available in this build \(runtime\/lib\/migrations\.mjs is not present\)$/m,
     new RegExp(`^OK         versions: workflow runtime ${escape(INSTALLED)} installed; the project requires workflow ${escape(INSTALLED)} or later: met$`, "m"),
     /^OK         records: all 9 present$/m,
     /^OK         tasks: no task records yet \(docs\/tasks does not exist\); no open task on main$/m,
     /^OK         handoff: docs\/HANDOFF\.md was written .+; no later commit or uncommitted change \(0 uncommitted path\(s\)\)$/m,
     /^NOTE       sessions: no session recorded in this worktree's journal/m,
-    /^NOT RUN    security: not available in this build \(runtime\/lib\/security\.mjs is not present\)$/m,
-    /^Summary: Nothing needs attention among the checks that ran\. Not run: migrations, security\.$/m,
+    HAS_SECURITY ? /^NOT RUN    security: security evidence not available: no security catalog at \.skillgate\/security\/catalog\.json/m : /^NOT RUN    security: not available in this build \(runtime\/lib\/security\.mjs is not present\)$/m,
+    new RegExp("^Summary: Nothing needs attention among the checks that ran\\. Not run: " + [HAS_MIGRATIONS ? null : "migrations", "security"].filter(Boolean).join(", ") + "\\.$", "m"),
   ]) assert.match(r.out, pattern);
 
   const j = statusJson(p, env);
@@ -932,7 +935,7 @@ test("status exits 0 for a clean prepared project, and --json is exactly one res
   assert.deepEqual([j.json.schema, j.json.command, j.json.result], ["skillgate.result/1", "status", "complete"]);
   assert.deepEqual(j.json.details.checks.map((c) => c.name), ["layout", "migrations", "versions", "records", "tasks", "handoff", "sessions", "security"]);
   assert.equal(j.json.details.layout.version, 2);
-  assert.equal(j.json.details.migrations.available, false);
+  assert.equal(j.json.details.migrations.available, HAS_MIGRATIONS);
   assert.equal(j.json.details.versions.installed, INSTALLED);
   assert.equal(j.json.details.records.missing.length, 0);
   assert.equal(j.json.details.handoff.stale, false);
