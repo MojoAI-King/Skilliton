@@ -1,6 +1,8 @@
 # Skillgate: session contract
 
-Read PLAN.md before doing anything. It is the build contract for the week of September 16 to 23, 2026.
+Kind: Living.
+
+Read PLAN.md before doing anything. It is the build contract for the week of September 16 to 23, 2026. Then read docs/HANDOFF.md (where things stand), DECISIONS.md (every choice and the open items), docs/CONTRACTS.md (shared names and formats), and docs/LESSONS.md (what went wrong here and what now prevents it). docs/MAINTAIN.md lists this repo's own end-of-session steps.
 
 Rules for every session in this repo:
 - Work one gated day at a time. Ask which day we are on if it is not stated. Do not build ahead of the current day's gate.

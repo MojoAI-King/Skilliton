@@ -1,3 +1,3 @@
 Eval cases for `claude plugin eval` go here, one directory per case with a prompt.md and graders/.
 Run `claude plugin eval init` from the plugin root to have Claude draft them, or `claude plugin eval init --bare <name>` for a blank template.
-Always pass `--max-cost-usd`. results/ is gitignored; copy a finished aggregate-result.json into ../../../../../evidence/<sha>/ via `skillgate evidence`.
+Always pass `--max-cost-usd` and `--no-publish`. results/ is gitignored; never commit a raw aggregate-result.json (it holds machine paths and model text). Summarize it into evidence/<sha>/ at the repository root with `node scripts/evidence.mjs <aggregate-result.json> --sha <commit>`. No eval cases exist for this plugin yet; see packs/base/plugins/workflow/evals/ for working examples.

@@ -1,6 +1,6 @@
 # context-hygiene: how we work here
 
-Kind: Living. First draft, Day 1; not yet walked by a second person.
+Kind: Living. BEHIND as of 2026-09-16: this draft covers only the `context-hygiene` plugin; the `workflow` and `guardrails` plugins and the onboarding CLI are not in it yet (see docs/HANDOFF.md). Not yet walked by a second person.
 
 Pack `context-hygiene`, part of Skillgate, from `https://github.com/MojoAI-King/Skilliton`. Author MojoAI, license MIT.
 The same facts are written twice: Part 1 for your first week (plain language), Part 2 for the person maintaining this (paths and commands).

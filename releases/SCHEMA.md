@@ -1,5 +1,7 @@
 # Release record schema
 
+Kind: Living. Draft spec for `skillgate release` and `skillgate verify` (Day 3); neither is built yet.
+
 One file per released version: `releases/<pack>/<version>.json`. Written by `skillgate release` (to be built). Approval binds to these exact bytes; change one byte and the record no longer applies.
 
 ```json
