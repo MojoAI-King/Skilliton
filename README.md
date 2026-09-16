@@ -20,8 +20,8 @@ CLAUDE.md                       session rules for Claude Code in this repo
 DECISIONS.md                    plain-English record of every architectural choice
 LICENSE                         MIT
 .claude-plugin/marketplace.json the marketplace catalog (marketplace name: skillgate; local, relative sources for now)
-packs/context-hygiene/          the flagship pack
-  plugins/context-hygiene/
+packs/base/                     the base pack every fork ships with
+  plugins/context-hygiene/      the flagship plugin
     .claude-plugin/plugin.json
     skills/context-hygiene/SKILL.md
     hooks/hooks.json            SessionStart hook registration

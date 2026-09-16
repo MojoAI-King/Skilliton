@@ -17,7 +17,7 @@
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$here/.." && pwd)"
-SHIPPED_REL="packs/context-hygiene/plugins/context-hygiene/hooks/session-start-checklist.sh"
+SHIPPED_REL="packs/base/plugins/context-hygiene/hooks/session-start-checklist.sh"
 HOOK="$root/$SHIPPED_REL"
 HOOK_LABEL="$SHIPPED_REL (shipped)"
 WRITE_EVIDENCE=0
