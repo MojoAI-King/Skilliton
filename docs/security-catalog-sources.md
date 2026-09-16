@@ -29,7 +29,7 @@ Attribution: requirement identifiers in the catalog refer to OWASP ASVS 5.0.0 by
 ## How each reference was verified
 
 1. Downloaded the three files above and extracted the PDFs' text.
-2. For every mapping in the catalog, checked mechanically that the SSDF identifier begins a task line in the SP 800-218 practice table and is not a moved task, and that the ASVS identifier exists as a requirement in the release's flat JSON asset and as a requirement row in the release PDF. All 34 mapping references passed; the seven starter controls were compared byte for byte with `skillgate-starter-1.json`.
+2. For every mapping in the catalog, checked mechanically that the SSDF identifier begins a task line in the SP 800-218 practice table and is not a moved task, and that the ASVS identifier exists as a requirement in the release's flat JSON asset and as a requirement row in the release PDF. All 36 mapping references (12 SSDF, 24 ASVS) passed; the seven starter controls were compared byte for byte with `skillgate-starter-1.json`.
 3. Read each referenced task or requirement in full, to confirm it relates to the control's own summary.
 
 To repeat the check, download the same files, confirm their SHA-256 values, and look up each identifier from the table below in them. `scripts/security-evidence.test.mjs` checks, offline, that every catalog reference uses these framework versions, identifier forms and URLs and is listed in this document; it cannot check the references against the sources, which are not stored in this repository.
