@@ -19,6 +19,9 @@ import {
   newBudget, readCatalog, readRepositoryFile, refusalText, renderManifest, textField,
 } from './security.mjs';
 
+// Secret shapes whose match is a gap by itself; the others need a person's review (see collectSecrets).
+export const HIGH_CONFIDENCE_RULES = ['private-key-block', 'known-token-prefix', 'json-web-token'];
+
 const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const DELIVERY_REL = '.skillgate/delivery.json';
 export const DELIVERY_SCHEMA = 'skillgate.delivery/1';
@@ -335,7 +338,12 @@ export function collectSecrets(root, { control, reviewer, apply = false } = {}) 
 
   const byRule = {};
   for (const h of hits) byRule[h.rule] = (byRule[h.rule] ?? 0) + 1;
-  const assessment = hits.length ? 'gap' : 'observed';
+  // Specific shapes (a private key block, a provider token prefix, a JSON web token) are a gap to act on. Generic
+  // shapes (an assignment to a secret-sounding name, a bearer header, a long encoded run) match hashes, lockfiles and
+  // test fixtures in almost every repository, so on their own they need a person's review rather than a gap: measured
+  // on this repository, 60 generic matches and no specific one.
+  const specific = hits.filter((h) => HIGH_CONFIDENCE_RULES.includes(h.rule));
+  const assessment = specific.length ? 'gap' : hits.length ? 'needs-human' : 'observed';
   let manifest = null;
   const report = createEvidenceFile(root, 'leak-scan', startedAt);
   keepOutputs([report.rel], () => {
@@ -348,7 +356,8 @@ export function collectSecrets(root, { control, reviewer, apply = false } = {}) 
         `Rules: ${SECRET_SHAPES.map((s) => s.rule).join(', ')}. These are the evidence engine's secret shapes; a match is a shape to review, not a confirmed secret.`,
         `Tracked files: ${tracked.length}. Scanned as text: ${entries.length}. Not scanned: ${skipped.length}.`,
         `Lines matching a rule: ${hits.length}.`,
-        `Result: ${assessment === 'gap' ? 'gap (each match needs review)' : 'observed (no scanned line matched a rule)'}`,
+        `Specific rules (a match is a gap): ${HIGH_CONFIDENCE_RULES.join(', ')}. Generic rules (matches need a person's review): ${SECRET_SHAPES.map((x) => x.rule).filter((r) => !HIGH_CONFIDENCE_RULES.includes(r)).join(', ')}.`,
+        `Result: ${assessment === 'gap' ? `gap (${specific.length} line(s) matched a specific secret shape; each needs action)` : assessment === 'needs-human' ? 'needs-human (only generic shapes matched; a person decides whether any is a secret)' : 'observed (no scanned line matched a rule)'}`,
         '',
         'Matches by rule:',
         ...(hits.length ? Object.entries(byRule).map(([rule, n]) => `  ${rule}: ${n}`) : ['  none']),
@@ -371,7 +380,7 @@ export function collectSecrets(root, { control, reviewer, apply = false } = {}) 
   const detailed = hits.length
     ? `${hits.length} line(s) in ${files} file(s) matched a secret shape (${Object.entries(byRule).map(([rule, n]) => `${rule} ${n}`).join(', ')}); ${entries.length} of ${tracked.length} tracked files scanned as text.`
     : `No scanned line matched a secret shape; ${entries.length} of ${tracked.length} tracked files scanned as text, ${skipped.length} not scanned (listed in the report).`;
-  const brief = hits.length ? `${hits.length} line(s) matched a secret shape.` : 'No scanned line matched a secret shape.';
+  const brief = specific.length ? `${specific.length} line(s) matched a specific secret shape.` : hits.length ? `${hits.length} line(s) matched only generic secret shapes; review needed.` : 'No scanned line matched a secret shape.';
   const record = recordOrExplain(root, catalog, {
     controlId, assessment, note: collectorNote('secrets', versions, detailed, brief), reviewer: reviewerLabel,
     sources: [manifest.rel], artifacts: [report.rel],

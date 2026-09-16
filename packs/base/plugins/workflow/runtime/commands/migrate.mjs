@@ -6,7 +6,7 @@ import {
   tilde, unifiedDiff,
 } from "../lib/core.mjs";
 import { LAYOUT_VERSION } from "../lib/config.mjs";
-import { MIGRATIONS, applyMigration, applyRollback, migrationState, planMigration, planRollback } from "../lib/migrations.mjs";
+import { MIGRATIONS, applyMigration, applyRollback, migrationById, migrationState, planMigration, planRollback } from "../lib/migrations.mjs";
 import { OperationFailed, TransactionFailed, describeFailure, loadProject, resolveGitRoot, resultJson, sha256 } from "../lib/prepare.mjs";
 
 export const help = `migrate: show or apply this project's pending layout migrations, or roll one back.
@@ -17,7 +17,9 @@ export const help = `migrate: show or apply this project's pending layout migrat
   migrate --rollback <id> --apply [--dir <repo root>]   restore the files <id> changed and remove its receipt
   --json                                                print exactly one JSON result object instead of text
 
-Migrations have IDs NNNN-slug and run in order. 0002-integrated-layout moves a project prepared by the standalone
+Migrations have IDs NNNN-slug and run in order. 0100-instructions-<template hash> refreshes the managed instruction
+blocks in CLAUDE.md and AGENTS.md after the harness template changed; it keeps every byte outside the markers and
+refuses a block someone edited inside the markers since Skillgate last wrote it. 0002-integrated-layout moves a project prepared by the standalone
 prototype (layout 1) to layout 2: it removes .skillgate/bin/security-evidence.mjs only when its bytes match the
 prototype runtime released at 23aae41, removes the skillgate:project blocks from CLAUDE.md, AGENTS.md and the maintain
 record only when they are exactly what the prototype wrote, adds the harness blocks, and sets prepare.version 2 and
@@ -137,7 +139,7 @@ export async function run(argv) {
       if (diffs && !json) { out(""); process.stdout.write(diffs); }
     };
     if (mode === "preview") {
-      const first = await planMigration(MIGRATIONS.find((m) => m.id === state.pending[0].id), project, { root, runtimeVersion });
+      const first = await planMigration(migrationById(state.pending[0].id, project), project, { root, runtimeVersion });
       printPlan(first, false);
       if (state.pending.length > 1) out(`Then, planned from the result of the one before: ${state.pending.slice(1).map((p) => p.id).join(", ")}.`);
       const summary = `${state.pending.length} migration(s) pending (${state.pending.map((p) => p.id).join(", ")}); nothing written. To apply: ${selfCommand()} migrate --apply${dirArg}`;
@@ -149,10 +151,10 @@ export async function run(argv) {
 
     // ----- apply -----
     const applied = [], described = [];
-    for (let guard = 0; guard < MIGRATIONS.length; guard++) {
+    for (let guard = 0; guard <= MIGRATIONS.length; guard++) {
       const current = migrationState(project);
       if (!current.pending.length) break;
-      const migration = MIGRATIONS.find((m) => m.id === current.pending[0].id);
+      const migration = migrationById(current.pending[0].id, project);
       const plan = await planMigration(migration, project, { root, runtimeVersion });
       described.push(describe(plan));
       printPlan(plan, false);
@@ -170,7 +172,7 @@ export async function run(argv) {
       out(`Applied ${migration.id}. Receipt: ${done.receiptRel}.${done.result.backupDir ? ` Backups: ${tilde(done.result.backupDir)} (inside the Git folder, never committed).` : ""}`);
       const layoutBefore = project.layoutVersion;
       project = loadProject(root);
-      if (project.layoutVersion === layoutBefore) throw new OperationFailed(`${migration.id} was written but prepare.version is still ${layoutBefore}; stopping instead of repeating it`);
+      if (migration.kind !== "instructions" && project.layoutVersion === layoutBefore) throw new OperationFailed(`${migration.id} was written but prepare.version is still ${layoutBefore}; stopping instead of repeating it`);
     }
     const ids = applied.map((a) => a.id);
     const summary = `layout ${project.layoutVersion}; ${applied.length} migration(s) applied (${ids.join(", ")}). Commit the changed files together with the receipt(s). Next: ${selfCommand()} prepare --check${dirArg} shows anything else layout ${LAYOUT_VERSION} expects. To undo: ${selfCommand()} migrate --rollback ${ids.at(-1)} --apply${dirArg}`;

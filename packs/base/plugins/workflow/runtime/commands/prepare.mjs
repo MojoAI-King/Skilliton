@@ -33,7 +33,7 @@ Exit codes: 0 complete (for --check: nothing missing or outdated); 1 --check fou
 a layout-1 project waits for its migration; 2 refused, nothing written; 3 operation failed (the output says what was
 rolled back).`;
 
-const VERBS = { create: ["create", "created"], update: ["update", "updated"], adopt: ["adopt", "adopted"], current: ["current", "current"] };
+const VERBS = { create: ["create", "created"], update: ["update", "updated"], adopt: ["adopt", "adopted"], current: ["current", "current"], migrate: ["migrate", "migrate"] };
 
 function printItems(items, past) {
   const width = Math.min(44, Math.max(...items.map((i) => i.path.length)));
@@ -62,7 +62,7 @@ export async function run(argv) {
       return 1;
     }
     const count = (action) => plan.items.filter((i) => i.action === action).length;
-    const counts = { create: count("create"), update: count("update"), adopt: count("adopt"), current: count("current") };
+    const counts = { create: count("create"), update: count("update"), adopt: count("adopt"), current: count("current"), migrate: count("migrate") };
     const details = (extra = {}) => ({
       root, mode, layoutVersion: plan.project.layoutVersion, targetLayout: LAYOUT_VERSION, runtime: plan.runtimeVersion,
       files: plan.items.map((i) => ({ path: i.path, action: i.action, description: i.what })), notes: plan.notes, written: false, backup: null, ...extra,
@@ -77,10 +77,11 @@ export async function run(argv) {
     const tally = `${counts.create} to create, ${counts.update} to update, ${counts.adopt} adopted as they are, ${counts.current} already current`;
 
     if (mode === "preview" || mode === "check") {
-      const incomplete = plan.changes.length > 0;
+      const incomplete = plan.changes.length > 0 || counts.migrate > 0;
+      const migrateNote = counts.migrate ? `; ${counts.migrate} instruction block(s) wait for: ${selfCommand()} migrate${dirArg}` : "";
       let summary;
-      if (mode === "preview") summary = incomplete ? `${tally}; nothing written. To write it: ${selfCommand()} prepare --apply${dirArg}` : `the project is prepared (layout ${LAYOUT_VERSION}); nothing to change, nothing written.`;
-      else summary = incomplete ? `setup incomplete: ${counts.create} missing, ${counts.update} outdated; nothing written. To fix it: ${selfCommand()} prepare --apply${dirArg}` : `prepared (layout ${LAYOUT_VERSION}); nothing missing or outdated. This checks the prepared files only, not security evidence or application behavior.`;
+      if (mode === "preview") summary = plan.changes.length ? `${tally}${migrateNote}; nothing written. To write it: ${selfCommand()} prepare --apply${dirArg}` : counts.migrate ? `nothing for prepare to write${migrateNote}` : `the project is prepared (layout ${LAYOUT_VERSION}); nothing to change, nothing written.`;
+      else summary = incomplete ? `setup incomplete: ${counts.create} missing, ${counts.update} outdated${migrateNote}; nothing written.${plan.changes.length ? ` To fix it: ${selfCommand()} prepare --apply${dirArg}` : ""}` : `prepared (layout ${LAYOUT_VERSION}); nothing missing or outdated. This checks the prepared files only, not security evidence or application behavior.`;
       if (json) { emit(mode === "check" && incomplete ? "attention" : "complete", summary, details()); return mode === "check" && incomplete ? 1 : 0; }
       header();
       printItems(plan.items, false);

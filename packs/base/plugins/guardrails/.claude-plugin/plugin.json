@@ -1,8 +1,10 @@
 {
   "name": "guardrails",
-  "description": "Checks each Bash command before it runs. Blocks force-pushes to protected branches (main and master by default), git hooks skipped with --no-verify, and staging or committing files or added lines that look like secrets; requests confirmation before git commands that discard uncommitted work. It reads the command text, so it catches ordinary and accidental commands, not deliberately hidden ones. A skill explains each rule and its settings.",
+  "description": "Checks each shell command the assistant runs before it runs. Blocks force-pushes to protected branches (main and master by default), git hooks skipped with --no-verify, and staging or committing files or added lines that look like secrets; asks for confirmation before git commands that discard uncommitted work (Codex cannot ask from a hook, so there those commands are blocked with the reason). It reads the command text, so it catches ordinary and accidental commands, not deliberately hidden ones. A skill explains each rule and its settings.",
   "version": "0.2.0",
-  "author": { "name": "MojoAI" },
+  "author": {
+    "name": "MojoAI"
+  },
   "homepage": "https://github.com/MojoAI-King/Skilliton",
   "repository": "https://github.com/MojoAI-King/Skilliton",
   "license": "MIT"
