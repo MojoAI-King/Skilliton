@@ -12,8 +12,9 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 | O4 | `hooks/config-drift-check.sh` ships in the pack but nothing runs it, and it prints DRIFT whenever settings.json has no `model` key (a false positive on the default setup). | OPEN | Day 2 |
 | O5 | `setup.mjs --undo` restores the last backup over settings.json, discarding any edits made after `--apply`; with no settings file before `--apply` it restores an empty file instead of deleting it. `--apply` replaces an existing statusLine rather than chaining it. | OPEN, known | Day 2 hardening (PLAN.md Day 2) |
 | O6 | How SessionStart hook output reaches the model has not been observed in a live session. | UNVERIFIED | Fresh session with the plugin installed (Day 1, needs the owner at the keyboard) |
-| O7 | Guardrails must be proven to block in a live Claude Code session, not only against fixture JSON; the `ask` permission decision is unverified. | OPEN | Day 2 live probe |
+| O7 | Deny path CLOSED 2026-09-16: a real headless Claude Code session, allowed to run `git push`, was stopped from force-pushing main by the guardrails hook, and the same request without the plugin went through (`evidence/live/2026-09-16-guardrails-force-push.md`). Still UNVERIFIED: the `ask` decision (commands that discard uncommitted work) in a live session. | PARTLY CLOSED | Interactive session: ask for `git reset --hard` and see whether a confirmation appears |
 | O8 | Team settings (`extraKnownMarketplaces`, `autoUpdate`, `enabledPlugins`) and auto-update are documented, not yet exercised on a clean machine or user. | OPEN | Day 3 |
+| O10 | Guardrails' `.env.*` rule has no per-file allowlist; a team that commits `.env.development` on purpose can only turn off every secret-file check. | OPEN | Add an `allowSecretFiles` list to the guardrails config |
 | O9 | Codex support is documented (skills in `.agents/skills`, AGENTS.md, hooks with a trust review) but nothing has been run in Codex yet. | OPEN | Day 4 |
 
 ## 2026-09-16 Public repository with no names in it
@@ -133,4 +134,26 @@ Details recorded from the lane's report, measured unless stated:
 **Why:** Forks carry the product name, not this repository's name; a path named after the product is the one a company would expect.
 **Alternatives rejected:** Keeping the repository-named path.
 **Risk:** Anyone who created the old path must move the file. Only this machine had one; it was moved.
+**Reversibility:** EASY.
+
+## 2026-09-16 Guardrails: a hook that checks every shell command, and says why when it stops one
+**Decision:** The `guardrails` plugin's PreToolUse hook reads every Bash command the assistant is about to run and denies force-pushes to protected branches, skipped git hooks, and staging or committing secret-shaped files or content; it asks for confirmation before commands that throw away uncommitted work. Every stop carries a plain-language reason and what to do instead.
+**Why:** These are the git mistakes that hurt teams most, and the people least able to recover from them are the non-technical builders this product is for. A hook runs every time, whatever anyone types, which an instruction cannot promise.
+**Alternatives rejected:** Instructions only (not enforced); git server-side protection only (does not protect a local repository or explain anything in the moment; companies should still turn on branch protection as well).
+**Risk:** False positives get a guard switched off. The `.env.*` rule blocks committed environment files a team may use on purpose (for example `.env.development`); today the only way out is turning off every secret-file check, which is too coarse (open item O10). Not covered, and stated in the skill: git run inside scripts, `bash -c`, `eval`, or aliases; `git -c core.hooksPath`; `--no-verify` on merge, rebase, or am; `push --delete`.
+**Reversibility:** EASY. Evidence: `bash scripts/guardrails.test.sh` (246 checks; three broken copies of the hook each turn it red); live proof in `evidence/live/2026-09-16-guardrails-force-push.md`.
+
+Details recorded from the lane's report, measured:
+- Secret content is checked when files are staged (`git add`, `commit -a`, commits with paths), not only at commit time, because an assistant usually runs `git add x && git commit` as one command and at hook time nothing new is staged yet.
+- What `git add -A` would stage is predicted with `git ls-files`, not `git add --dry-run`, which takes the index lock and fails when the lock is held.
+- The command is split into segments by a small awk program, not by bash: bash 3.2 took 3.35 s on a 50KB command; awk finishes an 870KB heredoc in well under a second.
+- The quick pre-check on raw hook input looks for the word `git` and allows for JSON escapes: a command on the second line arrives as `\ngit`, and an earlier version let exactly that through (found by the lane's own test).
+- `.pub` key files are not treated as secrets; they are the public half of a key pair.
+- When the hook cannot decide (no JSON reader, a folder it cannot resolve, more than 2000 files to scan, a crash), it asks rather than allows, and a crash after a deny keeps the deny.
+
+## 2026-09-16 A live check ships with the product
+**Decision:** `scripts/live-guardrails-probe.sh` runs a real headless Claude Code session against a throwaway repository to prove the guardrails hook blocks a force-push, with a `--control` run that must succeed without the plugin.
+**Why:** Fixture tests prove the script's logic, not that Claude Code loads the plugin and honours the deny. Only a session proves that, and a company should be able to re-run it after any Claude Code update.
+**Alternatives rejected:** Trusting the documentation (the thing being verified).
+**Risk:** It costs a small amount of real usage each run, stated at the top of the script. The first run of the committed script failed to start a session (a flag swallowed the prompt) and reported NOT RUN instead of a false pass, because the script checks the session's exit status before judging the result.
 **Reversibility:** EASY.

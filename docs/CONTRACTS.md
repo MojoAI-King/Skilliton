@@ -8,7 +8,7 @@ Kind: Living. The names, paths, and formats that more than one component depends
 |---|---|---|---|
 | `base` | `context-hygiene` | skill `context-hygiene`; SessionStart hook `session-start-checklist.sh`; status line `statusline-quota.sh` (applied by `scripts/setup.mjs`) | model-invoked |
 | `base` | `workflow` | skills `dispatch`, `maintain`, `handoff`, `review`; SessionStart hook `session-start-handoff.sh` | `/workflow:dispatch`, `/workflow:maintain`, `/workflow:handoff`, `/workflow:review`, or model-invoked from the description |
-| `base` | `guardrails` | PreToolUse hook `guard-bash.sh` on the Bash tool; skill `guardrails` explaining what is blocked and why | hook runs on every Bash call; skill model-invoked |
+| `base` | `guardrails` | PreToolUse hook `guard-bash.sh` on the Bash tool; SessionStart hook `session-start-guardrails.sh` (one status line: on, off, or a problem); skill `guardrails` explaining what is blocked and why | hook runs on every Bash call; skill model-invoked |
 | `<company>` (in a fork) | anything | the company's own skills | `/<plugin>:<skill>` |
 
 Rules:

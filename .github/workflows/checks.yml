@@ -1,0 +1,83 @@
+# Runs every check on each pull request and push to main. A company fork inherits this unchanged.
+# Evals (`claude plugin eval`) are not run here: they need a Claude credential and cost money per run.
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # scrub-check --history reads every commit
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Tools the hooks need
+        run: |
+          for t in jq git bash python3; do command -v "$t" >/dev/null || { echo "missing: $t"; exit 1; }; done
+          echo "jq $(jq --version), node $(node --version), git $(git --version)"
+
+      - name: Packaging (marketplace, manifests, skill frontmatter, executable hooks)
+        run: node scripts/packs.test.mjs
+
+      - name: Packaging checks can fail
+        run: node scripts/packs.test.mjs --self-test
+
+      - name: Plugin and marketplace validation (Claude Code CLI)
+        run: |
+          npm install --global @anthropic-ai/claude-code
+          claude --version
+          claude plugin validate --strict .
+          for p in packs/*/plugins/*/; do claude plugin validate --strict "$p"; done
+
+      - name: Usage meter
+        run: node scripts/token-cost.test.mjs
+
+      - name: Setup (status line apply and undo)
+        run: node scripts/setup.test.mjs
+
+      - name: Eval evidence writer
+        run: node scripts/evidence.test.mjs
+
+      - name: Session-start checklist hook
+        run: bash scripts/hook-fixture.test.sh
+
+      - name: Status line
+        run: bash scripts/statusline.test.sh
+
+      - name: Session-start handoff hook
+        run: bash scripts/handoff-hook.test.sh
+
+      - name: Guardrails hook
+        run: bash scripts/guardrails.test.sh
+
+      - name: Onboarding CLI
+        run: node scripts/skillgate.test.mjs
+
+      - name: Public-safety scrub (dashes and home paths; names need the private denylist)
+        run: |
+          set +e
+          bash scripts/scrub-check.sh --history
+          rc=$?
+          set -e
+          if [ "$rc" -eq 2 ]; then
+            echo "::warning title=Name scan not run::The name denylist is private and not available in CI. Dashes and home paths were scanned; run scrub-check.sh --history locally with your denylist before pushing."
+            exit 0
+          fi
+          exit "$rc"
+
+      - name: Scrub check can fail
+        run: |
+          printf 'examplenamealpha\n' > "$RUNNER_TEMP/denylist"
+          SKILLGATE_DENYLIST="$RUNNER_TEMP/denylist" bash scripts/scrub-check.sh --self-test
