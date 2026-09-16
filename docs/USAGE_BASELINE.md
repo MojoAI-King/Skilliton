@@ -1,6 +1,8 @@
 # Usage baseline (Tier 2)
 
-STATUS: NOT YET RECORDED. Commit this before any fix ships. A baseline written after the change is not a baseline.
+Kind: Living.
+
+STATUS: NOT YET RECORDED, and BLOCKED (2026-09-16). The meter passes its fixture test but does not yet reproduce the known-correct real-window figure; see DECISIONS.md, item O2. No baseline is recorded with an untrusted meter. A baseline written after the change is not a baseline.
 
 ## How to fill this in
 

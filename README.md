@@ -30,17 +30,23 @@ packs/context-hygiene/          the flagship pack
     hooks/config-drift-check.sh
     evals/                      claude plugin eval cases (results/ is gitignored)
 scripts/setup.mjs               show / apply / undo the settings a plugin cannot set itself
-scripts/token-cost.mjs          corrected usage meter; must pass its fixture test and reproduce a known figure
+scripts/token-cost.mjs          corrected usage meter; fixture-tested, does NOT yet reproduce a known real figure (DECISIONS.md O2)
 scripts/token-cost.test.mjs     fixture test with hand-computed totals
-scripts/hook-fixture.test.sh    original vs repaired SessionStart awk on a sample file
+scripts/hook-fixture.test.sh    original vs repaired awk, plus the shipped hook against real-world heading shapes
+scripts/statusline.test.sh      status line: quota present, absent (null, never 0), jq missing, log unwritable
 scripts/fixtures/               the fixtures
 scripts/gate.mjs                wraps your existing verify command, preserves exit status, logs full output
 scripts/scrub-check.sh          public-safety gate: denylisted names, em or en dashes, home-directory paths
 docs/USAGE_BASELINE.md          Tier 2: commit this BEFORE any fix ships
-docs/ONE-PAGER.md               onboarding template
-evidence/<sha>/                 eval results bound to a commit
+docs/ONE-PAGER.md               onboarding one-pager (first draft)
+evidence/day-1/                 committed test output for the Day 1 gate
+evidence/<sha>/                 eval results bound to a commit (Day 2 onward)
 releases/<pack>/<version>.json  release records (see releases/SCHEMA.md)
 ```
+
+## Requirements
+
+Claude Code, Node.js, bash, awk, and `jq` (the status line and its test need `jq`; without it the status line says so instead of logging).
 
 ## Get the code
 
@@ -58,7 +64,7 @@ claude plugin marketplace add ./
 claude plugin install context-hygiene@skillgate
 ```
 
-Straight from GitHub, without cloning (the `owner/repo` shorthand is documented for `claude plugin marketplace add`):
+Straight from GitHub, without cloning (the `owner/repo` shorthand is documented for `claude plugin marketplace add`; the setup step below still needs a clone):
 
 ```
 claude plugin marketplace add MojoAI-King/Skilliton
@@ -78,8 +84,10 @@ Then start a session and confirm the session-start checklist is bounded and the 
 ## Check the meter before believing any number
 
 ```
-node scripts/token-cost.test.mjs   # fixture totals; must pass
-bash scripts/hook-fixture.test.sh  # original vs repaired awk, side by side
+node scripts/token-cost.test.mjs   # meter: hand-computed fixture totals; must pass
+bash scripts/hook-fixture.test.sh  # session-start hook: original vs repaired, and the shipped script
+bash scripts/statusline.test.sh    # status line logger
+bash scripts/scrub-check.sh --self-test  # proves the public-safety gate can fail
 ```
 
 ## Not built yet
@@ -92,7 +100,7 @@ The marketplace catalog uses a relative-path source for local development. A rel
 
 ## Contributing
 
-A pull request must pass `bash scripts/scrub-check.sh --history` and the tests above (`node scripts/token-cost.test.mjs`, `bash scripts/hook-fixture.test.sh`).
+A pull request must pass `bash scripts/scrub-check.sh --history` and the four checks above. `scrub-check.sh` reads its denylist from outside the repo (`SKILLGATE_DENYLIST`); keep your own. Without one, the name scan does not run and the script exits 2 instead of claiming a pass.
 
 ## License
 

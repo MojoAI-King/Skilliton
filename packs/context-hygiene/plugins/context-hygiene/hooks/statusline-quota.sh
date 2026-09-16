@@ -18,6 +18,13 @@ KEYS_LOG="${SKILLGATE_KEYS_LOG:-$HOME/.claude/skillgate/statusline-keys-seen.log
 mkdir -p "$(dirname "$LOG")" "$(dirname "$KEYS_LOG")"
 
 PAYLOAD=$(cat)
+
+# Without jq nothing below can parse the payload. Say that, rather than falling through to
+# "quota: not in payload", which would blame the payload for a missing dependency.
+if ! command -v jq >/dev/null 2>&1; then
+  printf "%s\n" "statusline: jq not installed; quota NOT logged"
+  exit 0
+fi
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 # 1. discovery: record the key set so you can SEE what the payload actually carries
@@ -40,6 +47,7 @@ QUOTA=$(printf "%s" "$PAYLOAD" | jq -c '{
 jq -cn --arg ts "$TS" --arg model "$MODEL" --arg ctx "${CTX:-}" --arg cost "${COST:-}" --argjson quota "$QUOTA" \
   '{ts:$ts, model:$model, ctx_pct:($ctx|if .=="" then null else tonumber end), cost_reconstructed_usd:($cost|if .=="" then null else tonumber end), quota:$quota}' \
   >> "$LOG" 2>/dev/null
+LOG_OK=$?
 
 # 4. display
 FH=$(printf "%s" "$QUOTA" | jq -r '.five_hour_pct // "n/a"'); SD=$(printf "%s" "$QUOTA" | jq -r '.seven_day_pct // "n/a"')
@@ -47,5 +55,6 @@ PRESENT=$(printf "%s" "$QUOTA" | jq -r '.rate_limits_present')
 Q="5h ${FH}% | 7d ${SD}% | per-model wk: record from /usage"
 [ "$PRESENT" != "true" ] && Q="quota: not in payload (log manually)"
 FLAG=""
-if [ -n "${CTX:-}" ] && [ "${CTX%.*}" -ge 60 ] 2>/dev/null; then FLAG=" HANDOFF? finish the step, write a handoff"; fi
+[ "$LOG_OK" -ne 0 ] && FLAG=" LOG WRITE FAILED: $LOG"
+if [ -n "${CTX:-}" ] && [ "${CTX%.*}" -ge 60 ] 2>/dev/null; then FLAG="$FLAG HANDOFF? finish the step, write a handoff"; fi
 printf "%s | ctx %s%% | %s%s\n" "$MODEL" "${CTX:-?}" "$Q" "$FLAG"

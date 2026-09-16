@@ -11,7 +11,7 @@
     {
       "name": "context-hygiene",
       "source": "./packs/context-hygiene/plugins/context-hygiene",
-      "description": "Keeps AI coding sessions healthy and cheap: bounded session start, real quota logging, test output kept out of context, config drift detection.",
+      "description": "Bounded session-start checklist hook and a context-hygiene skill. A separate, reversible setup script adds a status line that logs real quota. The gate wrapper and drift check exist in the repo but are not wired into the plugin yet.",
       "author": { "name": "MojoAI" },
       "homepage": "https://github.com/MojoAI-King/Skilliton",
       "repository": "https://github.com/MojoAI-King/Skilliton",
