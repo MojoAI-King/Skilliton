@@ -157,3 +157,10 @@ Details recorded from the lane's report, measured:
 **Alternatives rejected:** Trusting the documentation (the thing being verified).
 **Risk:** It costs a small amount of real usage each run, stated at the top of the script. The first run of the committed script failed to start a session (a flag swallowed the prompt) and reported NOT RUN instead of a false pass, because the script checks the session's exit status before judging the result.
 **Reversibility:** EASY.
+
+## 2026-09-16 CI runs every check on Linux, and the first run was read, not trusted
+**Decision:** `.github/workflows/checks.yml` runs every offline check on each pull request and push to `main`.
+**Why:** A company fork needs its skills checked the same way on every change, and the hooks had only ever run on macOS.
+**Alternatives rejected:** Local checks only (nothing stops an unchecked merge).
+**Risk:** A green run that checked nothing. The first run (GitHub run 35131047580, 36 seconds) was opened step by step: every suite printed its passing result, including guardrails 246 of 246 and the handoff hook 104 of 104 on Linux (bash 5.2, git 2.55), which closes the "only tested on macOS" items both hook lanes reported. The private name scan printed NOT RUN and INCOMPLETE with a warning annotation, never a pass.
+**Reversibility:** EASY.
