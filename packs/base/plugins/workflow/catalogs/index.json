@@ -1,5 +1,5 @@
 {
   "schema": "skillgate.catalogs/1",
-  "current": "skillgate-starter-1",
+  "current": "skillgate-baseline-2",
   "note": "The catalog prepare copies into a new project. A newer catalog reaches an existing project only through a migration."
 }
