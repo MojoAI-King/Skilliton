@@ -1,0 +1,7 @@
+{
+  "name": "context-hygiene",
+  "description": "Keeps AI coding sessions healthy and cheap: bounded session start, real quota logging, test output kept out of context, config drift detection.",
+  "version": "0.1.0",
+  "author": { "name": "MojoAI" },
+  "license": "MIT"
+}

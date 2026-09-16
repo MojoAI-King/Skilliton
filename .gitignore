@@ -1,0 +1,31 @@
+# macOS folder metadata; never meaningful in a repo
+.DS_Store
+
+# gate.mjs writes full test output here; the summary line is the committed artifact, not the log
+.gate/
+
+# claude plugin eval results; finished evidence is copied into evidence/<sha>/ deliberately
+**/evals/results/
+
+# dependencies, if any are ever added
+node_modules/
+
+# environment files and the credential file shapes consoles hand out; secrets never enter this repo
+.env
+.env.*
+*api-key*.csv
+*accessKeys*.csv
+*credentials*.csv
+*.pem
+*.key
+
+# per-machine Claude Code permissions; they carry absolute paths of the person running them
+.claude/settings.local.json
+
+# raw meter output is per-project and per-machine; the committed baseline is the summarized doc
+docs/usage-baseline-raw.txt
+
+# private working material (unscrubbed plans, name maps) must never live in this folder at all;
+# this rule is a second line of defense, not the first
+*.private.md
+PLAN.private*

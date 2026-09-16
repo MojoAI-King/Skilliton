@@ -1,0 +1,2 @@
+{"requestId":"r4","timestamp":"2026-09-14T16:30:00Z","message":{"id":"m4","model":"claude-fable-5-1","usage":{"input_tokens":7,"output_tokens":9,"cache_read_input_tokens":500,"cache_creation_input_tokens":100}}}
+{"requestId":"r4","timestamp":"2026-09-14T16:30:01Z","message":{"id":"m4","model":"claude-fable-5-1","usage":{"input_tokens":7,"output_tokens":9,"cache_read_input_tokens":500,"cache_creation_input_tokens":100}}}
