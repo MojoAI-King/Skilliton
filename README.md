@@ -1,8 +1,12 @@
-# Skillgate
+# Skilliton
 
-A starter pack for shipping the skills, guardrails, and habits that make a team's AI coding tools work well, to every developer's environment, so the good behavior is automatic instead of tribal knowledge.
+This repository is Skilliton. The product inside it is Skillgate.
 
-Status: week-one build, September 16 to 23, 2026. See `PLAN.md` for the full plan, gates, and what is verified versus still open.
+Kind: Living.
+
+Skillgate is a starter pack for shipping the skills, guardrails, and habits that make a team's AI coding tools work well, to every developer's environment, so the good behavior is automatic instead of tribal knowledge.
+
+Status: week-one build, September 16 to 23, 2026. See `PLAN.md` for the full plan, gates, and what is verified versus still open. `DECISIONS.md` records every architectural choice in plain English.
 
 ## Why not just build this yourself?
 
@@ -13,7 +17,9 @@ You can. This exists so you do not start from zero. The flagship pack came out o
 ```
 PLAN.md                         the build contract; read it first
 CLAUDE.md                       session rules for Claude Code in this repo
-.claude-plugin/marketplace.json the marketplace catalog (local, relative sources for now)
+DECISIONS.md                    plain-English record of every architectural choice
+LICENSE                         MIT
+.claude-plugin/marketplace.json the marketplace catalog (marketplace name: skillgate; local, relative sources for now)
 packs/context-hygiene/          the flagship pack
   plugins/context-hygiene/
     .claude-plugin/plugin.json
@@ -29,20 +35,37 @@ scripts/token-cost.test.mjs     fixture test with hand-computed totals
 scripts/hook-fixture.test.sh    original vs repaired SessionStart awk on a sample file
 scripts/fixtures/               the fixtures
 scripts/gate.mjs                wraps your existing verify command, preserves exit status, logs full output
+scripts/scrub-check.sh          public-safety gate: denylisted names, em or en dashes, home-directory paths
 docs/USAGE_BASELINE.md          Tier 2: commit this BEFORE any fix ships
 docs/ONE-PAGER.md               onboarding template
 evidence/<sha>/                 eval results bound to a commit
 releases/<pack>/<version>.json  release records (see releases/SCHEMA.md)
 ```
 
-## Quick start (local)
+## Get the code
+
+```
+git clone https://github.com/MojoAI-King/Skilliton
+cd Skilliton
+```
+
+## Quick start
+
+From a clone (run inside the repository root):
 
 ```
 claude plugin marketplace add ./
 claude plugin install context-hygiene@skillgate
 ```
 
-Installing gives you the skill and the SessionStart hook. It cannot give you the status line or project instructions, because a plugin's settings cannot set those. So run the setup step, which shows what it will change, backs up first, and can undo itself:
+Straight from GitHub, without cloning (the `owner/repo` shorthand is documented for `claude plugin marketplace add`):
+
+```
+claude plugin marketplace add MojoAI-King/Skilliton
+claude plugin install context-hygiene@skillgate
+```
+
+Installing gives you the skill and the SessionStart hook. It cannot give you the status line or project instructions, because a plugin's settings cannot set those. So run the setup step from a clone, which shows what it will change, backs up first, and can undo itself:
 
 ```
 node scripts/setup.mjs            # show
@@ -59,10 +82,18 @@ node scripts/token-cost.test.mjs   # fixture totals; must pass
 bash scripts/hook-fixture.test.sh  # original vs repaired awk, side by side
 ```
 
+## Not built yet
+
+`skillgate evidence`, `skillgate release`, and `skillgate verify` do not exist yet. They are planned for later in the week (see `PLAN.md`). Nothing in this README should be read as claiming they work. Today, `setup`, `gate`, and the meter exist only as the `scripts/*.mjs` files listed above.
+
 ## Pinning note
 
-The marketplace catalog uses a relative-path source for local development. A released entry should instead use a `github` source with both `ref` (the tag) and `sha` (the exact commit), because a ref-only pin is silently mutable. `skillgate release` (to be written) rewrites the entry that way.
+The marketplace catalog uses a relative-path source for local development. A released entry should instead use a `github` source with both `ref` (the tag) and `sha` (the exact commit), because a ref-only pin is silently mutable. `skillgate release` (not built yet) is meant to rewrite the entry that way.
+
+## Contributing
+
+A pull request must pass `bash scripts/scrub-check.sh --history` and the tests above (`node scripts/token-cost.test.mjs`, `bash scripts/hook-fixture.test.sh`).
 
 ## License
 
-Not yet chosen. Decide before any public push (PLAN.md Day 0).
+MIT. See `LICENSE`.

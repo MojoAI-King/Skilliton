@@ -1,0 +1,21 @@
+{
+  "name": "skillgate",
+  "owner": {
+    "name": "MojoAI",
+    "url": "https://github.com/MojoAI-King"
+  },
+  "metadata": {
+    "description": "Skillgate: installable packs of skills, hooks, and setup steps for Claude Code."
+  },
+  "plugins": [
+    {
+      "name": "context-hygiene",
+      "source": "./packs/context-hygiene/plugins/context-hygiene",
+      "description": "Keeps AI coding sessions healthy and cheap: bounded session start, real quota logging, test output kept out of context, config drift detection.",
+      "author": { "name": "MojoAI" },
+      "homepage": "https://github.com/MojoAI-King/Skilliton",
+      "repository": "https://github.com/MojoAI-King/Skilliton",
+      "license": "MIT"
+    }
+  ]
+}
