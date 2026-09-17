@@ -291,5 +291,6 @@ Decision entries in `docs/decisions/`, sorted by ID. `skilliton index` writes th
 | [2026-09-16-roadmap-after-m5-make-it-yours-one-comma-b003](docs/decisions/2026-09-16-roadmap-after-m5-make-it-yours-one-comma-b003.md) | Roadmap after M5: make it yours, one command per machine, autopilot on arrival | accepted | 2026-09-16 |
 | [2026-09-16-skilliton-is-the-evolved-product-name-0be0](docs/decisions/2026-09-16-skilliton-is-the-evolved-product-name-0be0.md) | Skilliton is the evolved product name | accepted | 2026-09-16 |
 | [2026-09-16-the-rename-moves-projects-by-migration-r-a319](docs/decisions/2026-09-16-the-rename-moves-projects-by-migration-r-a319.md) | The rename moves projects by migration, refuses old machine setup, and keeps protection in force until a project moves | accepted | 2026-09-16 |
+| [2026-09-17-enrollment-installs-claude-code-plugins-9cf3](docs/decisions/2026-09-17-enrollment-installs-claude-code-plugins-9cf3.md) | Enrollment installs Claude Code plugins with a managed drop-in plus a first-login install | accepted | 2026-09-17 |
 | [2026-09-17-live-multiplayer-sessions-are-a-separate-b953](docs/decisions/2026-09-17-live-multiplayer-sessions-are-a-separate-b953.md) | Live multiplayer sessions are a separate companion project | accepted | 2026-09-17 |
 <!-- skilliton:index:decisions:end -->
