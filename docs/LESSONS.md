@@ -201,5 +201,8 @@ Lesson entries in `docs/lessons/`, sorted by ID. `skilliton index` writes this l
 | [2026-09-16-the-real-codex-refused-a-missing-home-an-2784](lessons/2026-09-16-the-real-codex-refused-a-missing-home-an-2784.md) | The real Codex refused a missing home and wrote into its home on every run, which the stand-in did not model | accepted | 2026-09-16 |
 | [2026-09-16-undo-trusted-its-own-receipt-so-a-tamper-15cd](lessons/2026-09-16-undo-trusted-its-own-receipt-so-a-tamper-15cd.md) | Undo trusted its own receipt, so a tampered receipt could delete any file whose hash it named | accepted | 2026-09-16 |
 | [2026-09-17-a-not-active-check-passed-on-a-start-tha-da88](lessons/2026-09-17-a-not-active-check-passed-on-a-start-tha-da88.md) | A not-active check passed on a start that never ran a session | accepted | 2026-09-17 |
+| [2026-09-17-a-rule-that-classifies-a-line-must-not-c-b692](lessons/2026-09-17-a-rule-that-classifies-a-line-must-not-c-b692.md) | A rule that classifies a line must not consume it | accepted | 2026-09-17 |
+| [2026-09-17-a-synchronous-start-cannot-stop-a-progra-5e68](lessons/2026-09-17-a-synchronous-start-cannot-stop-a-progra-5e68.md) | A synchronous start cannot stop a program that ignores being stopped | accepted | 2026-09-17 |
+| [2026-09-17-a-test-that-proves-an-attack-is-prevente-af61](lessons/2026-09-17-a-test-that-proves-an-attack-is-prevente-af61.md) | A test that proves an attack is prevented needs its positive control in the same run | accepted | 2026-09-17 |
 | [2026-09-17-handoff-times-typed-ahead-of-the-clock-h-95ba](lessons/2026-09-17-handoff-times-typed-ahead-of-the-clock-h-95ba.md) | Handoff times typed ahead of the clock hide a stale handoff | accepted | 2026-09-17 |
 <!-- skilliton:index:lessons:end -->

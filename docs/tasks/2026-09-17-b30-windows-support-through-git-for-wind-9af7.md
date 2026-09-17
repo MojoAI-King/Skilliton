@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-17-b30-windows-support-through-git-for-wind-9af7
-- **State:** in-progress
+- **State:** done-local
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-17T20:27:59.854Z
+- **Updated:** 2026-09-17T20:28:35.446Z
 
 ## Request
 
