@@ -227,3 +227,4 @@ Everything exercised so far, by platform and version, is in [COVERAGE.md](COVERA
 - **Trying it in two minutes, with no account:** `node scripts/autopilot-demo.mjs`.
 - **Every command and format:** [CONTRACTS.md](CONTRACTS.md).
 - **What comes next:** [PLAN.md](../PLAN.md) section 7.
+- **What is claimed, with its evidence, and the questions to expect:** [POSITIONING.md](POSITIONING.md).
