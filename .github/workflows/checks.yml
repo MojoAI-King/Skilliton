@@ -49,6 +49,12 @@ jobs:
       - name: Enrollment rehearsal judgement can fail
         run: node scripts/rehearsals/enrollment.mjs --self-test
 
+      - name: The IT allow list matches the code (programs, writes, network)
+        run: node scripts/allowlist.test.mjs
+
+      - name: Allow list checks can fail
+        run: node scripts/allowlist.test.mjs --self-test
+
       - name: Plugin and marketplace validation (Claude Code CLI)
         run: |
           npm install --global @anthropic-ai/claude-code
