@@ -200,4 +200,5 @@ Lesson entries in `docs/lessons/`, sorted by ID. `skilliton index` writes this l
 | [2026-09-16-the-lanes-not-verified-lists-lived-only-c61d](lessons/2026-09-16-the-lanes-not-verified-lists-lived-only-c61d.md) | The lanes' not-verified lists lived only in worktrees marked removable | accepted | 2026-09-16 |
 | [2026-09-16-the-real-codex-refused-a-missing-home-an-2784](lessons/2026-09-16-the-real-codex-refused-a-missing-home-an-2784.md) | The real Codex refused a missing home and wrote into its home on every run, which the stand-in did not model | accepted | 2026-09-16 |
 | [2026-09-16-undo-trusted-its-own-receipt-so-a-tamper-15cd](lessons/2026-09-16-undo-trusted-its-own-receipt-so-a-tamper-15cd.md) | Undo trusted its own receipt, so a tampered receipt could delete any file whose hash it named | accepted | 2026-09-16 |
+| [2026-09-17-handoff-times-typed-ahead-of-the-clock-h-95ba](lessons/2026-09-17-handoff-times-typed-ahead-of-the-clock-h-95ba.md) | Handoff times typed ahead of the clock hide a stale handoff | accepted | 2026-09-17 |
 <!-- skilliton:index:lessons:end -->
