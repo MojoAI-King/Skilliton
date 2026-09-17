@@ -1,0 +1,24 @@
+# Fork rehearsal: make it yours (M6)
+
+Kind: Reference. Recorded 2026-09-17 by `scripts/rehearsals/fork.mjs`. Disposable folders, synthetic projects and throwaway keys only.
+
+- **Claude Code:** 2.1.273 (Claude Code)
+- **Codex:** codex-cli 0.154.0-alpha.6.2
+- **Node:** v25.8.1
+
+| Step | Result | Evidence |
+|---|---|---|
+| K1 company init renames the fork: preview writes nothing, apply writes, a repeat changes nothing, doctor sees the catalog and template agree | PASS | fork at 5a67e74; preview exit 0, wrote nothing: true; apply exit 0; catalog acme-skills, template acme-skills at acme/skills; repeat changed nothing: true; doctor catalog line OK: true |
+| K2 new-plugin and new-skill add a company plugin with a skill; packaging checks and strict validation pass | PASS | new-plugin exit 0; new-skill exit 0 (plugin now 0.1.1); packs.test exit 0; validate --strict: repository exit 0, acme-review exit 0 (license UNLICENSED) |
+| K3 release 1.0.0 of the renamed fork is created, committed, signed by the approver and listed as approved | PASS | trust add exit 0; manifest marketplace acme-skills, plugins context-hygiene, workflow, guardrails, acme-review; sign exit 0; list exit 0; 1.0.0 approved |
+| K4 a clean Claude Code configuration installs the base plugins and acme-review from acme-skills and verifies all four | PASS | marketplace add exit 0; installs workflow:0 guardrails:0 context-hygiene:0 acme-review:0; install records acme-review@acme-skills, context-hygiene@acme-skills, guardrails@acme-skills, workflow@acme-skills; verify exit 0: {"workflow@acme-skills":"VERIFIED","guardrails@acme-skills":"VERIFIED","context-hygiene@acme-skills":"VERIFIED","acme-review@acme-skills":"VERIFIED"} |
+| K5 a clean Codex home installs the same plugins from acme-skills and verifies all four | PASS | marketplace add exit 0; installs workflow:0 guardrails:0 context-hygiene:0 acme-review:0; verify exit 0: {"acme-review@acme-skills":"VERIFIED","context-hygiene@acme-skills":"VERIFIED","guardrails@acme-skills":"VERIFIED","workflow@acme-skills":"VERIFIED"} |
+| K6 a new application gets the fork's team settings and is prepared with the installed runtime; doctor sees no mismatch | PASS | project-settings exit 0; declares acme-skills at acme/skills and enables context-hygiene@acme-skills, workflow@acme-skills, guardrails@acme-skills, acme-review@acme-skills; installed-runtime prepare exit 0, check exit 0; doctor: OK .claude/settings.json: declares the acme-skills marketplace and enables context-hygiene@acme-skills, workflow@acme-skills, guardrails@acme-skills, acme-review@acme-skills |
+| K7 the refusals a person meets: a skill for a plugin not created yet, a taken plugin name, a rename without the fork's repository | PASS | new-skill into a missing plugin exit 2 (names new-plugin: true); new-plugin workflow exit 2; company init without --marketplace-repo exit 2; fork unchanged: true |
+
+## Notes
+
+- The marketplace is a local folder here, as in the company release rehearsal. Installing from a GitHub owner/repo source is documented but not run yet (PLAN.md M7).
+- Update, tamper, rollback and withdrawal are rehearsed under the default marketplace name by scripts/rehearsals/company-release.mjs; this rehearsal shows the renamed fork releases, installs and verifies, including a plugin outside packs/base.
+
+Result: 7 of 7 steps passed.

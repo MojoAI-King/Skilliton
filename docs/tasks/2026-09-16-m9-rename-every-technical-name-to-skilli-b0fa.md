@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-17T02:25:35.034Z
+- **Updated:** 2026-09-17T03:04:11.724Z
 
 ## Request
 
@@ -31,6 +31,13 @@ not yet written
 - **Evidence:** all offline suites pass (CLI 181, prepare/migrate/records, rename 9, lifecycle 32, security 38 and collectors, release 21, join 36, delivery 11, guardrails, hooks, demo, names and self-test, docs, scrub PASS); strict validation passes on Claude Code 2.1.273
 - **Next:** Docs (CONTRACTS, BRANDING, DELIVERY, COVERAGE, PLAN, PHASE-3, MAINTAIN, CI steps), decision and lesson entries, local commit, fork/machine/company-release/projects rehearsals on real clients, independent review, push
 - **Git:** main @ e5900d5, 140 uncommitted
+
+### 2026-09-17T03:04:11.724Z
+
+- **State:** M9 final commit 5a67e74 (local): review fixes in; rehearsals on it: fork 7/7, machine J1-J7 (J8 needs the push), company release 18/18, projects 9/9; records updated
+- **Evidence:** every offline suite and strict validation passed on the tree committed as 5a67e74; rehearsal evidence in evidence/rehearsals/2026-09-17-fork, -company-release, -projects
+- **Next:** Commit records and evidence, scrub history, push, read CI, run the machine rehearsal with GitHub (J8), commit its evidence, push, archive B19
+- **Git:** main @ 5a67e74, 10 uncommitted
 
 ## Handoff
 
