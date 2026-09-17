@@ -27,7 +27,7 @@ It prepares a disposable project, turns a request into a task with a checkpoint,
 | **Workflow skills** | `task`, `dispatch`, `review` (plain-English review with a READY TO COMMIT, NEEDS ATTENTION or STOP verdict), `handoff`, `maintain`, `security`. Skills are instructions the assistant follows; the instruction block labels each behavior as enforced, instructed or checked at merge. | [skill evaluations](evidence/) |
 | **Guardrails** | A hook reads each shell command the assistant runs: blocks force-pushes to protected branches, skipped git hooks and secret-shaped commits; asks before commands that discard uncommitted work (Codex cannot ask from a hook, so it refuses them). It does not cover other terminals or deliberately hidden commands. | 487 checks; live denials of a force-push and of `git reset --hard` |
 | **Project security evidence** | Observations tied to file fingerprints go stale when their sources change or expire; applicability is decided by a named person; collectors gather test results, a secret-shape scan and the delivery policy; open gaps become one backlog row each. A 15-control starter catalog references NIST SSDF 1.1 and OWASP ASVS 5.0.0. Evidence is not certification. | 52 tests; [catalog sources](docs/security-catalog-sources.md) |
-| **Company releases and updates** | `company init` gives a fork its own marketplace name and points projects at the fork; `new-plugin` and `new-skill` add the company's own skills. A release manifest hashes every installable file; approval is a tag signed by a trusted approver; `verify` reports VERIFIED, TAMPERED, UNKNOWN VERSION, WITHDRAWN or NOT INSTALLED for Claude Code and Codex installs; lessons become scrubbed proposals; template changes reach projects as receipted migrations. | 21 tests; [company release rehearsal](evidence/rehearsals/2026-09-16-company-release/SUMMARY.md), 18 of 18 on real installs; [fork rehearsal](evidence/rehearsals/2026-09-16-fork/SUMMARY.md), 7 of 7, a renamed fork with its own plugin installed and verified on Claude Code and Codex |
+| **Company releases and updates** | `company init` gives a fork its own marketplace name and points projects at the fork; `new-plugin` and `new-skill` add the company's own skills; `join` sets up a developer's machine in one command and `join --undo` reverses it. A release manifest hashes every installable file; approval is a tag signed by a trusted approver; `verify` reports VERIFIED, TAMPERED, UNKNOWN VERSION, WITHDRAWN or NOT INSTALLED for Claude Code and Codex installs; lessons become scrubbed proposals; template changes reach projects as receipted migrations. | 21 tests; [company release rehearsal](evidence/rehearsals/2026-09-16-company-release/SUMMARY.md), 18 of 18 on real installs; [fork rehearsal](evidence/rehearsals/2026-09-16-fork/SUMMARY.md), 7 of 7, a renamed fork with its own plugin installed and verified on Claude Code and Codex; [machine rehearsal](evidence/rehearsals/2026-09-17-machine/SUMMARY.md), 8 of 8, including installs from GitHub |
 | **Trusted delivery checks** | `skillgate delivery install` puts a check in a shared repository that tests the combined result of every push to a protected branch, reads its policy from the branch rather than from the push, and requires an approver's signature for policy changes. A GitHub workflow template follows the same rules. | 10 tests with real pushes; the demo above |
 
 ## Not proven yet
@@ -58,14 +58,13 @@ node scripts/skillgate.mjs release sign 1.0.0 --apply               # with your 
 [docs/ONBOARDING.md](docs/ONBOARDING.md) is written for you. In short:
 
 ```bash
-claude plugin marketplace add <company>/<skills-repo>
-claude plugin install workflow@<marketplace>
-claude plugin install guardrails@<marketplace>
-skillgate trust add --company <company> --signers <file from your company> --apply
+git clone https://github.com/<company>/<skills-repo> ~/company-skills
+node ~/company-skills/scripts/skillgate.mjs join --company <company> --signers <file from your company>           # preview
+node ~/company-skills/scripts/skillgate.mjs join --company <company> --signers <file from your company> --apply   # set up, then verify
 skillgate prepare --dir <project>          # preview; add --apply to write
 ```
 
-Inside a Claude Code session the workflow plugin puts `skillgate` on the shell path; in a terminal, run `node <skills-repo>/scripts/skillgate.mjs`.
+`join` puts a `skillgate` command in `~/.local/bin` for the terminal; inside a Claude Code session the workflow plugin also puts it on the shell path.
 
 ## Checks
 

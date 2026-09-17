@@ -113,25 +113,33 @@ Approval is the signed tag and nothing else. Each approver adds a line to an SSH
 
 ## Step 4: Install on every machine
 
-Once per computer, today:
+Once per computer, from a clone of the company's repository:
 
 ```bash
-claude plugin marketplace add <owner>/<repo>
-claude plugin install workflow@<marketplace>
-claude plugin install guardrails@<marketplace>
-claude plugin install <plugin>@<marketplace>
-skillgate trust add --company <company> --signers <file from your company> --apply
-skillgate verify --company <company> --source <clone of the company skills repository>
+git clone https://github.com/<owner>/<repo> ~/company-skills
+node ~/company-skills/scripts/skillgate.mjs join --company <company> --signers <file from your company>           # preview
+node ~/company-skills/scripts/skillgate.mjs join --company <company> --signers <file from your company> --apply   # set up
 ```
 
-- **Codex:** `codex plugin marketplace add <location>`, then `codex plugin add workflow@<marketplace>` and the same for each plugin; `skillgate verify --client codex` checks it.
-- **The `skillgate` command:** inside a Claude Code session the workflow plugin puts it on the shell path. In a terminal, run `node <company skills repository>/scripts/skillgate.mjs` instead.
-- **Each project declares the company tools** with `skillgate project-settings --dir <project> --apply`, which writes `.claude/settings.json` from your template; commit it.
-- **Not run yet:** installing from a GitHub `owner/repo` source; the rehearsals install from a local folder. Setting up a machine with one command is the next milestone (M7).
+`join` sets up every coding tool it finds, Claude Code and Codex:
+
+- it adds the company marketplace and installs the plugins the company's settings turn on;
+- it trusts the company's release signers, from a file the company gives you separately, never from the repository;
+- it puts a `skillgate` command in `~/.local/bin` for the terminal, and tells you when that folder is not on your PATH (it never edits your shell profile);
+- it ends by running `skillgate verify` for each tool.
+
+It shows everything first and writes nothing until `--apply`. What it adds is recorded, so `skillgate join --undo --company <company> --apply` takes exactly that back out and keeps whatever you had before. Each project then declares the company tools with `skillgate project-settings --dir <project> --apply`, which writes `.claude/settings.json` from your template; commit it.
 
 ```mermaid
 flowchart TD
-  V["skillgate verify"] --> Q{"Do the installed files match<br/>an approved release?"}
+  C["Clone the company repository"] --> J["skillgate join: preview"]
+  J --> A["skillgate join --apply"]
+  A --> M["Each tool: company marketplace and plugins"]
+  A --> S["Trusted release signers"]
+  A --> L["A terminal command named skillgate"]
+  M --> V["skillgate verify"]
+  S --> V
+  V --> Q{"Do the installed files match an approved release?"}
   Q -- "yes" --> OK["VERIFIED"]
   Q -- "a file differs" --> T["TAMPERED, with the files named"]
   Q -- "this version was never approved" --> UV["UNKNOWN VERSION"]
@@ -203,7 +211,8 @@ A proposal is not policy: it changes nothing until the company reviews it, tests
 | Preparing new and existing projects, two contributors, an interrupted session | measured offline | [project rehearsal](../evidence/rehearsals/2026-09-16-projects/SUMMARY.md) |
 | Session start, checkpoint reminder and guardrails in real Claude Code sessions | measured, headless | [live sessions](../evidence/rehearsals/2026-09-16-live-clients/SUMMARY.md) |
 | The delivery gate accepting a good change and rejecting a combined break | measured in tests and the demo | `node scripts/autopilot-demo.mjs` |
-| Installing from GitHub; one-command machine setup | not run yet (M7) | [PLAN.md](../PLAN.md) section 7 |
+| One-command machine setup with `join`, and `join --undo`, on Claude Code and Codex, ending VERIFIED | measured, installing from a local folder | [machine rehearsal](../evidence/rehearsals/2026-09-17-machine/SUMMARY.md) |
+| Installing from a GitHub source | measured on this public repository, on both tools; it has no signed release yet, so verify reports UNKNOWN VERSION | same rehearsal, step J8 |
 | Lifecycle hooks on Codex | not observed | [CLIENTS.md](CLIENTS.md) |
 | The GitHub delivery adapter on a hosted repository | documented, not proved | [DELIVERY.md](DELIVERY.md) |
 | A real new builder following these docs | not started (M5) | [protocol](rehearsals/NEW_BUILDER.md) |

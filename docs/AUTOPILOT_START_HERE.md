@@ -23,7 +23,7 @@ Everything needed to continue the build is in this repository: the direction, th
 | Guardrails | [packs/base/plugins/guardrails/](../packs/base/plugins/guardrails/) |
 | Tests | `scripts/*.test.mjs` and `scripts/*.test.sh`; the full list is [MAINTAIN.md](MAINTAIN.md) step 2 |
 | Demo | [scripts/autopilot-demo.mjs](../scripts/autopilot-demo.mjs) |
-| Rehearsals | [scripts/rehearsals/](../scripts/rehearsals/) (projects, company release, fork, live clients) with results in [evidence/rehearsals/](../evidence/rehearsals/) |
+| Rehearsals | [scripts/rehearsals/](../scripts/rehearsals/) (projects, company release, fork, machine, live clients) with results in [evidence/rehearsals/](../evidence/rehearsals/) |
 | Client probes | `scripts/live-capability-probe.sh`, `scripts/codex-offline-probe.sh`, `scripts/live-guardrails-probe.sh`, results in [evidence/live/](../evidence/live/) |
 | Guides | [HOW-IT-WORKS.md](HOW-IT-WORKS.md) (the whole path, with diagrams), [ONBOARDING.md](ONBOARDING.md), [RELEASING.md](RELEASING.md), [DELIVERY.md](DELIVERY.md), [rehearsals/NEW_BUILDER.md](rehearsals/NEW_BUILDER.md) |
 | What has and has not been exercised (platforms, versions, scale, signing setups, security-review cases) | [COVERAGE.md](COVERAGE.md) |

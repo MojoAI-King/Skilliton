@@ -9,18 +9,18 @@ Kind: Living. For anyone who will build in a company's prepared repository with 
 - Some protections run on their own (called **enforced**), and some are instructions the assistant follows (**instructed**). The instructions in your project's `CLAUDE.md` or `AGENTS.md` label every behavior, so you always know which is which.
 - The tools update when the company approves a new version, and you can check that what you have is exactly what was approved.
 
-## 1. Install the company tools (once per computer)
+## 1. Set up your computer (once)
 
-You need Claude Code (logged in), Node.js 18 or later, and git, on macOS or Linux. The checks have run on Node.js 22 and 25; Node.js 18 has not been run yet, and Windows has not been tried (docs/COVERAGE.md).
+You need Claude Code or Codex, Node.js 18 or later, and git, on macOS or Linux. The checks have run on Node.js 22 and 25; Node.js 18 has not been run yet, and Windows has not been tried (docs/COVERAGE.md).
 
-1. Add the company marketplace. Your company gives you its name and location, for example `claude plugin marketplace add <company>/<skills-repo>`.
-2. Install the base plugins: `claude plugin install workflow@<marketplace>`, `claude plugin install guardrails@<marketplace>`, and optionally `claude plugin install context-hygiene@<marketplace>`.
-3. Trust the company's release signers, from the file your company gives you out of band (not from the repository itself): `skillgate trust add --company <company> --signers <file> --apply` (without `--apply` it shows what it would record).
-4. Check it: `skillgate verify --company <company> --source <company skills repository clone>` should say VERIFIED for each plugin.
+1. **Get two things from your company:** where its skills repository lives, and its release signers file. The signers file comes separately (for example from device management or an internal page), never from the repository itself.
+2. **Clone the repository and preview:** `git clone <company skills repository> ~/company-skills`, then `node ~/company-skills/scripts/skillgate.mjs join --company <company> --signers <file>`. It lists what it would add for each coding tool it finds, and writes nothing.
+3. **Apply it:** run the same command with `--apply`. It adds the company marketplace and plugins, trusts the signers, puts a `skillgate` command in `~/.local/bin`, and ends with `skillgate verify`, which should say VERIFIED for every plugin. If it says `~/.local/bin` is not on your PATH, add the line it prints to your shell profile.
+4. **To take it back out:** `skillgate join --undo --company <company> --apply` removes exactly what join added and keeps what you had before.
 
-If `skillgate` is not found in your terminal, the plugins put it on the path only inside Claude Code sessions. In a terminal, run the same command as `node <company skills repository>/scripts/skillgate.mjs <command>`.
+By hand instead: `claude plugin marketplace add <company>/<skills-repo>`, `claude plugin install workflow@<marketplace>` and each other plugin, `skillgate trust add --company <company> --signers <file> --apply`, then `skillgate verify --company <company> --source <clone>`. Inside a Claude Code session the workflow plugin also puts `skillgate` on the shell path.
 
-**Codex:** add the same marketplace with `codex plugin marketplace add <location>` and install with `codex plugin add workflow@<marketplace>`; `skillgate verify --client codex` checks the install. Codex gives you the skills and the `AGENTS.md` instructions, but it does not run hooks shipped inside plugins, so the session-start summary, the checkpoint reminder and guardrails need hooks your company configures for Codex, each trusted once (`/hooks` in the Codex CLI); ask your maintainer. The Codex IDE extension does not support plugins. See docs/CLIENTS.md for what is proved on each client.
+**Codex:** `join` sets Codex up too when it is installed. By hand, add the same marketplace with `codex plugin marketplace add <location>` and install with `codex plugin add workflow@<marketplace>`; `skillgate verify --client codex` checks the install. Codex gives you the skills and the `AGENTS.md` instructions, but it does not run hooks shipped inside plugins, so the session-start summary, the checkpoint reminder and guardrails need hooks your company configures for Codex, each trusted once (`/hooks` in the Codex CLI); ask your maintainer. The Codex IDE extension does not support plugins. See docs/CLIENTS.md for what is proved on each client.
 
 ## 2. Open a project
 

@@ -86,6 +86,9 @@ jobs:
       - name: Releases, signed approval, verify, trust and proposals
         run: node scripts/release.test.mjs
 
+      - name: Machine setup with join and undo (stand-in clients)
+        run: node --test scripts/join.test.mjs
+
       - name: Trusted delivery gate
         run: node scripts/delivery.test.mjs
 
