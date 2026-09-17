@@ -6,6 +6,8 @@ Kind: Living. For IT and security teams rolling Skilliton out on managed laptops
 
 ## The short version
 
+Each of these four is kept true by `node scripts/footprint.test.mjs`, which reads the code and fails when one of them stops holding.
+
 - **User-level only.** After IT places its managed files, Skilliton needs no administrator rights. It never uses sudo, never writes to system folders, and installs no services, daemons, launch agents, scheduled tasks or login items.
 - **No executables of its own, nothing downloaded to run.** Skilliton is scripts: JavaScript run by `node` and shell scripts run by `bash`, installed as plugin files by Claude Code or Codex.
 - **No web requests of its own.** The runtime contains no network code and runs no `git fetch`, `clone` or `push`. Network traffic comes from the AI tools themselves, including when they clone the company's plugin repository from GitHub.
@@ -105,7 +107,7 @@ This is general guidance derived from the lists above. It has not been tested wi
 
 ## 8. Known gaps
 
-- Not tested under any endpoint-security product (B29); no preflight check (B27); no small-footprint test (B28).
+- Not tested under any endpoint-security product (B29); no preflight check (B27).
 - What the matching test covers, and what it does not: it reads the code, so a program started from a string built at run time, or by a program Skilliton starts (git starting `ssh-keygen`, a client updating itself), is named in this page by hand and not by measurement. The writes scenario measures the paths a run leaves in an empty home folder; a temporary file created and removed inside one step is not in that list.
 - Windows is not supported (B30). A private company repository is not tested (B31).
 - Found while writing this list: the session hooks run `git status` without `core.fsmonitor=false`, while the guardrails hook sets it. A repository whose own local Git configuration names an fsmonitor program would have that program started by the session hooks (B33).
@@ -121,5 +123,5 @@ Paths are relative to `packs/base/plugins/` unless they start with `scripts/`.
 - **Repository writes:** `workflow/runtime/lib/prepare.mjs` (transactions, lock, temporary files, backups), `journal.mjs`, `tasks.mjs`, `records.mjs`, `migrations.mjs`, `security.mjs`, `collectors.mjs`, `delivery.mjs` (gate hook and temporary trees).
 - **Reads outside a repository:** `workflow/runtime/lib/verify.mjs` (plugin records and file hashes), `core.mjs` (`doctor`: settings, editor extension folders), `join.mjs` (Codex configuration), `legacy-names.mjs` (environment variable names).
 - **No network code:** a search of the plugins for HTTP, socket, DNS, `fetch`, `curl` and `wget` finds none, and no runtime `git` call contacts a remote. `scripts/allowlist.test.mjs` fails when one appears.
-- **The matching test:** `scripts/allowlist.test.mjs` (with `scripts/inventory.mjs`, which reads the shell and JavaScript code). Its `--self-test` proves each of its checks fails on known-bad input.
+- **The matching test:** `scripts/allowlist.test.mjs` (with `scripts/inventory.mjs`, which reads the shell and JavaScript code), and `scripts/footprint.test.mjs` for the four promises in the short version. Each has a `--self-test` that proves its checks fail on known-bad input.
 
