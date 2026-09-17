@@ -96,7 +96,7 @@ Withdrawal prevents future approval/distribution according to policy; it must no
 
 Branding update: the product is now Skilliton (formerly Skillgate), with workflow 0.5.1. Existing technical identifiers remain compatible; see docs/BRANDING.md. The earlier rehearsal versions and their evidence below are unchanged.
 
-Updated 2026-09-16 after the M1-M4 integration, the follow-ups the task and security eval cases, and the fork commands and how-it-works guide, and machine setup (workflow 0.5.0, guardrails 0.2.0, context-hygiene 0.1.3). "Local" means committed on this machine's `main`; PUBLISHED, INSTALLED and VERIFIED states are named in docs/HANDOFF.md.
+Updated 2026-09-16 after the M1-M4 integration, the follow-ups, the task and security eval cases, the fork commands and how-it-works guide, machine setup, and the Skilliton naming (workflow 0.5.1, guardrails 0.2.0, context-hygiene 0.1.3). "Local" means committed on this machine's `main`; PUBLISHED, INSTALLED and VERIFIED states are named in docs/HANDOFF.md.
 
 | Capability | Current state | Evidence or remaining proof |
 |---|---|---|
