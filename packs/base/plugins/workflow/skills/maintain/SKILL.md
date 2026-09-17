@@ -48,7 +48,7 @@ If none exist, offer `skilliton prepare` (it previews first, adopts what exists,
 
 ### The resume marker (`docs/HANDOFF.md`)
 
-The top of `docs/HANDOFF.md` is a section headed exactly `## RESUME HERE`, which the session-start hook shows to the next session. `/workflow:handoff` writes the same section; both follow the layout in that skill. Start the section with `Written: <date and time>`, then:
+The top of `docs/HANDOFF.md` is a section headed exactly `## RESUME HERE`, which the session-start hook shows to the next session. `/workflow:handoff` writes the same section; both follow the layout in that skill. Start the section with `Written: <date and time>`, reading the time from the clock with `date "+%Y-%m-%d %H:%M %Z"` rather than writing it from memory (`skilliton status` reports a time later than now instead of trusting it), then:
 
 - **State:** one or two sentences on where things stand.
 - **Next:** the next actions in priority order, each with the file or command to start from.

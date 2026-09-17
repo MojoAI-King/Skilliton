@@ -1011,6 +1011,14 @@ test("status exits 1 for each attention condition and names it", async () => wit
   utimesSync(join(committedTogether, "README.md"), new Date("2019-01-01T00:00:00Z"), new Date("2019-01-01T00:00:00Z"));
   assert.equal(statusJson(committedTogether, env).code, 0, "control: the same uncommitted change dated before the handoff is not newer");
 
+  // A Written time two hours ahead hid a stale handoff: status called it current although newer changes existed.
+  const future = fresh({ written: new Date(Date.now() + 2 * 3600 * 1000).toISOString() });
+  writeFileSync(join(future, "README.md"), "# edited after the handoff was really written\n");
+  const f = attentionOnly(future, "handoff", /^docs\/HANDOFF\.md says it was written .+, which is later than this machine's clock \(.+\), so its freshness cannot be judged; set the Written line to the time the note was written$/);
+  assert.equal(f.json.details.handoff.problem, "written in the future");
+  const ahead = fresh({ written: new Date(Date.now() + 60 * 1000).toISOString() });
+  assert.equal(statusJson(ahead, env).code, 0, "a Written time one minute ahead is within the allowed clock difference");
+
   const noWritten = fresh();
   writeFileSync(join(noWritten, "docs", "HANDOFF.md"), "# Handoff\n\nKind: Living.\n\n## RESUME HERE\n\n- **State:** no date.\n");
   commit(noWritten, env, "handoff without a date");

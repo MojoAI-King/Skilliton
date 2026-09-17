@@ -330,10 +330,15 @@ function tasksCheck(project, git, report) {
   return { status, summary: parts.join("; "), data };
 }
 
+// How far ahead of this machine's clock a handoff's Written time may be, for clocks that differ between machines.
+const WRITTEN_AHEAD_MS = 5 * 60 * 1000;
+
 // Freshness of the shared handoff record. It is stale when its Written time is older than the latest commit, unless
 // no commit came after the last commit that changed the handoff record (committing a handoff is not a newer change),
 // or when an uncommitted change (other than the handoff and its archive) was modified after that time. On a branch
 // that is not an integration branch the shared handoff is not written (CONTRACTS section 3), so staleness is a note.
+// A Written time later than now cannot be judged: every commit and change made before it would look older than the
+// handoff, so it is reported instead of being called current.
 function handoffCheck(project, git) {
   const root = project.root, rel = project.artifacts.handoff;
   const integration = git.branch !== null && project.integrationBranches.includes(git.branch);
@@ -355,6 +360,11 @@ function handoffCheck(project, git) {
   const parsed = parseWritten(record.written);
   if (!parsed.ok) { data.problem = parsed.reason; return verdict(`${rel}: the Written value could not be read: ${parsed.reason}`); }
   data.writtenAt = parsed.at.toISOString();
+  const now = Date.now();
+  if (parsed.at.getTime() > now + WRITTEN_AHEAD_MS) {
+    data.problem = "written in the future";
+    return verdict(`${rel} says it was written ${record.written}, which is later than this machine's clock (${new Date(now).toISOString()}), so its freshness cannot be judged; set the Written line to the time the note was written`);
+  }
 
   const reasons = [];
   if (git.head) {
