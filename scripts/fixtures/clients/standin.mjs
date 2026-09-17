@@ -14,7 +14,13 @@
 // write to a real configuration, and it never uses the network.
 
 import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
+
+// The client home to act on: the variable each client reads, or, only when STANDIN_DEFAULT_HOME is set, the folder
+// each client uses when that variable is unset. scripts/allowlist.test.mjs sets it to measure where an unconfigured
+// machine is written, with HOME pointing inside its own temporary folder.
+const clientHome = (variable, fallback) => process.env[variable] || (process.env.STANDIN_DEFAULT_HOME ? join(homedir(), fallback) : "");
 
 const [client, ...args] = process.argv.slice(2);
 const fail = (message) => { process.stderr.write(`standin ${client}: ${message}\n`); process.exit(1); };
@@ -40,7 +46,7 @@ function localMarketplace(source) {
 }
 
 function claude() {
-  const home = process.env.CLAUDE_CONFIG_DIR;
+  const home = clientHome("CLAUDE_CONFIG_DIR", ".claude");
   if (!home) fail("CLAUDE_CONFIG_DIR is not set");
   const knownPath = join(home, "plugins", "known_marketplaces.json");
   const installedPath = join(home, "plugins", "installed_plugins.json");
@@ -93,7 +99,7 @@ function readToml(path) {
 const writeToml = (path, sections) => writeFileSync(path, sections.map(([h, lines]) => [h, ...lines, ""].join("\n")).join("\n"));
 
 function codex() {
-  const home = process.env.CODEX_HOME;
+  const home = clientHome("CODEX_HOME", ".codex");
   if (!home) fail("CODEX_HOME is not set");
   if (!existsSync(home)) fail(`CODEX_HOME points to "${home}", but that path does not exist`);
   const configPath = join(home, "config.toml");
