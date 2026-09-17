@@ -13,7 +13,5 @@ Read `docs/HANDOFF.md` for the next step and `docs/BACKLOG.md` for outstanding w
 <!-- skilliton:index:tasks:start -->
 Open tasks in `docs/tasks/` (every state except done-local, merged, released, verified and abandoned), sorted by ID. `skilliton index` writes this list from the task records; edit the task records, not the list.
 
-| ID | Title | State | Branch | Owner | Updated |
-|---|---|---|---|---|---|
-| [2026-09-17-m12-spike-do-company-plugins-install-fro-a982](tasks/2026-09-17-m12-spike-do-company-plugins-install-fro-a982.md) | M12 spike: do company plugins install from managed settings with no developer command | in-progress | main | unassigned | 2026-09-17T14:55:15.437Z |
+No open tasks.
 <!-- skilliton:index:tasks:end -->

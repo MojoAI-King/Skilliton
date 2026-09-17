@@ -16,7 +16,7 @@ The times were typed from a sense of how late it was, not read from the clock. T
 
 ## The fix
 
-Both times in docs/HANDOFF.md were corrected to their commit times, with a note saying so, and the new note's time was read with `date "+%Y-%m-%d %H:%M %Z"`. The check itself is not changed yet.
+Both times in docs/HANDOFF.md were corrected to their commit times, with a note saying so, and the new note's time was read with `date "+%Y-%m-%d %H:%M %Z"`. The check was then changed (see below).
 
 ## The rule
 
@@ -24,4 +24,4 @@ Read the clock when writing a Written line or any dated statement, and never typ
 
 ## What now enforces it
 
-Nothing yet. Backlog B25: the project state report behind `status` and the session start reports a Written time later than the current time (allowing a few minutes of clock difference) as a problem, with a test.
+`handoffCheck` reports a Written time more than five minutes later than the machine's clock as needing attention on an integration branch (workflow 0.6.1, closing B25). `scripts/lifecycle.test.mjs` reproduces the measured case, a time two hours ahead with a newer uncommitted change, and a copy without the check fails that test; a time one minute ahead is still accepted. The maintain skill now says to read the time with `date`.
