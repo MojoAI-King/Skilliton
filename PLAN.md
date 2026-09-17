@@ -156,7 +156,7 @@ Track outcomes against native-tool workflows: requirement completion, restart ac
 
 ## 9. Scope boundaries
 
-First deliver a local-first, Git-backed system that a solo builder or small team can use. Reuse repository-host checks and native distribution where proven. Defer a hosted dashboard, universal device-management enforcement, an organization-wide identity service, and a broad compliance platform. Phase 3 builds enrollment bundles that a company's own device management delivers (M12); running device management or identity remains out of scope.
+First deliver a local-first, Git-backed system that a solo builder or small team can use. Reuse repository-host checks and native distribution where proven. Defer a hosted dashboard, universal device-management enforcement, an organization-wide identity service, and a broad compliance platform. Phase 3 builds enrollment bundles that a company's own device management delivers (M12); running device management or identity remains out of scope. Live multiplayer sessions, where a team watches and steers one agent session together, are a separate companion project with its own repository (docs/MULTIPLAYER.md); no milestone here depends on it.
 
 Company device onboarding can install prerequisites and the approved tools; it cannot prove repository controls or application behavior by itself. Keep project rules in the repository and organizational authority with the company. No private client content, credential values or personal material goes into this public starter.
 
