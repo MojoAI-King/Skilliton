@@ -4,8 +4,20 @@ Kind: Living.
 
 ## RESUME HERE
 
-Written: 2026-09-17 10:47 EDT
+Written: 2026-09-17 12:02 EDT
 
+- **State:** The M12 enrollment spike is measured on Linux and not published. `scripts/rehearsals/enrollment.mjs` (466515c) places a Claude Code managed-settings drop-in in clean containers the way device management does, with no login (placeholder key, a loopback endpoint that never answers): the company plugins install with no developer command, but from the GitHub marketplace they are active only from the third session start (the first registers, the second installs); a folder marketplace is active from the second; a read-only plugin seed from the second, never auto-updating; a first-login install (the commands `join` runs, no login needed) makes the first start active and the plugins then show as managed. Evidence evidence/rehearsals/2026-09-17-enrollment, 8 of 8 on Claude Code 2.1.274. Decision 2026-09-17-enrollment-installs-claude-code-plugins-9cf3: the bundle pairs the drop-in with a first-login install. An independent review found 8 issues in the first version, the worst a crashed start counting as "not active"; all fixed and tested before the evidence run (lesson 2026-09-17-a-not-active-check-passed-on-a-start-tha-da88). The owner moved the multiplayer note and brief to their own repository; docs/MULTIPLAYER.md is removed here. `main` is ahead of GitHub and not pushed: two of those commits (ca7448c, e3050c4) added the multiplayer note, so pushing publishes it in history even though a later commit removes it.
+- **Next:**
+  1. Owner: decide the push. Either publish as is, or drop the two multiplayer commits from local history first (they only touched documentation, and later commits edit the same files, so it needs a careful rebase).
+  2. Without owner input: B25 (status treats a future handoff time as fresh). Then the Phase 3 order: M10 security audit, M11 routines, the Cursor spike (needs the owner's Cursor login on this Mac), and the B14 demonstration around 2026-09-23.
+  3. M12: the macOS half needs a separate Mac or a macOS virtual machine (the owner's EC2 plan); a real login in a clean configuration (B3) would show whether the first session after logging in installs sooner. Then build the bundle.
+  4. Owner inputs unchanged: B2, B3, B4, B7, B6, B1; a spending ceiling for M14; a B24 milestone proposal.
+- **Blocked:** as before (M5 participant, Codex hooks login, hosted delivery approval, first signed release, any cost statement).
+- **Watch out:** Colima shares only the home folder with containers, so the rehearsal sends files with `docker cp` and scripts on standard input; inside such a script `claude` needs `</dev/null` or it reads the rest of the script. `docker exec` exits 0 with no output when interrupted. The enrollment rehearsal takes about ten minutes and needs network access. Read the clock before writing a Written line. Use the editor-bundled Claude Code for `plugin validate --strict` (the terminal `claude` is 2.1.92).
+
+## Earlier
+
+### 2026-09-17 10:47 EDT
 - **State:** Skilliton itself is unchanged since M9: every technical name is Skilliton (workflow 0.6.0, layout 3), published as 5a67e74 and 1b626d1 (CI 35176795761, 34 of 34) with maintenance e8ab467 (CI 35179607364); rehearsals fork 7 of 7, machine 8 of 8, company release 18 of 18, project 9 of 9. Installed on the owner's machine: nothing. Released: none. After midnight the owner recorded an idea for a separate companion project: a live multiplayer environment where a small team watches and steers one agent session together and owns its context. It is written up in docs/MULTIPLAYER.md (the four pillars and open questions); a standalone brief for the new repository, which assumes no knowledge of Skilliton, is on the owner's Desktop as `multiplayer-project-brief.md`, outside every repository and kept out of Skilliton's scope (decision 2026-09-17-live-multiplayer-sessions-are-a-separate-b953; PLAN.md section 9). Skilliton stays the harness for each developer. Two earlier handoff times had been typed about 90 minutes ahead of the clock, which let `status` call a stale handoff current; both are corrected below (lesson 2026-09-17-handoff-times-typed-ahead-of-the-clock-h-95ba; backlog B25). This note and those changes are committed on `main` locally and not pushed, because the repository is public and publishing the companion idea is the owner's call.
 - **Next:**
   1. Owner: say whether to publish the multiplayer note (push `main`), and start the companion project in its own repository from `multiplayer-project-brief.md` on the owner's Desktop.
@@ -14,8 +26,6 @@ Written: 2026-09-17 10:47 EDT
   4. Without owner input: B25, B11 and O10. Owner inputs unchanged: B2, B3, B4, B7, B6, B1; a spending ceiling for M14.
 - **Blocked:** as before (M5 participant, Codex hooks login, hosted delivery approval, first signed release, any cost statement).
 - **Watch out:** read the clock (`date "+%Y-%m-%d %H:%M %Z"`) before writing a Written line; until B25 is built, `status` trusts a time in the future. The rehearsals clone the committed HEAD and never replace recorded evidence (a second run writes `<date>-<name>-run-<n>`). Run the whole suite on the exact tree before saying it passes. Use the editor-bundled Claude Code 2.1.273 for `plugin validate --strict` (the terminal `claude` is 2.1.92).
-
-## Earlier
 
 ### 2026-09-16 23:49 EDT
 - **Correction (2026-09-17):** first written as 2026-09-17 01:20 EDT, a time typed rather than read from the clock; the heading is now the time of the commit that added this note (e8ab467).

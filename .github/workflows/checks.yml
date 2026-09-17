@@ -46,6 +46,9 @@ jobs:
       - name: Names check can fail
         run: node scripts/names.test.mjs --self-test
 
+      - name: Enrollment rehearsal judgement can fail
+        run: node scripts/rehearsals/enrollment.mjs --self-test
+
       - name: Plugin and marketplace validation (Claude Code CLI)
         run: |
           npm install --global @anthropic-ai/claude-code

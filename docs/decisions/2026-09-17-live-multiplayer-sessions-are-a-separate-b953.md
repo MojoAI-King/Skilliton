@@ -8,7 +8,7 @@ Kind: Living. Decision entry.
 
 ## Decision
 
-Live multiplayer sessions, where a team of developers watches and steers one agent session together with context the team owns, are a separate companion project with its own repository. They are not part of Skilliton. Skilliton stays the harness for each developer working with an AI assistant: the company package on every machine, the project records, the security checks and the merge gate. The idea, its four pillars (shared sessions, observable work, live steering and handoffs, team-owned context), and open questions are in docs/MULTIPLAYER.md, the new project starts from a standalone brief kept outside this repository, and PLAN.md section 9 lists it as out of scope.
+Live multiplayer sessions, where a team of developers watches and steers one agent session together with context the team owns, are a separate companion project with its own repository. They are not part of Skilliton. Skilliton stays the harness for each developer working with an AI assistant: the company package on every machine, the project records, the security checks and the merge gate. The idea, its four pillars (shared sessions, observable work, live steering and handoffs, team-owned context), and open questions were first written in docs/MULTIPLAYER.md, with a standalone brief outside this repository; later on 2026-09-17 the owner moved both to the companion project's own repository and removed the note from this one. PLAN.md section 9 lists it as out of scope.
 
 ## Why
 
@@ -21,7 +21,7 @@ The owner said so on 2026-09-17: the multiplayer environment "might be a differe
 
 ## Risk
 
-The owner expects the two projects to work together, and the natural meeting point is Skilliton's project records. Designing that interface before the companion project has its own design would be guessing, so it stays an open question in docs/MULTIPLAYER.md. If the companion project later needs a change here, it arrives as a proposed Skilliton milestone.
+The owner expects the two projects to work together, and the natural meeting point is Skilliton's project records. Designing that interface before the companion project has its own design would be guessing, so it stays an open question in the companion project. If the companion project later needs a change here, it arrives as a proposed Skilliton milestone.
 
 ## Reversibility
 
@@ -29,4 +29,4 @@ Easy. Nothing is built, and a later decision can bring any part of it into Skill
 
 ## Evidence
 
-The owner's note in this session, 2026-09-17 around 00:50 EDT. Only documentation changed: docs/MULTIPLAYER.md, docs/PHASE-3.md ("Where Skilliton stops"), PLAN.md section 9, docs/AUTOPILOT_START_HERE.md.
+The owner's note in this session, 2026-09-17 around 00:50 EDT. Only documentation changed: docs/MULTIPLAYER.md (since removed), docs/PHASE-3.md ("Where Skilliton stops"), PLAN.md section 9, docs/AUTOPILOT_START_HERE.md.

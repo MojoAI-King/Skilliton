@@ -213,6 +213,7 @@ A proposal is not policy: it changes nothing until the company reviews it, tests
 | The delivery gate accepting a good change and rejecting a combined break | measured in tests and the demo | `node scripts/autopilot-demo.mjs` |
 | One-command machine setup with `join`, and `join --undo`, on Claude Code and Codex, ending VERIFIED | measured, installing from a local folder | [machine rehearsal](../evidence/rehearsals/2026-09-17-machine/SUMMARY.md) |
 | Installing from a GitHub source | measured on this public repository, on both tools; it has no signed release yet, so verify reports UNKNOWN VERSION | same rehearsal, step J8 |
+| Company plugins arriving from device-managed settings, with no developer command | measured on a clean Linux container without a login: active from the third session start, or the first with a first-login install; macOS not yet run | [enrollment rehearsal](../evidence/rehearsals/2026-09-17-enrollment/SUMMARY.md) |
 | Lifecycle hooks on Codex | not observed | [CLIENTS.md](CLIENTS.md) |
 | The GitHub delivery adapter on a hosted repository | documented, not proved | [DELIVERY.md](DELIVERY.md) |
 | A real new builder following these docs | not started (M5) | [protocol](rehearsals/NEW_BUILDER.md) |
