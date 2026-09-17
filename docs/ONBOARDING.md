@@ -11,7 +11,7 @@ Kind: Living. For anyone who will build in a company's prepared repository with 
 
 ## 1. Set up your computer (once)
 
-You need Claude Code or Codex, Node.js 18 or later, and git, on macOS or Linux. The checks have run on Node.js 22 and 25; Node.js 18 has not been run yet, and Windows has not been tried (docs/COVERAGE.md).
+You need Claude Code or Codex, Node.js 18 or later, and git, on macOS or Linux. On Windows you also need Git for Windows, because Claude Code runs each hook through Git Bash there, and the Skilliton commands are run from Git Bash; Windows has not been rehearsed yet (docs/BACKLOG.md B30; the first run is docs/WINDOWS.md). The checks have run on Node.js 22 and 25; Node.js 18 has not been run yet, and Windows has not been tried (docs/COVERAGE.md).
 
 1. **Get two things from your company:** where its skills repository lives, and its release signers file. The signers file comes separately (for example from device management or an internal page), never from the repository itself.
 2. **Check this machine first (on a managed laptop):** `node ~/company-skills/scripts/skilliton.mjs preflight` says whether the programs Skilliton needs can run here, whether it can write the folders it uses, and whether the company's plugin repository can be reached. It changes nothing, and names what IT would have to allow for anything blocked (docs/IT-ALLOWLIST.md). `join` runs the same checks and stops before changing anything if one of them would stop setup.

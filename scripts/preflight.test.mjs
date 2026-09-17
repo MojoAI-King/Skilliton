@@ -104,7 +104,7 @@ test("a machine with everything in place passes, and leaves no file behind", (t)
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /nothing is in the way/);
   assert.match(item(r.out, "git"), /OK\s+git:/);
-  assert.match(item(r.out, "the hook scripts"), /OK\s+the hook scripts: .*probe\.sh ran by its path/);
+  assert.match(item(r.out, "the hook scripts"), /OK\s+the hook scripts: .*probe\.sh ran the way Claude Code runs a hook/);
   // The folders it tested hold nothing afterwards: every probe file is removed.
   const leftovers = spawnSync("find", [ctx.home, ctx.bin, "-name", ".skilliton-preflight-*"], { encoding: "utf8" });
   assert.equal(leftovers.stdout.trim(), "", `preflight left a file behind: ${leftovers.stdout}`);

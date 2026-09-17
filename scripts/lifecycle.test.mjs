@@ -1129,9 +1129,14 @@ test("hooks.json parses, keeps the handoff hook first, and every command it name
   const commands = (event) => config.hooks[event].flatMap((group) => group.hooks);
   const sessionStart = commands("SessionStart");
   assert.equal(sessionStart[0].command, '"${CLAUDE_PLUGIN_ROOT}"/hooks/session-start-handoff.sh');
-  assert.deepEqual(sessionStart[1], { type: "command", command: '"${CLAUDE_PLUGIN_ROOT}"/bin/skilliton hook session-start', timeout: 15 });
+  // Every command names bash, so a Windows machine without Git Bash fails loudly instead of handing a shell script
+  // to PowerShell (docs/decisions/2026-09-17-windows-is-supported-through-git-for-win-cb9e.md).
+  assert.deepEqual(sessionStart[1], { type: "command", command: '"${CLAUDE_PLUGIN_ROOT}"/bin/skilliton hook session-start', shell: "bash", timeout: 15 });
   for (const [event, arg] of [["Stop", "stop"], ["PreCompact", "pre-compact"], ["SessionEnd", "session-end"]]) {
-    assert.deepEqual(commands(event), [{ type: "command", command: `"\${CLAUDE_PLUGIN_ROOT}"/bin/skilliton hook ${arg}`, timeout: 15 }]);
+    assert.deepEqual(commands(event), [{ type: "command", command: `"\${CLAUDE_PLUGIN_ROOT}"/bin/skilliton hook ${arg}`, shell: "bash", timeout: 15 }]);
+  }
+  for (const hook of Object.values(config.hooks).flatMap((groups) => groups.flatMap((group) => group.hooks))) {
+    assert.equal(hook.shell, "bash", `${hook.command} names the shell it needs`);
   }
   assert.deepEqual(Object.keys(config.hooks).sort(), ["PreCompact", "SessionEnd", "SessionStart", "Stop"]);
 

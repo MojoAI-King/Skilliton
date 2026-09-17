@@ -105,8 +105,19 @@ function startOnce(file, args, timeoutMs) {
 
 // Runs the probe script by its path, the way a hook is run. Returns Map(name -> { state, exit, path, detail }), or
 // { failed } when the script itself could not run, which is itself the finding.
-export function probeHookPrograms(names, { probe = PROBE, timeoutMs = 60000 } = {}) {
+export function probeHookPrograms(names, { probe = PROBE, timeoutMs = 60000, platform = process.platform } = {}) {
   if (!names.length) return { results: new Map() };
+  if (platform === "win32") {
+    // Windows cannot start a .sh by its path, and Claude Code hands each hook command to Git Bash, so that is how
+    // this runs there too.
+    const bash = findWindowsBash();
+    if (!bash) return { failed: "Git for Windows was not found, so nothing could run the hook scripts. Claude Code runs each hook command through Git Bash, and without it Windows would use PowerShell, which cannot run these scripts. Install Git for Windows, or set CLAUDE_CODE_GIT_BASH_PATH to its bash.exe." };
+    const win = startOnce(bash.path, [probe, ...names], timeoutMs);
+    if (win.error || win.status !== 0) {
+      return { failed: `${tilde(probe)} could not be run by Git Bash at ${bash.path} (found through ${bash.how}): ${win.error ? win.code ?? win.error.message : `exit ${win.status}: ${(win.stderr ?? "").trim().slice(0, 200)}`}`, results: parseProbe(win.stdout) };
+    }
+    return { results: parseProbe(win.stdout), note: `started by Git Bash at ${bash.path}, found through ${bash.how}` };
+  }
   const r = startOnce(probe, names, timeoutMs);
   if (!r.error && r.status === 0) return { results: parseProbe(r.stdout) };
   // A run that timed out started fine; retrying it under bash would only wait again, and the answer would still be
@@ -133,14 +144,34 @@ function parseProbe(text) {
 }
 
 // A file with this name on PATH that this user may not run, or null. `which` skips such a file, so "not found" and
-// "found but not allowed to run" would otherwise look the same, and they are different problems for IT.
+// "found but not allowed to run" would otherwise look the same, and they are different problems for IT. On Windows
+// the execute bit does not exist, so this always answers null there and the distinction is not made.
 export function unrunnableOnPath(name) {
+  if (process.platform === "win32") return null;
   for (const dir of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
     const candidate = join(dir, name);
     let st;
     try { st = statSync(candidate); } catch { continue; }
     if (!st.isFile()) continue;
     try { accessSync(candidate, fsConstants.X_OK); } catch { return candidate; }
+  }
+  return null;
+}
+
+// Windows runs a hook's command through Git Bash, which comes with Git for Windows (documented 2026-09-17 at
+// https://code.claude.com/docs/en/hooks; without it Claude Code uses PowerShell, which cannot run these scripts).
+// This finds that bash: the variable Claude Code documents, else PATH, else the folder Git for Windows installs it in
+// beside git.exe.
+export function findWindowsBash() {
+  const named = process.env.CLAUDE_CODE_GIT_BASH_PATH;
+  if (named && statOrNull(named)?.isFile()) return { path: named, how: "CLAUDE_CODE_GIT_BASH_PATH" };
+  const onPath = which("bash");
+  if (onPath) return { path: onPath, how: "PATH" };
+  const git = which("git");
+  if (git) {
+    for (const candidate of [resolve(dirname(git), "..", "bin", "bash.exe"), resolve(dirname(git), "..", "..", "bin", "bash.exe")]) {
+      if (statOrNull(candidate)?.isFile()) return { path: candidate, how: "the folder Git for Windows keeps it in" };
+    }
   }
   return null;
 }
@@ -194,11 +225,12 @@ export function checkPrograms({ clients = [], platform = process.platform, probe
   const items = [];
   // Where this copy of the runtime lives decides what the run proves: only a run from the installed plugin exercises
   // the plugin cache folder that a script policy has to allow.
+  const shell = probed.note ? `${probed.note}; ` : "";
   const where = INSTALLED_COPY.test(probe)
     ? "this is the installed plugin, so the plugin cache folder was exercised"
     : "this is a copy of the skills repository, not the installed plugin, so the plugin cache folder was not exercised; run this check again after setup";
   if (probed.failed) items.push(state("the hook scripts", "programs", "blocked", `${probed.failed} (${where})`, "Ask IT to allow bash and node to run scripts under the plugin cache folder (docs/IT-ALLOWLIST.md section 1, \"Plugin scripts move with each release\").", "sessions"));
-  else items.push(state("the hook scripts", "programs", "ok", `${tilde(probe)} ran by its path, the way Claude Code runs a hook; ${where}`));
+  else items.push(state("the hook scripts", "programs", "ok", `${tilde(probe)} ran the way Claude Code runs a hook; ${shell}${where}`));
 
   for (const p of wanted) {
     let result = p.by === "hook" ? (probed.results?.get(p.name) ?? { state: "not checked", detail: "the probe script did not report it" })

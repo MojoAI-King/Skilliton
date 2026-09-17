@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-17-b28-a-test-enforces-the-small-footprint-55b9
-- **State:** in-progress
+- **State:** done-local
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-17T18:35:33.453Z
+- **Updated:** 2026-09-17T19:53:46.529Z
 
 ## Request
 
