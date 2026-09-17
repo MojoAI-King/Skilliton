@@ -61,15 +61,18 @@ export const DYNAMIC_CALLS = [
   { file: `${WORKFLOW}/runtime/lib/collectors.mjs`, callee: "spawn", arg: "check.command[0]", count: 1, programs: [], policy: true, why: "a command from the project's own delivery policy, collecting test evidence" },
   { file: `${WORKFLOW}/runtime/lib/delivery.mjs`, callee: "spawn", arg: "check.command[0]", count: 1, programs: [], policy: true, why: "a command from the shared repository's delivery policy, run by the gate" },
   { file: `${WORKFLOW}/runtime/lib/delivery.mjs`, callee: "runProgram", arg: "runtimePath", count: 1, programs: ["bash", "node"], why: "delivery install probes the workflow plugin's bin/skilliton launcher, a bash script that runs node" },
-  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "spawnSync", arg: "file", count: 1, programs: [], why: "inside startOnce, the wrapper that waits for one program in its own process group; every caller of it is read below" },
+  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "spawn", arg: "file", count: 1, programs: [], why: "inside startOnce, the wrapper that waits for one program in its own process group and kills the group when it will not stop; every caller of it is read below" },
   { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "startOnce", arg: "bash.path", count: 1, programs: ["bash"], why: "on Windows the probe script is run by Git Bash, which is how Claude Code runs a hook there" },
   { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "startOnce", arg: "probe", count: 1, programs: ["env", "bash"], why: "preflight runs the plugin's own probe script by its path, so its first line starts env and bash, the way Claude Code runs a hook" },
   { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "startOnce", arg: "path", count: 1, programs: [], table: "PROGRAMS", why: "preflight starts each program from the PROGRAMS table in the same file once, with --version; the table is checked against section 1 below" },
 ];
 
-// Commands in a shell script whose program is an expansion: what they run, and how many such commands the file has.
+// Commands in a shell script whose program is an expansion: what they run, how many such commands the file has, and
+// the arguments they are given, so the command can neither multiply nor change into something else unnoticed.
 export const SHELL_DYNAMIC = [
-  { file: `${WORKFLOW}/runtime/preflight/probe.sh`, text: '"$path"', count: 1, why: "the program the preflight check asked about, found with command -v; the names come from the PROGRAMS table in runtime/lib/preflight.mjs" },
+  { file: `${WORKFLOW}/runtime/preflight/probe.sh`, text: '"$path"', count: 1, args: ["--version"], why: "the program the preflight check asked about, found with command -v; the names come from the PROGRAMS table in runtime/lib/preflight.mjs" },
+  { file: `${WORKFLOW}/evals/security-status-honest/fixture.sh`, text: '"$skilliton"', count: 1, args: null, why: "this plugin's own bin/skilliton, setting up an evaluation case; eval fixtures run only in a company's evaluation runs" },
+  { file: `${WORKFLOW}/evals/task-start-records-work/fixture.sh`, text: '"$skilliton"', count: 1, args: null, why: "the same" },
 ];
 
 // Programs the allow list names that Skilliton does not start itself, with what does.
@@ -93,7 +96,7 @@ export const OUTSIDE_A_REPOSITORY = [
   [`${WORKFLOW}/runtime/commands/propose.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-propose-"))', "$TMPDIR/skilliton-propose-*, removed when propose finishes"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, 'resolve(binDir ?? join(homedir(), ".local", "bin"))', "~/.local/bin, tested with a file the check removes again"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, "{ path: tmpdir(), what:", "the temporary folder, tested the same way"],
-  [`${WORKFLOW}/runtime/lib/preflight.mjs`, "cwd: tmpdir()", "the reachability check runs from the temporary folder, so no repository's configuration is read"],
+  [`${WORKFLOW}/runtime/lib/preflight.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-preflight-git-"))', "an empty folder in the temporary folder, so the reachability check reads no repository's configuration; removed again straight away"],
   [`${PLUGIN}/context-hygiene/hooks/statusline-quota.sh`, 'LOG="${SKILLITON_USAGE_LOG:-$HOME/.claude/skilliton/usage-log.jsonl}"', "~/.claude/skilliton/usage-log.jsonl"],
   [`${PLUGIN}/context-hygiene/hooks/statusline-quota.sh`, 'KEYS_LOG="${SKILLITON_KEYS_LOG:-$HOME/.claude/skilliton/statusline-keys-seen.log}"', "~/.claude/skilliton/statusline-keys-seen.log"],
   [`${PLUGIN}/context-hygiene/hooks/config-drift-check.sh`, 'SETTINGS="${SKILLITON_SETTINGS:-$HOME/.claude/settings.json}"', "Claude Code's settings, read only"],
@@ -155,8 +158,20 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
     for (const p of shellProblems) problems.push(`${path}:${p.line}: ${p.text}`);
     for (const d of dynamic) {
       const entry = shellDynamic.find((e) => e.file === path && e.text === d.text);
-      if (entry) { entry.seen = (entry.seen ?? 0) + 1; continue; }
-      problems.push(`${path}:${d.line}: the command ${d.text} is an expansion, so the program it starts cannot be read; add it to SHELL_DYNAMIC in scripts/allowlist.test.mjs with what it runs`);
+      if (!entry) { problems.push(`${path}:${d.line}: the command ${d.text} is an expansion, so the program it starts cannot be read; add it to SHELL_DYNAMIC in scripts/allowlist.test.mjs with what it runs`); continue; }
+      entry.seen = (entry.seen ?? 0) + 1;
+      const given = d.args.map((a) => a ?? "<a variable>");
+      if (entry.args && JSON.stringify(given) !== JSON.stringify(entry.args)) {
+        problems.push(`${path}:${d.line}: ${d.text} is now given ${given.join(" ") || "no arguments"}, and SHELL_DYNAMIC in scripts/allowlist.test.mjs says ${entry.args.join(" ")}; what this starts has changed`);
+      }
+    }
+    // A file a script reads with . or source runs as part of it, so it has to be a file this test reads too.
+    for (const { path: sourced, line } of (shellCommands(text).sourced ?? [])) {
+      if (sourced === null) { problems.push(`${path}:${line}: a file read with . or source is named by an expansion, so what it runs cannot be read`); continue; }
+      const resolved = sourced.replace(/^\.\//, "");
+      if (!files.shell.some((f) => f.endsWith(`/${resolved}`) || f === resolved)) {
+        problems.push(`${path}:${line}: it reads ${sourced} with . or source, which this test does not read; that file runs as part of this one`);
+      }
     }
     for (const c of commands) {
       if (SHELL_BUILTINS.has(c.word) || functions.includes(c.word)) continue;

@@ -5,21 +5,26 @@
 // reached. Those failures are quiet. A hook that cannot run prints a notice into a session nobody reads closely, and
 // `join` fails half way through.
 //
-// This runs the checks first, and changes nothing:
+// This runs the checks first. It sets nothing up, and the only things it writes it takes away again:
 //   programs   every program in the allow list is looked for and started once, each from the same kind of parent that
 //              starts it in a session: the ones hooks use are started by ../preflight/probe.sh, run by its path inside
-//              the plugin (the way Claude Code runs a hook), and the ones the runtime starts are started here by node
-//   folders    every folder Skilliton writes is tested by creating one small file in it and removing it again, because
-//              a permission bit says nothing about what a security product will allow; a folder that does not exist yet
-//              is tested through the nearest folder above it that does
+//              the plugin (the way Claude Code runs a hook, and through Git Bash on Windows), and the ones the runtime
+//              starts are started here by node. Each start is in its own process group with a timeout that really ends
+//              it, so a program that will not stop is taken away with its children instead of hanging the check
+//   folders    every folder Skilliton writes is tested in the folder itself: a folder that does not exist is created
+//              (mode 0700) and a small file is written in it, and then the file and the folder are removed again. A
+//              permission bit says nothing about what a security product will allow, and a rule that allows the home
+//              folder but not ~/.claude is exactly the shape this has to catch
 //   repository the company's plugin repository is asked for its branch list with git ls-remote, with prompts turned
-//              off, which is the one command in Skilliton that contacts a network and only when a marketplace is given
+//              off and with no repository's configuration read (GIT_DIR points at an empty folder), which is the one
+//              command in Skilliton that contacts a network, and only when a marketplace is given
 //
-// Every check ends as ok, blocked, missing, or not checked, with what IT would have to allow. Nothing here decides
-// whether a security product is "supported": it reports what this machine did, on this run.
+// Every check ends as ok, blocked, missing, or not checked, with what IT would have to allow. An interrupted run
+// takes its files, its folders and any program it started with it, and then dies of the signal it was sent. Nothing
+// here decides whether a security product is "supported": it reports what this machine did, on this run.
 
-import { spawnSync } from "node:child_process";
-import { accessSync, closeSync, constants as fsConstants, mkdirSync, openSync, rmdirSync, statSync, unlinkSync, writeSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { accessSync, closeSync, constants as fsConstants, mkdirSync, mkdtempSync, openSync, rmdirSync, statSync, unlinkSync, writeSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
@@ -44,14 +49,14 @@ const INSTALLED_COPY = /[\\/]plugins[\\/]cache[\\/]/;
 //           session does not work; null neither. bash is a "sessions" item: join writes files with node and drives the
 //           coding tools, and it is the hooks and the launcher that need a shell afterwards.
 export const PROGRAMS = [
-  { name: "node", by: "runtime", need: "required", reader: true, what: "every command, every session hook, and the JSON a hook is given when jq is missing", blocks: "setup" },
+  { name: "node", by: "runtime", need: "required", what: "every command, every session hook, and reading the JSON a hook is given when jq is not there", blocks: "setup" },
   { name: "bash", by: "runtime", need: "required", what: "every hook script and the terminal launcher", blocks: "sessions" },
   { name: "sh", by: "runtime", need: "required", what: "the shell Claude Code hands each hook command to, and the launcher join writes", blocks: "sessions" },
   { name: "env", by: "runtime", need: "required", what: "the first line of every hook script", blocks: "sessions" },
   { name: "git", by: "runtime", need: "required", what: "project state at session start, the secret check before a commit, and release verification", blocks: "setup" },
   { name: "ssh-keygen", by: "runtime", need: "required", what: "checking the signature on a company release, so verify can say VERIFIED", blocks: "setup" },
-  { name: "jq", by: "hook", need: "reader", reader: true, what: "reading what a hook is given", blocks: "sessions" },
-  { name: "python3", by: "hook", need: "reader", reader: true, what: "the same, when neither jq nor node is there", blocks: "sessions" },
+  { name: "jq", by: "hook", need: "feature", what: "the optional status line and the drift check, which have no other way to read JSON; the guardrails and handoff hooks fall back to node", blocks: "sessions" },
+  { name: "python3", by: "hook", need: "optional", what: "reading a hook's input where neither jq nor node is there, which cannot happen while node is required", blocks: null },
   { name: "grep", by: "hook", need: "required", what: "the guardrails check for secrets in a commit", blocks: "sessions" },
   { name: "find", by: "hook", need: "required", what: "the same check, when it looks at files", blocks: "sessions" },
   { name: "dirname", by: "hook", need: "required", what: "the terminal launcher and the status line", blocks: "sessions" },
@@ -88,44 +93,67 @@ const state = (name, area, s, detail, action, blocks = null) => ({ area, name, s
 
 // ---------- programs ----------
 
-// Starts one program and waits for it, in its own process group, so a program that hangs can be taken away with its
-// own children instead of being left behind when the wait times out.
+// Starts one program in its own process group and waits for it. The timeout really ends it: a program that ignores
+// being asked to stop, or a child of it still holding the output open, is killed with its whole group. A synchronous
+// start cannot do that (its timeout asks the program to stop and then goes on waiting for it), which is why this is
+// the one part of the check that is asynchronous.
 function startOnce(file, args, timeoutMs) {
-  const r = spawnSync(file, args, {
-    encoding: "utf8", timeout: timeoutMs, maxBuffer: MAX_OUTPUT, stdio: ["ignore", "pipe", "pipe"],
-    detached: process.platform !== "win32",
+  return new Promise((resolve) => {
+    const group = process.platform !== "win32";
+    let child = null, timer = null, settled = false, timedOut = false, tooMuchOutput = false;
+    let stdout = "", stderr = "";
+    const stop = () => {
+      if (!child?.pid) return;
+      try { if (group) process.kill(-child.pid, "SIGKILL"); else child.kill("SIGKILL"); } catch { /* it has gone */ }
+    };
+    const done = (result) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      LIVE.delete(stop);
+      resolve({ stdout, stderr, timedOut, tooMuchOutput, ...result });
+    };
+    try {
+      child = spawn(file, args, { stdio: ["ignore", "pipe", "pipe"], detached: group, windowsHide: true });
+    } catch (e) { done({ error: e, code: e.code ?? null, status: null }); return; }
+    LIVE.add(stop);
+    installCleanup();
+    const keep = (which) => (chunk) => {
+      const text = chunk.toString("utf8");
+      if (which === "out") { if (stdout.length < MAX_OUTPUT) stdout += text; else tooMuchOutput = true; }
+      else if (stderr.length < MAX_OUTPUT) stderr += text; else tooMuchOutput = true;
+    };
+    child.stdout.on("data", keep("out"));
+    child.stderr.on("data", keep("err"));
+    timer = setTimeout(() => { timedOut = true; stop(); }, timeoutMs);
+    child.once("error", (e) => done({ error: e, code: e.code ?? null, status: null }));
+    child.once("close", (status) => done({ error: null, code: null, status }));
   });
-  const code = r.error?.code ?? null;
-  const timedOut = code === "ETIMEDOUT";
-  if (timedOut && r.pid && process.platform !== "win32") {
-    try { process.kill(-r.pid, "SIGKILL"); } catch { /* the group has already gone */ }
-  }
-  return { ...r, code, timedOut, tooMuchOutput: code === "ENOBUFS" };
 }
 
 // Runs the probe script by its path, the way a hook is run. Returns Map(name -> { state, exit, path, detail }), or
 // { failed } when the script itself could not run, which is itself the finding.
-export function probeHookPrograms(names, { probe = PROBE, timeoutMs = 60000, platform = process.platform } = {}) {
+export async function probeHookPrograms(names, { probe = PROBE, timeoutMs = 60000, platform = process.platform } = {}) {
   if (!names.length) return { results: new Map() };
   if (platform === "win32") {
     // Windows cannot start a .sh by its path, and Claude Code hands each hook command to Git Bash, so that is how
     // this runs there too.
     const bash = findWindowsBash();
     if (!bash) return { failed: "Git for Windows was not found, so nothing could run the hook scripts. Claude Code runs each hook command through Git Bash, and without it Windows would use PowerShell, which cannot run these scripts. Install Git for Windows, or set CLAUDE_CODE_GIT_BASH_PATH to its bash.exe." };
-    const win = startOnce(bash.path, [probe, ...names], timeoutMs);
+    const win = await startOnce(bash.path, [probe, ...names], timeoutMs);
     if (win.error || win.status !== 0) {
       return { failed: `${tilde(probe)} could not be run by Git Bash at ${bash.path} (found through ${bash.how}): ${win.error ? win.code ?? win.error.message : `exit ${win.status}: ${(win.stderr ?? "").trim().slice(0, 200)}`}`, results: parseProbe(win.stdout) };
     }
     return { results: parseProbe(win.stdout), note: `started by Git Bash at ${bash.path}, found through ${bash.how}` };
   }
-  const r = startOnce(probe, names, timeoutMs);
+  const r = await startOnce(probe, names, timeoutMs);
   if (!r.error && r.status === 0) return { results: parseProbe(r.stdout) };
   // A run that timed out started fine; retrying it under bash would only wait again, and the answer would still be
   // about one slow program rather than about the folder.
   if (r.timedOut) {
     return { failed: `${tilde(probe)} did not finish within ${timeoutMs / 1000}s, so the programs the hooks use were not checked. One of them did not return; run it by hand, or run this check again.`, results: parseProbe(r.stdout) };
   }
-  const bash = startOnce("bash", [probe, ...names], timeoutMs);
+  const bash = await startOnce("bash", [probe, ...names], timeoutMs);
   const why = r.error ? `${r.code ?? r.error.message}` : `exit ${r.status}: ${(r.stderr ?? "").trim().slice(0, 200)}`;
   if (bash.error || bash.status !== 0) {
     return { failed: `${tilde(probe)} could not be run by its path (${why}), and bash could not run it either (${bash.error ? bash.code ?? bash.error.message : `exit ${bash.status}`}). Every Skilliton hook is a script in this folder, so nothing would run in a session.` };
@@ -199,13 +227,13 @@ export function probeClient(name, given) {
 }
 
 // The programs node starts itself, checked the same way: found on PATH, then started once.
-export function probeRuntimeProgram(name, { timeoutMs = 20000 } = {}) {
+export async function probeRuntimeProgram(name, { timeoutMs = 20000 } = {}) {
   const path = which(name);
   if (!path) return { state: "missing", exit: null, path: null, detail: "not found on PATH" };
-  const r = startOnce(path, ["--version"], timeoutMs);
+  const r = await startOnce(path, ["--version"], timeoutMs);
   const message = `${r.stderr ?? ""}`.trim().split("\n")[0]?.slice(0, 160) ?? "";
   if (r.tooMuchOutput) return { state: "ok", exit: null, path, detail: "it ran (it printed more than this check keeps)" };
-  if (r.timedOut) return { state: "blocked", exit: null, path, detail: `it did not answer --version within ${timeoutMs / 1000}s, so whether it runs here is unknown; try it by hand` };
+  if (r.timedOut) return { state: "not checked", exit: null, path, detail: `it did not answer --version within ${timeoutMs / 1000}s and was stopped, so whether it runs here is unknown; try it by hand` };
   if (r.error) {
     // The file was found and this user may run it, so a failure to start it is a block, whatever the code says: ENOENT
     // here means the file names an interpreter that is not there, or something refused the start between the two.
@@ -217,11 +245,11 @@ export function probeRuntimeProgram(name, { timeoutMs = 20000 } = {}) {
 }
 
 // `clients` is a list of names, or of { name, path } when the caller already resolved a coding tool's path.
-export function checkPrograms({ clients = [], platform = process.platform, probe = PROBE } = {}) {
+export async function checkPrograms({ clients = [], platform = process.platform, probe = PROBE } = {}) {
   const asked = clients.map((c) => (typeof c === "string" ? { name: c } : c));
   const wanted = PROGRAMS.filter((p) => (!p.platform || p.platform === platform) && (p.need !== "client" || asked.some((c) => c.name === p.name)));
   const hookPrograms = wanted.filter((p) => p.by === "hook").map((p) => p.name);
-  const probed = probeHookPrograms(hookPrograms, { probe });
+  const probed = await probeHookPrograms(hookPrograms, { probe, platform });
   const items = [];
   // Where this copy of the runtime lives decides what the run proves: only a run from the installed plugin exercises
   // the plugin cache folder that a script policy has to allow.
@@ -235,7 +263,7 @@ export function checkPrograms({ clients = [], platform = process.platform, probe
   for (const p of wanted) {
     let result = p.by === "hook" ? (probed.results?.get(p.name) ?? { state: "not checked", detail: "the probe script did not report it" })
       : p.by === "client" ? probeClient(p.name, asked.find((c) => c.name === p.name)?.path)
-        : probeRuntimeProgram(p.name);
+        : await probeRuntimeProgram(p.name);
     if (result.state === "missing") {
       // A file that is there but may not be run is a policy problem, not a missing program, and the two need
       // different answers from IT.
@@ -248,7 +276,7 @@ export function checkPrograms({ clients = [], platform = process.platform, probe
       : `${result.detail || result.state}${where}`;
     items.push({
       ...state(p.name, "programs", result.state, detail, result.state === "ok" ? null : (ACTION[result.state] ?? ((i) => `Check ${i.name} by hand.`))({ ...p, path: result.path }), p.blocks),
-      need: p.need, what: p.what, by: p.by, reader: p.reader === true,
+      need: p.need, what: p.what, by: p.by,
     });
   }
   return items;
@@ -270,21 +298,33 @@ export function folders({ binDir, clients = [] } = {}) {
   return list;
 }
 
-// Files this run created and has not removed yet, so an interrupted run takes them with it.
+// What this run has made and not taken away yet: probe files, folders it created, and programs still running. An
+// interrupted run takes all of it with it, and then dies of the signal it was sent, so its exit status still says so.
 const PROBE_FILES = new Set();
+const PROBE_FOLDERS = [];
+const LIVE = new Set();
 let cleanupInstalled = false;
 
-function removeProbeFiles() {
+function cleanUp() {
+  for (const stop of LIVE) { try { stop(); } catch { /* it has gone */ } }
+  LIVE.clear();
   for (const file of PROBE_FILES) { try { unlinkSync(file); } catch { /* already gone, or it cannot be removed */ } }
   PROBE_FILES.clear();
+  for (const folder of [...PROBE_FOLDERS].reverse()) { try { rmdirSync(folder); } catch { /* not empty, or already gone */ } }
+  PROBE_FOLDERS.length = 0;
 }
 
 function installCleanup() {
   if (cleanupInstalled) return;
   cleanupInstalled = true;
-  process.on("exit", removeProbeFiles);
+  process.on("exit", cleanUp);
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
-    process.on(signal, () => { removeProbeFiles(); process.exit(130); });
+    const handler = () => {
+      cleanUp();
+      process.removeListener(signal, handler);
+      process.kill(process.pid, signal); // die of the signal that was sent, so the exit status names it
+    };
+    process.on(signal, handler);
   }
 }
 
@@ -302,14 +342,22 @@ export function probeFolder(dir) {
     missing.unshift(walk);
     walk = parent;
   }
+  installCleanup();
   const created = [];
   for (const folder of missing) {
-    try { mkdirSync(folder, { mode: 0o700 }); created.push(folder); } catch (e) {
-      removeCreated(created);
-      return { state: "blocked", detail: `${tilde(dirname(folder))} would not take the new folder ${tilde(folder)} (${e.code ?? e.message})` };
+    try {
+      mkdirSync(folder, { mode: 0o700 });
+      created.push(folder);
+      PROBE_FOLDERS.push(folder);
+    } catch (e) {
+      const code = e.code ?? e.message;
+      const kept = removeCreated(created);
+      const why = code === "EEXIST"
+        ? `something that is not a folder is at ${tilde(folder)}; move it, and this is not a policy problem`
+        : `${tilde(dirname(folder))} would not take the new folder ${tilde(folder)} (${code})`;
+      return { state: "blocked", detail: kept.length ? `${why}; ${tilde(kept[0])} was created and is still there` : why, code };
     }
   }
-  installCleanup();
   const name = join(target, `.skilliton-preflight-${randomBytes(6).toString("hex")}`);
   let fd = null;
   try {
@@ -329,15 +377,23 @@ export function probeFolder(dir) {
   PROBE_FILES.delete(name);
   const kept = removeCreated(created);
   if (removeFailed) return { state: "blocked", detail: `${tilde(target)} took a new file, but it could not be removed again (${removeFailed}); remove ${tilde(name)} by hand` };
-  const madeAndRemoved = created.length ? `${tilde(created[0])} did not exist: it was created, written in and removed again` : `${tilde(target)} took a new file`;
-  return { state: "ok", detail: kept.length ? `${madeAndRemoved}; ${tilde(kept[0])} is still there, because something else wrote in it` : madeAndRemoved };
+  // Every sentence names the folder that was tested, not a folder above it, because that is the folder IT is asked
+  // about; and a folder that could not be taken away again is named as still there.
+  const made = created.length ? `${tilde(target)} did not exist: it was created, written in, and ${kept.includes(target) ? "could not be removed again" : "removed again"}` : `${tilde(target)} took a new file`;
+  const leftBehind = kept.filter((f) => f !== target);
+  return { state: "ok", detail: leftBehind.length ? `${made}; ${leftBehind.map(tilde).join(", ")} ${leftBehind.length === 1 ? "is" : "are"} still there, because something else wrote in ${leftBehind.length === 1 ? "it" : "them"}` : made };
 }
 
-// Removes the folders this check created, deepest first. Returns the ones it could not remove.
+// Removes the folders this check created, deepest first. Returns the ones it could not remove, which stay on the
+// cleanup list in case the run is interrupted later.
 function removeCreated(created) {
   const kept = [];
   for (const folder of [...created].reverse()) {
-    try { rmdirSync(folder); } catch { kept.push(folder); }
+    try {
+      rmdirSync(folder);
+      const at = PROBE_FOLDERS.indexOf(folder);
+      if (at >= 0) PROBE_FOLDERS.splice(at, 1);
+    } catch { kept.push(folder); }
   }
   return kept;
 }
@@ -356,8 +412,14 @@ export function checkFolders(options = {}) {
 
 const GITHUB_REPO = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
 
-// A value to print: never the credentials someone pasted into a URL.
-const redact = (value) => String(value).replace(/\/\/[^/@\s]*:[^/@\s]*@/g, "//<credentials removed>@").slice(0, 120);
+// A value to print: never the credentials someone pasted into a URL, in any of the shapes people paste them.
+export function redact(value) {
+  return String(value)
+    .replace(/\/\/[^/@\s]*@/g, "//<credentials removed>@")
+    .replace(/([?&](?:token|access_token|api_key|apikey|key|password|secret)=)[^&\s]+/gi, "$1<removed>")
+    .replace(/\b(gh[pousr]_|github_pat_|sk-[A-Za-z]|xox[baprs]-)[A-Za-z0-9_-]+/g, "<removed>")
+    .slice(0, 120);
+}
 
 // Asks the company's plugin repository for its branches. `marketplace` is <owner>/<repo> or a folder.
 export function checkRepository(marketplace) {
@@ -375,7 +437,19 @@ export function checkRepository(marketplace) {
   // Run it from a folder that is not a repository, and with the ext transport refused, so that a repository the
   // developer happens to be standing in cannot rewrite this address or hand git a command to run (its .git/config
   // travels with a copied folder, and url.<base>.insteadOf plus protocol.ext.allow is a known way in).
-  const r = runGit(null, ["-c", "protocol.ext.allow=never", "ls-remote", "--heads", "--", url], { timeoutMs: LS_REMOTE_TIMEOUT_MS, cwd: tmpdir() });
+  // GIT_DIR points at an empty folder this check makes, so git never looks for a repository around the current one:
+  // a copied working folder carries its own .git/config, and that file can rewrite an address
+  // (url.<base>.insteadOf) and name a command to run for it (the ext transport, core.sshCommand, core.gitProxy).
+  // The ext transport is refused as well, so a rewrite through it fails loudly instead of quietly.
+  const empty = mkdtempSync(join(tmpdir(), "skilliton-preflight-git-"));
+  let r;
+  try {
+    r = runGit(null, ["-c", "protocol.ext.allow=never", "ls-remote", "--heads", "--", url], {
+      timeoutMs: LS_REMOTE_TIMEOUT_MS, cwd: empty, extraEnv: { GIT_DIR: empty },
+    });
+  } finally {
+    try { rmdirSync(empty); } catch { /* something else wrote in it */ }
+  }
   if (r.ok) {
     const refs = r.stdout.split("\n").filter(Boolean).length;
     return [state(`github.com/${marketplace}`, "repository", "ok", `answered with ${refs} branch(es)`)];
@@ -387,24 +461,24 @@ export function checkRepository(marketplace) {
       : /certificate|SSL|TLS|self.signed/i.test(message) ? "Ask IT for the company certificate authority for git (http.sslCAInfo or the system trust store; docs/IT-ALLOWLIST.md section 4)."
         : /could not read Username|terminal prompts disabled|authentication failed|403/i.test(message) ? "github.com answered, and it wants credentials: this is a private repository, so this machine needs its GitHub credentials (that path is not tested yet, docs/BACKLOG.md B31)."
           : /not found|repository does not exist/i.test(message) ? "github.com answered, so the network is fine, and it says there is no such repository: check the name, or, if it is private, that this machine has GitHub credentials for it."
-            : /timed out|connection refused|connection reset|failed to connect|could ?n[o']?t connect|network is unreachable|proxy|forbidden/i.test(message) ? "Ask IT whether this machine may reach github.com, and with which proxy (docs/IT-ALLOWLIST.md section 4)."
-              : "Read the message above with whoever manages these laptops; docs/IT-ALLOWLIST.md section 4 lists what git needs.";
+            : /transport '[a-z]+' not allowed|protocol .*(not supported|not allowed)/i.test(message) ? "The folder this command ran in holds a Git configuration that rewrites github.com to something else. That is not a question for IT: run the check somewhere else, and read that folder's .git/config."
+              : /timed out|connection refused|connection reset|failed to connect|could ?n[o']?t connect|network is unreachable|proxy|forbidden/i.test(message) ? "Ask IT whether this machine may reach github.com, and with which proxy (docs/IT-ALLOWLIST.md section 4)."
+                : "Read the message above with whoever manages these laptops; docs/IT-ALLOWLIST.md section 4 lists what git needs.";
   return [state(`github.com/${marketplace}`, "repository", "blocked", `git ls-remote could not read it: ${message}`, action, "setup")];
 }
 
 // ---------- the report ----------
 
 // Runs every check and returns { items, counts, blocking, exitCode }. `blocking` lists the items that stop join.
-export function runPreflight({ clients = ["claude", "codex"], marketplace, binDir, network = true, probe = PROBE, scope = "all" } = {}) {
+export async function runPreflight({ clients = ["claude", "codex"], marketplace, binDir, network = true, probe = PROBE, scope = "all" } = {}) {
   const items = [
-    ...checkPrograms({ clients, probe }),
+    ...(await checkPrograms({ clients, probe })),
     ...checkFolders({ binDir, clients }),
     ...(network ? checkRepository(marketplace) : [state("the company repository", "repository", "not checked", "--no-network was given, so nothing was contacted")]),
   ];
-  // One JSON reader is enough, and one coding tool is enough: but only when one of them is really there. A machine
-  // with neither coding tool installed is exactly the machine this check exists for, so it must not pass.
-  const readerOk = items.some((i) => i.reader && i.state.startsWith("ok"));
-  for (const r of items.filter((i) => i.need === "reader" && i.state !== "ok" && readerOk)) { r.state = "ok (another reader is there)"; r.action = null; }
+  // One coding tool is enough, but only when one of them is really there: a machine with neither installed is exactly
+  // the machine this check exists for, so it must not pass. Every item keeps one of the four states a reader is
+  // promised (ok, blocked, missing, not checked); nothing is rewritten into a fifth.
   const clientOk = items.some((i) => i.need === "client" && i.state === "ok");
   if (clientOk) {
     for (const c of items.filter((i) => i.need === "client" && i.state !== "ok")) {
@@ -413,10 +487,10 @@ export function runPreflight({ clients = ["claude", "codex"], marketplace, binDi
       c.action = null;
     }
   }
-  const blocking = items.filter((i) => isBlocking(i, { readerOk, clientOk, scope }));
+  const blocking = items.filter((i) => isBlocking(i, { clientOk, scope }));
   const counts = { ok: 0, blocked: 0, missing: 0, "not checked": 0 };
   for (const i of items) {
-    const key = i.state.startsWith("ok") ? "ok" : i.state;
+    const key = i.state;
     counts[key] = (counts[key] ?? 0) + 1;
   }
   return { items, counts, blocking, exitCode: blocking.length ? 1 : 0 };
@@ -427,10 +501,9 @@ export function runPreflight({ clients = ["claude", "codex"], marketplace, binDi
 // working, not the setup.
 // `scope` "all" counts anything that would stop setup or a session; "setup" counts only what stops setup itself,
 // which is what join refuses on: a hook program that is missing does not stop a machine being set up.
-export function isBlocking(item, { readerOk = false, clientOk = false, scope = "all" } = {}) {
-  if (item.state.startsWith("ok") || item.state === "not checked" || !item.blocks) return false;
+export function isBlocking(item, { clientOk = false, scope = "all" } = {}) {
+  if (item.state === "ok" || item.state === "not checked" || !item.blocks) return false;
   if (scope === "setup" && item.blocks !== "setup") return false;
-  if (item.need === "reader") return !readerOk;
   if (item.need === "client") return !clientOk;
   return true;
 }
@@ -444,7 +517,7 @@ export function reportLines(report, { wide = false } = {}) {
     if (!items.length) continue;
     lines.push(`${label[area]}:`);
     for (const i of items) {
-      const mark = i.state.startsWith("ok") ? "OK" : i.state === "not checked" ? "SKIPPED" : i.state.toUpperCase();
+      const mark = i.state === "ok" ? "OK" : i.state === "not checked" ? "SKIPPED" : i.state.toUpperCase();
       lines.push(`  ${mark.padEnd(8)} ${i.name}: ${i.detail}`);
       if (wide && i.what) lines.push(`           what it is for: ${i.what}`);
       if (i.action) lines.push(`           ${i.action}`);

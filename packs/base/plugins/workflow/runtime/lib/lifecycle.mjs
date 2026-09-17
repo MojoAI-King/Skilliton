@@ -20,6 +20,7 @@ import { PLUGIN_ROOT, Refused, cmpVersion, readPluginVersion, selfCommand, tilde
 import { GitError, changedPaths, gitTopLevel, readGitState, readJournal, runGit } from "./journal.mjs";
 import { TaskChangedError, TaskRecordError, gitLine, listTasks, pickCurrent } from "./tasks.mjs";
 import { LEGACY_NAME, LEGACY_PROJECT_DIR, legacyEnvironment } from "./legacy-names.mjs";
+import { HANDOFF_PLACEHOLDER } from "./project-files.mjs";
 
 export const RESULT_SCHEMA = "skilliton.result/1";
 export const RESULTS = { 0: "complete", 1: "attention", 2: "invalid", 3: "operation-failed" };
@@ -357,6 +358,12 @@ function handoffCheck(project, git) {
   if (!record.exists) return { status: "note", summary: `${rel} is missing (see records)`, data };
   if (!record.section) { data.problem = "no RESUME HERE section"; return verdict(`${rel} has no "## RESUME HERE" section, so its freshness cannot be judged`); }
   if (record.written === null) { data.problem = "no Written line"; return verdict(`${rel} has no "Written:" line under "## RESUME HERE", so its freshness cannot be judged`); }
+  // A project that was prepared and has had no session yet still carries the placeholder preparation wrote. That is a
+  // state, not a problem: say what to do, and do not ask for attention.
+  if (record.written.trim().toLowerCase() === HANDOFF_PLACEHOLDER) {
+    data.problem = "not written yet";
+    return { status: "note", summary: `${rel} is the one preparation created: no session has written a handoff yet (write one with /workflow:handoff)`, data };
+  }
   const parsed = parseWritten(record.written);
   if (!parsed.ok) { data.problem = parsed.reason; return verdict(`${rel}: the Written value could not be read: ${parsed.reason}`); }
   data.writtenAt = parsed.at.toISOString();

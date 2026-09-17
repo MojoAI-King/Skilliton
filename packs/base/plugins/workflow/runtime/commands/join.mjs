@@ -40,17 +40,17 @@ Exit codes: 0 complete and every plugin VERIFIED (undo: everything join added is
 plugin not VERIFIED, the launcher was not written, or undo kept something that changed); 2 refused, nothing changed;
 3 a client command failed part way (the output and the receipt say what completed).`;
 
-export function run(argv) {
+export async function run(argv) {
   const o = parseArgs(argv, {
     flags: ["apply", "undo", "no-launcher"],
     options: ["company", "signers", "client", "marketplace", "plugins", "bin-dir", "claude", "codex", "repo"],
   }, "join");
   if (o._.length) refuse(`join takes no plain arguments (got "${o._[0]}"); see: ${selfCommand()} join --help`);
   if (o.company === undefined) refuse("join needs --company <name>, the company's short name");
-  return o.undo ? undo(o) : join(o);
+  return o.undo ? undo(o) : await join(o);
 }
 
-function join(o) {
+async function join(o) {
   if (o.signers === undefined) refuse("join needs --signers <allowed_signers file>, the release signers file your company gives you");
   if (o["bin-dir"] !== undefined && o["no-launcher"]) refuse("pass --bin-dir or --no-launcher, not both");
   const repo = resolveSkillsRepo(o.repo);
@@ -69,13 +69,13 @@ function join(o) {
 
   // The machine checks come before anything is written, so a laptop that cannot run or write what setup needs says so
   // instead of failing half way. Items that would only stop a hook in a later session are printed, not refused.
-  const pre = runPreflight({
+  const pre = await runPreflight({
     clients: plan.clients.map((c) => ({ name: c.driver.binaryName, path: c.binary.path })),
     marketplace: plan.market.source.location,
     binDir: plan.launcher.action === "none" ? undefined : plan.launcher.dir,
     scope: "setup",
   });
-  const attention = pre.items.filter((i) => !i.state.startsWith("ok") && i.state !== "not checked");
+  const attention = pre.items.filter((i) => i.state !== "ok" && i.state !== "not checked");
   say(`machine checks: ${pre.counts.ok} ok${attention.length ? `, ${attention.length} needing attention` : ""} (each folder was tested with one file, removed again; ${selfCommand()} preflight shows them all)`);
   for (const line of reportLines({ items: attention }, { wide: false })) say(`  ${line}`);
   if (pre.blocking.length) {

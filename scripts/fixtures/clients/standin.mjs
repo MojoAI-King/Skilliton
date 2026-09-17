@@ -10,9 +10,11 @@
 //           plugins/cache/<marketplace>/<plugin>/<version>/ (removed on plugin remove); exits 1 when $CODEX_HOME
 //           does not exist, as measured
 // Every call is appended to $STANDIN_LOG as one JSON line. A call whose arguments, joined by spaces, contain
-// $STANDIN_FAIL exits 1 without changing anything. It never uses the network, and it can never write to a real
-// configuration: it refuses to run without an explicit client home, and STANDIN_DEFAULT_HOME, which lets it use the
-// folder each client uses by default, is accepted only when HOME is inside the temporary folder.
+// $STANDIN_FAIL exits 1 without changing anything. It never uses the network, and it refuses to run without an
+// explicit client home: either the variable each client reads, or STANDIN_DEFAULT_HOME, which lets it use the folder
+// each client uses by default and is accepted only when it names exactly the HOME this process runs with. That last
+// check stops a mistyped path, not a caller who means it: a caller that sets both to a real home folder gets writes
+// there, so tests set HOME to a folder of their own.
 
 import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";

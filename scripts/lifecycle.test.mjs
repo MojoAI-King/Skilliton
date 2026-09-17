@@ -1019,6 +1019,16 @@ test("status exits 1 for each attention condition and names it", async () => wit
   const ahead = fresh({ written: new Date(Date.now() + 60 * 1000).toISOString() });
   assert.equal(statusJson(ahead, env).code, 0, "a Written time one minute ahead is within the allowed clock difference");
 
+  // A project that was just prepared carries the placeholder preparation wrote. That is "no handoff yet", not a
+  // handoff whose time cannot be read, and it must not ask for attention at the first session.
+  const justPrepared = fresh();
+  writeFileSync(join(justPrepared, "docs", "HANDOFF.md"), "# Handoff\n\nKind: Living.\n\n## RESUME HERE\n\nWritten: not yet assessed\n\n- **State:** Skilliton created this project's records.\n\n## Earlier\n");
+  commit(justPrepared, env, "the handoff preparation writes");
+  const prepared = statusJson(justPrepared, env);
+  assert.equal(prepared.code, 0, `a freshly prepared project needs no action:\n${prepared.out}`);
+  assert.equal(prepared.json.details.handoff.problem, "not written yet");
+  assert.match(prepared.out, /no session has written a handoff yet/);
+
   const noWritten = fresh();
   writeFileSync(join(noWritten, "docs", "HANDOFF.md"), "# Handoff\n\nKind: Living.\n\n## RESUME HERE\n\n- **State:** no date.\n");
   commit(noWritten, env, "handoff without a date");
