@@ -17,7 +17,9 @@ Phase 3 (PLAN.md section 7, M8 to M14; explained in docs/PHASE-3.md) makes Skill
 5. **Any AI coding tool (M13):** a portable core (skills, instruction block, git hooks, merge gate, command) plus an adapter per tool. A tool counts as supported only after it is measured.
 6. **Proof of value (M14):** a measured comparison and a team view. Time, cost and quality statements come only from those numbers.
 
-The order until the demonstration around 2026-09-23 is: the rename, the enrollment spike, the audit, two routines, then a spike with a second vendor's tool (VS Code with GitHub Copilot or Cursor, depending on the owner's accounts) and a demonstration of what passed.
+The order until the demonstration around 2026-09-23 is: the rename, the enrollment spike, the audit, two routines, then a spike with Cursor running a Grok model, and a demonstration of what passed.
+
+Owner choices recorded the same day: the `SG-` security control IDs are kept (O23). The owner chose Grok as the next tool and uses it through a Cursor account, so Cursor with a Grok model is the second-vendor spike, and Grok Build, which needs a SuperGrok or X Premium Plus subscription for live sessions, follows with checks that need no login (O24).
 
 ## Why
 
