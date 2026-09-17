@@ -200,7 +200,7 @@ The demonstration shows only what has passed its acceptance checks by that day. 
 | 2 | M12 spike: a Claude Code drop-in on a clean container and a clean macOS account | Tests the riskiest assumption while changing course is still cheap |
 | 3 | M10 deterministic audit, git hook, merge gate check, Claude Code stop routine | The most visible value, built on existing evidence code |
 | 4 | M11 compaction snapshot and dispatch suggestion on Claude Code | Small, and shows routines running by themselves |
-| 5 | M13 spike: Cursor, running a Grok model, reads the same plugin, skills and instruction block | The owner chose Grok and uses it through a Cursor account (O24). Cursor documents reading Claude Code's skills and hook files, and its terminal agent is on this machine. Grok Build follows with checks that need no login, since its live sessions need a SuperGrok or X Premium Plus subscription |
+| 5 | M13 spike: Cursor reads the same plugin, skills and instruction block | The owner chose Cursor and has an account for live sessions (O24). Cursor documents reading Claude Code's skills and hook files, and its terminal agent is on this machine |
 | 6 | B14 demonstration script covering what passed in 1 to 5 | Nothing unproven is shown |
 | After | M12 bundle and rings, M13 further tools, M14, M8's three repositories, M5 | Each needs the spikes above, owner access, or paid runs |
 
@@ -262,7 +262,7 @@ Also documented, for later adapters: **Gemini CLI** (skills in `.agents/skills`,
 | Input | Needed for | Smallest version |
 |---|---|---|
 | Control ID prefix | M9 | Decided 2026-09-16: keep `SG-` (O23) |
-| Tool order and accounts | M13 | Decided 2026-09-16: Grok, used through a Cursor account, so Cursor with a Grok model first, then Grok Build without login (O24). A Cursor login on this machine is needed for live sessions |
+| Tool order and accounts | M13 | Decided 2026-09-16: Cursor next, on the owner's Cursor account (O24); other tools, Grok Build included, ranked after that spike. A Cursor login on this machine is needed for live sessions |
 | Access to an Intune or Jamf test tenant, or a spare device | M12 on real device management | Optional; clean containers and accounts cover the files and scripts |
 | A spending ceiling for the comparison runs | M14 | A number |
 | Existing items | M3, M5, M7 | B2, B3, B4, B6, B7 and B1 in [BACKLOG.md](BACKLOG.md) |
