@@ -31,6 +31,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { argPath, backupFile, isDir, isPlainObject, newStamp, refuse, runProgram } from "./core.mjs";
+import { NO_REPOSITORY_PROGRAMS } from "./journal.mjs";
 import { LEGACY_DELIVERY_CONFIG_KEYS, LEGACY_DELIVERY_HOOK_MARKER, LEGACY_POLICY_FILE, LEGACY_POLICY_SCHEMA } from "./legacy-names.mjs";
 
 export const POLICY_FILE = ".skilliton/delivery.json";
@@ -221,7 +222,7 @@ export function readApproversFile(path) {
 // environment passes through unchanged, so inside a pre-receive hook git still sees the quarantined pushed objects.
 export function gitRunner(where, env = process.env) {
   const git = (args, { allowExit = [0], buffer = false } = {}) => {
-    const r = spawnSync("git", [...where, ...args], {
+    const r = spawnSync("git", [...where, ...NO_REPOSITORY_PROGRAMS, ...args], {
       env, encoding: buffer ? "buffer" : "utf8", maxBuffer: GIT_MAX_BUFFER, stdio: ["ignore", "pipe", "pipe"],
     });
     if (r.error) throw new DeliveryError(r.error.code === "ENOENT" ? "git was not found on PATH" : `git could not run (${r.error.message})`);

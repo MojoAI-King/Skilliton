@@ -19,6 +19,7 @@ import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, 
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { refuse, selfCommand, tilde, validateName } from "./core.mjs";
+import { NO_REPOSITORY_PROGRAMS } from "./journal.mjs";
 import { legacyTrustDir } from "./legacy-names.mjs";
 
 export const TRUST_SUFFIX = ".allowed_signers";
@@ -38,9 +39,10 @@ export function gitEnv({ userFacing = false } = {}) {
   return env;
 }
 
-// Runs git with an argument array. Never throws for git's own failure; `notFound` says git is not installed.
+// Runs git with an argument array, with a repository's own configuration never able to make git start a program
+// (see runtime/lib/journal.mjs). Never throws for git's own failure; `notFound` says git is not installed.
 export function runGit(repo, args, { buffer = false, timeoutMs = 60000, userFacing = false } = {}) {
-  const r = spawnSync("git", repo ? ["-C", repo, ...args] : args, {
+  const r = spawnSync("git", repo ? ["-C", repo, ...NO_REPOSITORY_PROGRAMS, ...args] : [...NO_REPOSITORY_PROGRAMS, ...args], {
     encoding: buffer ? "buffer" : "utf8",
     env: gitEnv({ userFacing }),
     timeout: timeoutMs,
