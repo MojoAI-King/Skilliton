@@ -1,0 +1,64 @@
+{
+  "rehearsal": "projects",
+  "steps": [
+    {
+      "id": "N1",
+      "label": "fresh project: preview writes nothing, apply creates layout 3, repeat apply changes nothing",
+      "status": "PASS",
+      "detail": "preview exit 0, wrote nothing: true; apply exit 0; missing layout files: none; check exit 0; repeat apply exit 0, byte-identical: true; no copied runtime: true"
+    },
+    {
+      "id": "N2",
+      "label": "doctor recognizes the prepared project's layout, versions and instruction blocks",
+      "status": "PASS",
+      "detail": "layout line OK: true; requires line OK: true; both harness blocks current: true (doctor exit 1; machine-level plugin lines are not part of this step)"
+    },
+    {
+      "id": "A1",
+      "label": "adoption of an existing project keeps its records, names and settings",
+      "status": "PASS",
+      "detail": "apply exit 0; existing records byte-identical: true; adopted paths recorded: true; unrelated settings kept: true; human CLAUDE.md text kept: true; instructions name the adopted handoff: true"
+    },
+    {
+      "id": "A2",
+      "label": "adoption of a large real project (a clone of this repository)",
+      "status": "PASS",
+      "detail": "preview 0; apply 0; living documents byte-identical: true; human rules kept in CLAUDE.md: true; exactly one managed block: true; check after apply 0"
+    },
+    {
+      "id": "G1",
+      "label": "a prototype (layout 1) project migrates to layout 3 (the integrated layout under the Skilliton names) through the command line",
+      "status": "PASS",
+      "detail": "prototype setup exit 0 (copied runtime present: true); prepare on layout 1 refused: exit 2; migrate preview 1, apply 0; migrated with human text kept: true; receipts 2"
+    },
+    {
+      "id": "S1",
+      "label": "security evidence: an observation goes stale when its source changes and becomes one backlog finding",
+      "status": "PASS",
+      "detail": "record exit 0; status before change exit 1; after change exit 1, stale shown: true; original record unchanged: true; findings twice: 0/0; backlog rows for the finding: 1"
+    },
+    {
+      "id": "I1",
+      "label": "the stop reminder asks once for a checkpoint, then recovery after an interrupted session shows what was left",
+      "status": "PASS",
+      "detail": "task start 0; stop blocked once for unrecorded changes: true; allowed when stop_hook_active: true; next session names the interruption true, the task true, uncommitted work true; checkpoint 0; stop allowed after the checkpoint: true"
+    },
+    {
+      "id": "C1",
+      "label": "two contributors on two branches add tasks and decisions; merging both needs no record conflict resolution",
+      "status": "PASS",
+      "detail": "merges 0/0 (no conflicts); task records 2; decision entries 2; index twice 0/0, identical: true; shared handoff untouched by task branches: true"
+    },
+    {
+      "id": "D1",
+      "label": "remove keeps every record, entry, observation and the history",
+      "status": "PASS",
+      "detail": "remove exit 0; managed block gone: true; records kept: true; commits 4 and 4"
+    }
+  ],
+  "notes": [],
+  "meta": {
+    "Node": "v25.8.1",
+    "git": "git version 2.51.1"
+  }
+}
