@@ -1,4 +1,4 @@
-# Running a company's Skillgate: fork, improve, release, verify
+# Running a company's Skilliton: fork, improve, release, verify
 
 Kind: Living. For the technical lead or maintainer who owns a company's fork of this repository. Developers joining a project read docs/ONBOARDING.md instead.
 

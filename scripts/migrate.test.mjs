@@ -43,7 +43,7 @@ const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const BASE_ENV = (() => {
   const env = {
     ...process.env, SKILLGATE_SELF: "skillgate", GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1",
-    GIT_AUTHOR_NAME: "Skillgate Test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "Skillgate Test", GIT_COMMITTER_EMAIL: "test@example.invalid",
+    GIT_AUTHOR_NAME: "Skilliton Test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "Skilliton Test", GIT_COMMITTER_EMAIL: "test@example.invalid",
   };
   delete env.SKILLGATE_DEBUG;
   return env;
@@ -367,7 +367,7 @@ test("a changed template is a pending instructions migration: prepare leaves it 
   assert.ok(read(ctx, "CLAUDE.md").includes(RULE_A), "applied again after the rollback");
 });
 
-test("a block edited inside the markers after Skillgate wrote it refuses the next template refresh and changes nothing", (t) => {
+test("a block edited inside the markers after Skilliton wrote it refuses the next template refresh and changes nothing", (t) => {
   const ctx = fixture(t);
   assert.equal(sg(ctx, ["prepare", "--dir", ctx.dir, "--apply"]).code, 0);
   const first = pluginWithTemplate(ctx, "plugin-rule-a", addRule(RULE_A));
@@ -377,7 +377,7 @@ test("a block edited inside the markers after Skillgate wrote it refuses the nex
   const second = pluginWithTemplate(ctx, "plugin-rule-b", (t) => addRule(RULE_B)(addRule(RULE_A)(t)));
   const refused = sg(ctx, ["migrate", "--dir", ctx.dir, "--apply"], { cli: second.cli });
   assert.equal(refused.code, 2, refused.all);
-  assert.match(refused.err, /CLAUDE\.md was edited by hand after Skillgate last wrote it/);
+  assert.match(refused.err, /CLAUDE\.md was edited by hand after Skilliton last wrote it/);
   assert.deepEqual(snapshot(ctx.dir), before, "nothing changed");
 });
 

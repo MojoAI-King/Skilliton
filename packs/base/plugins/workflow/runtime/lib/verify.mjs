@@ -59,7 +59,7 @@ export function readClaudeInstalls(configDir) {
   if (records === undefined) out.notes.push(`${tilde(recordsPath)} was not found, so this Claude Code configuration has no plugin install records`);
   else if (records !== null) {
     if (!isPlainObject(records) || !isPlainObject(records.plugins)) {
-      out.invalid.push(`${tilde(recordsPath)} does not have the shape Skillgate has observed ({ "version", "plugins": { "<plugin>@<marketplace>": [ ... ] } }); the format is not documented and may have changed`);
+      out.invalid.push(`${tilde(recordsPath)} does not have the shape Skilliton has observed ({ "version", "plugins": { "<plugin>@<marketplace>": [ ... ] } }); the format is not documented and may have changed`);
     } else {
       for (const [id, list] of Object.entries(records.plugins)) {
         const at = id.lastIndexOf("@");

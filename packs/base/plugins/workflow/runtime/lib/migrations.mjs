@@ -8,7 +8,7 @@
 // 0100-instructions-<template sha256, 12 hex> refreshes the managed instruction blocks in CLAUDE.md and AGENTS.md when
 // the harness template changed after a layout-2 project was prepared. It is keyed by the template's hash, so each
 // template version is one migration with one receipt; the receipt records the hash of every block it wrote, so a later
-// refresh can tell a block a person edited inside the markers (refused, with the reconciling step) from one Skillgate
+// refresh can tell a block a person edited inside the markers (refused, with the reconciling step) from one Skilliton
 // wrote. Text outside the markers is never changed.
 //
 // 0002-integrated-layout moves a project prepared by the standalone prototype (layout 1) to layout 2. It recognises
@@ -197,9 +197,9 @@ async function planInstructions(project, { root }) {
     blocks[name] = found ? sha256(Buffer.from(afterText.slice(found.innerStart, found.innerEnd).replace(/\r\n/g, "\n"), "latin1")) : null;
   }
   if (edited.length) {
-    refuse(`the managed instruction block in ${edited.join(" and ")} was edited by hand after Skillgate last wrote it (receipt ${previous.id}), so refreshing it would discard that edit. Nothing was changed. To reconcile: move the text you want to keep outside the skillgate:harness markers, then run migrate again; or overwrite the block on purpose with: ${selfCommand()} harness --apply (it keeps a backup)`);
+    refuse(`the managed instruction block in ${edited.join(" and ")} was edited by hand after Skilliton last wrote it (receipt ${previous.id}), so refreshing it would discard that edit. Nothing was changed. To reconcile: move the text you want to keep outside the skillgate:harness markers, then run migrate again; or overwrite the block on purpose with: ${selfCommand()} harness --apply (it keeps a backup)`);
   }
-  if (!previous) notes.push("No earlier instructions receipt records what Skillgate wrote into these blocks, so a hand edit inside the markers cannot be told apart; the diff above shows everything that changes, and the backup keeps the old text.");
+  if (!previous) notes.push("No earlier instructions receipt records what Skilliton wrote into these blocks, so a hand edit inside the markers cannot be told apart; the diff above shows everything that changes, and the backup keeps the old text.");
   return { files, notes, receiptExtra: { blocks, templateSha256: sha256(Buffer.from(template, "latin1")) } };
 }
 

@@ -47,7 +47,7 @@ The policy on the repository's **default branch** decides. For a bare repository
 
 ### What it needs
 
-On the machine that holds the shared bare repository: a git version that verifies SSH commit signatures (`gpg.format ssh`, `gpg.ssh.allowedSignersFile`), OpenSSH's `ssh-keygen`, `tar`, Node.js (the runtime targets 18 or later), and the Skillgate workflow plugin (an installed copy or a checkout of your company skills repository). Only git 2.51 and Node.js 25 on one macOS machine have been exercised (see "What has been verified"); minimum versions are not established.
+On the machine that holds the shared bare repository: a git version that verifies SSH commit signatures (`gpg.format ssh`, `gpg.ssh.allowedSignersFile`), OpenSSH's `ssh-keygen`, `tar`, Node.js (the runtime targets 18 or later), and the Skilliton workflow plugin (an installed copy or a checkout of your company skills repository). Only git 2.51 and Node.js 25 on one macOS machine have been exercised (see "What has been verified"); minimum versions are not established.
 
 ### Set it up
 

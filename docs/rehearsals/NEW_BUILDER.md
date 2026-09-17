@@ -1,10 +1,10 @@
 # New-builder rehearsal (M5)
 
-Kind: Living. The protocol for PLAN.md milestone M5: a real person who has not used Skillgate follows the documentation to prepare a project, build, review, resume after an interruption, receive an approved update and recover from a blocked change, while a facilitator measures what happened. An assistant role-playing a beginner does not count; this milestone stays open until a person has done it.
+Kind: Living. The protocol for PLAN.md milestone M5: a real person who has not used Skilliton follows the documentation to prepare a project, build, review, resume after an interruption, receive an approved update and recover from a blocked change, while a facilitator measures what happened. An assistant role-playing a beginner does not count; this milestone stays open until a person has done it.
 
 ## Who takes part
 
-- **The builder:** someone who has never used Skillgate. The rehearsal is most informative with a person who does not write code for a living, and still valid with a junior developer; record which. Refer to them only as a participant label (P1, P2) in anything committed to this public repository.
+- **The builder:** someone who has never used Skilliton. The rehearsal is most informative with a person who does not write code for a living, and still valid with a junior developer; record which. Refer to them only as a participant label (P1, P2) in anything committed to this public repository.
 - **The facilitator:** prepares the environment, reads the steps aloud, and records measurements. The facilitator does not coach. When the builder is stuck for more than five minutes, or asks for help, the facilitator helps and records the intervention word for word.
 - **A reviewer:** reviews the builder's finished change afterwards and records how long the review took and what it found.
 

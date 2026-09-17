@@ -76,7 +76,7 @@ function readJsonFile(path, label) {
     if (e.code === "ENOENT" || e.code === "ENOTDIR") return undefined;
     throw e;
   }
-  if (st.isSymbolicLink()) refuse(`${label} is a symbolic link, which Skillgate does not follow`);
+  if (st.isSymbolicLink()) refuse(`${label} is a symbolic link, which Skilliton does not follow`);
   if (!st.isFile()) refuse(`${label} is not a regular file`);
   if (st.size > MAX_JSON_BYTES) refuse(`${label} is larger than 16 MB`);
   try { return JSON.parse(readFileSync(path, "utf8")); } catch (e) { refuse(`${label} is not valid JSON (${e.message})`); }
@@ -545,7 +545,7 @@ function requireSshSigning(repo) {
   if (format !== "ssh") refuse(`git is not set up to sign with an SSH key here (gpg.format is ${format ? `"${format}"` : "not set"}). Releases are verified against an SSH allowed_signers file, so a tag signed any other way would never be approved. Configure your own key, for example: git config gpg.format ssh and git config user.signingkey <your key>. Nothing was tagged.`);
   const key = runGit(repo, ["config", "--get", "user.signingkey"]).stdout.trim();
   const keyCommand = runGit(repo, ["config", "--get", "gpg.ssh.defaultKeyCommand"]).stdout.trim();
-  if (!key && !keyCommand) refuse("git has no SSH signing key configured (user.signingkey or gpg.ssh.defaultKeyCommand). Configure your own key first; Skillgate never passes keys itself. Nothing was tagged.");
+  if (!key && !keyCommand) refuse("git has no SSH signing key configured (user.signingkey or gpg.ssh.defaultKeyCommand). Configure your own key first; Skilliton never passes keys itself. Nothing was tagged.");
 }
 
 // Checks for release sign: the manifest is committed at HEAD, valid, unsigned, and still describes the plugins.

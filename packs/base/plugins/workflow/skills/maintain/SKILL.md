@@ -15,7 +15,7 @@ If `docs/MAINTAIN.md` exists, read it and run its steps as part of this ritual. 
 
 ## 1. Find the living documents, and check the branch
 
-**Prepared projects first.** Run `skillgate status` if it is available. In a project Skillgate prepared, it names every record (status, backlog and its archive, roadmap, decisions, lessons, handoff and its archive, maintenance steps), the entry folders for tasks, decisions and lessons, the integration branches, open tasks, pending migrations, and the security evidence counts. Those are the documents. A pending migration is reported to the user; do not run it as part of maintenance.
+**Prepared projects first.** Run `skillgate status` if it is available. In a project Skilliton prepared, it names every record (status, backlog and its archive, roadmap, decisions, lessons, handoff and its archive, maintenance steps), the entry folders for tasks, decisions and lessons, the integration branches, open tasks, pending migrations, and the security evidence counts. Those are the documents. A pending migration is reported to the user; do not run it as part of maintenance.
 
 **Integration branches only.** The shared records (status, backlog, handoff, indexes, the decisions and lessons monoliths) are reconciled on an integration branch (`prepare.integrationBranches`, default `main` and `master`). On any other branch, update only that branch's task record and create new decision or lesson entry files; say that the shared records wait for integration, then skip to section 4a.
 
@@ -25,7 +25,7 @@ Otherwise, in this order:
 2. Common names at the root and under `docs/`: `HANDOFF.md`, `STATUS.md`, `BACKLOG.md`, `TODO.md`, `CHANGELOG.md`, `DECISIONS.md`, `docs/decisions/`, `docs/LESSONS.md`.
 3. Fallback: files under `docs/` containing `Last updated`, `Kind: Living`, `RESUME HERE`, or checkbox lists.
 
-If none exist, offer `skillgate prepare` (it previews first, adopts what exists, and adds only what is missing, marked "not yet assessed"). Without Skillgate, offer to create `docs/HANDOFF.md` and `DECISIONS.md`, and nothing more. Do not invent a documentation system.
+If none exist, offer `skillgate prepare` (it previews first, adopts what exists, and adds only what is missing, marked "not yet assessed"). Without Skilliton, offer to create `docs/HANDOFF.md` and `DECISIONS.md`, and nothing more. Do not invent a documentation system.
 
 ## 2. Establish what actually happened, from evidence
 

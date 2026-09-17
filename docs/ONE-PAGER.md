@@ -1,10 +1,10 @@
-# Skillgate: how your team works with AI
+# Skilliton: how your team works with AI
 
 Kind: Living. Updated 2026-09-16 with the integrated build. What is proved and what is not is kept in [PLAN.md](../PLAN.md) section 7 and [CLIENTS.md](CLIENTS.md).
 
 ## For your first week
 
-**Skillgate gives your coding assistant your team's way of working.** You describe what you want in your own words; you do not need to know skill names, branches or where notes go.
+**Skilliton gives your coding assistant your team's way of working.** You describe what you want in your own words; you do not need to know skill names, branches or where notes go.
 
 **What happens when you work:**
 

@@ -19,7 +19,7 @@ export const help = `migrate: show or apply this project's pending layout migrat
 
 Migrations have IDs NNNN-slug and run in order. 0100-instructions-<template hash> refreshes the managed instruction
 blocks in CLAUDE.md and AGENTS.md after the harness template changed; it keeps every byte outside the markers and
-refuses a block someone edited inside the markers since Skillgate last wrote it. 0002-integrated-layout moves a project prepared by the standalone
+refuses a block someone edited inside the markers since Skilliton last wrote it. 0002-integrated-layout moves a project prepared by the standalone
 prototype (layout 1) to layout 2: it removes .skillgate/bin/security-evidence.mjs only when its bytes match the
 prototype runtime released at 23aae41, removes the skillgate:project blocks from CLAUDE.md, AGENTS.md and the maintain
 record only when they are exactly what the prototype wrote, adds the harness blocks, and sets prepare.version 2 and

@@ -1,4 +1,4 @@
-// project-files.mjs: the files a layout-2 project gets from Skillgate (docs/CONTRACTS.md sections 10 and 11). Record
+// project-files.mjs: the files a layout-2 project gets from Skilliton (docs/CONTRACTS.md sections 10 and 11). Record
 // templates in an explicit "not yet assessed" state, the entry-folder READMEs, the security READMEs, the .gitignore
 // lines, the decision and lesson entry templates, and the managed index sections that `skillgate index` regenerates.
 //
@@ -122,7 +122,7 @@ export function recordTemplate(role, project) {
         "## RESUME HERE",
         "Written: not yet assessed",
         [
-          "- **State:** Skillgate created this project's records; the project's actual state has not been assessed.",
+          "- **State:** Skilliton created this project's records; the project's actual state has not been assessed.",
           "- **Next:** Establish the current task and the project's real setup and test commands.",
           "- **Blocked:** Not yet assessed.",
           "- **Watch out:** Security evidence starts missing. Preparation does not show that the application works.",
@@ -214,7 +214,7 @@ export function securityReadme() {
     `This project keeps a security evidence register in ${code(".skillgate/security/")}: ${code("catalog.json")} lists the practices assessed here, ${code("records/")} holds one immutable observation per assessment, and ${code("REPORT.md")} is generated from them.`,
     `To see where the evidence stands, run ${code("skillgate security status")} (the command comes from the installed workflow plugin; in a company skills repository checkout it is ${code("node scripts/skillgate.mjs security status")}). Missing evidence is the normal state right after preparation. It needs follow-up and is never a security pass.`,
     "An observation records a scoped claim together with fingerprints of the files it names. Status reports each control as current, stale, missing or invalid. A current observation is not a control pass, a certification or a penetration test, and regenerating the report never re-dates an observation.",
-    `Catalogs shipped with Skillgate are partial sets of original practice summaries with related references to public frameworks; they are not complete framework assessments. ${code("catalogVersion")} in ${code("catalog.json")} names the version in use, and a newer catalog reaches this project only through a migration.`,
+    `Catalogs shipped with Skilliton are partial sets of original practice summaries with related references to public frameworks; they are not complete framework assessments. ${code("catalogVersion")} in ${code("catalog.json")} names the version in use, and a newer catalog reaches this project only through a migration.`,
     `Keep sensitive assessment artifacts in the ignored ${code(".skillgate/private-evidence/")} folder or an approved evidence store. Never record credentials or customer data. An artifact that is missing on another machine stays missing; it is never replaced by an assumed pass.`,
   ]);
 }

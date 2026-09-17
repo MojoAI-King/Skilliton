@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// skillgate: the Skillgate command line. Node only, no dependencies.
+// skillgate: the Skilliton command line. Node only, no dependencies.
 //
 //   node scripts/skillgate.mjs <command> ...   from a company skills repository checkout
 //   skillgate <command> ...                    through bin/skillgate of the installed workflow plugin
@@ -24,7 +24,7 @@ const GROUPS = [
     commands: [
       { name: "prepare", summary: "adopt a project's existing records and add the missing ones, config, instructions and security register (--apply writes)" },
       { name: "migrate", summary: "show or apply the project's pending layout migrations, with receipts and a tested rollback" },
-      { name: "remove", summary: "remove Skillgate's managed instructions and config from a project, keeping its records and history (--apply writes)" },
+      { name: "remove", summary: "remove Skilliton's managed instructions and config from a project, keeping its records and history (--apply writes)" },
       { name: "status", summary: "where the project stands: versions, migrations, records, open tasks, handoff freshness, security evidence" },
       { name: "task", summary: "start, list, show, or close a task record (one file per task, safe for parallel contributors)" },
       { name: "checkpoint", summary: "add a checkpoint (state, evidence, next step) to the current task record" },
@@ -60,7 +60,7 @@ const built = (c) => typeof c.run === "function" || existsSync(moduleFile(c.name
 
 function helpText() {
   const width = Math.max(...[...COMMANDS.keys()].map((n) => n.length)) + 2;
-  const lines = ["Skillgate command line. Commands that write show their change first."];
+  const lines = ["Skilliton command line. Commands that write show their change first."];
   for (const group of GROUPS) {
     lines.push("", `${group.title}:`);
     for (const c of group.commands) lines.push(`  ${c.name.padEnd(width)}${c.summary}${built(c) ? "" : " (not built in this version)"}`);

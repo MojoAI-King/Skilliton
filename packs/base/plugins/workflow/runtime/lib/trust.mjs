@@ -132,7 +132,7 @@ export function insideGitWorkTree(dir) {
     cursor = up;
   }
   const r = runGit(cursor, ["rev-parse", "--is-inside-work-tree"], { timeoutMs: 20000 });
-  if (r.notFound) refuse("git was not found on PATH, so Skillgate cannot confirm the trust folder is outside every repository; install git first. Nothing was written.");
+  if (r.notFound) refuse("git was not found on PATH, so Skilliton cannot confirm the trust folder is outside every repository; install git first. Nothing was written.");
   return r.ok && r.stdout.trim() === "true";
 }
 

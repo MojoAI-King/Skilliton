@@ -51,7 +51,7 @@ Validation (used by `release sign`, `release list` and `verify`) rejects: a wron
 
 ## The tree hash
 
-`treeSha256` is the sha256 of the lines `<sha256>  <path>\n` (two spaces), one per regular file in the plugin folder, sorted by the UTF-8 bytes of the path, with `/` separators and `.DS_Store` files left out. It is the output format of `sha256sum`, so it can be reproduced without Skillgate:
+`treeSha256` is the sha256 of the lines `<sha256>  <path>\n` (two spaces), one per regular file in the plugin folder, sorted by the UTF-8 bytes of the path, with `/` separators and `.DS_Store` files left out. It is the output format of `sha256sum`, so it can be reproduced without Skilliton:
 
 ```
 cd <plugin folder> && find . -type f ! -name .DS_Store | sed 's|^\./||' | LC_ALL=C sort \
@@ -74,7 +74,7 @@ Symbolic links, other non-regular files, file names that are not valid UTF-8 or 
 
 ## Approval and withdrawal
 
-- **Approval:** `release sign <version> [--apply]` checks the manifest is committed at HEAD and unchanged, valid, unsigned, built from an ancestor of HEAD, and that every plugin folder still has its recorded tree hash; it requires `gpg.format ssh` and a configured signing key, then runs, with the maintainer's own configuration, `git tag -s skillgate-release/<version> -m "skillgate release <version>" -m "manifest-sha256: <sha256 of the committed manifest bytes>" <HEAD>`. Skillgate never passes a key. After tagging it confirms the tag carries an SSH signature.
+- **Approval:** `release sign <version> [--apply]` checks the manifest is committed at HEAD and unchanged, valid, unsigned, built from an ancestor of HEAD, and that every plugin folder still has its recorded tree hash; it requires `gpg.format ssh` and a configured signing key, then runs, with the maintainer's own configuration, `git tag -s skillgate-release/<version> -m "skillgate release <version>" -m "manifest-sha256: <sha256 of the committed manifest bytes>" <HEAD>`. Skilliton never passes a key. After tagging it confirms the tag carries an SSH signature.
 - **Withdrawal:** `release withdraw <version> --reason "<one line>" [--apply]` runs `git tag -s skillgate-withdrawn/<version> -m "skillgate withdrawn <version>" -m "reason: <text>" <the approved commit>`. It requires the release tag to exist. The tagger date is the withdrawal time. Withdrawal changes what verify reports; it does not disable, remove or roll back installed copies.
 - **Listing:** `release list [--repo] [--company]` shows every version found in `releases/*.json` and in tags as `approved`, `unapproved` (with the reason) or `withdrawn`. Exit 2 when trust is not configured or any tag or approved manifest does not check out.
 

@@ -684,7 +684,7 @@ export function hookScript() {
     HOOK_MARKER,
     "# Written by `skillgate delivery install`; run install again instead of editing this file. Git runs this hook before",
     "# it updates any ref in this repository, with one \"<old> <new> <ref>\" line per update on standard input. The lines",
-    "# go to the Skillgate delivery gate, and the hook exits with the gate's status: anything but 0 rejects the whole",
+    "# go to the Skilliton delivery gate, and the hook exits with the gate's status: anything but 0 rejects the whole",
     "# push. It fails closed: when the runtime, its setting or node is missing, the push is rejected.",
     "",
     "reject() {",

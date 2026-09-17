@@ -7,7 +7,7 @@ Kind: Living. PLAN.md is the product authority. This file holds the shared names
 | Pack | Plugin | Ships | Invocation |
 |---|---|---|---|
 | `base` | `context-hygiene` | skill `context-hygiene`; SessionStart hook `session-start-checklist.sh`; status line `statusline-quota.sh` (applied by `scripts/setup.mjs`) | model-invoked |
-| `base` | `workflow` | skills `task`, `dispatch`, `review`, `handoff`, `maintain`, `security`; hooks: SessionStart `session-start-handoff.sh` and `skillgate hook session-start`, Stop, PreCompact and SessionEnd `skillgate hook <event>`; the Skillgate runtime (`runtime/`, launched by `bin/skillgate`); the harness template (`templates/harness.md`); security catalogs (`catalogs/`) | `/workflow:<skill>`, model-invoked from the description, or `skillgate <command>` |
+| `base` | `workflow` | skills `task`, `dispatch`, `review`, `handoff`, `maintain`, `security`; hooks: SessionStart `session-start-handoff.sh` and `skillgate hook session-start`, Stop, PreCompact and SessionEnd `skillgate hook <event>`; the Skilliton runtime (`runtime/`, launched by `bin/skillgate`); the harness template (`templates/harness.md`); security catalogs (`catalogs/`) | `/workflow:<skill>`, model-invoked from the description, or `skillgate <command>` |
 | `base` | `guardrails` | PreToolUse hook `guard-bash.sh` on the Bash tool (asks in Claude Code, refuses in Codex; section 15); SessionStart hook `session-start-guardrails.sh` (one status line: on, off, or a problem); skill `guardrails` explaining what is blocked and why | hook runs on every Bash call; skill model-invoked |
 | `<company>` (in a fork) | anything | the company's own skills | `/<plugin>:<skill>` |
 
@@ -132,10 +132,10 @@ Agreed 2026-09-16 by the integrating session and implemented by six lanes merged
 | `.skillgate/config.json` | project (human-editable) | section 2 |
 | record files from `prepare.artifacts` | project | adopted when present and never modified; created with an explicit "not yet assessed" state when missing; decisions, lessons and status carry an empty managed index section |
 | `docs/tasks/`, `docs/decisions/`, `docs/lessons/` (from `prepare.directories`) | project | one file per entry; each folder gets a README explaining the entry format |
-| harness block in `CLAUDE.md` and `AGENTS.md` | Skillgate (section 4) | the only managed instruction content |
+| harness block in `CLAUDE.md` and `AGENTS.md` | Skilliton (section 4) | the only managed instruction content |
 | `.skillgate/security/catalog.json`, `applicability.json`, `records/<uuid>.json`, `REPORT.md`; `docs/security/README.md` | project (catalog adopted from the package; records immutable; report generated with its marker) | section 12 |
 | `.skillgate/delivery.json` | project policy (policy path) | section 14 |
-| `.skillgate/migrations/<id>.json` | Skillgate receipt, committed | one per applied migration |
+| `.skillgate/migrations/<id>.json` | Skilliton receipt, committed | one per applied migration |
 | `.skillgate/private-evidence/`, `.skillgate/prepare.lock` | local, ignored | added to `.gitignore` by prepare |
 | `<git-dir>/skillgate-backups/<id>/` | local, never tracked | backups of every file prepare, migrate, remove, task close and checkpoint changed |
 | `<git-dir>/skillgate/journal.jsonl` | local, per clone and per worktree | section 11 |

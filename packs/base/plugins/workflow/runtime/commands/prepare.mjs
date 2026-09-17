@@ -5,7 +5,7 @@ import { PLUGIN_ROOT, Refused, argPath, parseArgs, readPluginVersion, refuse, re
 import { LAYOUT_VERSION } from "../lib/config.mjs";
 import { NeedsMigration, OperationFailed, TransactionFailed, applyChanges, describeFailure, planPrepare, resolveGitRoot, resultJson } from "../lib/prepare.mjs";
 
-export const help = `prepare: adopt a Git repository's existing records and add what a prepared Skillgate project (layout 2) needs.
+export const help = `prepare: adopt a Git repository's existing records and add what a prepared Skilliton project (layout 2) needs.
 
   prepare [--dir <repo root>]           show the plan (create, adopt or update, for each file); writes nothing
   prepare --apply [--dir <repo root>]   write the plan

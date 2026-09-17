@@ -350,7 +350,7 @@ test("corrupted task records are named as unreadable and never written", async (
   assert.equal(linked.code, 2, linked.all);
   assert.match(linked.err, /symbolic link/);
   assert.equal(readFileSync(outside, "utf8"), good, "nothing is written through a symbolic link");
-  assert.match(cli(p, ["task", "list"], env).out, /the file is a symbolic link, which Skillgate does not follow/);
+  assert.match(cli(p, ["task", "list"], env).out, /the file is a symbolic link, which Skilliton does not follow/);
 
   unlinkSync(file);
   writeFileSync(file, good);
@@ -638,7 +638,7 @@ test("session-start names every missing piece and stays within handoff.maxBytes"
   assert.equal(lines[0], "[workflow] Project state (skillgate hook session-start):");
   const expectLine = (pattern) => assert.ok(lines.some((line) => pattern.test(line)), `${pattern}\n${full.out}`);
   expectLine(/^- Branch: main @ [0-9a-f]{7,}, 1 uncommitted$/);
-  expectLine(/^- Layout \(needs attention\): not prepared by Skillgate \(no prepare\.version/);
+  expectLine(/^- Layout \(needs attention\): not prepared by Skilliton \(no prepare\.version/);
   expectLine(HAS_MIGRATIONS ? /^- Pending migrations: none pending \(layout unknown, target 2\)$/ : /^- Pending migrations \(not run\): not available in this build \(runtime\/lib\/migrations\.mjs is not present\)$/);
   expectLine(new RegExp(`^- Versions: workflow runtime ${escape(INSTALLED)} installed; the project names no minimum version`));
   expectLine(/^- Records \(needs attention\): 9 of 9 missing: docs\/STATUS\.md \(status\), /);
@@ -854,14 +854,14 @@ test("an internal failure exits 0 with a one-line notice and never blocks (unrea
   assert.equal(stopped.code, 0, stopped.all);
   assert.equal(stopped.out, "", "a failing Stop hook prints no decision");
   assert.deepEqual(stopped.err.trimEnd().split("\n").length, 1, stopped.err);
-  assert.match(stopped.err, /^\[workflow\] Skillgate stop hook failed \(the journal .+ could not be read \(EISDIR\)\); nothing was blocked and the session continues\.\n$/);
+  assert.match(stopped.err, /^\[workflow\] Skilliton stop hook failed \(the journal .+ could not be read \(EISDIR\)\); nothing was blocked and the session continues\.\n$/);
 
   for (const event of ["pre-compact", "session-end"]) {
     const r = hook(p, event, { session_id: "s1" }, env);
     assert.equal(r.code, 0, r.all);
     assert.equal(r.out, "");
     assert.equal(r.err.trimEnd().split("\n").length, 1, r.err);
-    assert.match(r.err, new RegExp(`^\\[workflow\\] Skillgate ${event} hook failed \\(the journal .+ could not be written \\(EISDIR\\)\\)`));
+    assert.match(r.err, new RegExp(`^\\[workflow\\] Skilliton ${event} hook failed \\(the journal .+ could not be written \\(EISDIR\\)\\)`));
   }
 
   const started = hook(p, "session-start", { session_id: "s2" }, env);
@@ -917,13 +917,13 @@ test("outside a git repository every hook prints one line and exits 0", async ()
     const r = hook(plain, event, { session_id: "s1" }, env);
     assert.equal(r.code, 0, r.all);
     assert.equal(r.err, "");
-    assert.equal(r.out, `[workflow] Skillgate project state is unavailable: ${plain} is not inside a Git repository.\n`);
+    assert.equal(r.out, `[workflow] Skilliton project state is unavailable: ${plain} is not inside a Git repository.\n`);
     const noCwd = hook(plain, event, {}, env, { raw: '{"session_id":"s1"}' });
     assert.equal(noCwd.code, 0, noCwd.all);
-    assert.equal(noCwd.out, `[workflow] Skillgate project state is unavailable: ${realpathSync(plain)} is not inside a Git repository.\n`, "without cwd in the JSON the current folder is used");
+    assert.equal(noCwd.out, `[workflow] Skilliton project state is unavailable: ${realpathSync(plain)} is not inside a Git repository.\n`, "without cwd in the JSON the current folder is used");
     const gone = hook(plain, event, {}, env, { raw: JSON.stringify({ cwd: join(dir, "deleted") }) });
     assert.equal(gone.code, 0);
-    assert.equal(gone.out, `[workflow] Skillgate project state is unavailable: the folder ${join(dir, "deleted")} does not exist.\n`);
+    assert.equal(gone.out, `[workflow] Skilliton project state is unavailable: the folder ${join(dir, "deleted")} does not exist.\n`);
   }
   const wrongEvent = spawnSync(BIN, ["hook", "user-prompt-submit"], { cwd: plain, env, input: "{}", encoding: "utf8" });
   assert.equal(wrongEvent.status, 0, "an unknown event never exits 2, which would block the client");
@@ -1017,7 +1017,7 @@ test("status exits 1 for each attention condition and names it", async () => wit
   attentionOnly(noWritten, "handoff", /has no "Written:" line under "## RESUME HERE", so its freshness cannot be judged/);
   writeHandoff(noWritten, "2026-09-16 14:41 CEST");
   commit(noWritten, env, "handoff with an unknown zone");
-  attentionOnly(noWritten, "handoff", /the time zone "CEST" is not one Skillgate reads/);
+  attentionOnly(noWritten, "handoff", /the time zone "CEST" is not one Skilliton reads/);
 
   const interrupted = fresh();
   assert.equal(hook(interrupted, "session-start", { session_id: "a" }, env).code, 0);

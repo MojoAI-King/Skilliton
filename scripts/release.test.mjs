@@ -696,7 +696,7 @@ boxed("verify refuses corrupted client records, missing or corrupted trust, and 
   assert.match(r.out, /installed_plugins\.json is not valid JSON/);
   writeFileSync(records, JSON.stringify({ version: 2, plugins: [] }));
   r = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"]), 2, "records with another shape");
-  assert.match(r.out, /does not have the shape Skillgate has observed/);
+  assert.match(r.out, /does not have the shape Skilliton has observed/);
 
   r = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme", "--config-dir", join(box.root, "no-such-config")]), 2, "a --config-dir that does not exist");
   assert.match(r.all, /--config-dir \S+ is not an existing folder/);

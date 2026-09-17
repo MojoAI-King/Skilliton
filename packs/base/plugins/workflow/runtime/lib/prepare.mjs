@@ -67,16 +67,16 @@ export function resolveGitRoot(dirInput) {
   let root;
   try { root = realpathSync(resolve(dirInput)); } catch { refuse(`the folder ${argPath(resolve(dirInput))} does not exist or cannot be opened`); }
   if (!lstatSync(root).isDirectory()) refuse(`${argPath(root)} is not a folder`);
-  if (!which("git")) throw new OperationFailed("git is not on PATH. Skillgate needs it to confirm the repository root and to keep backups in the Git folder; install git, then run again. Nothing was written");
+  if (!which("git")) throw new OperationFailed("git is not on PATH. Skilliton needs it to confirm the repository root and to keep backups in the Git folder; install git, then run again. Nothing was written");
   const r = runProgram("git", ["-C", root, "rev-parse", "--show-toplevel", "--absolute-git-dir"], 15000);
-  if (!r.ok) refuse(`${argPath(root)} is not a Git repository (git rev-parse ${r.failure}${r.stderr.trim() ? `: ${r.stderr.trim().split("\n")[0]}` : ""}). Skillgate works on a Git repository root, because its backups live in the Git folder`);
+  if (!r.ok) refuse(`${argPath(root)} is not a Git repository (git rev-parse ${r.failure}${r.stderr.trim() ? `: ${r.stderr.trim().split("\n")[0]}` : ""}). Skilliton works on a Git repository root, because its backups live in the Git folder`);
   const [top, gitDir] = r.stdout.split("\n");
   let topReal;
   try { topReal = realpathSync(top); } catch { refuse(`git reported the repository root ${argPath(top)}, which cannot be opened`); }
   if (topReal !== root) refuse(`${argPath(root)} is inside the Git repository ${argPath(topReal)} but is not its root. Run again with --dir ${argPath(topReal)}`);
   let gitReal = null;
   try { gitReal = realpathSync(gitDir); } catch { /* reported below */ }
-  if (gitReal !== gitDir || !lstatSync(gitDir).isDirectory()) refuse(`the Git folder ${argPath(gitDir)} is not a plain folder (it goes through a symbolic link or cannot be opened), and Skillgate keeps its private backups there`);
+  if (gitReal !== gitDir || !lstatSync(gitDir).isDirectory()) refuse(`the Git folder ${argPath(gitDir)} is not a plain folder (it goes through a symbolic link or cannot be opened), and Skilliton keeps its private backups there`);
   return { root, gitDir };
 }
 
@@ -117,13 +117,13 @@ export function inspectPath(base, rel, what = rel) {
       throw new OperationFailed(`${rel} could not be inspected (${e.code ?? "error"}); nothing was written`);
     }
     const shown = parts.slice(0, i + 1).join("/");
-    if (st.isSymbolicLink()) refuse(`${what} goes through a symbolic link (${shown}), which Skillgate does not follow; nothing was written`);
+    if (st.isSymbolicLink()) refuse(`${what} goes through a symbolic link (${shown}), which Skilliton does not follow; nothing was written`);
     if (i < parts.length - 1) {
       if (!st.isDirectory()) refuse(`${what}: ${shown} is not a folder; nothing was written`);
       continue;
     }
     if (!st.isFile()) refuse(`${what} exists but is not a regular file; nothing was written`);
-    if (st.nlink !== 1) refuse(`${what} is a hard-linked file, which Skillgate does not write through; nothing was written`);
+    if (st.nlink !== 1) refuse(`${what} is a hard-linked file, which Skilliton does not write through; nothing was written`);
     return { abs, exists: true, stat: st };
   }
   return { abs, exists: false, stat: null };
@@ -141,7 +141,7 @@ export function inspectFolder(base, rel, what = rel) {
       if (e.code === "ENOENT") return { abs: join(base, ...parts), exists: false };
       throw new OperationFailed(`${rel} could not be inspected (${e.code ?? "error"})`);
     }
-    if (st.isSymbolicLink()) refuse(`${what} goes through a symbolic link (${parts.slice(0, i + 1).join("/")}), which Skillgate does not follow`);
+    if (st.isSymbolicLink()) refuse(`${what} goes through a symbolic link (${parts.slice(0, i + 1).join("/")}), which Skilliton does not follow`);
     if (!st.isDirectory()) refuse(`${what}: ${parts.slice(0, i + 1).join("/")} is not a folder`);
   }
   return { abs: cursor, exists: true };
@@ -151,7 +151,7 @@ export function inspectFolder(base, rel, what = rel) {
 export function readPath(base, rel, what = rel) {
   const info = inspectPath(base, rel, what);
   if (!info.exists) return null;
-  if (info.stat.size > MAX_BYTES) refuse(`${what} is larger than 1 MB, which is not a file Skillgate manages; nothing was written`);
+  if (info.stat.size > MAX_BYTES) refuse(`${what} is larger than 1 MB, which is not a file Skilliton manages; nothing was written`);
   try { return readFileSync(info.abs); } catch (e) { throw new OperationFailed(`${what} could not be read (${e.code ?? "error"}); nothing was written`); }
 }
 
@@ -198,7 +198,7 @@ function writeAtomically(abs, bytes, mode, beforeRename) {
 }
 
 function acquireLock(root, command, created) {
-  const info = inspectPath(root, LOCK_REL, "the Skillgate lock file");
+  const info = inspectPath(root, LOCK_REL, "the Skilliton lock file");
   ensureParents(root, LOCK_REL, created);
   let fd;
   try { fd = openSync(info.abs, "wx", 0o600); } catch (e) {

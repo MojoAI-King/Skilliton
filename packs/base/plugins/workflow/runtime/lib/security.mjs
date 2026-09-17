@@ -57,10 +57,10 @@ const REFUSALS = {
   INVALID_RECORD_INPUT: 'the control is not in the catalog, the assessment is not observed, gap or needs-human, an attached file is listed twice, or the note (up to 1000 characters) or reviewer (up to 120) is empty, too long, has surrounding spaces or control characters, or looks like a secret; values are not shown',
   OBSERVED_REQUIRES_ATTACHMENTS: 'an observed assessment needs at least one source file and one artifact file',
   UNSAFE_RECORD_DIRECTORY: 'the records path .skillgate/security/records is not a folder',
-  UNSAFE_DIRECTORY: 'a folder Skillgate writes into is not a real folder',
+  UNSAFE_DIRECTORY: 'a folder Skilliton writes into is not a real folder',
   UNSAFE_OUTPUT: 'the output path exists and is not a regular single-link file, or a record with that name already exists',
   NON_GENERATED_REPORT: '.skillgate/security/REPORT.md lacks the generated marker, so it is a human document and was left untouched; move it aside to regenerate the report',
-  CHANGED_SINCE_READ: 'the file changed after Skillgate read it; run the command again',
+  CHANGED_SINCE_READ: 'the file changed after Skilliton read it; run the command again',
   WRITE_FAILED: 'a file could not be written',
   INVALID_APPLICABILITY: 'the applicability file .skillgate/security/applicability.json does not match schema 1 (schemaVersion 1, and decisions each with controlId, applies true or false, rationale, decidedBy and a past ISO decidedAt)',
   INVALID_DECISION_INPUT: 'the control is not in the catalog, or the rationale (up to 1000 characters) or decided-by label (up to 120) is empty, too long, has surrounding spaces or control characters, or looks like a secret; values are not shown',
@@ -84,7 +84,7 @@ const REFUSALS = {
 const FAILED_CODES = new Set(['UNREADABLE_PATH', 'WRITE_FAILED', 'GIT_NOT_FOUND', 'GIT_FAILED', 'COLLECTION_INTERRUPTED', 'RECORD_NOT_WRITTEN']);
 
 export class SecurityRefusal extends Error {
-  // detail: optional plain text built only from validated values (repository-relative paths Skillgate chose or
+  // detail: optional plain text built only from validated values (repository-relative paths Skilliton chose or
   // accepted, counts, fixed phrases). Never pass supplied text or file contents.
   constructor(code, detail = null) {
     super(`${code}: ${REFUSALS[code] ?? 'refused'}`);

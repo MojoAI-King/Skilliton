@@ -1,4 +1,4 @@
-// commands/join.mjs: `skillgate join`, which sets up this machine for a company's Skillgate in one previewable command
+// commands/join.mjs: `skillgate join`, which sets up this machine for a company's Skilliton in one previewable command
 // and takes that setup back out with --undo. The engine is lib/join.mjs; the contract is docs/CONTRACTS.md section 13.
 
 import { Refused, backupFile, newStamp, parseArgs, refuse, resolveSkillsRepo, say, selfCommand, tilde } from "../lib/core.mjs";
@@ -6,7 +6,7 @@ import { applyJoin, applyUndo, planJoin, planUndo } from "../lib/join.mjs";
 import { planTrustAdd, writeTrustFile } from "../lib/trust.mjs";
 import { runVerify } from "../lib/verify.mjs";
 
-export const help = `join: set up this machine for a company's Skillgate, then verify it.
+export const help = `join: set up this machine for a company's Skilliton, then verify it.
 
   join --company <name> --signers <allowed_signers file> [--client all|claude-code|codex] [--marketplace <owner>/<repo>|<folder>]
        [--plugins <a,b>] [--bin-dir <folder> | --no-launcher] [--claude <path>] [--codex <path>] [--repo <clone>] [--apply]

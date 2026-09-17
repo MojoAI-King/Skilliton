@@ -2,7 +2,7 @@
 
 Kind: Living. Each row says how it is known: **measured** (a command or session run here, with the evidence file), **documented** (the client's official documentation or published source, not yet run here), or **unverified**. Versions matter: a row holds for the version named until it is measured again. Updated 2026-09-16.
 
-| Behavior Skillgate relies on | Claude Code 2.1.273 | Codex CLI 0.154.0-alpha.6.2 |
+| Behavior Skilliton relies on | Claude Code 2.1.273 | Codex CLI 0.154.0-alpha.6.2 |
 |---|---|---|
 | Install plugins from this repository's marketplace | **measured**: `claude plugin marketplace add <local folder>` and `claude plugin install` work in a fresh `CLAUDE_CONFIG_DIR` without logging in; a fork renamed with `company init` installs as `<plugin>@<its name>`, including a plugin outside `packs/base` (fork rehearsal K4) | **measured**: local-path marketplace add and `plugin add` work in an isolated home (probe X1, X2); the renamed fork installs the same way (fork rehearsal K5) |
 | Update and roll back | **measured**: `claude plugin marketplace update` then `claude plugin update` follows the marketplace version up (0.2.4 to 0.2.5) and down (0.2.5 to 0.2.4); older version folders stay in the cache | `codex plugin marketplace upgrade` documented; unverified here |
@@ -33,6 +33,6 @@ Evidence: `evidence/live/2026-09-16-client-capability-probes.md`; `evidence/rehe
 
 ## What this means for a team
 
-- **Claude Code** is the client whose lifecycle hooks Skillgate currently proves: the session-start project state, the stop reminder to record a checkpoint, and the guardrails block.
+- **Claude Code** is the client whose lifecycle hooks Skilliton currently proves: the session-start project state, the stop reminder to record a checkpoint, and the guardrails block.
 - **Codex CLI** receives the same skills (from the plugin) and instructions (`AGENTS.md`), and its hooks use the same shapes, but hooks cannot ship inside a Codex plugin in the measured version: a team configures them in a Codex configuration layer, and every hook needs a person to trust it once. The guardrails confirmation becomes a refusal. Codex lifecycle hooks stay unverified until a run from a logged-in, isolated Codex home records them (`scripts/rehearsals/live-clients.mjs --codex-home`).
 - **Codex in the IDE** gets `AGENTS.md` and repository skills (`.agents/skills`) but no plugins, so no hooks and no `skillgate` launcher from a plugin.

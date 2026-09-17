@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# live-capability-probe.sh: proves, in one real headless Claude Code session, the client behaviors Skillgate's
+# live-capability-probe.sh: proves, in one real headless Claude Code session, the client behaviors Skilliton's
 # lifecycle design depends on. It builds a disposable probe plugin and repository in a temp folder, so nothing in
 # this repository or your configuration is used or changed.
 #

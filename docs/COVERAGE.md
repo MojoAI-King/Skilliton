@@ -1,6 +1,6 @@
 # What has been exercised
 
-Kind: Living. Where Skillgate has and has not actually been run: platforms, versions, scale, transports and signing setups, plus the security-review cases from PLAN.md section 8. Consolidated on 2026-09-16 from the "not done or not verified" lists of the six integration lane reports (untracked `LANE_REPORT.md` files in the lane worktrees, which can be removed) and from measurements made since. An item moves to "exercised" only with the run that proved it. Client behavior itself is in docs/CLIENTS.md.
+Kind: Living. Where Skilliton has and has not actually been run: platforms, versions, scale, transports and signing setups, plus the security-review cases from PLAN.md section 8. Consolidated on 2026-09-16 from the "not done or not verified" lists of the six integration lane reports (untracked `LANE_REPORT.md` files in the lane worktrees, which can be removed) and from measurements made since. An item moves to "exercised" only with the run that proved it. Client behavior itself is in docs/CLIENTS.md.
 
 ## Platforms and versions
 

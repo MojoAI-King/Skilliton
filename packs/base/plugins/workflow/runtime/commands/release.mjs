@@ -25,7 +25,7 @@ create   builds releases/<x.y.z>.json: every plugin in .claude-plugin/marketplac
          (.., absolute, or through a symbolic link), or a plugin's .claude-plugin and .codex-plugin versions disagree.
 sign     checks that the manifest is committed and valid and that every plugin folder still matches it, then runs
          git tag -s skillgate-release/<x.y.z> with the message "skillgate release <x.y.z>" and the line
-         "manifest-sha256: <hex>". Git signs with your own configured SSH key (gpg.format ssh); Skillgate never passes
+         "manifest-sha256: <hex>". Git signs with your own configured SSH key (gpg.format ssh); Skilliton never passes
          a key. Approval is that signed tag, checked against each machine's trust file.
 withdraw runs git tag -s skillgate-withdrawn/<x.y.z> on the approved commit with the line "reason: <text>". Verify
          then reports installed copies of that release as WITHDRAWN; withdrawal does not disable or remove them.

@@ -1,4 +1,4 @@
-# Skillgate trusted delivery checks: the GitHub adapter. See docs/DELIVERY.md in the Skillgate skills repository.
+# Skilliton trusted delivery checks: the GitHub adapter. See docs/DELIVERY.md in the Skilliton skills repository.
 #
 # Copy this file to .github/workflows/skillgate-delivery.yml in an application repository whose protected branches
 # carry a .skillgate/delivery.json policy. NOT VERIFIED ON GITHUB: until a hosted rehearsal runs, this adapter is

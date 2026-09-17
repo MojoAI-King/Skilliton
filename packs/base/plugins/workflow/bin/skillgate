@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# skillgate: runs the Skillgate runtime shipped inside this plugin. Claude Code puts a plugin's bin/ folder on the
+# skillgate: runs the Skilliton runtime shipped inside this plugin. Claude Code puts a plugin's bin/ folder on the
 # Bash tool's PATH while the plugin is enabled, so an assistant can type `skillgate status`; anyone else can run this
 # file by its path. It needs Node.js 18 or later and says so plainly when node is missing.
 set -u

@@ -12,7 +12,7 @@ import { clip, evaluateStop, gatherProjectState, parseHookInput, sessionStartBlo
 import { currentTask } from "../lib/tasks.mjs";
 import { statSync } from "node:fs";
 
-export const help = `hook: run a Skillgate lifecycle hook. The workflow plugin's hooks.json calls these. Each reads the client's hook JSON
+export const help = `hook: run a Skilliton lifecycle hook. The workflow plugin's hooks.json calls these. Each reads the client's hook JSON
 on stdin (cwd, session_id, stop_hook_active, source, trigger, reason; every field optional).
 
   hook session-start   print a bounded "Project state" block (at most handoff.maxBytes bytes) and record a
@@ -23,7 +23,7 @@ on stdin (cwd, session_id, stop_hook_active, source, trigger, reason; every fiel
   hook session-end     record a session-end event
 
 The project is the Git top level of the JSON cwd (else the current folder). Outside a Git repository each hook
-prints one line saying Skillgate project state is unavailable. A hook never blocks because of its own failure: it
+prints one line saying Skilliton project state is unavailable. A hook never blocks because of its own failure: it
 prints a one-line notice on stderr (session-start also prints it on stdout, the only stream the client adds to the
 conversation) and exits 0.
 
@@ -57,7 +57,7 @@ function readStdin({ timeoutMs = 3000, maxBytes = 1024 * 1024 } = {}) {
   });
 }
 
-const unavailable = (why) => { process.stdout.write(`[workflow] Skillgate project state is unavailable: ${why}.\n`); };
+const unavailable = (why) => { process.stdout.write(`[workflow] Skilliton project state is unavailable: ${why}.\n`); };
 
 // The Git top level for the hook, or null after printing the one "unavailable" line.
 function locate(input) {
@@ -86,7 +86,7 @@ async function sessionStart(input) {
     appendEvent(root, { event: "session-start", session: input.session, source: input.source ?? undefined, at: now.toISOString() }, { state });
   } catch (e) {
     notes.push(`Journal (failed): this session start was not recorded (${e.message}), so the next session cannot tell whether this one was interrupted`);
-    console.error(`[workflow] Skillgate session-start hook: ${clip(e.message, 300)}`);
+    console.error(`[workflow] Skilliton session-start hook: ${clip(e.message, 300)}`);
   }
   process.stdout.write(sessionStartBlock(report, { maxBytes: report.handoffMaxBytes, notes }).text);
   return 0;
@@ -99,7 +99,7 @@ async function stop(input) {
   let project;
   try { project = resolveProject(root); } catch (e) {
     if (!(e instanceof ConfigError)) throw e;
-    console.error(`[workflow] Skillgate checkpoint reminder was not evaluated: ${clip(e.message, 300)}`);
+    console.error(`[workflow] Skilliton checkpoint reminder was not evaluated: ${clip(e.message, 300)}`);
     return 0;
   }
   if (!project.checkpoints.stopReminder) return 0;
@@ -145,7 +145,7 @@ export async function run(argv) {
     const input = parseHookInput(await readStdin());
     return await HANDLERS[event](input);
   } catch (e) {
-    const line = `[workflow] Skillgate ${EVENTS.includes(event) ? event : "lifecycle"} hook failed (${clip(e?.message ?? e, 300)}); nothing was blocked and the session continues.`;
+    const line = `[workflow] Skilliton ${EVENTS.includes(event) ? event : "lifecycle"} hook failed (${clip(e?.message ?? e, 300)}); nothing was blocked and the session continues.`;
     console.error(line);
     if (event === "session-start") process.stdout.write(`${line}\n`);
     return 0;
