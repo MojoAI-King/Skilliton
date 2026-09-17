@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-17-b26-a-test-keeps-the-it-allow-list-match-15b8
-- **State:** in-progress
+- **State:** done-local
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-17T18:06:22.519Z
+- **Updated:** 2026-09-17T18:11:15.454Z
 
 ## Request
 

@@ -2,7 +2,7 @@
 
 Kind: Living. For IT and security teams rolling Skilliton out on managed laptops that run endpoint security: application allowlisting and ringfencing (for example ThreatLocker), endpoint detection and response, and proxies that inspect encrypted traffic. It lists every program Skilliton starts, every place it writes, what it reads outside a repository, its network use and its privileges, so rules can be written before rollout instead of after something silently stops working.
 
-**How this list is known.** It is read from the code of the base plugins (`packs/base/plugins/`), `scripts/skilliton.mjs`, `scripts/setup.mjs` and `scripts/scrub-check.sh`; section 9 names the files each item comes from. `node scripts/allowlist.test.mjs` keeps it matched: it reads every program the code starts, every place the code reaches outside a repository, and every path a scenario writes in an empty home folder, and fails when this page does not say so (it runs in this repository's checks). **It has not been tested under any endpoint-security product** (docs/BACKLOG.md B29), and the preflight check that runs it on a laptop is not built (B27). Platforms: macOS and Linux. Windows is not supported today, because the launcher and every hook are bash scripts (B30).
+**How this list is known.** It is read from the code of the base plugins (`packs/base/plugins/`), `scripts/skilliton.mjs`, `scripts/setup.mjs` and `scripts/scrub-check.sh`; section 9 names the files each item comes from. `node scripts/allowlist.test.mjs` keeps it matched: it reads every program the code starts, every place the code reaches outside a repository, and every path a scenario writes in an empty home folder, and fails when this page does not say so (it runs in this repository's checks). **It has not been tested under any endpoint-security product** (docs/BACKLOG.md B29). `skilliton preflight` runs this list on a laptop and names anything blocked before setup changes anything. Platforms: macOS and Linux. Windows is not supported today, because the launcher and every hook are bash scripts (B30).
 
 ## The short version
 
@@ -10,7 +10,7 @@ Each of these four is kept true by `node scripts/footprint.test.mjs`, which read
 
 - **User-level only.** After IT places its managed files, Skilliton needs no administrator rights. It never uses sudo, never writes to system folders, and installs no services, daemons, launch agents, scheduled tasks or login items.
 - **No executables of its own, nothing downloaded to run.** Skilliton is scripts: JavaScript run by `node` and shell scripts run by `bash`, installed as plugin files by Claude Code or Codex.
-- **No web requests of its own.** The runtime contains no network code and runs no `git fetch`, `clone` or `push`. Network traffic comes from the AI tools themselves, including when they clone the company's plugin repository from GitHub.
+- **One network command, and it is a check.** The runtime contains no network code. One command asks `git` to contact a remote: `skilliton preflight` (which `skilliton join` runs first) runs `git ls-remote` against the company's plugin repository to see whether this machine can reach it. Nothing else: no `git fetch`, `clone` or `push`. The rest of the network traffic comes from the AI tools themselves, including when they clone the company's plugin repository from GitHub.
 - **Nothing keeps running.** Hooks and commands exit when done. The one exception is a test command defined by a project's own delivery policy that starts a background process of its own.
 
 ## 1. Programs to allow
@@ -47,6 +47,8 @@ Each of these four is kept true by `node scripts/footprint.test.mjs`, which read
 | `~/.claude/backups/skilliton/` | Commands that change a file outside a repository | A copy taken before the change |
 | `~/.claude/skilliton/usage-log.jsonl`, `~/.claude/skilliton/statusline-keys-seen.log`, and the `statusLine` key in `~/.claude/settings.json` | Only if the optional status line is set up with `scripts/setup.mjs --apply` | Appended at every status line refresh |
 
+`skilliton preflight` tests each of the folders above by creating one file named `.skilliton-preflight-<12 hex digits>` (mode 0600) in it and removing it again straight away, because a permission bit does not say what a security product will allow. It creates nothing else.
+
 Claude Code's and Codex's own locations move when `CLAUDE_CONFIG_DIR` or `CODEX_HOME` is set. Skilliton's own locations move with `SKILLITON_TRUST_DIR`, `SKILLITON_JOIN_DIR` and `SKILLITON_BACKUPS`, and the status line's with `SKILLITON_USAGE_LOG`, `SKILLITON_KEYS_LOG` and `SKILLITON_SETTINGS`. The backups folder follows `SKILLITON_BACKUPS` only: it stays at `~/.claude/backups/skilliton/` even when `CLAUDE_CONFIG_DIR` points somewhere else.
 
 **In each code repository:**
@@ -71,7 +73,7 @@ Claude Code's and Codex's own locations move when `CLAUDE_CONFIG_DIR` or `CODEX_
 
 ## 4. Network
 
-- **Skilliton's code:** none of its own. No HTTP, socket or DNS code, and no `git` command that contacts a remote.
+- **Skilliton's code:** no HTTP, socket or DNS code of its own. One `git` command contacts a remote: `git ls-remote --heads https://github.com/<owner>/<repo>` in `skilliton preflight`, run with prompts turned off (`GIT_TERMINAL_PROMPT=0`), to report whether the company's plugin repository can be reached from this machine. `skilliton join` runs that check before it changes anything. No other `git` command in the runtime contacts a remote.
 - **The company plugin repository:** `claude plugin marketplace add <owner>/<repo>` and Codex's equivalent clone `https://github.com/<owner>/<repo>`, and later refresh it when auto-update is on. Allow HTTPS git traffic to `github.com` for Claude Code, Codex and `git`. A private repository uses each developer's GitHub credentials through git's credential helpers; that path is not yet tested (B31).
 - **The AI tools' own traffic:** each vendor documents its required destinations. Claude Code's list, retrieved 2026-09-17, is at https://code.claude.com/docs/en/network-config and includes `api.anthropic.com`, `claude.ai`, `platform.claude.com`, `downloads.claude.ai` (installer and updates), `registry.npmjs.org` (npm installs of Claude Code and plugins' package dependencies; Skilliton's plugins declare none) and optional telemetry hosts. For Codex, see OpenAI's documentation (not retrieved here).
 - **Proxies that inspect encrypted traffic:** Claude Code documents `HTTPS_PROXY`, `NODE_EXTRA_CA_CERTS` and client certificate settings on the page above. `git` needs the company certificate authority too (its system trust store or `http.sslCAInfo`). Skilliton's own `node` process makes no requests, so it needs no proxy settings.
@@ -103,11 +105,12 @@ This is general guidance derived from the lists above. It has not been tested wi
 - **Ringfencing or containment:** allow the process chains in section 1, writes to the locations in section 2, and network access for `claude`, `codex` and `git` to the destinations in section 4. `node`, when running Skilliton, needs no network.
 - **Endpoint detection and response:** expect the behaviors in section 6. Prefer narrow rules for these programs, paths and parent processes over broad exclusions.
 - **Inspecting proxies:** give Claude Code and `git` the company certificate authority, and allow `github.com` for the company plugin repository.
-- **When something is blocked:** a hook that fails prints a notice and never blocks the session because of its own failure (guardrails still blocks the commands it is meant to block), so a blocked program shows up as a missing project state or a guardrails notice rather than an error dialog. `skilliton verify` and `skilliton doctor` report installs and client versions they can read. The planned preflight check (B27) will name each blocked item directly.
+- **When something is blocked:** a hook that fails prints a notice and never blocks the session because of its own failure (guardrails still blocks the commands it is meant to block), so a blocked program shows up as a missing project state or a guardrails notice rather than an error dialog. `skilliton verify` and `skilliton doctor` report installs and client versions they can read. `skilliton preflight` names each blocked item directly, with what to allow, and `skilliton join` runs it before it changes anything.
 
 ## 8. Known gaps
 
-- Not tested under any endpoint-security product (B29); no preflight check (B27).
+- Not tested under any endpoint-security product (B29). `skilliton preflight` reports what this machine did on this run; it does not say a product is supported.
+- The preflight check does not start Claude Code or Codex: starting a coding tool writes into its own folder, and `join` promises that a preview changes nothing. So a policy that lets the tool's file be found but stops it starting is not caught before setup; it shows up when the tool is next run.
 - What the matching test covers, and what it does not: it reads the code, so a program started from a string built at run time, or by a program Skilliton starts (git starting `ssh-keygen`, a client updating itself), is named in this page by hand and not by measurement. The writes scenario measures the paths a run leaves in an empty home folder; a temporary file created and removed inside one step is not in that list.
 - Windows is not supported (B30). A private company repository is not tested (B31).
 - Found while writing this list: the session hooks run `git status` without `core.fsmonitor=false`, while the guardrails hook sets it. A repository whose own local Git configuration names an fsmonitor program would have that program started by the session hooks (B33).
@@ -118,6 +121,7 @@ Paths are relative to `packs/base/plugins/` unless they start with `scripts/`.
 
 - **Hook registrations:** `workflow/hooks/hooks.json`, `guardrails/hooks/hooks.json`, `context-hygiene/hooks/hooks.json`.
 - **Programs in hook scripts:** `guardrails/hooks/guard-bash.sh` (JSON reader choice in `pick_parser`, git calls with `core.fsmonitor=false`, secret patterns), `guardrails/hooks/session-start-guardrails.sh`, `workflow/hooks/session-start-handoff.sh`, `workflow/bin/skilliton`, `context-hygiene/hooks/session-start-checklist.sh`, `context-hygiene/hooks/statusline-quota.sh`, `context-hygiene/hooks/config-drift-check.sh`.
+- **The preflight check:** `workflow/runtime/lib/preflight.mjs` (the table of programs, the folders, the repository check) and `workflow/runtime/preflight/probe.sh` (the script that starts the programs a hook uses, run by its path).
 - **Programs started by the runtime:** `git` through `workflow/runtime/lib/journal.mjs`, `trust.mjs`, `collectors.mjs`, `delivery.mjs`, `core.mjs` and `prepare.mjs`; `claude` and `codex` in `workflow/runtime/lib/join.mjs` and `core.mjs` (`doctor`); signature checks in `trust.mjs` and `delivery.mjs`; signing in `workflow/runtime/commands/release.mjs`; the scrub check in `core.mjs` (`import`) and `commands/propose.mjs`; policy commands in `collectors.mjs` and `delivery.mjs`.
 - **Machine writes:** `workflow/runtime/lib/join.mjs` (receipt, launcher, Codex home), `trust.mjs` (signers), `core.mjs` (backups), `scripts/setup.mjs` (status line), `context-hygiene/hooks/statusline-quota.sh` (usage logs).
 - **Repository writes:** `workflow/runtime/lib/prepare.mjs` (transactions, lock, temporary files, backups), `journal.mjs`, `tasks.mjs`, `records.mjs`, `migrations.mjs`, `security.mjs`, `collectors.mjs`, `delivery.mjs` (gate hook and temporary trees).
