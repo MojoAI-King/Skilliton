@@ -24,7 +24,7 @@ Shared formats do not by themselves give a company one approved package, deliver
 |---|---|---|---|
 | 1. Foundation | M0 to M5 | One prepared project, work that survives interruptions, signed company updates, security evidence, a merge gate | M1 and M4 verified locally, M2 on Claude Code, M3 at install level; M5 needs a real participant |
 | 2. Make it yours | M6, M7 | A fork becomes the company's own in one command; one command sets up a machine on Claude Code and Codex | Verified locally |
-| **3. Company-wide autopilot** | **M8 to M14** | One name; routines that run as people work; a security audit; enrollment through device management; any AI coding tool; proof of value | **Planned, none started** |
+| **3. Company-wide autopilot** | **M8 to M14** | One name; routines that run as people work; a security audit; enrollment through device management; any AI coding tool; proof of value | **M9 done (verified and published 2026-09-17); the rest planned** |
 
 ## The device-management model, mapped
 
