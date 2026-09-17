@@ -38,10 +38,21 @@ export const NO_REPOSITORY_PROGRAMS = ["-c", "core.fsmonitor=false"];
 // Variables that would point git at a different repository than the one named with -C.
 export const REPOSITORY_OVERRIDES = ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE", "GIT_COMMON_DIR", "GIT_PREFIX"];
 
-// Variables that hand git settings, or a command to run, from outside any repository's own files: a configuration
-// file of someone's choosing, settings passed straight in, a proxy or ssh command, a diff program. A project's own
-// settings can reach a session's environment, so a git call that must not take a repository's word for anything does
-// not take these either. The options Skilliton passes with -c beat them in any case (measured on git 2.51.1).
+// Variables that hand git a configuration of someone else's choosing, or a command to run: a configuration file,
+// settings passed in as values, a proxy or ssh command, a diff program, another set of git programs. A prepared
+// project's own settings file can put variables into a session's environment, so for a git call that must not take a
+// repository's word for anything, these come from the repository as surely as .git/config does. The options Skilliton
+// passes with -c beat them in any case (measured on git 2.51.1).
+//
+// Removing GIT_CONFIG_GLOBAL and GIT_CONFIG_SYSTEM does not leave git with no configuration: it leaves git with the
+// machine's own, ~/.gitconfig and /etc/gitconfig. That is deliberate and it is the second time this line has been
+// argued, so the reasoning is written here. The reachability check answers "can this machine reach the company
+// repository, set up as it is", which needs the proxy and the certificate that live in exactly those files; pointing
+// GIT_CONFIG_GLOBAL at /dev/null instead would report a company machine as blocked when its git works, and /dev/null
+// is not a path git can be given on Windows. What the machine's own configuration says, Skilliton follows, because
+// the clone this check is a promise about would follow it too. What a repository says, through its own .git/config or
+// through the environment, Skilliton refuses. A caller that wants a git call with no user configuration at all sets
+// HOME (and XDG_CONFIG_HOME) to a folder of its own, which is how this repository's tests isolate themselves.
 export const CONFIG_FROM_THE_ENVIRONMENT = [
   "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
   "GIT_PROXY_COMMAND", "GIT_SSH_COMMAND", "GIT_SSH", "GIT_ALLOW_PROTOCOL", "GIT_EXTERNAL_DIFF", "GIT_TEXTCONV", "GIT_EXEC_PATH",

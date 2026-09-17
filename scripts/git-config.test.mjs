@@ -14,7 +14,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -80,19 +80,108 @@ test("prepare reads the repository without starting it", (t) => {
   assert.equal(ctx.started(), false, `prepare started the repository's program:\n${r.stdout}${r.stderr}`);
 });
 
+// Where git is started in the runtime, and which of those calls keep the environment they were given. The two in
+// delivery.mjs run inside a push hook, where git itself sets GIT_DIR and the quarantine folder for the objects being
+// pushed: taking those away would make the hook read the wrong repository. Every other call gets gitEnvironment(),
+// which removes the variables that would choose the repository (GIT_DIR, GIT_INDEX_FILE and the rest) or hand in
+// settings from outside a configuration file. A line that matches nothing is a failure too, so an exception cannot
+// outlive the code it excuses.
+const ENVIRONMENT_FROM_THE_CALLER = [
+  { file: "delivery.mjs", contains: "env, encoding: buffer", why: "the push hook's own environment names the repository and the quarantined objects" },
+  { file: "delivery.mjs", contains: '"archive", "--format=tar"', why: "the same runner's environment, for the archive it extracts" },
+];
+const RUNTIME_LIB = join(ROOT, "packs/base/plugins/workflow/runtime/lib");
+const GIT_START = /(?:spawnSync|spawn|execFileSync|execFile)\(\s*["']git["']|runProgram\(\s*["']git["']/;
+
 test("every git call in the runtime turns the setting off", () => {
   // Read from the code, so a git call added later without the option fails this test rather than waiting for someone
   // to notice a program starting.
-  const files = ["journal.mjs", "trust.mjs", "collectors.mjs", "delivery.mjs", "prepare.mjs"].map((f) => join(ROOT, "packs/base/plugins/workflow/runtime/lib", f));
+  const files = ["journal.mjs", "trust.mjs", "collectors.mjs", "delivery.mjs", "prepare.mjs"].map((f) => join(RUNTIME_LIB, f));
   const missing = [];
   for (const file of files) {
     const text = readFileSync(file, "utf8");
     text.split("\n").forEach((line, i) => {
-      if (!/spawnSync\(\s*["']git["']|runProgram\(\s*["']git["']/.test(line)) return;
+      if (!GIT_START.test(line)) return;
       if (!line.includes("NO_REPOSITORY_PROGRAMS")) missing.push(`${file.replace(`${ROOT}/`, "")}:${i + 1}: ${line.trim().slice(0, 120)}`);
     });
   }
   assert.deepEqual(missing, [], `these git calls do not pass NO_REPOSITORY_PROGRAMS, so a repository's own configuration could make git start a program:\n${missing.join("\n")}`);
+});
+
+// The text of a call's env option, brace aware, or null when the call passes no env at all.
+function envExpression(call) {
+  const at = /[{,]\s*env\s*:/.exec(call);
+  if (!at) return /[{,]\s*env\s*[,}]/.test(call) ? "env" : null;
+  let depth = 0;
+  const from = at.index + at[0].length;
+  for (let i = from; i < call.length; i++) {
+    const c = call[i];
+    if (c === "{" || c === "[" || c === "(") depth++;
+    else if (c === "}" || c === "]" || c === ")") { if (depth === 0) return call.slice(from, i).trim(); depth--; }
+    else if (c === "," && depth === 0) return call.slice(from, i).trim();
+  }
+  return call.slice(from).trim();
+}
+
+test("every git call in the runtime takes its environment from gitEnvironment, or says why not", () => {
+  const found = [];
+  const used = new Set();
+  for (const name of readdirSync(RUNTIME_LIB).filter((f) => f.endsWith(".mjs"))) {
+    const lines = readFileSync(join(RUNTIME_LIB, name), "utf8").split("\n");
+    lines.forEach((line, i) => {
+      if (!GIT_START.test(line)) return;
+      const call = lines.slice(i, i + 4).join(" "); // the options of a call written over several lines
+      // Read the call's own env expression and decide on that alone: a mention of gitEnvironment elsewhere in the
+      // file does not excuse this call. It passes when the expression is built from gitEnvironment(), directly or
+      // through a wrapper defined in the same file or a variable assigned just above, and never when it spreads
+      // process.env, which is how the environment a repository can reach gets back in.
+      const expression = envExpression(call);
+      const body = readFileSync(join(RUNTIME_LIB, name), "utf8");
+      const wrapper = /([A-Za-z_$][\w$]*)\s*\(/.exec(expression ?? "")?.[1];
+      const fromGitEnvironment = expression !== null && !expression.includes("process.env") && (
+        expression.includes("gitEnvironment(")
+        || (wrapper && new RegExp(`function ${wrapper}\\([^)]*\\)[^\n]*\\{[\\s\\S]{0,400}?gitEnvironment\\(`).test(body))
+        || (/^[A-Za-z_$][\w$]*$/.test(expression) && new RegExp(`(?:const|let|var)\\s+${expression}\\s*=\\s*gitEnvironment\\(`).test(lines.slice(Math.max(0, i - 12), i).join("\n")))
+      );
+      if (fromGitEnvironment) return;
+      const allowed = ENVIRONMENT_FROM_THE_CALLER.find((e) => e.file === name && call.includes(e.contains));
+      if (allowed) { used.add(allowed.contains); return; }
+      found.push(`${name}:${i + 1}: ${line.trim().slice(0, 140)}`);
+    });
+  }
+  assert.deepEqual(found, [], `these git calls take their environment from around them, so GIT_DIR or GIT_INDEX_FILE could decide which repository they read:\n${found.join("\n")}`);
+  const stale = ENVIRONMENT_FROM_THE_CALLER.filter((e) => !used.has(e.contains)).map((e) => `${e.file}: ${e.contains}`);
+  assert.deepEqual(stale, [], `these exceptions match no line any more and should be removed:\n${stale.join("\n")}`);
+});
+
+// The gate above reads the code; this one measures the behaviour it is there for. GIT_INDEX_FILE names the file git
+// treats as the index, and `git ls-files` is what the secret scan uses to decide which files exist. An index of
+// someone else's choosing would therefore decide what a secret scan looks at, and the evidence record would say a
+// repository was scanned clean when its tracked files were never read.
+test("an index named in the environment cannot narrow a secret scan", (t) => {
+  const ctx = trapped(t);
+  writeFileSync(join(ctx.repo, "config.env"), "TOKEN=not-a-real-value\n");
+  ctx.git("add", "-A");
+  ctx.git("commit", "-q", "-m", "second");
+  const decoy = join(ctx.base, "decoy.index");
+  execFileSync("git", ["-C", ctx.repo, "read-tree", "--empty"], { env: { ...process.env, ...GIT_ENV, HOME: ctx.home, GIT_INDEX_FILE: decoy } });
+
+  // The positive control: plain git with that variable lists nothing, so the decoy really does narrow what git sees.
+  const control = execFileSync("git", ["-C", ctx.repo, "ls-files"], { encoding: "utf8", env: { ...process.env, ...GIT_ENV, HOME: ctx.home, GIT_INDEX_FILE: decoy } });
+  assert.equal(control.trim(), "", "the decoy index did not narrow plain git, so this case would prove nothing");
+
+  const prepared = ctx.run(["prepare", "--apply"]);
+  assert.equal(prepared.status, 0, `${prepared.stdout}${prepared.stderr}`);
+  ctx.git("add", "-A");
+  ctx.git("commit", "-q", "-m", "prepared");
+  const tracked = execFileSync("git", ["-C", ctx.repo, "ls-files"], { encoding: "utf8", env: { ...process.env, ...GIT_ENV, HOME: ctx.home } }).trim().split("\n").length;
+  assert.ok(tracked > 2, `the fixture has only ${tracked} tracked files, so the count below would prove little`);
+
+  const r = ctx.run(["security", "collect", "secrets"], { env: { GIT_INDEX_FILE: decoy } });
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  const count = /tracked files to scan:\s*(\d+)/.exec(r.stdout);
+  assert.ok(count, `the scan did not say how many files it would read:\n${r.stdout}${r.stderr}`);
+  assert.equal(Number(count[1]), tracked, `the scan read the index from the environment, so it would have reported a repository clean without opening its files:\n${r.stdout}`);
 });
 
 test("the guardrails hook's git calls turn it off too", () => {
