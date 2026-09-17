@@ -29,12 +29,21 @@ export const MAX_TRUST_BYTES = 64 * 1024;
 
 // Variables that would point git at a different repository than the one named with -C.
 const REPOSITORY_OVERRIDES = ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE", "GIT_COMMON_DIR", "GIT_PREFIX"];
+// Variables that hand git settings, or a command to run, from outside any configuration file. A project's own
+// settings can reach a session's environment, so a command that must not take a repository's word for anything must
+// not take these either. The options Skilliton passes with -c beat them in any case (measured on git 2.51.1), and
+// removing them closes the rest: an address rewritten to a command, a proxy command, an ssh command.
+const CONFIG_FROM_THE_ENVIRONMENT = ["GIT_CONFIG", "GIT_CONFIG_COUNT", "GIT_PROXY_COMMAND", "GIT_SSH_COMMAND", "GIT_SSH", "GIT_ALLOW_PROTOCOL", "GIT_EXTERNAL_DIFF", "GIT_TEXTCONV"];
 
 // Reads ignore refs/replace, so the object read is the object stored (a replacement could otherwise stand in for a
 // manifest or a tag), and run without prompts and in the C locale, so messages parse the same everywhere.
 export function gitEnv({ userFacing = false } = {}) {
   const env = { ...process.env };
   for (const name of REPOSITORY_OVERRIDES) delete env[name];
+  if (!userFacing) {
+    for (const name of CONFIG_FROM_THE_ENVIRONMENT) delete env[name];
+    for (const name of Object.keys(env)) if (/^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(name)) delete env[name];
+  }
   if (!userFacing) { env.GIT_TERMINAL_PROMPT = "0"; env.LC_ALL = "C"; env.GIT_NO_REPLACE_OBJECTS = "1"; }
   return env;
 }

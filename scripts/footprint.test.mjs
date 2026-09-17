@@ -25,7 +25,7 @@
 //   node scripts/footprint.test.mjs --self-test  proves each rule fails on known-bad input
 
 import { spawnSync } from "node:child_process";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { NETWORK_PROGRAMS, REPO, SHELL_BUILTINS, jsProgramCalls, networkUses, scopeFiles, shellCommands } from "./inventory.mjs";
 
@@ -48,16 +48,20 @@ const PRIVILEGE_PATTERNS = [
   [/\bsetuid\b|\bsetgid\b|chmod\s+[ug]\+s|\b0o?[24]\d{3}\b/, "a setuid or setgid bit"],
   [/-Verb\s+RunAs|with\s+administrator\s+privileges|Start-Process\s+.*RunAs/i, "asking for administrator rights"],
 ];
+// The option that puts a child in its own process group, however it is written.
+const DETACHED = /(["']?)detached\1\s*[:=]|[{,]\s*detached\s*[,}]|\[\s*["']detached["']\s*\]/;
 const PERSISTENCE_PATTERNS = [
   [/LaunchAgents|LaunchDaemons|StartupItems|\/etc\/(systemd|init\.d|rc\.local|cron)|\.config\/autostart|CurrentVersion\\\\?Run|Start Menu.*Startup/i, "a place that starts programs by itself"],
   [/\.unref\s*\(\)/, "a child process let go on purpose, which would outlive the command"],
-  [/detached\s*:\s*true/, "a child process started in its own group and not waited for"],
+  [/(["']?)detached\1\s*[:=]\s*true/, "a child process started in its own group and not waited for"],
 ];
 // Where a child process is deliberately put in its own group, and why. Each of these waits for the child and kills
 // the group if it has to, which is the opposite of letting something outlive the command.
 // Each of these starts the child asynchronously, keeps hold of it, and kills the group when a timeout passes or the
 // command is interrupted: scripts/preflight.test.mjs proves the last one against a program that ignores being asked
-// to stop. A synchronous start cannot make that promise, so a new entry here needs the same shape.
+// to stop, and scripts/collectors.test.mjs the first. A synchronous start cannot make that promise, so a new entry
+// here needs the same shape. The count is of every mention of the word in the file, so a second start cannot hide
+// behind the first; what it does is read by a person when the count changes, and by the tests named above.
 export const PROCESS_GROUPS = [
   [`${PLUGINS}/workflow/runtime/lib/collectors.mjs`, 1, "a policy's test command, so a timeout can stop the whole group"],
   [`${PLUGINS}/workflow/runtime/lib/delivery.mjs`, 1, "the same, in the delivery gate"],
@@ -118,7 +122,9 @@ export function checkPrivileges(files, readFile, groups = PROCESS_GROUPS) {
     for (const { line, number } of codeLines(text)) {
       // A line that starts a child in its own group is counted, and still read by every other rule: a rule that let
       // a line skip the others would be a place to hide one.
-      if (/detached\s*:/.test(line)) seen.set(path, (seen.get(path) ?? 0) + 1);
+      // Every way of writing the option counts: `detached:`, `"detached":`, `detached =`, shorthand ({ detached }),
+      // and a computed key. The word in prose ("a detached HEAD") does not, which is why this is not a bare word match.
+      if (DETACHED.test(line)) seen.set(path, (seen.get(path) ?? 0) + 1);
       for (const [re, what] of [...PRIVILEGE_PATTERNS, ...PERSISTENCE_PATTERNS]) {
         if (re.test(line)) violations.push(`${path}:${number} has ${what} (${line.trim().slice(0, 120)}); Skilliton is user-level only and leaves nothing running`);
       }
@@ -270,23 +276,37 @@ function shippedEntries() {
   const entries = [];
   for (const dir of [PLUGINS, "scripts"]) {
     for (const path of walkFiles(join(REPO, dir), dir)) {
-      if (IGNORED_ARTEFACTS.includes(path.split("/").pop())) continue;
       const tracked = indexModes.has(path);
-      entries.push({ path, mode: tracked ? indexModes.get(path) : `100${(statSync(join(REPO, path)).mode & 0o777).toString(8)}`, tracked });
+      const mode = tracked ? indexModes.get(path) : onDiskMode(join(REPO, path));
+      if (IGNORED_ARTEFACTS.includes(path.split("/").pop())) {
+        // Skipped as an operating system's own leftover, but not when something has made it runnable: that is no
+        // longer a leftover.
+        if (parseInt(mode, 8) & 0o111) entries.push({ path, mode, tracked });
+        continue;
+      }
+      entries.push({ path, mode, tracked });
     }
   }
   return entries;
 }
 
+// The mode of a file on disk, reading a link as itself: a link that points nowhere still ships.
+function onDiskMode(path) {
+  try { return `100${(lstatSync(path).mode & 0o777).toString(8)}`; } catch { return "100000"; }
+}
+
 // Files an operating system leaves behind, which are not part of the product and are never installed by a client.
 const IGNORED_ARTEFACTS = [".DS_Store", "Thumbs.db"];
 
+// Links are not followed: one under the plugins is listed as a file, so the rules below read the link itself rather
+// than whatever it points at, which may be outside the folder a release carries.
 function walkFiles(dir, prefix, out = []) {
   for (const name of readdirSync(dir).sort()) {
     if (name === ".git" || name === "node_modules") continue;
     const path = join(dir, name);
-    const st = statSync(path);
-    if (st.isDirectory()) walkFiles(path, `${prefix}/${name}`, out);
+    const st = lstatSync(path);
+    if (st.isSymbolicLink()) out.push(`${prefix}/${name}`);
+    else if (st.isDirectory()) walkFiles(path, `${prefix}/${name}`, out);
     else if (st.isFile()) out.push(`${prefix}/${name}`);
   }
   return out;

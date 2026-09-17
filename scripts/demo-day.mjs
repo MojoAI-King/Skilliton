@@ -6,15 +6,15 @@
 //   node scripts/demo-day.mjs --step 3           stop after that step
 //   node scripts/demo-day.mjs --keep             keep the workspace and print where it is, ready to show live
 //
-// It uses a temporary folder, throwaway keys and a home folder of its own: nothing in this repository, and nothing in
-// your own configuration, is read or changed, and no model is used. Without --claude the two client commands are acted
+// It works in a temporary folder, with throwaway keys and a home folder of its own: this repository is copied into it
+// and never changed, your own configuration is neither read nor changed, and no model is used. Without --claude the two client commands are acted
 // out by scripts/fixtures/clients/standin.mjs, and every line that came from it says so, because on the day those are
 // the real Claude Code.
 //
 // A step that does not behave stops the run and prints what it saw. That is the point of running it before the day.
 
 import { spawnSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,8 +29,12 @@ const MARKET = "acme-skills";
 const argv = process.argv.slice(2);
 const option = (name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
 const KEEP = argv.includes("--keep");
-const LAST_STEP = Number(option("--step") ?? 5);
 const CLAUDE = option("--claude");
+const LAST_STEP = Number(option("--step") ?? 5);
+if (!Number.isInteger(LAST_STEP) || LAST_STEP < 1 || LAST_STEP > 5) {
+  console.log(`--step takes a number from 1 to 5 (got ${JSON.stringify(option("--step"))})`);
+  process.exit(2);
+}
 
 const ws = realpathSync(mkdtempSync(join(tmpdir(), "skilliton-demo-day-")));
 const dirs = {
@@ -48,6 +52,28 @@ const env = {
   SKILLITON_JOIN_DIR: join(dirs.laptop, "joined"), SKILLITON_BACKUPS: join(dirs.laptop, "backups"),
   STANDIN_LOG: join(ws, "clients.log"),
 };
+
+// Every file and folder under a path, so a claim that nothing was written can be checked rather than said.
+function listAll(dir, out = []) {
+  for (const name of existsSync(dir) ? readdirSync(dir).sort() : []) {
+    const path = join(dir, name);
+    out.push(path);
+    if (statSync(path).isDirectory()) listAll(path, out);
+  }
+  return out;
+}
+
+// A short name for a path inside the workspace, so the output reads as a place rather than as a long path.
+const tildeish = (path) => path.replace(ws, "<workspace>");
+
+// An interrupted run takes its workspace with it, unless it was asked to keep it.
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, () => {
+    if (!KEEP) rmSync(ws, { recursive: true, force: true });
+    else console.log(`\nWorkspace kept: ${ws}`);
+    process.exit(130);
+  });
+}
 
 let stepNumber = 0;
 const say = (line = "") => console.log(line);
@@ -108,7 +134,9 @@ shows(first(init.out, /marketplace/i) || "company init: the fork now carries the
 const plugin = cli(["new-plugin", "review-rules", "--pack", COMPANY, "--description", "The review rules this company expects every change to follow.", "--repo", dirs.company, "--apply"]);
 shows(first(plugin.out, /plugin\.json|created/i) || "new-plugin: a plugin for the company's own skills");
 const skill = cli(["new-skill", "review-rules", "billing-review", "--pack", COMPANY, "--description", "How this company reviews a change that touches billing.", "--repo", dirs.company]);
-shows(first(skill.out, /SKILL\.md|created/i) || "new-skill: the company's first skill");
+const skillFile = join(dirs.company, "packs", COMPANY, "plugins", "review-rules", "skills", "billing-review", "SKILL.md");
+if (!existsSync(skillFile)) stop("new-skill did not write the skill", skill.out);
+shows(`new-skill: created packs/${COMPANY}/plugins/review-rules/skills/billing-review/SKILL.md`);
 script("Nothing here is ours. It is their marketplace name, their plugin, their skill.");
 
 git(dirs.company, "add", "-A");
@@ -126,8 +154,9 @@ git(dirs.company, "config", "user.signingkey", join(dirs.keys, "approver"));
 cli(["trust", "add", "--company", COMPANY, "--signers", join(dirs.keys, "allowed_signers"), "--apply"]);
 const sign = cli(["release", "sign", "1.0.0", "--repo", dirs.company, "--apply"]);
 shows(first(sign.out, /signed|tag/i) || "release sign: an approver signed the release tag");
-const list = cli(["release", "list", "--company", COMPANY, "--repo", dirs.company], { expect: [0, 1] });
-shows(first(list.out, /1\.0\.0/) || "release list: 1.0.0 is approved");
+const list = cli(["release", "list", "--company", COMPANY, "--repo", dirs.company]);
+if (!/1\.0\.0/.test(list.out)) stop("release list does not show 1.0.0 as approved", list.out);
+shows(first(list.out, /1\.0\.0/));
 script("A release is approved by a signature, not by a message in a chat.");
 if (stepNumber >= LAST_STEP) finish();
 
@@ -137,8 +166,14 @@ heading("A new laptop: one command, ending VERIFIED");
 script("This is a machine that has never seen any of this. One command sets it up.");
 const joinArgs = ["join", "--company", COMPANY, "--signers", join(dirs.keys, "allowed_signers"), "--marketplace", dirs.company,
   "--client", "claude-code", "--bin-dir", join(dirs.laptop, "bin"), ...(client.real ? ["--claude", client.path] : [])];
+// The claim after the preview is checked, not asserted: the laptop must hold exactly what it held before it ran.
+const before = listAll(dirs.laptop);
 const preview = cli([...joinArgs, "--repo", dirs.company]);
-shows(first(preview.out, /change\(s\) to make|already in place/) || "join (preview): what it would add, with nothing written");
+const planned = /(\d+) change\(s\) to make/.exec(preview.out);
+if (!planned || Number(planned[1]) === 0) stop("the join preview does not say what it would change", preview.out);
+const added = listAll(dirs.laptop).filter((path) => !before.includes(path));
+if (added.length) stop("the join preview wrote something", `it added ${added.slice(0, 5).join(", ")} in ${dirs.laptop}`);
+shows(`${planned[1]} change(s) it would make, and not one file written in ${tildeish(dirs.laptop)}`);
 script("It shows what it would do first. Nothing is written yet.");
 const applied = cli([...joinArgs, "--repo", dirs.company, "--apply"], { expect: [0, 1] });
 for (const line of applied.out.split("\n").filter((l) => /^(machine checks|verify|wrote|trusted|Claude Code:)/.test(l.trim())).slice(0, 6)) shows(line.trim());
@@ -160,7 +195,9 @@ const tests = run("npm", ["test", "--silent"], { cwd: dirs.product, expect: [0],
 shows(first(tests.out, /pass \d+/) || "the sample application's own tests pass");
 
 const prepare = cli(["prepare", "--dir", dirs.product], { expect: [0, 1] });
-shows(`${prepare.out.split("\n").filter((l) => /will (create|change)/.test(l)).length} file(s) it would add or change, shown before anything is written`);
+const summary = /Summary: (\d+) to create, (\d+) to update/.exec(prepare.out);
+if (!summary || Number(summary[1]) === 0) stop("the prepare preview does not say how many files it would create", prepare.out);
+shows(`${summary[1]} file(s) it would add and ${summary[2]} it would change, shown before anything is written`);
 cli(["prepare", "--dir", dirs.product, "--apply"], { expect: [0, 1] });
 git(dirs.product, "add", "-A");
 git(dirs.product, "commit", "-q", "-m", "prepare this repository for Skilliton");

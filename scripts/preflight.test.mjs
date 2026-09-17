@@ -250,10 +250,17 @@ test("a program that never answers is stopped with its children, and the check f
 
 test("a token pasted into a marketplace value is never printed back", (t) => {
   const ctx = fixture(t);
-  for (const value of ["https://joe:ghp_colonform@github.com/acme/skills.git", "https://ghp_bareform@github.com/acme/skills.git", "https://github.com/acme/skills.git?token=ghp_queryform"]) {
+  for (const value of [
+    "https://joe:ghp_colonform@github.com/acme/skills.git",
+    "https://ghp_bareform@github.com/acme/skills.git",
+    "https://github.com/acme/skills.git?token=ghp_queryform",
+    "https://github.com/acme/skills.git?private_token=ghp_queryformtwo",
+    "https://github.com/acme/skills.git#token=ghp_fragmentform",
+    "glpat-averylongtokenlikethisone",
+  ]) {
     const r = preflight(ctx, ["--client", "claude-code", "--bin-dir", ctx.bin, "--marketplace", value], { network: true });
     assert.equal(r.code, 2, r.out);
-    assert.doesNotMatch(r.out, /ghp_[a-z]+form/, `a token was printed back for ${value}:\n${r.out}`);
+    assert.doesNotMatch(r.out, /ghp_[a-z]+form|averylongtokenlikethisone/, `a token was printed back for ${value}:\n${r.out}`);
   }
 });
 

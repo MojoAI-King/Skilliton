@@ -340,6 +340,30 @@ const WRITTEN_AHEAD_MS = 5 * 60 * 1000;
 // that is not an integration branch the shared handoff is not written (CONTRACTS section 3), so staleness is a note.
 // A Written time later than now cannot be judged: every commit and change made before it would look older than the
 // handoff, so it is reported instead of being called current.
+// What has happened in this repository since the handoff file was last committed: the commits after it, and whether
+// there is uncommitted work other than the handoff itself. Fills the same fields the freshness check reports.
+function handoffMovedOn(root, rel, archiveRel, git, data) {
+  const moved = [];
+  if (git.head) {
+    const touched = runGit(root, ["log", "-1", "--format=%H", "HEAD", "--", rel]);
+    data.handoffCommit = touched.status === 0 && touched.stdout.trim() ? touched.stdout.trim() : null;
+    if (data.handoffCommit) {
+      const count = runGit(root, ["rev-list", "--count", `${data.handoffCommit}..HEAD`]);
+      data.commitsSinceHandoffCommit = count.status === 0 ? Number(count.stdout.trim()) : null;
+      if (data.commitsSinceHandoffCommit) moved.push(`${data.commitsSinceHandoffCommit} commit(s) since it was last committed`);
+    }
+  }
+  if (git.dirty) {
+    const skip = new Set([rel, archiveRel]);
+    const changed = changedPaths(root).map(({ path }) => path).filter((path) => !skip.has(path));
+    data.newerChanges = changed.length;
+    data.newerExamples = changed.slice(0, 3);
+    if (changed.length) moved.push(`${changed.length} uncommitted change(s) (${changed.slice(0, 3).join(", ")})`);
+  }
+  return moved;
+}
+
+
 function handoffCheck(project, git) {
   const root = project.root, rel = project.artifacts.handoff;
   const integration = git.branch !== null && project.integrationBranches.includes(git.branch);
@@ -359,10 +383,14 @@ function handoffCheck(project, git) {
   if (!record.section) { data.problem = "no RESUME HERE section"; return verdict(`${rel} has no "## RESUME HERE" section, so its freshness cannot be judged`); }
   if (record.written === null) { data.problem = "no Written line"; return verdict(`${rel} has no "Written:" line under "## RESUME HERE", so its freshness cannot be judged`); }
   // A project that was prepared and has had no session yet still carries the placeholder preparation wrote. That is a
-  // state, not a problem: say what to do, and do not ask for attention.
+  // state, not a problem, but only while the project has not moved on: once there are commits after the one that last
+  // touched the handoff, or uncommitted work, the placeholder is a handoff nobody wrote and it needs attention, or it
+  // would hide every later change for ever.
   if (record.written.trim().toLowerCase() === HANDOFF_PLACEHOLDER) {
     data.problem = "not written yet";
-    return { status: "note", summary: `${rel} is the one preparation created: no session has written a handoff yet (write one with /workflow:handoff)`, data };
+    const moved = handoffMovedOn(root, rel, project.artifacts.handoffArchive, git, data);
+    if (!moved.length) return { status: "note", summary: `${rel} is the one preparation created: no session has written a handoff yet (write one with /workflow:handoff)`, data };
+    return verdict(`${rel} still carries the line preparation wrote ("${record.written.trim()}"), and the project has moved on since (${moved.join("; ")}); write a handoff with /workflow:handoff`);
   }
   const parsed = parseWritten(record.written);
   if (!parsed.ok) { data.problem = parsed.reason; return verdict(`${rel}: the Written value could not be read: ${parsed.reason}`); }

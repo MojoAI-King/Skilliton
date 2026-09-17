@@ -1029,6 +1029,22 @@ test("status exits 1 for each attention condition and names it", async () => wit
   assert.equal(prepared.json.details.handoff.problem, "not written yet");
   assert.match(prepared.out, /no session has written a handoff yet/);
 
+  // The same placeholder on a project that has moved on is a handoff nobody wrote, not a new project: it must not
+  // hide later work. One commit after the handoff's own commit is enough.
+  const movedOn = fresh();
+  writeFileSync(join(movedOn, "docs", "HANDOFF.md"), "# Handoff\n\nKind: Living.\n\n## RESUME HERE\n\nWritten: not yet assessed\n\n- **State:** Skilliton created this project's records.\n\n## Earlier\n");
+  commit(movedOn, env, "the handoff preparation writes");
+  writeFileSync(join(movedOn, "README.md"), "# worked on for weeks\n");
+  commit(movedOn, env, "work after the handoff");
+  const placeholderStale = attentionOnly(movedOn, "handoff", /still carries the line preparation wrote \("not yet assessed"\), and the project has moved on since \(1 commit\(s\) since it was last committed\)/);
+  assert.equal(placeholderStale.json.details.handoff.problem, "not written yet");
+  // And the same for uncommitted work, with the placeholder written in any letter case.
+  const dirtyPlaceholder = fresh();
+  writeFileSync(join(dirtyPlaceholder, "docs", "HANDOFF.md"), "# Handoff\n\nKind: Living.\n\n## RESUME HERE\n\nWritten:   Not Yet Assessed\n\n- **State:** Skilliton created this project's records.\n\n## Earlier\n");
+  commit(dirtyPlaceholder, env, "the handoff preparation writes");
+  writeFileSync(join(dirtyPlaceholder, "README.md"), "# edited and not committed\n");
+  attentionOnly(dirtyPlaceholder, "handoff", /the project has moved on since \(1 uncommitted change\(s\)/);
+
   const noWritten = fresh();
   writeFileSync(join(noWritten, "docs", "HANDOFF.md"), "# Handoff\n\nKind: Living.\n\n## RESUME HERE\n\n- **State:** no date.\n");
   commit(noWritten, env, "handoff without a date");
