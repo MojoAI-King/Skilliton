@@ -1,6 +1,6 @@
 # Skilliton: development autopilot plan (v4)
 
-Kind: Living. Canonical product direction and delivery gates. Updated 2026-09-16 after the owner aligned the parallel build sessions.
+Kind: Living. Canonical product direction and delivery gates. Updated 2026-09-16 after the owner aligned the parallel build sessions, and again when the owner set the Phase 3 direction (section 7; docs/PHASE-3.md).
 
 This version supersedes v3's product scope and day-by-day ordering. Earlier plans remain in Git history. Existing evidence and unresolved checks remain valid at their recorded scope; a new plan does not close them. There is one roadmap here. Original prototype plans are archived under docs/history/autopilot-foundation/ as implementation history, not competing instructions. All source material is indexed in docs/AUTOPILOT_START_HERE.md; the saved execution objective is docs/BUILD_GOAL.md.
 
@@ -47,7 +47,7 @@ flowchart LR
 | Local guardrails | Specific risky assistant actions within a supported enabled client path | Enforcement over every terminal, IDE, script or contributor |
 | Shared delivery checks | Required application validation and review at the repository/release boundary | That untested requirements are satisfied |
 
-Maintain the existing `scripts/skillgate.mjs` entry point and the base plugins. Integrate the preparation/security foundation through those contracts. Do not build a second onboarding stack or a second independently managed instruction block.
+Maintain the existing `scripts/skillgate.mjs` entry point (renamed `scripts/skilliton.mjs` in M9) and the base plugins. Integrate the preparation/security foundation through those contracts. Do not build a second onboarding stack or a second independently managed instruction block.
 
 ## 3. Project knowledge is part of installation
 
@@ -94,7 +94,7 @@ Withdrawal prevents future approval/distribution according to policy; it must no
 
 ## 6. Current implementation and evidence
 
-Branding update: the product is now Skilliton (formerly Skillgate), with workflow 0.5.1. Existing technical identifiers remain compatible; see docs/BRANDING.md. The earlier rehearsal versions and their evidence below are unchanged.
+Branding update: the product is now Skilliton (formerly Skillgate), with workflow 0.5.1. Existing technical identifiers remain compatible until M9 renames them with a migration; see docs/BRANDING.md. The earlier rehearsal versions and their evidence below are unchanged.
 
 Updated 2026-09-16 after the M1-M4 integration, the follow-ups, the task and security eval cases, the fork commands and how-it-works guide, machine setup, and the Skilliton naming (workflow 0.5.1, guardrails 0.2.0, context-hygiene 0.1.3). "Local" means committed on this machine's `main`; PUBLISHED, INSTALLED and VERIFIED states are named in docs/HANDOFF.md.
 
@@ -121,6 +121,8 @@ CI runs every offline suite, strict plugin validation, the demo and the offline 
 
 The original September 16-23 demonstration window does not promise completion of the expanded autopilot. Record changed scope and measured results rather than declaring a calendar day complete as a substitute for proof.
 
+The milestones fall into three phases: **Phase 1, foundation** (M0 to M5); **Phase 2, make it yours** (M6 and M7); **Phase 3, company-wide autopilot** (M8 to M14): one name, routines that run as people work, a security audit, enrollment through a company's device management, any AI coding tool, and proof of value. [docs/PHASE-3.md](docs/PHASE-3.md) explains Phase 3 with the device-management mapping, the order, the belief check, what it will not do and its kill criteria. The owner set that direction on 2026-09-16.
+
 | ID | Milestone | Acceptance | State |
 |---|---|---|---|
 | M0 | Shared direction | README, plan, contracts, instructions and handoff agree on implemented/prototype/target boundaries | Done (aligned again after integration) |
@@ -132,6 +134,12 @@ The original September 16-23 demonstration window does not promise completion of
 | M6 | Make it yours | A fork gives itself its own marketplace name, owner and team settings in one command, creates a company plugin and skill, passes strict validation, releases, and installs and verifies under its own name on Claude Code and Codex; docs/HOW-IT-WORKS.md explains the whole path with diagrams, and its commands and links are checked | **Verified locally** (fork rehearsal 7 of 7, evidence/rehearsals/2026-09-16-fork; `scripts/docs.test.mjs`). Installing from a GitHub source was measured in the M7 rehearsal |
 | M7 | One command per machine | One previewable, undoable command takes a clean machine to VERIFIED: adds the company marketplace, installs its plugins, records the release signers from a file given out of band, keeps a source for verify, and puts `skillgate` on the terminal path, on Claude Code and Codex; installing from a GitHub source is measured | **Verified locally** (machine rehearsal 8 of 8, evidence/rehearsals/2026-09-17-machine; `scripts/join.test.mjs`). Open: a private GitHub repository, and a GitHub source holding signed release tags (needs the first signed release, B6) |
 | M8 | Autopilot on arrival | In a repository never prepared, the session start offers preparation in plain words, previews it, applies it on a yes and starts the first task; a delivery policy is drafted from the project's detected test commands for a person to confirm; rehearsed on three repositories of different kinds and in one live Claude Code session | **Not started** (docs/BACKLOG.md B13). The live session needs the B3 login; Codex parity depends on B2 |
+| M9 | One name | Every current technical name is Skilliton (command, marketplace, `.skilliton/`, `SKILLITON_*`, instruction markers, receipt schema, release tags, machine folders); prepared projects and joined machines move by a previewable, reversible migration; only the migration reads old names; recorded evidence keeps its names; a test fails on an old name outside an allowlist; fork, machine and company release rehearsals pass again on Claude Code and Codex | **Not started** (docs/BACKLOG.md B19) |
+| M10 | Security audit that runs itself | A deterministic offline audit of changed files runs in a Claude Code routine, a git pre-push hook and the merge gate; findings become scoped security observations linked to backlog items; known scanners run only when installed; a `security-audit` skill adds a recorded threat review; evals on a synthetic repository with planted flaws and clean look-alikes count found, missed and false alarms with and without the skill; never a "secure" verdict | **Not started** (B20). Anthropic's `security-guidance` plugin covers in-session review on Claude Code (documented) and is enabled, not rebuilt |
+| M11 | Routines while working | Beyond M8: a dispatch suggestion for prompts with six or more items, a checkpoint snapshot before compaction shown again after it, a maintain suggestion after merges or at the end of a day, each ending with the next command and switchable per project; each observed in a live headless Claude Code session and stated as instructed in tools without hooks; no cost statement before M14 | **Not started** (B21) |
+| M12 | Enrollment through device management | A company profile and a signed release produce an enrollment bundle (Claude Code managed settings drop-in, macOS profile and Windows registry forms, other tools' managed configuration, release signers, first-login setup, a detection script reporting the verify result, offboarding, release rings); on clean machines with files placed as device management places them, first login ends VERIFIED with no developer command, tampering is reported, offboarding leaves nothing, and a pinned ring does not follow a newer release | **Not started** (B22). First step: the automatic marketplace registration spike on a clean container and a clean macOS account. A real Intune or Jamf tenant needs the owner's access |
+| M13 | Any AI coding tool | The portable core (skills, instruction block, git hooks, merge gate, command) plus an adapter per tool; a tool is called supported only when its CLIENTS.md column is measured (skills visible, instructions read, each hook observed, verify reads the install) and a rehearsal passes | **Not started** (B23). Claude Code and Codex are measured. VS Code with GitHub Copilot, Cursor and Grok Build document reading Claude Code's plugin and hook files; the second tool depends on the owner's accounts (O24) |
+| M14 | Proof of value and team view | The same real tasks with the plain tool and with Skilliton: tokens and cost from `scripts/token-cost.mjs` cross-checked against the client's usage metrics, time, interventions, rework, planted flaws caught before merge, resume accuracy; a locally generated read-only team view; time, cost and quality statements only from these numbers | **Not started** (B15, B16). Paid runs need the owner's approval and a ceiling |
 
 The integration steps and their evidence are in [docs/AUTOPILOT_INTEGRATION.md](docs/AUTOPILOT_INTEGRATION.md). Contracts are in [docs/CONTRACTS.md](docs/CONTRACTS.md). The latest execution state is [docs/HANDOFF.md](docs/HANDOFF.md). No milestone with an open item above is complete.
 
@@ -147,7 +155,7 @@ Track outcomes against native-tool workflows: requirement completion, restart ac
 
 ## 9. Scope boundaries
 
-First deliver a local-first, Git-backed system that a solo builder or small team can use. Reuse repository-host checks and native distribution where proven. Defer a hosted dashboard, universal device-management enforcement, an organization-wide identity service, and a broad compliance platform.
+First deliver a local-first, Git-backed system that a solo builder or small team can use. Reuse repository-host checks and native distribution where proven. Defer a hosted dashboard, universal device-management enforcement, an organization-wide identity service, and a broad compliance platform. Phase 3 builds enrollment bundles that a company's own device management delivers (M12); running device management or identity remains out of scope.
 
 Company device onboarding can install prerequisites and the approved tools; it cannot prove repository controls or application behavior by itself. Keep project rules in the repository and organizational authority with the company. No private client content, credential values or personal material goes into this public starter.
 

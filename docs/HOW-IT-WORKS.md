@@ -226,5 +226,5 @@ Everything exercised so far, by platform and version, is in [COVERAGE.md](COVERA
 - **Joining a team that uses it:** [ONBOARDING.md](ONBOARDING.md).
 - **Trying it in two minutes, with no account:** `node scripts/autopilot-demo.mjs`.
 - **Every command and format:** [CONTRACTS.md](CONTRACTS.md).
-- **What comes next:** [PLAN.md](../PLAN.md) section 7.
+- **What comes next:** Phase 3, the company-wide autopilot (device-management enrollment, routines while working, a security audit, more AI coding tools), explained in [PHASE-3.md](PHASE-3.md); milestones in [PLAN.md](../PLAN.md) section 7.
 - **What is claimed, with its evidence, and the questions to expect:** [POSITIONING.md](POSITIONING.md).
