@@ -67,6 +67,22 @@ export const DYNAMIC_CALLS = [
   { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "startOnce", arg: "path", count: 1, programs: [], table: "PROGRAMS", why: "preflight starts each program from the PROGRAMS table in the same file once, with --version; the table is checked against section 1 below" },
 ];
 
+// Programs that run whatever file or text they are given, so what they are given has to be read too.
+const INTERPRETERS = ["bash", "sh", "dash", "ksh", "zsh", "node", "python", "python3", "perl", "ruby", "php", "osascript"];
+
+// Every place a script hands an interpreter something this reader cannot follow: a path built from a variable
+// ("expansion") or a program written into the script itself ("inline"). `target`, when given, is a file this test must
+// already read; `count` is how many such places the file has, so a new one has to be looked at.
+export const INTERPRETER_TARGETS = [
+  { file: `${PLUGIN}/guardrails/hooks/session-start-guardrails.sh`, command: "bash", kind: "expansion", count: 1, target: `${PLUGIN}/guardrails/hooks/guard-bash.sh`, why: "the guardrails hook beside it, asked for the one status line it prints" },
+  { file: `${WORKFLOW}/bin/skilliton`, command: "node", kind: "expansion", count: 1, target: `${WORKFLOW}/runtime/skilliton.mjs`, why: "the runtime this launcher exists to start" },
+  { file: `${PLUGIN}/guardrails/hooks/guard-bash.sh`, command: "node", kind: "inline", count: 2, target: null, why: "two short programs written into this file, reading the hook's JSON input and a project's settings" },
+  { file: `${PLUGIN}/guardrails/hooks/guard-bash.sh`, command: "python3", kind: "inline", count: 2, target: null, why: "the same two programs in Python, for a machine with no jq and no node" },
+  { file: `${WORKFLOW}/hooks/session-start-handoff.sh`, command: "node", kind: "inline", count: 2, target: null, why: "two short programs written into this file, reading the hook's input and the project's settings" },
+  { file: `${WORKFLOW}/hooks/session-start-handoff.sh`, command: "python3", kind: "inline", count: 2, target: null, why: "the same two programs in Python" },
+  { file: "scripts/scrub-check.sh", command: "bash", kind: "expansion", count: 2, target: "scripts/scrub-check.sh", why: "its own self-test runs this same script twice, to prove each scan can fail" },
+];
+
 // Commands in a shell script whose program is an expansion: what they run, how many such commands the file has, and
 // the arguments they are given, so the command can neither multiply nor change into something else unnoticed.
 export const SHELL_DYNAMIC = [
@@ -97,6 +113,8 @@ export const OUTSIDE_A_REPOSITORY = [
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, 'resolve(binDir ?? join(homedir(), ".local", "bin"))', "~/.local/bin, tested with a file the check removes again"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, "{ path: tmpdir(), what:", "the temporary folder, tested the same way"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-preflight-git-"))', "an empty folder in the temporary folder, so the reachability check reads no repository's configuration; removed again straight away"],
+  [`${WORKFLOW}/runtime/lib/preflight.mjs`, "mkdirSync(tmpdir(), { recursive: true })", "the temporary folder itself, made again for that check when the folder test above removed it"],
+  [`${WORKFLOW}/runtime/lib/preflight.mjs`, "the temporary folder ${tilde(tmpdir())} could not be used", "the message that names the temporary folder when it cannot be used"],
   [`${PLUGIN}/context-hygiene/hooks/statusline-quota.sh`, 'LOG="${SKILLITON_USAGE_LOG:-$HOME/.claude/skilliton/usage-log.jsonl}"', "~/.claude/skilliton/usage-log.jsonl"],
   [`${PLUGIN}/context-hygiene/hooks/statusline-quota.sh`, 'KEYS_LOG="${SKILLITON_KEYS_LOG:-$HOME/.claude/skilliton/statusline-keys-seen.log}"', "~/.claude/skilliton/statusline-keys-seen.log"],
   [`${PLUGIN}/context-hygiene/hooks/config-drift-check.sh`, 'SETTINGS="${SKILLITON_SETTINGS:-$HOME/.claude/settings.json}"', "Claude Code's settings, read only"],
@@ -147,7 +165,7 @@ export function checkEveryFileIsRead(files) {
 
 // Every program the code starts: Map(program -> [where it is started]). Anything that cannot be classified is a
 // problem, never a silent skip.
-export function programsFromCode(files = scopeFiles(), readFile = read, shellDynamic = SHELL_DYNAMIC.map((e) => ({ ...e }))) {
+export function programsFromCode(files = scopeFiles(), readFile = read, shellDynamic = SHELL_DYNAMIC.map((e) => ({ ...e })), interpreterTargets = INTERPRETER_TARGETS.map((e) => ({ ...e }))) {
   const found = new Map();
   const problems = [];
   const add = (program, where) => { if (!found.has(program)) found.set(program, []); found.get(program).push(where); };
@@ -165,6 +183,29 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
         problems.push(`${path}:${d.line}: ${d.text} is now given ${given.join(" ") || "no arguments"}, and SHELL_DYNAMIC in scripts/allowlist.test.mjs says ${entry.args.join(" ")}; what this starts has changed`);
       }
     }
+    // An interpreter runs whatever it is given, so the file or program it is given is read too, or said out loud.
+    for (const c of commands) {
+      const base = c.word.split("/").pop();
+      if (!INTERPRETERS.includes(base)) continue;
+      const first = c.args.findIndex((a) => a === null || (a !== undefined && !a.startsWith("-")));
+      if (first < 0) continue; // an interpreter with no argument reads its own input, which the reader already sees
+      const given = c.args[first];
+      const optionBefore = first > 0 ? c.args[first - 1] : null;
+      const kind = optionBefore !== null && optionBefore !== undefined && /^-[A-Za-z]*[ec]$/.test(optionBefore) ? "inline" : given === null ? "expansion" : "path";
+      if (kind === "path") {
+        const resolved = given.replace(/^\.\//, "");
+        const known = [...files.shell, ...files.js].some((f) => f === resolved || f.endsWith(`/${resolved}`));
+        if (!known && /[/.]/.test(resolved)) problems.push(`${path}:${c.line}: it runs ${base} ${given}, a file this test does not read; whatever is in that file runs`);
+        continue;
+      }
+      const entry = interpreterTargets.find((e) => e.file === path && e.command === base && e.kind === kind);
+      if (!entry) { problems.push(`${path}:${c.line}: it runs ${base} with ${kind === "inline" ? "a program written into the script" : "a file named by an expansion"}, which this reader cannot follow; add it to INTERPRETER_TARGETS in scripts/allowlist.test.mjs with what it runs`); continue; }
+      entry.seen = (entry.seen ?? 0) + 1;
+      if (entry.target && !files.shell.includes(entry.target) && !files.js.includes(entry.target)) {
+        problems.push(`${path}:${c.line}: INTERPRETER_TARGETS says it runs ${entry.target}, which this test does not read`);
+      }
+    }
+
     // A file a script reads with . or source runs as part of it, so it has to be a file this test reads too.
     for (const { path: sourced, line } of (shellCommands(text).sourced ?? [])) {
       if (sourced === null) { problems.push(`${path}:${line}: a file read with . or source is named by an expansion, so what it runs cannot be read`); continue; }
@@ -204,6 +245,9 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
   }
   for (const [key, entry] of expected) {
     if (entry.seen !== entry.count) problems.push(`DYNAMIC_CALLS in scripts/allowlist.test.mjs expects ${entry.count} call(s) of ${key}, but the code has ${entry.seen}; check what changed and update both this list and ${ALLOWLIST_DOC}`);
+  }
+  for (const entry of interpreterTargets) {
+    if ((entry.seen ?? 0) !== entry.count) problems.push(`INTERPRETER_TARGETS in scripts/allowlist.test.mjs expects ${entry.count} place(s) where ${entry.file} runs ${entry.command} with ${entry.kind === "inline" ? "a program written into it" : "a file named by an expansion"}, but it has ${entry.seen ?? 0}; read what changed`);
   }
   for (const entry of shellDynamic) {
     if ((entry.seen ?? 0) !== entry.count) problems.push(`SHELL_DYNAMIC in scripts/allowlist.test.mjs expects ${entry.count} command(s) written ${entry.text} in ${entry.file}, but the file has ${entry.seen ?? 0}; check what changed`);
@@ -467,7 +511,7 @@ function main() {
 
   const { found, problems } = programsFromCode(files);
   const hooks = hookCommands(files);
-  report("every file under the plugins is read by this test", checkEveryFileIsRead(files));
+  report(`every file under the plugins is code this test reads, or data (${files.js.length} JavaScript, ${files.shell.length} script(s), ${(files.data ?? []).length} data)`, checkEveryFileIsRead(files));
   report("programs the code starts are read", [...problems, ...hooks.problems]);
   if (problems.length) { console.log("NOT RUN section 1 names every program the code starts: the code could not be read in full (above), so the comparison would have been made against an incomplete list"); notRun++; }
   else report("section 1 names every program the code starts", checkPrograms(found, doc));

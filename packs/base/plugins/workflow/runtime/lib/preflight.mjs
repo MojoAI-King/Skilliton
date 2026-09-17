@@ -36,6 +36,8 @@ import { claudeConfigDir, codexHome } from "./verify.mjs";
 export const PROBE = join(PLUGIN_ROOT, "runtime", "preflight", "probe.sh");
 const LS_REMOTE_TIMEOUT_MS = 45000;
 const MAX_OUTPUT = 4 * 1024 * 1024;
+// How long to wait after killing a program's process group before answering anyway.
+const AFTER_KILL_MS = 1500;
 // Claude Code installs a plugin under <config>/plugins/cache/<marketplace>/<plugin>/<version>/. A check run from a
 // clone of the skills repository exercises that clone's folder, not the cache, and says so.
 const INSTALLED_COPY = /[\\/]plugins[\\/]cache[\\/]/;
@@ -100,7 +102,7 @@ const state = (name, area, s, detail, action, blocks = null) => ({ area, name, s
 function startOnce(file, args, timeoutMs) {
   return new Promise((resolve) => {
     const group = process.platform !== "win32";
-    let child = null, timer = null, settled = false, timedOut = false, tooMuchOutput = false;
+    let child = null, timer = null, grace = null, settled = false, timedOut = false, escaped = false, tooMuchOutput = false;
     let stdout = "", stderr = "";
     const stop = () => {
       if (!child?.pid) return;
@@ -110,8 +112,9 @@ function startOnce(file, args, timeoutMs) {
       if (settled) return;
       settled = true;
       if (timer) clearTimeout(timer);
+      if (grace) clearTimeout(grace);
       LIVE.delete(stop);
-      resolve({ stdout, stderr, timedOut, tooMuchOutput, ...result });
+      resolve({ stdout, stderr, timedOut, escaped, tooMuchOutput, ...result });
     };
     try {
       child = spawn(file, args, { stdio: ["ignore", "pipe", "pipe"], detached: group, windowsHide: true });
@@ -125,7 +128,20 @@ function startOnce(file, args, timeoutMs) {
     };
     child.stdout.on("data", keep("out"));
     child.stderr.on("data", keep("err"));
-    timer = setTimeout(() => { timedOut = true; stop(); }, timeoutMs);
+    // The timeout kills the group, and then answers on its own a moment later whatever happens: waiting for "close"
+    // would wait for the output pipes as well, and a program can leave a child of its own OUTSIDE the group (setsid),
+    // where nothing Skilliton does can reach it. Such a child holds the pipe open for ever, so the check says what it
+    // saw and moves on rather than waiting.
+    timer = setTimeout(() => {
+      timedOut = true;
+      stop();
+      grace = setTimeout(() => {
+        escaped = true;
+        child.stdout?.destroy();
+        child.stderr?.destroy();
+        done({ error: null, code: null, status: null });
+      }, AFTER_KILL_MS);
+    }, timeoutMs);
     child.once("error", (e) => done({ error: e, code: e.code ?? null, status: null }));
     child.once("close", (status) => done({ error: null, code: null, status }));
   });
@@ -151,7 +167,8 @@ export async function probeHookPrograms(names, { probe = PROBE, timeoutMs = 6000
   // A run that timed out started fine; retrying it under bash would only wait again, and the answer would still be
   // about one slow program rather than about the folder.
   if (r.timedOut) {
-    return { failed: `${tilde(probe)} did not finish within ${timeoutMs / 1000}s, so the programs the hooks use were not checked. One of them did not return; run it by hand, or run this check again.`, results: parseProbe(r.stdout) };
+    const left = r.escaped ? " One of them also put a child outside its own process group, which this check cannot stop, and that child may still be running." : "";
+    return { failed: `${tilde(probe)} did not finish within ${timeoutMs / 1000}s, so the programs the hooks use were not checked. One of them did not return; run it by hand, or run this check again.${left}`, results: parseProbe(r.stdout) };
   }
   const bash = await startOnce("bash", [probe, ...names], timeoutMs);
   const why = r.error ? `${r.code ?? r.error.message}` : `exit ${r.status}: ${(r.stderr ?? "").trim().slice(0, 200)}`;
@@ -232,14 +249,16 @@ export async function probeRuntimeProgram(name, { timeoutMs = 20000 } = {}) {
   if (!path) return { state: "missing", exit: null, path: null, detail: "not found on PATH" };
   const r = await startOnce(path, ["--version"], timeoutMs);
   const message = `${r.stderr ?? ""}`.trim().split("\n")[0]?.slice(0, 160) ?? "";
-  if (r.tooMuchOutput) return { state: "ok", exit: null, path, detail: "it ran (it printed more than this check keeps)" };
-  if (r.timedOut) return { state: "not checked", exit: null, path, detail: `it did not answer --version within ${timeoutMs / 1000}s and was stopped, so whether it runs here is unknown; try it by hand` };
-  if (r.error) {
-    // The file was found and this user may run it, so a failure to start it is a block, whatever the code says: ENOENT
-    // here means the file names an interpreter that is not there, or something refused the start between the two.
-    return { state: "blocked", exit: null, path, detail: `it was found, but starting it failed (${r.code ?? r.error.message})` };
+  if (r.timedOut) {
+    const left = r.escaped ? "; it put a child outside its own process group, which this check cannot stop, and that child may still be running" : "";
+    return { state: "not checked", exit: null, path, detail: `it did not answer --version within ${timeoutMs / 1000}s and was stopped${left}, so whether it runs here is unknown; try it by hand` };
   }
+  if (r.error) return { state: "blocked", exit: null, path, detail: `it was found, but starting it failed (${r.code ?? r.error.message})` };
   if (r.status === 126) return { state: "blocked", exit: "126", path, detail: message || "permission denied" };
+  if (r.tooMuchOutput) return { state: "ok", exit: String(r.status), path, detail: "it ran (it printed more than this check keeps)" };
+  // A file that was found and may be run, and then would not start, is a block whatever the code says: ENOENT here
+  // means the file names an interpreter that is not there, or something refused the start between the two. Both cases
+  // are answered above, before the size of the output is looked at.
   if (/not permitted|permission denied|blocked/i.test(message)) return { state: "blocked", exit: String(r.status), path, detail: `it ran but said: ${message}` };
   return { state: "ok", exit: String(r.status), path, detail: (r.stdout ?? "").trim().split("\n")[0]?.slice(0, 80) ?? "" };
 }
@@ -412,12 +431,15 @@ export function checkFolders(options = {}) {
 
 const GITHUB_REPO = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
 
-// A value to print: never the credentials someone pasted into a URL, in any of the shapes people paste them.
+// A value to print: never a credential someone pasted into a URL. The rules are about the shape of a secret, not
+// about a list of the ones seen so far: anything before an @, any setting whose name reads like a credential, and any
+// long run of the characters a token is made of.
 export function redact(value) {
   return String(value)
     .replace(/\/\/[^/@\s]*@/g, "//<credentials removed>@")
-    .replace(/([?&](?:token|access_token|api_key|apikey|key|password|secret)=)[^&\s]+/gi, "$1<removed>")
-    .replace(/\b(gh[pousr]_|github_pat_|sk-[A-Za-z]|xox[baprs]-)[A-Za-z0-9_-]+/g, "<removed>")
+    .replace(/([?&#][^=&\s]*(?:token|key|secret|pass|pat|auth|credential)[^=&\s]*=)[^&\s]+/gi, "$1<removed>")
+    .replace(/\b[A-Za-z][A-Za-z0-9]{1,12}[_-][A-Za-z0-9_-]{16,}/g, "<removed>")
+    .replace(/\b(?=[A-Za-z0-9]*[A-Z])(?=[A-Za-z0-9]*[0-9])[A-Za-z0-9]{20,}\b/g, "<removed>")
     .slice(0, 120);
 }
 
@@ -441,7 +463,15 @@ export function checkRepository(marketplace) {
   // a copied working folder carries its own .git/config, and that file can rewrite an address
   // (url.<base>.insteadOf) and name a command to run for it (the ext transport, core.sshCommand, core.gitProxy).
   // The ext transport is refused as well, so a rewrite through it fails loudly instead of quietly.
-  const empty = mkdtempSync(join(tmpdir(), "skilliton-preflight-git-"));
+  let empty;
+  try {
+    // The folder check above creates a missing temporary folder and takes it away again, so make it once more here
+    // rather than failing over a folder this machine has just shown it can create.
+    mkdirSync(tmpdir(), { recursive: true });
+    empty = mkdtempSync(join(tmpdir(), "skilliton-preflight-git-"));
+  } catch (e) {
+    return [state(`github.com/${marketplace}`, "repository", "not checked", `the temporary folder ${tilde(tmpdir())} could not be used (${e.code ?? e.message}), and this check needs an empty folder there so that no repository's configuration is read`, `Set TMPDIR to a folder this user can write, then run the check again; the folders above say whether ${tilde(tmpdir())} can be written at all.`)];
+  }
   let r;
   try {
     r = runGit(null, ["-c", "protocol.ext.allow=never", "ls-remote", "--heads", "--", url], {

@@ -2,10 +2,10 @@
 // what docs/IT-ALLOWLIST.md says about it. Used by scripts/allowlist.test.mjs (the allow list matches the code, B26)
 // and scripts/footprint.test.mjs (the small-footprint rules, B28). Node built-ins only.
 //
-// Scope: every JavaScript file and shell script under packs/base/plugins/ except evals/ (eval fixtures run only in a
-// company's evaluation runs, never on a developer's machine), the plugin launcher bin/skilliton, scripts/skilliton.mjs,
-// scripts/setup.mjs, and scripts/scrub-check.sh (the runtime runs a skills repository's copy of it in import and
-// propose).
+// Scope: every file under packs/base/plugins/ that holds code, the eval fixtures included, plus scripts/skilliton.mjs,
+// scripts/setup.mjs and scripts/scrub-check.sh (the runtime runs a skills repository's copy of that one in import and
+// propose). Documentation, manifests and data files outside the folders that hold code are returned separately, so a
+// caller can say how many files are read as code and how many are not.
 //
 // Shell scripts are read with a small reader of the shell language, not by running them: it follows quoting, command
 // substitution, here-documents, case patterns, function definitions and the commands that run another command (exec,
@@ -18,7 +18,7 @@
 // and of the wrapper functions a caller names, and reading the first argument: a string literal is a program name;
 // anything else is returned as dynamic. Any other use of child_process in a file is a problem.
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -28,11 +28,14 @@ export const ALLOWLIST_DOC = "docs/IT-ALLOWLIST.md";
 
 const toPosix = (p) => p.split(sep).join("/");
 
+// Walks a folder without following links: a link inside the plugins points at something this reader cannot vouch for,
+// so it is returned as a file and classified like any other, rather than being read through.
 function walk(dir, out = []) {
   for (const name of readdirSync(dir).sort()) {
     const path = join(dir, name);
-    const st = statSync(path);
-    if (st.isDirectory()) walk(path, out);
+    const st = lstatSync(path);
+    if (st.isSymbolicLink()) out.push(path);
+    else if (st.isDirectory()) walk(path, out);
     else if (st.isFile()) out.push(path);
   }
   return out;
@@ -45,14 +48,15 @@ const CODE_FOLDER = /\/(hooks|bin|runtime|scripts)\//;
 // The manifests a client reads, which are data wherever they sit.
 const MANIFEST = /\/(hooks|plugin|marketplace|settings|package)\.json$/;
 
-// Files in scope, as repository-relative paths with forward slashes: { js, shell, other }. `other` holds files under
-// the plugins that are neither, which callers must treat as a problem: a file nothing reads is a file that can start
-// anything. The first line decides before the name does, so a shell script named .mjs is read as a shell script.
-// Nothing under the plugins is skipped, the eval fixtures included: they ship with the plugin.
+// Files in scope, as repository-relative paths with forward slashes: { js, shell, data, other }. The first line
+// decides before the name does, so a shell script named .mjs is read as a shell script. `data` is what holds no code
+// to read (documentation, the clients' manifests, fixtures' data), and `other` is whatever is left, which callers
+// treat as a problem. The eval fixtures are read like any other script; they ship with the plugin.
 export function scopeFiles(root = REPO) {
   const plugin = walk(join(root, PLUGINS)).map((p) => toPosix(relative(root, p)));
   const js = ["scripts/skilliton.mjs", "scripts/setup.mjs"];
   const shell = ["scripts/scrub-check.sh"];
+  const data = [];
   const other = [];
   for (const p of plugin) {
     const first = firstLine(join(root, p));
@@ -60,10 +64,10 @@ export function scopeFiles(root = REPO) {
     if (/^#!.*\bnode\b/.test(first)) { js.push(p); continue; }
     if (/\.(mjs|cjs|js)$/.test(p)) { js.push(p); continue; }
     if (/\.(sh|bash|ksh|zsh)$/.test(p)) { shell.push(p); continue; }
-    if (MANIFEST.test(p) || (DATA_FILE.test(p) && !CODE_FOLDER.test(p))) continue;
+    if (MANIFEST.test(p) || (DATA_FILE.test(p) && !CODE_FOLDER.test(p))) { data.push(p); continue; }
     other.push(p);
   }
-  return { js: js.sort(), shell: shell.sort(), other: other.sort() };
+  return { js: js.sort(), shell: shell.sort(), data: data.sort(), other: other.sort() };
 }
 
 function firstLine(path) {
