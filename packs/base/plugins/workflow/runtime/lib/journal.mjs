@@ -29,21 +29,41 @@ export class GitError extends Error {
   constructor(message, kind = "failed") { super(message); this.kind = kind; }
 }
 
-// Variables that point git at a different repository than the folder we name. A hook or command run from inside a
-// Git hook inherits them, which would make every answer below describe the wrong checkout.
-const REPOSITORY_OVERRIDES = ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_PREFIX", "GIT_OBJECT_DIRECTORY"];
 
 // Options that stop a repository's own configuration from making git start a program. A repository is data, and a
 // copied working folder carries its .git/config with it: core.fsmonitor names a program git runs during an ordinary
 // status (measured), so every git call Skilliton makes turns it off (backlog B33).
 export const NO_REPOSITORY_PROGRAMS = ["-c", "core.fsmonitor=false"];
 
+// Variables that would point git at a different repository than the one named with -C.
+export const REPOSITORY_OVERRIDES = ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE", "GIT_COMMON_DIR", "GIT_PREFIX"];
+
+// Variables that hand git settings, or a command to run, from outside any repository's own files: a configuration
+// file of someone's choosing, settings passed straight in, a proxy or ssh command, a diff program. A project's own
+// settings can reach a session's environment, so a git call that must not take a repository's word for anything does
+// not take these either. The options Skilliton passes with -c beat them in any case (measured on git 2.51.1).
+export const CONFIG_FROM_THE_ENVIRONMENT = [
+  "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
+  "GIT_PROXY_COMMAND", "GIT_SSH_COMMAND", "GIT_SSH", "GIT_ALLOW_PROTOCOL", "GIT_EXTERNAL_DIFF", "GIT_TEXTCONV", "GIT_EXEC_PATH",
+];
+
+// The environment for a git call that reads a repository but takes no settings from it or from around it. `keepConfig`
+// is for the calls a person drives (release signing), where their own configuration is the point.
+export function gitEnvironment({ keepConfig = false, optionalLocks = false } = {}) {
+  const env = { ...process.env };
+  if (!optionalLocks) env.GIT_OPTIONAL_LOCKS = "0";
+  for (const name of REPOSITORY_OVERRIDES) delete env[name];
+  if (keepConfig) return env;
+  for (const name of CONFIG_FROM_THE_ENVIRONMENT) delete env[name];
+  for (const name of Object.keys(env)) if (/^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(name)) delete env[name];
+  return env;
+}
+
 // Runs git in a folder. Returns { status, stdout, stderr }. Throws GitError only when git could not run at all or
 // timed out; a non-zero exit is returned for the caller to judge. --no-optional-locks keeps `git status` from
 // refreshing the index while a person's own git command may hold its lock.
 export function runGit(dir, args, { timeoutMs = 15000 } = {}) {
-  const env = { ...process.env, GIT_OPTIONAL_LOCKS: "0" };
-  for (const key of REPOSITORY_OVERRIDES) delete env[key];
+  const env = gitEnvironment();
   const r = spawnSync("git", ["-C", dir, "--no-optional-locks", ...NO_REPOSITORY_PROGRAMS, ...args], {
     encoding: "utf8", timeout: timeoutMs, maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"], env,
   });

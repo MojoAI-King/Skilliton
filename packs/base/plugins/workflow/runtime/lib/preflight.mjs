@@ -365,9 +365,7 @@ export function probeFolder(dir) {
   const created = [];
   for (const folder of missing) {
     try {
-      mkdirSync(folder, { mode: 0o700 });
-      created.push(folder);
-      PROBE_FOLDERS.push(folder);
+      created.push(...makeFolderChain(folder));
     } catch (e) {
       const code = e.code ?? e.message;
       const kept = removeCreated(created);
@@ -401,6 +399,26 @@ export function probeFolder(dir) {
   const made = created.length ? `${tilde(target)} did not exist: it was created, written in, and ${kept.includes(target) ? "could not be removed again" : "removed again"}` : `${tilde(target)} took a new file`;
   const leftBehind = kept.filter((f) => f !== target);
   return { state: "ok", detail: leftBehind.length ? `${made}; ${leftBehind.map(tilde).join(", ")} ${leftBehind.length === 1 ? "is" : "are"} still there, because something else wrote in ${leftBehind.length === 1 ? "it" : "them"}` : made };
+}
+
+// Creates a folder and every folder above it that is missing, and returns the ones it made, deepest last, so they can
+// be taken away again. Throws what mkdir throws.
+function makeFolderChain(target) {
+  const missing = [];
+  let walk = target;
+  while (!isDir(walk)) {
+    const parent = dirname(walk);
+    if (parent === walk) break;
+    missing.unshift(walk);
+    walk = parent;
+  }
+  const created = [];
+  for (const folder of missing) {
+    mkdirSync(folder, { mode: 0o700 });
+    created.push(folder);
+    PROBE_FOLDERS.push(folder);
+  }
+  return created;
 }
 
 // Removes the folders this check created, deepest first. Returns the ones it could not remove, which stay on the
@@ -438,8 +456,13 @@ export function redact(value) {
   return String(value)
     .replace(/\/\/[^/@\s]*@/g, "//<credentials removed>@")
     .replace(/([?&#][^=&\s]*(?:token|key|secret|pass|pat|auth|credential)[^=&\s]*=)[^&\s]+/gi, "$1<removed>")
-    .replace(/\b[A-Za-z][A-Za-z0-9]{1,12}[_-][A-Za-z0-9_-]{16,}/g, "<removed>")
-    .replace(/\b(?=[A-Za-z0-9]*[A-Z])(?=[A-Za-z0-9]*[0-9])[A-Za-z0-9]{20,}\b/g, "<removed>")
+    // A token: a known prefix, or a long run that mixes letters and digits. An ordinary hyphenated name (a folder, a
+    // branch) is left alone, because the message that names a mistake has to be readable. A secret made only of
+    // letters, digits and slashes, with no prefix and no long unbroken run, reads exactly like a path and is not
+    // redacted; nothing here should carry one, and what is printed is a value the person typed.
+    .replace(/\b(gh[pousr]|github_pat|glpat|xox[baprs]|sk|sk-ant|pat)[_-][A-Za-z0-9_-]{12,}/g, "<removed>")
+    .replace(/\b(AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{12,}\b/g, "<removed>")
+    .replace(/\b(?=[A-Za-z0-9]*[0-9])(?=[A-Za-z0-9]*[a-z])[A-Za-z0-9]{24,}\b/g, "<removed>")
     .slice(0, 120);
 }
 
@@ -464,10 +487,13 @@ export function checkRepository(marketplace) {
   // (url.<base>.insteadOf) and name a command to run for it (the ext transport, core.sshCommand, core.gitProxy).
   // The ext transport is refused as well, so a rewrite through it fails loudly instead of quietly.
   let empty;
+  let madeTemp = [];
   try {
     // The folder check above creates a missing temporary folder and takes it away again, so make it once more here
-    // rather than failing over a folder this machine has just shown it can create.
-    mkdirSync(tmpdir(), { recursive: true });
+    // rather than failing over a folder this machine has just shown it can create, and remember every folder made so
+    // that all of them go again.
+    installCleanup();
+    madeTemp = makeFolderChain(tmpdir());
     empty = mkdtempSync(join(tmpdir(), "skilliton-preflight-git-"));
   } catch (e) {
     return [state(`github.com/${marketplace}`, "repository", "not checked", `the temporary folder ${tilde(tmpdir())} could not be used (${e.code ?? e.message}), and this check needs an empty folder there so that no repository's configuration is read`, `Set TMPDIR to a folder this user can write, then run the check again; the folders above say whether ${tilde(tmpdir())} can be written at all.`)];
@@ -479,6 +505,7 @@ export function checkRepository(marketplace) {
     });
   } finally {
     try { rmdirSync(empty); } catch { /* something else wrote in it */ }
+    removeCreated(madeTemp);
   }
   if (r.ok) {
     const refs = r.stdout.split("\n").filter(Boolean).length;

@@ -6,6 +6,10 @@
 //   node scripts/demo-day.mjs --step 3           stop after that step
 //   node scripts/demo-day.mjs --keep             keep the workspace and print where it is, ready to show live
 //
+// A run that finishes removes its workspace unless --keep was given. A run that stops at a step, and a run stopped
+// with Ctrl-C, leave it behind on purpose, and print where it is: this script runs one program after another, so it
+// cannot tidy up after an interrupt.
+//
 // It works in a temporary folder, with throwaway keys and a home folder of its own: this repository is copied into it
 // and never changed, your own configuration is neither read nor changed, and no model is used. Without --claude the two client commands are acted
 // out by scripts/fixtures/clients/standin.mjs, and every line that came from it says so, because on the day those are
@@ -66,15 +70,6 @@ function listAll(dir, out = []) {
 // A short name for a path inside the workspace, so the output reads as a place rather than as a long path.
 const tildeish = (path) => path.replace(ws, "<workspace>");
 
-// An interrupted run takes its workspace with it, unless it was asked to keep it.
-for (const signal of ["SIGINT", "SIGTERM"]) {
-  process.on(signal, () => {
-    if (!KEEP) rmSync(ws, { recursive: true, force: true });
-    else console.log(`\nWorkspace kept: ${ws}`);
-    process.exit(130);
-  });
-}
-
 let stepNumber = 0;
 const say = (line = "") => console.log(line);
 const heading = (title) => { stepNumber++; say(""); say(`${"=".repeat(78)}`); say(`STEP ${stepNumber}: ${title}`); say(`${"=".repeat(78)}`); };
@@ -87,6 +82,7 @@ function stop(what, detail) {
   say(detail.split("\n").slice(-25).map((l) => `  ${l}`).join("\n"));
   say("");
   say(`The workspace is kept for you to look at: ${ws}`);
+  say(`When you have finished with it: rm -rf ${ws}`);
   process.exit(1);
 }
 
@@ -102,6 +98,14 @@ function run(file, args, { cwd = ws, input, expect = [0], label } = {}) {
 const cli = (args, options = {}) => run(process.execPath, [join(dirs.company, "scripts", "skilliton.mjs"), ...args], options);
 const git = (cwd, ...args) => run("git", ["-C", cwd, ...args], { label: `git ${args[0]}` });
 const first = (out, re) => out.split("\n").find((l) => re.test(l))?.trim() ?? "";
+// Shows a line the command actually printed. When the line is not there, the step stops: a demonstration that prints
+// a sentence its own output does not carry is the thing this script exists to catch before the day.
+function showsLine(out, re, what) {
+  const line = first(out, re);
+  if (!line) stop(`${what}: the output does not carry the line this step is about (${re})`, out);
+  shows(line);
+  return line;
+}
 
 // ---------------------------------------------------------------- the stage
 
@@ -130,9 +134,9 @@ git(dirs.company, "add", "-A");
 git(dirs.company, "commit", "-q", "-m", "the company's copy of the skills repository");
 
 const init = cli(["company", "init", "--name", COMPANY, "--marketplace-name", MARKET, "--marketplace-repo", `${COMPANY}/skills`, "--repo", dirs.company, "--apply"]);
-shows(first(init.out, /marketplace/i) || "company init: the fork now carries the company's own marketplace name");
+showsLine(init.out, /marketplace/i, "company init");
 const plugin = cli(["new-plugin", "review-rules", "--pack", COMPANY, "--description", "The review rules this company expects every change to follow.", "--repo", dirs.company, "--apply"]);
-shows(first(plugin.out, /plugin\.json|created/i) || "new-plugin: a plugin for the company's own skills");
+showsLine(plugin.out, /plugin\.json|created/i, "new-plugin");
 const skill = cli(["new-skill", "review-rules", "billing-review", "--pack", COMPANY, "--description", "How this company reviews a change that touches billing.", "--repo", dirs.company]);
 const skillFile = join(dirs.company, "packs", COMPANY, "plugins", "review-rules", "skills", "billing-review", "SKILL.md");
 if (!existsSync(skillFile)) stop("new-skill did not write the skill", skill.out);
@@ -142,7 +146,7 @@ script("Nothing here is ours. It is their marketplace name, their plugin, their 
 git(dirs.company, "add", "-A");
 git(dirs.company, "commit", "-q", "-m", "the company's own review rules");
 const release = cli(["release", "create", "--version", "1.0.0", "--repo", dirs.company, "--apply"]);
-shows(first(release.out, /releases\/1\.0\.0\.json|manifest/i) || "release create: a manifest of exactly what this release contains");
+showsLine(release.out, /releases\/1\.0\.0\.json|manifest/i, "release create");
 git(dirs.company, "add", "-A");
 git(dirs.company, "commit", "-q", "-m", "release 1.0.0");
 
@@ -153,10 +157,10 @@ git(dirs.company, "config", "gpg.format", "ssh");
 git(dirs.company, "config", "user.signingkey", join(dirs.keys, "approver"));
 cli(["trust", "add", "--company", COMPANY, "--signers", join(dirs.keys, "allowed_signers"), "--apply"]);
 const sign = cli(["release", "sign", "1.0.0", "--repo", dirs.company, "--apply"]);
-shows(first(sign.out, /signed|tag/i) || "release sign: an approver signed the release tag");
+showsLine(sign.out, /signed|tag/i, "release sign");
 const list = cli(["release", "list", "--company", COMPANY, "--repo", dirs.company]);
-if (!/1\.0\.0/.test(list.out)) stop("release list does not show 1.0.0 as approved", list.out);
-shows(first(list.out, /1\.0\.0/));
+if (!/^\s*approved\s+1\.0\.0\b/m.test(list.out)) stop("release list does not show 1.0.0 as approved", list.out);
+showsLine(list.out, /^\s*approved\s+1\.0\.0\b/, "release list");
 script("A release is approved by a signature, not by a message in a chat.");
 if (stepNumber >= LAST_STEP) finish();
 
@@ -192,7 +196,7 @@ git(dirs.product, "init", "-q", "-b", "main");
 git(dirs.product, "add", "-A");
 git(dirs.product, "commit", "-q", "-m", "the intake service as it is today");
 const tests = run("npm", ["test", "--silent"], { cwd: dirs.product, expect: [0], label: "npm test" });
-shows(first(tests.out, /pass \d+/) || "the sample application's own tests pass");
+showsLine(tests.out, /pass \d+/, "the sample application's tests");
 
 const prepare = cli(["prepare", "--dir", dirs.product], { expect: [0, 1] });
 const summary = /Summary: (\d+) to create, (\d+) to update/.exec(prepare.out);
@@ -202,7 +206,7 @@ cli(["prepare", "--dir", dirs.product, "--apply"], { expect: [0, 1] });
 git(dirs.product, "add", "-A");
 git(dirs.product, "commit", "-q", "-m", "prepare this repository for Skilliton");
 const changed = run("git", ["-C", dirs.product, "show", "--stat", "--format=", "HEAD"], { label: "git show" });
-shows(first(changed.out, /files? changed/) || "one commit, reviewable line by line");
+showsLine(changed.out, /files? changed/, "the one commit prepare makes");
 script("One commit. Records, an instruction block, settings, a security register. Nothing hidden.");
 if (stepNumber >= LAST_STEP) finish();
 
@@ -215,7 +219,7 @@ const sessionStart = run(join(dirs.company, "packs", "base", "plugins", "workflo
 });
 for (const line of sessionStart.out.split("\n").filter(Boolean).slice(0, 6)) shows(line.trim());
 const task = cli(["task", "start", "Add a telephone field to the form", "--criteria", "The field is optional and is checked like the others", "--dir", dirs.product, "--apply"]);
-shows(first(task.out, /created docs\/tasks/) || "the request is now a task record with its acceptance criteria");
+showsLine(task.out, /created docs\/tasks/, "task start");
 
 const guard = run("bash", [join(dirs.company, "packs", "base", "plugins", "guardrails", "hooks", "guard-bash.sh")], {
   cwd: dirs.product, expect: [0], label: "the guardrails hook",
@@ -242,7 +246,7 @@ git(dirs.product, "commit", "-q", "-m", "the checks this branch requires");
 git(dirs.product, "push", "-q", "origin", "main");
 const install = cli(["delivery", "install", "--bare", dirs.shared, "--approvers", join(dirs.keys, "allowed_signers"),
   "--runtime", join(dirs.company, "packs", "base", "plugins", "workflow", "bin", "skilliton"), "--apply"]);
-shows(first(install.out, /pre-receive|installed/i) || "the shared repository now checks every push");
+showsLine(install.out, /pre-receive|installed/i, "delivery install");
 
 // One developer renames a field's rule; the other adds a test that uses the old name. Each passes alone.
 writeFileSync(join(dirs.product, "src", "validate.mjs"), readFileSync(join(dirs.product, "src", "validate.mjs"), "utf8").replace('message: { label: "message"', 'message: { label: "note"'));
@@ -276,7 +280,7 @@ shows(`together, the tests fail: ${first(combined.out, /note is missing|message 
 const push = run("git", ["-C", dirs.product, "push", "origin", "main"], { expect: null, label: "git push" });
 if (push.code === 0) stop("the shared repository accepted a push whose combined result breaks the tests", push.out);
 if (!/skilliton delivery: rejected/.test(push.out)) stop("the push was rejected by git itself, not by the delivery gate, so this step would show the wrong thing", push.out);
-shows(first(push.out, /skilliton delivery: rejected/i) || "the push is rejected by the gate");
+showsLine(push.out, /skilliton delivery: rejected/i, "the gate's rejection");
 for (const line of push.out.split("\n").filter((l) => /remote:/.test(l)).slice(0, 4)) shows(line.trim());
 script("Neither change is wrong. Together they break the build, and the shared branch is the thing that noticed.");
 script("This is the part that does not depend on anyone being careful.");
