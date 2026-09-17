@@ -25,6 +25,7 @@ const CLI = join(here, "skillgate.mjs");
 const GUIDES = ["README.md", "docs/HOW-IT-WORKS.md", "docs/ONBOARDING.md", "docs/RELEASING.md"];
 const argv = process.argv.slice(2);
 const rootArg = argv.includes("--root") ? argv[argv.indexOf("--root") + 1] : null;
+if (argv.includes("--root") && (!rootArg || rootArg.startsWith("--"))) { console.error("--root needs a folder; nothing was checked"); process.exit(2); }
 
 function helpOf(args) {
   const r = spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8", env: { ...process.env, SKILLGATE_SELF: "skillgate" } });

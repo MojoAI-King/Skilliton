@@ -17,7 +17,8 @@ export const CATALOG = ".claude-plugin/marketplace.json";
 export const TEAM_TEMPLATE = "templates/project-settings.json";
 export const CODEX_CATALOG = ".agents/plugins/marketplace.json";
 export const DESCRIPTION_PLACEHOLDER = "TODO(skillgate) Replace this line. Say what this plugin gives the team; people read it when they choose what to install.";
-const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+// GitHub owner and repository names; a leading hyphen is refused so a name can never be read as a command option.
+const REPO_RE = /^[A-Za-z0-9_.][A-Za-z0-9_.-]*\/[A-Za-z0-9_.][A-Za-z0-9_.-]*$/;
 const LICENSE_RE = /^[A-Za-z0-9.+-]{1,64}$/;
 
 const canonical = (value) => `${JSON.stringify(value, null, 2)}\n`;

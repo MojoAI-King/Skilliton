@@ -23,6 +23,7 @@ import { execFileSync } from "node:child_process";
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
 const rootArg = argv.includes("--root") ? argv[argv.indexOf("--root") + 1] : null;
+if (argv.includes("--root") && (!rootArg || rootArg.startsWith("--"))) { console.error("--root needs a folder; nothing was checked"); process.exit(2); }
 
 function check(root) {
   const failures = [];

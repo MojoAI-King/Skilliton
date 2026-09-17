@@ -44,12 +44,13 @@ export function run(argv) {
     say("Next: run the same command with --apply.");
     return 0;
   }
+  // Back up the shared files before creating anything, so a failed backup leaves no plugin folder behind.
+  const stamp = newStamp();
+  for (const f of plan.files) say(`backed up ${f.rel} to ${tilde(backupFile("new-plugin", f.path, stamp))}`);
   mkdirSync(dirname(plan.manifest.path), { recursive: true });
   writeFileSync(plan.manifest.path, plan.manifest.next, { flag: "wx" });
   say(`created ${plan.manifest.rel}`);
-  const stamp = newStamp();
   for (const f of plan.files) {
-    say(`backed up ${f.rel} to ${tilde(backupFile("new-plugin", f.path, stamp))}`);
     writeFileSync(f.path, f.next);
     say(`wrote ${f.rel}`);
   }

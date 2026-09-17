@@ -44,8 +44,9 @@ export async function run(argv) {
     const o = parseArgs(argv, { flags: ["json"], options: ["client", "config-dir", "source", "company"] }, "verify");
     if (o.help) { say(help); return 0; }
     if (o._.length) throw new Refused(`verify takes no plain arguments (got "${o._[0]}"); see: ${selfCommand()} verify --help`);
-    const defaultSource = o.source === undefined ? SKILLS_REPO ?? joinedSource(o.company) : undefined;
-    const report = runVerify({ client: o.client, configDir: o["config-dir"], source: o.source, company: o.company, defaultSource });
+    let defaultSource = SKILLS_REPO ?? undefined, sourceHint;
+    if (o.source === undefined && !SKILLS_REPO) ({ source: defaultSource, reason: sourceHint } = joinedSource(o.company));
+    const report = runVerify({ client: o.client, configDir: o["config-dir"], source: o.source, company: o.company, defaultSource, sourceHint });
     if (json) printJson(report.result, report.summary, report.details);
     else {
       say("skillgate verify (writes nothing)");
