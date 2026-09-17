@@ -110,6 +110,9 @@ jobs:
       - name: Machine setup with join and undo (stand-in clients)
         run: node --test scripts/join.test.mjs
 
+      - name: Preflight against blocks made on purpose (missing, unrunnable, unwritable, unreachable)
+        run: node --test scripts/preflight.test.mjs
+
       - name: Rename to Skilliton (migration 0003 on a project the earlier release prepared, earlier state reported)
         run: node --test scripts/rename.test.mjs
 

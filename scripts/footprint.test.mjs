@@ -36,7 +36,9 @@ const GIT_WRAPPERS = { [`${PLUGINS}/guardrails/hooks/guard-bash.sh`]: ["g"] };
 
 // Network use that is allowed, each with the reason and the words docs/IT-ALLOWLIST.md must carry. Empty means the
 // code reaches no network at all, which is what the page claims today.
-export const ALLOWED_NETWORK = [];
+export const ALLOWED_NETWORK = [
+  { file: `${PLUGINS}/workflow/runtime/lib/preflight.mjs`, text: '"ls-remote"', why: "the preflight check asks whether this machine can reach the company's plugin repository, which is the check a locked-down laptop needs most" },
+];
 
 // Programs that would need administrator rights, or would leave something running after the command exits.
 const PRIVILEGE_PROGRAMS = ["sudo", "su", "doas", "pkexec", "runas", "chown", "chgrp", "sudoedit"];

@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-17T18:06:33.090Z
+- **Updated:** 2026-09-17T18:35:33.453Z
 
 ## Request
 
@@ -26,6 +26,20 @@ not yet written
 not yet written
 
 ## Checkpoints
+
+### 2026-09-17T18:11:15.540Z
+
+- **State:** B28 is built: scripts/footprint.test.mjs enforces the four promises in the allow list's short version
+- **Evidence:** node scripts/footprint.test.mjs passes on 42 JavaScript files, 8 scripts and 177 shipped files; --self-test 19 of 19; wired into CI and docs/MAINTAIN.md; committed as c0dad92
+- **Next:** B27: the preflight check
+- **Git:** main @ c0dad92, 1 uncommitted
+
+### 2026-09-17T18:35:33.453Z
+
+- **State:** B27 and B29's first half are built: skilliton preflight checks programs, folders and the company repository before anything is set up, join runs it first and refuses before writing, and scripts/preflight.test.mjs proves it against ten real blocks
+- **Evidence:** node --test scripts/preflight.test.mjs 10 of 10; full offline suite 32 of 32 steps; claude plugin validate --strict on 2.1.274 for the marketplace and all three plugins
+- **Next:** an independent security-first review of the whole change, then push
+- **Git:** main @ c0dad92, 19 uncommitted
 
 ## Handoff
 

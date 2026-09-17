@@ -3,6 +3,7 @@
 
 import { Refused, backupFile, newStamp, parseArgs, refuse, resolveSkillsRepo, say, selfCommand, tilde } from "../lib/core.mjs";
 import { applyJoin, applyUndo, planJoin, planUndo } from "../lib/join.mjs";
+import { reportLines, runPreflight } from "../lib/preflight.mjs";
 import { planTrustAdd, writeTrustFile } from "../lib/trust.mjs";
 import { runVerify } from "../lib/verify.mjs";
 
@@ -64,6 +65,24 @@ function join(o) {
   say(`skills repository: ${tilde(plan.repo)} (commit ${plan.clone.head ?? "unknown"}, ${plan.clone.releaseTags} release tag(s))`);
   say(`marketplace: ${plan.market.name} from ${plan.market.source.kind === "github" ? `GitHub ${plan.market.source.location}` : `folder ${tilde(plan.market.source.location)}`}`);
   say(`plugins: ${plan.plugins.join(", ")}`);
+  say("");
+
+  // The machine checks come before anything is written, so a laptop that cannot run or write what setup needs says so
+  // instead of failing half way. Items that would only stop a hook in a later session are printed, not refused.
+  const pre = runPreflight({
+    clients: plan.clients.map((c) => c.driver.binaryName),
+    marketplace: plan.market.source.location,
+    binDir: plan.launcher.action === "none" ? undefined : plan.launcher.dir,
+    scope: "setup",
+  });
+  const attention = pre.items.filter((i) => !i.state.startsWith("ok") && i.state !== "not checked");
+  say(`machine checks: ${pre.counts.ok} ok${attention.length ? `, ${attention.length} needing attention` : ""} (skilliton preflight shows them all)`);
+  for (const line of reportLines({ items: attention }, { wide: false })) say(`  ${line}`);
+  if (pre.blocking.length) {
+    say("");
+    say(`Nothing was changed: this machine cannot be set up until the item(s) above marked as stopping setup are cleared (${pre.blocking.map((i) => i.name).join(", ")}). Run ${selfCommand()} preflight for the full list, and give it with docs/IT-ALLOWLIST.md to whoever manages these laptops.`);
+    return 1;
+  }
   say("");
   const work = [];
   const step = (done, text) => { say(`  ${done ? "already in place" : "will add        "}  ${text}`); if (!done) work.push(text); };
