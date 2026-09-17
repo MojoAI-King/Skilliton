@@ -31,11 +31,12 @@ export function workspace(name) {
   return realpathSync(mkdtempSync(join(tmpdir(), `skilliton-rehearsal-${name}-`)));
 }
 
-// Run a program with an argument array (never a shell string). Returns { code, out, err, all }.
+// Run a program with an argument array (never a shell string). Returns { code, signal, timedOut, out, err, all }: signal
+// names the signal that ended the program or is null, and timedOut says the signal was sent because timeoutMs passed.
 export function run(file, args = [], { cwd, env, input, timeoutMs = 300000 } = {}) {
   const r = spawnSync(file, args, { cwd, env: env ?? process.env, input, encoding: "utf8", timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024 });
   const err = r.error ? `${r.stderr ?? ""}\n[spawn error: ${r.error.code ?? r.error.message}]` : r.stderr ?? "";
-  return { code: r.status ?? (r.error ? 127 : 1), out: r.stdout ?? "", err, all: `${r.stdout ?? ""}${err}` };
+  return { code: r.status ?? (r.error ? 127 : 1), signal: r.signal ?? null, timedOut: r.error?.code === "ETIMEDOUT", out: r.stdout ?? "", err, all: `${r.stdout ?? ""}${err}` };
 }
 
 export const skilliton = (args, opts = {}) => run(process.execPath, [CLI, ...args], opts);
