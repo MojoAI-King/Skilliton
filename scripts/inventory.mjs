@@ -38,17 +38,32 @@ function walk(dir, out = []) {
   return out;
 }
 
-// Files in scope, as repository-relative paths with forward slashes: { js: [...], shell: [...] }.
+// Files that hold no code to read: documentation, manifests, fixtures and data.
+const DATA_FILE = /\.(md|json|jsonl|ya?ml|toml|txt|lock|png|jpg|jpeg|gif|svg|ico|pdf|zip|tar|gz)$/i;
+
+// Files in scope, as repository-relative paths with forward slashes: { js, shell, other }. `other` holds files under
+// the plugins that are neither, which callers must treat as a problem: a file nothing reads is a file that can start
+// anything (a hook sourcing hooks/common.bash, a helper written in Python). The first line decides when the name does
+// not: a shebang naming a shell makes it a script, one naming node makes it JavaScript.
 export function scopeFiles(root = REPO) {
   const plugin = walk(join(root, PLUGINS)).map((p) => toPosix(relative(root, p))).filter((p) => !/\/evals\//.test(p));
-  const isShell = (p) => {
-    if (p.endsWith(".sh")) return true;
-    if (/\.[a-z0-9]+$/i.test(p.split("/").pop())) return false;
-    return /^#!.*\b(ba)?sh\b/.test(readFileSync(join(root, p), "utf8").split("\n", 1)[0]);
-  };
-  const js = [...plugin.filter((p) => /\.(mjs|cjs|js)$/.test(p)), "scripts/skilliton.mjs", "scripts/setup.mjs"];
-  const shell = [...plugin.filter(isShell), "scripts/scrub-check.sh"];
-  return { js: js.sort(), shell: shell.sort() };
+  const js = ["scripts/skilliton.mjs", "scripts/setup.mjs"];
+  const shell = ["scripts/scrub-check.sh"];
+  const other = [];
+  for (const p of plugin) {
+    if (/\.(mjs|cjs|js)$/.test(p)) { js.push(p); continue; }
+    if (/\.(sh|bash|ksh|zsh)$/.test(p)) { shell.push(p); continue; }
+    if (DATA_FILE.test(p)) continue;
+    const first = firstLine(join(root, p));
+    if (/^#!.*\b(ba|k|z|da)?sh\b/.test(first)) shell.push(p);
+    else if (/^#!.*\bnode\b/.test(first)) js.push(p);
+    else other.push(p);
+  }
+  return { js: js.sort(), shell: shell.sort(), other: other.sort() };
+}
+
+function firstLine(path) {
+  try { return readFileSync(path, "utf8").split("\n", 1)[0]; } catch { return ""; }
 }
 
 // ---------- shell ----------
@@ -220,7 +235,8 @@ function parseScript(src, start, stop, result, lineAt, offset) {
 
     if (commandName !== null && !expectCommand) {
       const base = commandName.split("/").pop();
-      if ((base === "bash" || base === "sh") && w.raw === "-c") pendingScriptArg = "-c";
+      // -c, and any group of flags ending in c (bash -lc "..."), hands the next word to the shell as a script.
+      if (["bash", "sh", "dash", "ksh", "zsh"].includes(base) && /^-[A-Za-z]*c$/.test(w.raw)) pendingScriptArg = "-c";
       argument(w);
       continue;
     }
@@ -449,13 +465,29 @@ export function jsProgramCalls(src, wrappers = []) {
 // because they are ordinary words elsewhere (an option named remote, for example).
 export const REMOTE_VERBS = ["fetch", "pull", "push", "clone", "ls-remote", "fetch-pack", "send-pack", "request-pull"];
 const REMOTE_SHELL_VERBS = [...REMOTE_VERBS, "remote", "submodule"];
+// git's own options, before the verb, that take a separate value: their value is not the verb.
+const GIT_OPTIONS_WITH_VALUE = ["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--config-env", "--super-prefix"];
+
+// The verb of a git command, given its arguments: the first word that is not an option or an option's value. Returns
+// null when every argument is an expansion this reader cannot see.
+export function gitVerb(args) {
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === null) return null; // an expansion: what follows cannot be read either
+    if (GIT_OPTIONS_WITH_VALUE.includes(a)) { i++; continue; }
+    if (a.startsWith("-")) continue;
+    return a;
+  }
+  return null;
+}
 const NETWORK_PATTERNS = [
   [/from\s+["'](?:node:)?(http|https|net|tls|dgram|dns|http2)["']/, "a network module"],
   [/require\(["'](?:node:)?(http|https|net|tls|dgram|dns|http2)["']\)/, "a network module"],
-  [/(?<![\w.])fetch\s*\(/, "fetch"],
+  [/(?<![\w.])fetch\s*\(|globalThis\s*\.\s*fetch\s*\(/, "fetch"],
   [/new\s+(WebSocket|XMLHttpRequest|EventSource)/, "a network client"],
   [/\/dev\/(tcp|udp)\//, "a shell network redirection"],
   [/\b(urllib|http\.client|socket\.socket|requests\.(get|post))\b/, "a network call in an embedded program"],
+  [/createRequire\s*\(/, "a module loader built at run time, which can load any module"],
 ];
 export const NETWORK_PROGRAMS = ["curl", "wget", "nc", "ncat", "netcat", "socat", "telnet", "ssh", "scp", "sftp", "rsync", "ftp", "Invoke-WebRequest"];
 
@@ -471,20 +503,37 @@ export function networkUses(files, readFile, gitWrappers = {}) {
     });
     if (files.shell.includes(path)) {
       const wrappers = gitWrappers[path] ?? [];
-      for (const c of shellCommands(text).commands) {
-        if (NETWORK_PROGRAMS.includes(c.word.split("/").pop())) hits.push({ path, line: c.line, what: `the program ${c.word}`, text: c.word });
-        if (c.word !== "git" && !wrappers.includes(c.word)) continue;
-        const verb = c.args.find((a) => a && !a.startsWith("-") && a !== "-C");
-        if (verb && REMOTE_SHELL_VERBS.includes(verb)) hits.push({ path, line: c.line, what: `git ${verb}, which contacts a remote`, text: `${c.word} ${c.args.filter(Boolean).join(" ")}`.slice(0, 120) });
+      const { commands, functions } = shellCommands(text);
+      for (const c of commands) {
+        const program = c.word.split("/").pop();
+        if (NETWORK_PROGRAMS.includes(program)) hits.push({ path, line: c.line, what: `the program ${c.word}`, text: c.word });
+        // git by name or by path, a function this file defines (which may pass its arguments to git), and a wrapper
+        // the caller named: in each case the first word that is not an option is read as the verb.
+        const couldBeGit = program === "git" || wrappers.includes(c.word) || functions.includes(c.word);
+        if (!couldBeGit) continue;
+        const said = `${c.word} ${c.args.map((a) => a ?? "<a variable>").join(" ")}`.slice(0, 120);
+        const verb = gitVerb(c.args);
+        if (verb && REMOTE_SHELL_VERBS.includes(verb)) hits.push({ path, line: c.line, what: `git ${verb}, which contacts a remote`, text: said });
+        if (c.args.some((a) => a && (a === "--remote" || a.startsWith("--remote=")))) hits.push({ path, line: c.line, what: "a git command with --remote, which contacts a remote", text: said });
       }
     } else {
       const lines = text.split("\n");
+      const at = (index) => text.slice(0, index).split("\n").length;
       for (const verb of REMOTE_VERBS) {
         const re = new RegExp(`(["'\`])${verb}\\1`, "g");
         let m;
         while ((m = re.exec(text))) {
-          const line = text.slice(0, m.index).split("\n").length;
+          const line = at(m.index);
           hits.push({ path, line, what: `the git verb ${verb}, which contacts a remote`, text: lines[line - 1].trim().slice(0, 120) });
+        }
+      }
+      // "remote" and "submodule" are ordinary words (an option named remote, a sentence), so they count only as the
+      // first word of an argument list, and --remote counts anywhere.
+      for (const re of [/\[\s*(["'`])(remote|submodule)\1\s*,/g, /(["'`])--remote(=[^"'`]*)?\1/g]) {
+        let m;
+        while ((m = re.exec(text))) {
+          const line = at(m.index);
+          hits.push({ path, line, what: "a git command that contacts a remote", text: lines[line - 1].trim().slice(0, 120) });
         }
       }
     }
