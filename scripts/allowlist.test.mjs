@@ -67,8 +67,12 @@ export const DYNAMIC_CALLS = [
   { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "startOnce", arg: "path", count: 1, programs: [], table: "PROGRAMS", why: "preflight starts each program from the PROGRAMS table in the same file once, with --version; the table is checked against section 1 below" },
 ];
 
-// Programs that run whatever file or text they are given, so what they are given has to be read too.
-const INTERPRETERS = ["bash", "sh", "dash", "ksh", "zsh", "node", "python", "python3", "perl", "ruby", "php", "osascript"];
+// Programs that run whatever file or text they are given, so what they are given has to be read too. awk is one of
+// them: its first argument is a program, and that program can start commands (system(), a pipe into getline).
+const INTERPRETERS = ["bash", "sh", "dash", "ksh", "zsh", "node", "python", "python3", "perl", "ruby", "php", "osascript", "awk", "gawk", "nawk", "mawk"];
+const AWK = ["awk", "gawk", "nawk", "mawk"];
+// Ways an embedded program starts a command of its own, which this reader cannot follow.
+const EMBEDDED_COMMANDS = [/\bsystem\s*\(/, /\|\s*&?\s*getline\b/, /\bprint[^;]*\|/, /\bpopen\s*\(/, /\bsubprocess\b/, /\bos\.system\b/, /child_process/];
 
 // Every place a script hands an interpreter something this reader cannot follow: a path built from a variable
 // ("expansion") or a program written into the script itself ("inline"). `target`, when given, is a file this test must
@@ -81,6 +85,8 @@ export const INTERPRETER_TARGETS = [
   { file: `${WORKFLOW}/hooks/session-start-handoff.sh`, command: "node", kind: "inline", count: 2, target: null, why: "two short programs written into this file, reading the hook's input and the project's settings" },
   { file: `${WORKFLOW}/hooks/session-start-handoff.sh`, command: "python3", kind: "inline", count: 2, target: null, why: "the same two programs in Python" },
   { file: "scripts/scrub-check.sh", command: "bash", kind: "expansion", count: 2, target: "scripts/scrub-check.sh", why: "its own self-test runs this same script twice, to prove each scan can fail" },
+  { file: `${PLUGIN}/context-hygiene/hooks/session-start-checklist.sh`, command: "awk", kind: "inline", count: 1, target: null, why: "the program that takes one bounded section out of the lessons file; it starts nothing" },
+  { file: `${PLUGIN}/guardrails/hooks/guard-bash.sh`, command: "awk", kind: "inline", count: 1, target: null, why: "the program that splits a shell command into words for the guardrails check; it starts nothing" },
 ];
 
 // Commands in a shell script whose program is an expansion: what they run, how many such commands the file has, and
@@ -113,7 +119,7 @@ export const OUTSIDE_A_REPOSITORY = [
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, 'resolve(binDir ?? join(homedir(), ".local", "bin"))', "~/.local/bin, tested with a file the check removes again"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, "{ path: tmpdir(), what:", "the temporary folder, tested the same way"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-preflight-git-"))', "an empty folder in the temporary folder, so the reachability check reads no repository's configuration; removed again straight away"],
-  [`${WORKFLOW}/runtime/lib/preflight.mjs`, "mkdirSync(tmpdir(), { recursive: true })", "the temporary folder itself, made again for that check when the folder test above removed it"],
+  [`${WORKFLOW}/runtime/lib/preflight.mjs`, "madeTemp = makeFolderChain(tmpdir())", "the temporary folder, made again for the reachability check after the folder test removed it, and taken away again with every folder that had to be made for it"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, "the temporary folder ${tilde(tmpdir())} could not be used", "the message that names the temporary folder when it cannot be used"],
   [`${PLUGIN}/context-hygiene/hooks/statusline-quota.sh`, 'LOG="${SKILLITON_USAGE_LOG:-$HOME/.claude/skilliton/usage-log.jsonl}"', "~/.claude/skilliton/usage-log.jsonl"],
   [`${PLUGIN}/context-hygiene/hooks/statusline-quota.sh`, 'KEYS_LOG="${SKILLITON_KEYS_LOG:-$HOME/.claude/skilliton/statusline-keys-seen.log}"', "~/.claude/skilliton/statusline-keys-seen.log"],
@@ -153,6 +159,11 @@ export const ALLOWED_NETWORK = [
 const GIT_WRAPPERS = { [`${PLUGIN}/guardrails/hooks/guard-bash.sh`]: ["g"] };
 
 const read = (path) => readFileSync(join(REPO, path), "utf8");
+// A file under the plugins that cannot be read (a link pointing nowhere, a permission) is a finding: the checks below
+// would otherwise stop on it, and a reader that stops has checked nothing.
+function readOrNull(readFile, path, problems) {
+  try { return readFile(path); } catch (e) { problems.push(`${path} could not be read (${e.code ?? e.message}), so nothing about it was checked`); return null; }
+}
 const sorted = (set) => [...set].sort();
 
 // Files under the plugins that neither reader covers. A file nothing reads can start anything: a hook that sources
@@ -171,7 +182,8 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
   const add = (program, where) => { if (!found.has(program)) found.set(program, []); found.get(program).push(where); };
 
   for (const path of files.shell) {
-    const text = readFile(path);
+    const text = readOrNull(readFile, path, problems);
+    if (text === null) continue;
     const { commands, dynamic, functions, problems: shellProblems } = shellCommands(text);
     for (const p of shellProblems) problems.push(`${path}:${p.line}: ${p.text}`);
     for (const d of dynamic) {
@@ -187,15 +199,31 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
     for (const c of commands) {
       const base = c.word.split("/").pop();
       if (!INTERPRETERS.includes(base)) continue;
-      const first = c.args.findIndex((a) => a === null || (a !== undefined && !a.startsWith("-")));
+      // awk takes -v name=value pairs before its program, and the program itself is not a file.
+      const isAwk = AWK.includes(base);
+      let first = -1;
+      for (let i = 0; i < c.args.length; i++) {
+        const a = c.args[i];
+        if (isAwk && a === "-v") { i++; continue; }
+        if (a !== null && a !== undefined && a.startsWith("-")) continue;
+        first = i;
+        break;
+      }
       if (first < 0) continue; // an interpreter with no argument reads its own input, which the reader already sees
       const given = c.args[first];
       const optionBefore = first > 0 ? c.args[first - 1] : null;
-      const kind = optionBefore !== null && optionBefore !== undefined && /^-[A-Za-z]*[ec]$/.test(optionBefore) ? "inline" : given === null ? "expansion" : "path";
+      const inlineOption = optionBefore !== null && optionBefore !== undefined && (/^-[A-Za-z]*[ec]$/.test(optionBefore) || (isAwk && optionBefore === "-f" ? false : false));
+      const kind = inlineOption || (isAwk && optionBefore !== "-f") ? "inline" : given === null ? "expansion" : "path";
+      if (kind === "inline" && given !== null) {
+        // An embedded program is read for the one thing this reader cares about: whether it starts a command.
+        for (const re of EMBEDDED_COMMANDS) {
+          if (re.test(given)) problems.push(`${path}:${c.line}: the ${base} program written here starts a command of its own (${given.trim().slice(0, 60)}), which this reader cannot follow`);
+        }
+      }
       if (kind === "path") {
         const resolved = given.replace(/^\.\//, "");
         const known = [...files.shell, ...files.js].some((f) => f === resolved || f.endsWith(`/${resolved}`));
-        if (!known && /[/.]/.test(resolved)) problems.push(`${path}:${c.line}: it runs ${base} ${given}, a file this test does not read; whatever is in that file runs`);
+        if (!known) problems.push(`${path}:${c.line}: it runs ${base} ${given}, a file this test does not read; whatever is in that file runs`);
         continue;
       }
       const entry = interpreterTargets.find((e) => e.file === path && e.command === base && e.kind === kind);
@@ -229,7 +257,9 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
 
   const expected = new Map(DYNAMIC_CALLS.map((d) => [`${d.file} ${d.callee}(${d.arg})`, { ...d, seen: 0 }]));
   for (const path of files.js) {
-    const { calls, problems: jsProblems } = jsProgramCalls(readFile(path), WRAPPERS);
+    const jsText = readOrNull(readFile, path, problems);
+    if (jsText === null) continue;
+    const { calls, problems: jsProblems } = jsProgramCalls(jsText, WRAPPERS);
     for (const p of jsProblems) problems.push(`${path}:${p.line}: ${p.text}`);
     for (const call of calls) {
       if (call.program) { add(call.program, `${path}:${call.line}`); continue; }

@@ -75,7 +75,9 @@ async function join(o) {
     binDir: plan.launcher.action === "none" ? undefined : plan.launcher.dir,
     scope: "setup",
   });
-  const attention = pre.items.filter((i) => i.state !== "ok" && i.state !== "not checked");
+  // Everything that is not plainly ok is printed, including what could not be checked: a required program nobody
+  // could check is not a thing to pass over in silence.
+  const attention = pre.items.filter((i) => i.state !== "ok");
   say(`machine checks: ${pre.counts.ok} ok${attention.length ? `, ${attention.length} needing attention` : ""} (each folder was tested with one file, removed again; ${selfCommand()} preflight shows them all)`);
   for (const line of reportLines({ items: attention }, { wide: false })) say(`  ${line}`);
   if (pre.blocking.length) {

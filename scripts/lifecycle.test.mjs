@@ -1021,8 +1021,9 @@ test("status exits 1 for each attention condition and names it", async () => wit
 
   // A project that was just prepared carries the placeholder preparation wrote. That is "no handoff yet", not a
   // handoff whose time cannot be read, and it must not ask for attention at the first session.
+  const placeholder = "# Handoff\n\nKind: Living.\n\n## RESUME HERE\n\nWritten: not yet assessed\n\n- **State:** Skilliton created this project's records.\n\n## Earlier\n";
   const justPrepared = fresh();
-  writeFileSync(join(justPrepared, "docs", "HANDOFF.md"), "# Handoff\n\nKind: Living.\n\n## RESUME HERE\n\nWritten: not yet assessed\n\n- **State:** Skilliton created this project's records.\n\n## Earlier\n");
+  writeFileSync(join(justPrepared, "docs", "HANDOFF.md"), placeholder);
   commit(justPrepared, env, "the handoff preparation writes");
   const prepared = statusJson(justPrepared, env);
   assert.equal(prepared.code, 0, `a freshly prepared project needs no action:\n${prepared.out}`);
@@ -1032,18 +1033,32 @@ test("status exits 1 for each attention condition and names it", async () => wit
   // The same placeholder on a project that has moved on is a handoff nobody wrote, not a new project: it must not
   // hide later work. One commit after the handoff's own commit is enough.
   const movedOn = fresh();
-  writeFileSync(join(movedOn, "docs", "HANDOFF.md"), "# Handoff\n\nKind: Living.\n\n## RESUME HERE\n\nWritten: not yet assessed\n\n- **State:** Skilliton created this project's records.\n\n## Earlier\n");
+  writeFileSync(join(movedOn, "docs", "HANDOFF.md"), placeholder);
   commit(movedOn, env, "the handoff preparation writes");
   writeFileSync(join(movedOn, "README.md"), "# worked on for weeks\n");
   commit(movedOn, env, "work after the handoff");
-  const placeholderStale = attentionOnly(movedOn, "handoff", /still carries the line preparation wrote \("not yet assessed"\), and the project has moved on since \(1 commit\(s\) since it was last committed\)/);
+  const placeholderStale = attentionOnly(movedOn, "handoff", /still carries the line preparation wrote \("not yet assessed"\), and the project has moved on since \(1 commit\(s\) that changed something else since it was written\)/);
   assert.equal(placeholderStale.json.details.handoff.problem, "not written yet");
-  // And the same for uncommitted work, with the placeholder written in any letter case.
-  const dirtyPlaceholder = fresh();
-  writeFileSync(join(dirtyPlaceholder, "docs", "HANDOFF.md"), "# Handoff\n\nKind: Living.\n\n## RESUME HERE\n\nWritten:   Not Yet Assessed\n\n- **State:** Skilliton created this project's records.\n\n## Earlier\n");
-  commit(dirtyPlaceholder, env, "the handoff preparation writes");
-  writeFileSync(join(dirtyPlaceholder, "README.md"), "# edited and not committed\n");
-  attentionOnly(dirtyPlaceholder, "handoff", /the project has moved on since \(1 uncommitted change\(s\)/);
+
+  // A later commit that only tidies the handoff resets nothing: the work before it still counts.
+  const tidied = fresh();
+  writeFileSync(join(tidied, "docs", "HANDOFF.md"), placeholder);
+  commit(tidied, env, "the handoff preparation writes");
+  writeFileSync(join(tidied, "README.md"), "# weeks of work\n");
+  commit(tidied, env, "work after the handoff");
+  writeFileSync(join(tidied, "docs", "HANDOFF.md"), `${placeholder}\n`);
+  commit(tidied, env, "tidy the handoff");
+  attentionOnly(tidied, "handoff", /the project has moved on since \(1 commit\(s\)/);
+
+  // And the first minute with the tool: preparation writes its files and commits nothing, so its own output must not
+  // read as work the handoff is behind. This is the case the placeholder state exists for.
+  const justPreparedDirty = fresh();
+  writeFileSync(join(justPreparedDirty, "docs", "HANDOFF.md"), placeholder.replace("not yet assessed", "  Not Yet Assessed"));
+  writeFileSync(join(justPreparedDirty, ".skilliton", "config.json"), readFileSync(join(justPreparedDirty, ".skilliton", "config.json"), "utf8"));
+  writeFileSync(join(justPreparedDirty, "NEW-RECORD.md"), "written by preparation, not committed yet\n");
+  const firstMinute = statusJson(justPreparedDirty, env);
+  assert.equal(firstMinute.code, 0, `a project prepared a minute ago needs no action:\n${firstMinute.out}`);
+  assert.match(firstMinute.out, /no session has written a handoff yet/);
 
   const noWritten = fresh();
   writeFileSync(join(noWritten, "docs", "HANDOFF.md"), "# Handoff\n\nKind: Living.\n\n## RESUME HERE\n\n- **State:** no date.\n");

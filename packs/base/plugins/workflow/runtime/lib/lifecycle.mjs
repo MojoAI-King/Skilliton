@@ -340,27 +340,20 @@ const WRITTEN_AHEAD_MS = 5 * 60 * 1000;
 // that is not an integration branch the shared handoff is not written (CONTRACTS section 3), so staleness is a note.
 // A Written time later than now cannot be judged: every commit and change made before it would look older than the
 // handoff, so it is reported instead of being called current.
-// What has happened in this repository since the handoff file was last committed: the commits after it, and whether
-// there is uncommitted work other than the handoff itself. Fills the same fields the freshness check reports.
+// Has the project been worked in since preparation created its handoff? Measured from the commit that ADDED the
+// handoff file, counting only commits that changed something else: a later commit that merely tidies the handoff
+// resets nothing, and preparation's own uncommitted files are not "work" either, because a project is prepared and
+// then looked at before anything is committed.
 function handoffMovedOn(root, rel, archiveRel, git, data) {
-  const moved = [];
-  if (git.head) {
-    const touched = runGit(root, ["log", "-1", "--format=%H", "HEAD", "--", rel]);
-    data.handoffCommit = touched.status === 0 && touched.stdout.trim() ? touched.stdout.trim() : null;
-    if (data.handoffCommit) {
-      const count = runGit(root, ["rev-list", "--count", `${data.handoffCommit}..HEAD`]);
-      data.commitsSinceHandoffCommit = count.status === 0 ? Number(count.stdout.trim()) : null;
-      if (data.commitsSinceHandoffCommit) moved.push(`${data.commitsSinceHandoffCommit} commit(s) since it was last committed`);
-    }
-  }
-  if (git.dirty) {
-    const skip = new Set([rel, archiveRel]);
-    const changed = changedPaths(root).map(({ path }) => path).filter((path) => !skip.has(path));
-    data.newerChanges = changed.length;
-    data.newerExamples = changed.slice(0, 3);
-    if (changed.length) moved.push(`${changed.length} uncommitted change(s) (${changed.slice(0, 3).join(", ")})`);
-  }
-  return moved;
+  if (!git.head) return [];
+  const added = runGit(root, ["log", "--diff-filter=A", "--format=%H", "--", rel]);
+  const first = added.status === 0 ? added.stdout.trim().split("\n").filter(Boolean).at(-1) : null;
+  if (!first) return []; // the handoff has never been committed, so the project cannot have moved on from it
+  const since = runGit(root, ["rev-list", "--count", `${first}..HEAD`, "--", ".", `:(exclude)${rel}`, `:(exclude)${archiveRel}`]);
+  const count = since.status === 0 ? Number(since.stdout.trim()) : null;
+  data.commitsSinceHandoffCommit = Number.isFinite(count) ? count : null;
+  data.handoffCommit = first;
+  return count ? [`${count} commit(s) that changed something else since it was written`] : [];
 }
 
 

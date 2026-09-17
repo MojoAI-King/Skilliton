@@ -133,7 +133,7 @@ function parseScript(src, start, stop, result, lineAt, offset) {
   let current = null; // the command being read, so its arguments are collected
   let sourcing = null; // the . or source command being read, whose argument names a file that runs as part of this one
   const record = (word, index) => {
-    current = { word, line: line(index), args: [] };
+    current = { word, line: line(index), args: [], background: false };
     result.commands.push(current);
     commandName = word;
     const base = word.split("/").pop();
@@ -175,6 +175,7 @@ function parseScript(src, start, stop, result, lineAt, offset) {
       if (c === ";" && src[i + 1] === "&") { i += 2; if (cases.length) cases[cases.length - 1] = "pattern"; expectCommand = false; runsNext = null; continue; }
       if (c === "&" && src[i + 1] === ">") { i += src[i + 2] === ">" ? 3 : 2; redirectTarget = true; continue; }
       if (cases.at(-1) === "pattern" && c === "|") { i++; continue; }
+      if (c === "&" && src[i + 1] !== "&" && current) current.background = true; // left running after the script goes on
       i += (src[i + 1] === c || (c === "|" && src[i + 1] === "&")) ? 2 : 1;
       if (forHeader && c === ";") forHeader = false;
       endCommand();
@@ -240,6 +241,13 @@ function parseScript(src, start, stop, result, lineAt, offset) {
       continue;
     }
 
+    // find -exec <command> ... is a command, and reads like an argument until it is asked for.
+    if (commandName !== null && !expectCommand && commandName.split("/").pop() === "find" && ["-exec", "-execdir", "-ok", "-okdir"].includes(w.raw)) {
+      argument(w);
+      expectCommand = true;
+      runsNext = null;
+      continue;
+    }
     if (runsNext && !expectCommand) {
       const r = runsNext;
       argument(w);
@@ -425,6 +433,22 @@ function readHeredoc(src, i, h, result, lineAt, offset) {
 
 const CHILD_PROCESS_FUNCTIONS = ["spawn", "spawnSync", "exec", "execSync", "execFile", "execFileSync", "fork"];
 
+// The arguments of a call, as their text, from just after the opening bracket: ["\"git\"", "[...]", "{ ... }"].
+function callArguments(src, start) {
+  const args = [];
+  let i = start;
+  while (i < src.length) {
+    const text = firstArgument(src, i);
+    args.push(text.trim());
+    i += text.length;
+    while (src[i] === " " || src[i] === "\n") i++;
+    if (src[i] !== ",") break;
+    i++;
+    while (src[i] === " " || src[i] === "\n") i++;
+  }
+  return args;
+}
+
 // Reads the argument text starting at src[i] up to the next top-level "," or ")"; follows strings and brackets.
 function firstArgument(src, i) {
   let level = 0, k = i;
@@ -477,9 +501,13 @@ export function jsProgramCalls(src, wrappers = []) {
     if (isCommentLine(src, m.index)) continue;
     const before = src.slice(Math.max(0, m.index - 9), m.index);
     if (/function\s+$/.test(before)) continue; // the wrapper's own definition
-    const arg = firstArgument(src, m.index + m[0].length);
+    const all = callArguments(src, m.index + m[0].length);
+    const arg = all[0] ?? "";
     const literal = /^(["'])([^"'`$\\]+)\1$/.exec(arg) ?? /^`([^`$\\]+)`$/.exec(arg);
-    calls.push({ callee: m[1], arg, program: literal ? literal[literal.length - 1] : null, line: lineOf(src, m.index) });
+    // The options a child is started with are the third argument of a child_process call. A wrapper takes its own
+    // arguments, so nothing is read there: the wrapper's own call is in this list too.
+    const options = CHILD_PROCESS_FUNCTIONS.includes(names.get(m[1]) ?? "") ? (all[2] ?? null) : null;
+    calls.push({ callee: m[1], arg, options, program: literal ? literal[literal.length - 1] : null, line: lineOf(src, m.index) });
   }
   return { calls, problems };
 }
@@ -521,7 +549,9 @@ export const NETWORK_PROGRAMS = ["curl", "wget", "nc", "ncat", "netcat", "socat"
 export function networkUses(files, readFile, gitWrappers = {}) {
   const hits = [];
   for (const path of [...files.js, ...files.shell]) {
-    const text = readFile(path);
+    let text;
+    // A file that cannot be read (a link pointing nowhere) is reported as one, rather than stopping the whole scan.
+    try { text = readFile(path); } catch (e) { hits.push({ path, line: 0, what: `a file that could not be read (${e.code ?? e.message})`, text: path }); continue; }
     text.split("\n").forEach((line, i) => {
       if (/^\s*(\/\/|#|\*)/.test(line)) return;
       for (const [re, what] of NETWORK_PATTERNS) if (re.test(line)) hits.push({ path, line: i + 1, what, text: line.trim().slice(0, 120) });

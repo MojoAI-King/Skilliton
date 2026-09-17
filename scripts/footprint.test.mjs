@@ -42,7 +42,7 @@ export const ALLOWED_NETWORK = [
 
 // Programs that would need administrator rights, or would leave something running after the command exits.
 const PRIVILEGE_PROGRAMS = ["sudo", "su", "doas", "pkexec", "runas", "chown", "chgrp", "sudoedit"];
-const PERSISTENCE_PROGRAMS = ["launchctl", "systemctl", "systemd-run", "crontab", "at", "batch", "schtasks", "sc", "reg", "regedit", "osascript", "defaults", "wscript", "cscript", "powershell", "pwsh", "atrm", "update-rc.d", "service"];
+const PERSISTENCE_PROGRAMS = ["launchctl", "systemctl", "systemd-run", "crontab", "at", "batch", "schtasks", "sc", "reg", "regedit", "osascript", "defaults", "wscript", "cscript", "powershell", "pwsh", "atrm", "update-rc.d", "service", "nohup", "setsid", "disown", "screen", "tmux"];
 const PRIVILEGE_PATTERNS = [
   [/process\.set(uid|gid|groups)\s*\(/, "changing the user or group the process runs as"],
   [/\bsetuid\b|\bsetgid\b|chmod\s+[ug]\+s|\b0o?[24]\d{3}\b/, "a setuid or setgid bit"],
@@ -133,6 +133,9 @@ export function checkPrivileges(files, readFile, groups = PROCESS_GROUPS) {
     const { commands, functions } = shellCommands(text);
     for (const c of commands) {
       const program = c.word.split("/").pop();
+      // A command left running in the background outlives the hook that started it, which is the promise this rule
+      // holds: hooks and commands exit when they are done.
+      if (c.background) violations.push(`${path}:${c.line} leaves ${c.word} running in the background while the script goes on; hooks and commands exit when they are done`);
       if (SHELL_BUILTINS.has(c.word) || functions.includes(c.word)) continue;
       if (PRIVILEGE_PROGRAMS.includes(program)) violations.push(`${path}:${c.line} starts ${c.word}, which needs administrator rights; Skilliton is user-level only`);
       if (PERSISTENCE_PROGRAMS.includes(program)) violations.push(`${path}:${c.line} starts ${c.word}, which can leave something running after the command exits`);
@@ -152,6 +155,10 @@ export function checkStartedPrograms(files, readFile) {
   const violations = [];
   for (const path of files.js) {
     for (const call of jsProgramCalls(readFile(path), WRAPPERS).calls) {
+      // Options handed to a child through a variable cannot be read, and the rules above read exactly these lines.
+      if (typeof call.options === "string" && call.options.trim() && !/^[{]/.test(call.options.trim())) {
+        violations.push(`${path}:${call.line} starts a child with options from ${call.options.trim().slice(0, 40)}, which this check cannot read; write them where they can be read, so "nothing keeps running" can be checked`);
+      }
       if (!call.program) continue;
       const name = call.program.split("/").pop();
       if (PRIVILEGE_PROGRAMS.includes(name)) violations.push(`${path}:${call.line} starts ${call.program}, which needs administrator rights; Skilliton is user-level only`);
