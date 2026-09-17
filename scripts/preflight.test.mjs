@@ -15,13 +15,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PROGRAMS } from "../packs/base/plugins/workflow/runtime/lib/preflight.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const GIT_ENV = { GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@example.invalid", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@example.invalid" };
 const PLUGINS = join(ROOT, "packs", "base", "plugins");
 const asRoot = typeof process.getuid === "function" && process.getuid() === 0;
 
@@ -196,6 +197,43 @@ test("a marketplace folder without a catalog is named without contacting anythin
   assert.match(r.out, /the folder has no \.claude-plugin\/marketplace\.json/);
 });
 
+test("a repository the check is run inside cannot rewrite the address it contacts", (t) => {
+  const ctx = fixture(t);
+  // A folder carrying a hostile .git/config, the way a copied repository would. git's ext:: transport runs a command,
+  // and url.<base>.insteadOf points the company's address at it.
+  const hostile = join(ctx.base, "hostile");
+  const marker = join(hostile, "RAN"); // made by mkdir, which is one of the few programs on the fixture's PATH
+  mkdirSync(hostile, { recursive: true });
+  const git = (...args) => spawnSync(toolPath("git"), ["-C", hostile, ...args], { encoding: "utf8", env: { PATH: ctx.tools, HOME: ctx.home, ...GIT_ENV } });
+  git("init", "-q", "-b", "main");
+  writeFileSync(join(hostile, ".git", "config"), `${readFileSync(join(hostile, ".git", "config"), "utf8")}
+[protocol "ext"]
+\tallow = always
+[url "ext::sh -c mkdir% ${marker}% #"]
+\tinsteadOf = https://github.com/
+`);
+
+  // The positive control: plain git in that folder does run the command, so the check below means something.
+  const control = spawnSync(toolPath("git"), ["ls-remote", "--heads", "--", "https://github.com/acme/skills.git"], { cwd: hostile, encoding: "utf8", env: { PATH: ctx.tools, HOME: ctx.home, ...GIT_ENV } });
+  assert.equal(existsSync(marker), true, `the fixture did not make plain git run the command, so this case would prove nothing (git said: ${control.stderr?.trim().slice(0, 300)})`);
+  rmSync(marker, { recursive: true, force: true });
+
+  const r = spawnSync(process.execPath, [join(ctx.repo, "scripts", "skilliton.mjs"), "preflight", "--client", "claude-code", "--bin-dir", ctx.bin, "--marketplace", "acme/skills"], {
+    encoding: "utf8", cwd: hostile, timeout: 120000,
+    env: { PATH: ctx.tools, HOME: ctx.home, LANG: "C.UTF-8", SKILLITON_SELF: "skilliton", SKILLITON_TRUST_DIR: join(ctx.home, "trust"), SKILLITON_JOIN_DIR: join(ctx.home, "joined"), SKILLITON_BACKUPS: join(ctx.home, "backups"), CLAUDE_CONFIG_DIR: join(ctx.home, "claude"), CODEX_HOME: join(ctx.home, "codex") },
+  });
+  assert.equal(existsSync(marker), false, `the repository's configuration made the check run a command:\n${r.stdout}${r.stderr}`);
+});
+
+test("a marketplace value that is neither a repository nor a folder is refused, with nothing checked", (t) => {
+  const ctx = fixture(t);
+  const r = preflight(ctx, ["--client", "claude-code", "--bin-dir", ctx.bin, "--marketplace", "https://joe:ghp_notarealtoken@github.com/acme/skills.git"], { network: true });
+  assert.equal(r.code, 2, r.out);
+  assert.match(r.out, /refused/);
+  assert.match(r.out, /<credentials removed>/);
+  assert.doesNotMatch(r.out, /ghp_notarealtoken/, "a token pasted into the value was printed back");
+});
+
 test("join stops before it changes anything when a folder it needs is blocked", (t) => {
   if (asRoot) return t.skip("running as root: an unwritable folder cannot be made");
   const ctx = fixture(t);
@@ -218,7 +256,7 @@ test("join stops before it changes anything when a folder it needs is blocked", 
   }, null, 2)}\n`);
   const git = (...args) => spawnSync(toolPath("git"), ["-C", ctx.repo, ...args], {
     encoding: "utf8",
-    env: { PATH: ctx.tools, HOME: ctx.home, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@example.invalid", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@example.invalid" },
+    env: { PATH: ctx.tools, HOME: ctx.home, ...GIT_ENV },
   });
   git("init", "-q", "-b", "main");
   git("add", "-A");
@@ -241,8 +279,8 @@ test("join stops before it changes anything when a folder it needs is blocked", 
     },
   });
   const out = `${r.stdout ?? ""}${r.stderr ?? ""}`;
-  assert.equal(r.status, 1, out);
-  assert.match(out, /Nothing was changed: this machine cannot be set up until/);
+  assert.equal(r.status, 2, out); // refused, nothing written (docs/CONTRACTS.md section 6)
+  assert.match(out, /Refused, and nothing was changed: this machine cannot be set up until/);
   assert.match(out, /joined/);
   const listing = spawnSync("find", [ctx.home, "-type", "f"], { encoding: "utf8" }).stdout;
   assert.doesNotMatch(listing, /acme\.json|allowed_signers/, `join wrote something before the checks passed:\n${listing}`);

@@ -117,7 +117,7 @@ test("the preview names every change and writes nothing", (t) => {
   const ctx = fixture(t);
   const r = sg(ctx, joinArgs(ctx));
   assert.equal(r.code, 0, r.all);
-  assert.match(r.out, /skilliton join \(preview; nothing written\)/);
+  assert.match(r.out, /skilliton join \(preview; nothing is set up\)/);
   assert.match(r.out, /will add\s+marketplace acme-skills/);
   assert.match(r.out, /will add\s+plugin workflow@acme-skills/);
   assert.match(r.out, /will add\s+the home folder .*codex-home, which Codex needs to exist/);

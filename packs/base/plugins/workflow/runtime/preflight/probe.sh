@@ -42,12 +42,15 @@ for name in "$@"; do
     printf '%s|missing|||not found on PATH\n' "$name"
     continue
   fi
-  out=$("$path" --version 2>/dev/null </dev/null); rc=$?
-  err=$("$path" --version 2>&1 >/dev/null </dev/null)
-  # One line each, without the separator this format uses. Small programs refuse --version and print their usage; that
-  # is not a message worth repeating, so only a version line (exit 0) and a refusal are kept.
-  version=$(clean "$out")
-  detail=$(clean "$err")
+  # One start per program: both streams are taken in the same run, because starting a program twice doubles any side
+  # effect and doubles what a security product records.
+  out=$("$path" --version 2>&1 </dev/null); rc=$?
+  # Small programs refuse --version and print their usage, which is not worth repeating: the first line is kept as the
+  # version when the program agreed (exit 0), and otherwise only to explain a refusal.
+  text=$(clean "$out")
+  version=$text
+  detail=$text
+  path=$(clean "$path")
   case "$rc" in
     126) printf '%s|blocked|%s|%s|the shell found it but could not run it: %s\n' "$name" "$rc" "$path" "${detail:-permission denied}" ;;
     127) printf '%s|missing|%s|%s|%s\n' "$name" "$rc" "$path" "${detail:-the shell could not find it when running it}" ;;

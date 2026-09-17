@@ -60,7 +60,7 @@ function join(o) {
     binDir: o["bin-dir"], noLauncher: o["no-launcher"], claude: o.claude, codex: o.codex, trustPlan,
   });
 
-  say(`skilliton join${o.apply ? "" : " (preview; nothing written)"}`);
+  say(`skilliton join${o.apply ? "" : " (preview; nothing is set up)"}`);
   say(`company: ${plan.company}`);
   say(`skills repository: ${tilde(plan.repo)} (commit ${plan.clone.head ?? "unknown"}, ${plan.clone.releaseTags} release tag(s))`);
   say(`marketplace: ${plan.market.name} from ${plan.market.source.kind === "github" ? `GitHub ${plan.market.source.location}` : `folder ${tilde(plan.market.source.location)}`}`);
@@ -70,18 +70,18 @@ function join(o) {
   // The machine checks come before anything is written, so a laptop that cannot run or write what setup needs says so
   // instead of failing half way. Items that would only stop a hook in a later session are printed, not refused.
   const pre = runPreflight({
-    clients: plan.clients.map((c) => c.driver.binaryName),
+    clients: plan.clients.map((c) => ({ name: c.driver.binaryName, path: c.binary.path })),
     marketplace: plan.market.source.location,
     binDir: plan.launcher.action === "none" ? undefined : plan.launcher.dir,
     scope: "setup",
   });
   const attention = pre.items.filter((i) => !i.state.startsWith("ok") && i.state !== "not checked");
-  say(`machine checks: ${pre.counts.ok} ok${attention.length ? `, ${attention.length} needing attention` : ""} (skilliton preflight shows them all)`);
+  say(`machine checks: ${pre.counts.ok} ok${attention.length ? `, ${attention.length} needing attention` : ""} (each folder was tested with one file, removed again; ${selfCommand()} preflight shows them all)`);
   for (const line of reportLines({ items: attention }, { wide: false })) say(`  ${line}`);
   if (pre.blocking.length) {
     say("");
-    say(`Nothing was changed: this machine cannot be set up until the item(s) above marked as stopping setup are cleared (${pre.blocking.map((i) => i.name).join(", ")}). Run ${selfCommand()} preflight for the full list, and give it with docs/IT-ALLOWLIST.md to whoever manages these laptops.`);
-    return 1;
+    say(`Refused, and nothing was changed: this machine cannot be set up until the item(s) above marked as stopping setup are cleared (${pre.blocking.map((i) => i.name).join(", ")}). Run ${selfCommand()} preflight for the full list, and give it with docs/IT-ALLOWLIST.md to whoever manages these laptops.`);
+    return 2;
   }
   say("");
   const work = [];

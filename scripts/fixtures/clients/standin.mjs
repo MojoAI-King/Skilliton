@@ -10,17 +10,28 @@
 //           plugins/cache/<marketplace>/<plugin>/<version>/ (removed on plugin remove); exits 1 when $CODEX_HOME
 //           does not exist, as measured
 // Every call is appended to $STANDIN_LOG as one JSON line. A call whose arguments, joined by spaces, contain
-// $STANDIN_FAIL exits 1 without changing anything. It refuses to run without an explicit client home, so it can never
-// write to a real configuration, and it never uses the network.
+// $STANDIN_FAIL exits 1 without changing anything. It never uses the network, and it can never write to a real
+// configuration: it refuses to run without an explicit client home, and STANDIN_DEFAULT_HOME, which lets it use the
+// folder each client uses by default, is accepted only when HOME is inside the temporary folder.
 
-import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 
-// The client home to act on: the variable each client reads, or, only when STANDIN_DEFAULT_HOME is set, the folder
-// each client uses when that variable is unset. scripts/allowlist.test.mjs sets it to measure where an unconfigured
-// machine is written, with HOME pointing inside its own temporary folder.
-const clientHome = (variable, fallback) => process.env[variable] || (process.env.STANDIN_DEFAULT_HOME ? join(homedir(), fallback) : "");
+// The client home to act on: the variable each client reads, or, when STANDIN_DEFAULT_HOME names the home folder the
+// caller expects, the folder each client uses when that variable is unset. scripts/allowlist.test.mjs sets it to
+// measure where an unconfigured machine is written, and the caller has to name the home folder it means, so this
+// stand-in can never guess its way into a real configuration.
+const clientHome = (variable, fallback) => {
+  if (process.env[variable]) return process.env[variable];
+  const expected = process.env.STANDIN_DEFAULT_HOME;
+  if (!expected) return "";
+  const real = (path) => { try { return realpathSync(path); } catch { return resolve(path); } };
+  if (real(expected) !== real(homedir())) {
+    fail(`STANDIN_DEFAULT_HOME names ${expected}, but HOME is ${homedir()}; this stand-in writes to a client's default folder only when the caller names that home folder`);
+  }
+  return join(homedir(), fallback);
+};
 
 const [client, ...args] = process.argv.slice(2);
 const fail = (message) => { process.stderr.write(`standin ${client}: ${message}\n`); process.exit(1); };

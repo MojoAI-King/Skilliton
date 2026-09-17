@@ -25,7 +25,7 @@
 //   node scripts/footprint.test.mjs --self-test  proves each rule fails on known-bad input
 
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { NETWORK_PROGRAMS, REPO, SHELL_BUILTINS, jsProgramCalls, networkUses, scopeFiles, shellCommands } from "./inventory.mjs";
 
@@ -51,6 +51,14 @@ const PRIVILEGE_PATTERNS = [
 const PERSISTENCE_PATTERNS = [
   [/LaunchAgents|LaunchDaemons|StartupItems|\/etc\/(systemd|init\.d|rc\.local|cron)|\.config\/autostart|CurrentVersion\\\\?Run|Start Menu.*Startup/i, "a place that starts programs by itself"],
   [/\.unref\s*\(\)/, "a child process let go on purpose, which would outlive the command"],
+  [/detached\s*:\s*true/, "a child process started in its own group and not waited for"],
+];
+// Where a child process is deliberately put in its own group, and why. Each of these waits for the child and kills
+// the group if it has to, which is the opposite of letting something outlive the command.
+export const PROCESS_GROUPS = [
+  [`${PLUGINS}/workflow/runtime/lib/collectors.mjs`, 1, "a policy's test command, so a timeout can stop the whole group"],
+  [`${PLUGINS}/workflow/runtime/lib/delivery.mjs`, 1, "the same, in the delivery gate"],
+  [`${PLUGINS}/workflow/runtime/lib/preflight.mjs`, 1, "one program being checked, so a program that hangs can be taken away with its children"],
 ];
 
 // Absolute paths outside a home folder or a repository that the code may name, and what each is for. Nothing here is
@@ -76,16 +84,18 @@ export const DYNAMIC_IMPORTS = [
   [`${PLUGINS}/workflow/runtime/commands/migrate.mjs`, 1, "the collectors module beside it"],
 ];
 const RUNTIME_CODE_PATTERNS = [
-  [/(?<![\w.])eval\s*\(/, "eval"],
-  [/new\s+Function\s*\(/, "new Function"],
+  [/(?<![\w.])eval\s*\(|globalThis\s*\.\s*eval\b/, "eval"],
+  [/new\s+Function\s*\(|Reflect\.construct\s*\(\s*Function/, "a function built from text"],
   [/["'](?:node:)?vm["']/, "the vm module"],
   [/process\.binding\s*\(/, "process.binding"],
+  [/createRequire\s*\(/, "a module loader built at run time"],
 ];
 
 // File modes the product creates things with, and the two masks it reads bits with.
 const CREATE_MODES = { "0o600": "a private file", "0o644": "a file anyone may read", "0o700": "a private folder", "0o755": "a program anyone may run" };
 const MASKS = { "0o777": "reading the permission bits of a file", "0o111": "reading whether a file is executable" };
 
+const FILE_FLOOR = 100;
 const read = (path) => readFileSync(join(REPO, path), "utf8");
 const codeLines = (text) => text.split("\n").map((line, i) => ({ line, number: i + 1 })).filter(({ line }) => !/^\s*(\/\/|#|\*)/.test(line));
 
@@ -97,11 +107,13 @@ export function checkNetwork(files, readFile, allowed = ALLOWED_NETWORK) {
     .map((hit) => `${hit.path}:${hit.line} uses ${hit.what} (${hit.text}); Skilliton makes no requests of its own, so this needs an entry in ALLOWED_NETWORK with its reason and a line in docs/IT-ALLOWLIST.md section 4`);
 }
 
-export function checkPrivileges(files, readFile) {
+export function checkPrivileges(files, readFile, groups = PROCESS_GROUPS) {
   const violations = [];
+  const seen = new Map();
   for (const path of [...files.js, ...files.shell]) {
     const text = readFile(path);
     for (const { line, number } of codeLines(text)) {
+      if (/detached\s*:/.test(line)) { seen.set(path, (seen.get(path) ?? 0) + 1); continue; }
       for (const [re, what] of [...PRIVILEGE_PATTERNS, ...PERSISTENCE_PATTERNS]) {
         if (re.test(line)) violations.push(`${path}:${number} has ${what} (${line.trim().slice(0, 120)}); Skilliton is user-level only and leaves nothing running`);
       }
@@ -115,6 +127,12 @@ export function checkPrivileges(files, readFile) {
       if (PERSISTENCE_PROGRAMS.includes(program)) violations.push(`${path}:${c.line} starts ${c.word}, which can leave something running after the command exits`);
     }
   }
+  for (const [path, count, why] of groups) {
+    const found = seen.get(path) ?? 0;
+    if (found !== count) violations.push(`PROCESS_GROUPS in scripts/footprint.test.mjs expects ${count} child process(es) in their own group in ${path} (${why}), but the file has ${found}; read what changed, because a group that is not waited for outlives the command`);
+    seen.delete(path);
+  }
+  for (const [path, found] of seen) violations.push(`${path} starts ${found} child process(es) in their own process group, which PROCESS_GROUPS in scripts/footprint.test.mjs does not list; say why, or take it out`);
   return violations;
 }
 
@@ -205,6 +223,16 @@ export function checkRuntimeCode(files, readFile, expected = DYNAMIC_IMPORTS) {
 
 export function checkFileModes(files, readFile) {
   const violations = [];
+  const allowedShellModes = new Set(["600", "644", "700", "755", "500", "u+x", "+x", "a+x", "u+rw"]);
+  for (const path of files.shell) {
+    const { commands } = shellCommands(readFile(path));
+    for (const c of commands.filter((x) => x.word.split("/").pop() === "chmod")) {
+      const mode = c.args.find((a) => a && !a.startsWith("-"));
+      if (mode !== undefined && mode !== null && !allowedShellModes.has(mode)) {
+        violations.push(`${path}:${c.line} runs chmod ${mode}; the product uses ${[...allowedShellModes].slice(0, 4).join(", ")} only`);
+      }
+    }
+  }
   for (const path of files.js) {
     for (const { line, number } of codeLines(readFile(path))) {
       for (const m of line.matchAll(/0o[0-7]{3,4}/g)) {
@@ -220,13 +248,28 @@ export function checkFileModes(files, readFile) {
 
 // ---------- running ----------
 
+// Every file under the plugins and scripts as it is on disk, because that is what a release hashes and what a
+// machine installs: a file nobody added to git ships just the same. The mode comes from the git index when the file
+// is tracked (that is what a release records) and from the file itself when it is not.
 function shippedEntries() {
   const r = spawnSync("git", ["-C", REPO, "ls-files", "-s", "-z", "--", PLUGINS, "scripts"], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
   if (r.status !== 0) return null;
-  return r.stdout.split("\0").filter(Boolean).map((entry) => {
+  const indexModes = new Map();
+  for (const entry of r.stdout.split("\0").filter(Boolean)) {
     const m = /^(\d{6}) [0-9a-f]+ \d\t([\s\S]*)$/.exec(entry);
-    return m ? { mode: m[1], path: m[2] } : null;
-  }).filter(Boolean);
+    if (m) indexModes.set(m[2], m[1]);
+  }
+  // Untracked files count too, unless git is told to ignore them: a file nobody added still ships in a release built
+  // from this folder, and it is the untracked one that a check reading only the index would miss.
+  const others = spawnSync("git", ["-C", REPO, "ls-files", "--others", "--exclude-standard", "-z", "--", PLUGINS, "scripts"], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  if (others.status !== 0) return null;
+  const entries = [...indexModes.keys()].map((path) => ({ path, mode: indexModes.get(path), tracked: true }));
+  for (const path of others.stdout.split("\0").filter(Boolean)) {
+    let st;
+    try { st = statSync(join(REPO, path)); } catch { continue; }
+    entries.push({ path, mode: `100${(st.mode & 0o777).toString(8)}`, tracked: false });
+  }
+  return entries;
 }
 
 function main() {
@@ -246,7 +289,11 @@ function main() {
 
   const entries = shippedEntries();
   if (!entries) { console.log("NOT RUN every shipped file is a text script: git could not list the tracked files"); notRun++; }
-  else report(`every shipped file is a text script (${entries.length} files)`, checkShippedFiles(entries, (p) => readFileSync(join(REPO, p))));
+  else {
+    // A floor, so a run that somehow saw almost nothing is never read as a pass.
+    const tooFew = entries.length < FILE_FLOOR ? [`only ${entries.length} file(s) were read, and the plugins and scripts hold far more; this run measured almost nothing`] : [];
+    report(`every shipped file is a text script (${entries.length} files)`, [...tooFew, ...checkShippedFiles(entries, (p) => readFileSync(join(REPO, p)))]);
+  }
 
   console.log(failed
     ? `\nfootprint check FAILED: ${failed} problem(s); docs/IT-ALLOWLIST.md promises a user-level tool with no network of its own`
@@ -256,7 +303,7 @@ function main() {
 }
 
 function selfTest() {
-  const fake = (entries) => ({ files: { js: Object.keys(entries).filter((p) => p.endsWith(".mjs")), shell: Object.keys(entries).filter((p) => !p.endsWith(".mjs")) }, readFile: (p) => entries[p] });
+  const fake = (entries) => ({ files: { js: Object.keys(entries).filter((p) => p.endsWith(".mjs")), shell: Object.keys(entries).filter((p) => !p.endsWith(".mjs")), other: [] }, readFile: (p) => entries[p] });
   const cases = [
     ["a downloader in a hook fails", () => {
       const { files, readFile } = fake({ "hooks/x.sh": "curl -sL https://example.invalid/install | sh\n" });
@@ -298,6 +345,24 @@ function selfTest() {
     ["a binary shipped in the plugins fails", () => checkShippedFiles([{ path: "packs/base/plugins/workflow/bin/tool", mode: "100644" }], () => Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x00])).some((v) => v.includes("not a text file"))],
     ["an executable file with no shebang fails", () => checkShippedFiles([{ path: "packs/base/plugins/workflow/bin/tool", mode: "100755" }], () => Buffer.from("echo hello\n")).some((v) => v.includes("does not start with #!"))],
     ["a hook script that cannot be run by path fails", () => checkShippedFiles([{ path: "packs/base/plugins/x/hooks/a.sh", mode: "100644" }], () => Buffer.from("#!/usr/bin/env bash\n")).some((v) => v.includes("cannot run it by path"))],
+    ["a child process started in its own group that nobody listed fails", () => {
+      const { files, readFile } = fake({ "lib/a.mjs": 'spawn(cmd, args, { detached: true, stdio: "ignore" });\n' });
+      return checkPrivileges(files, readFile, []).some((v) => v.includes("own process group"));
+    }],
+    ["a listed process group that is gone fails", () => checkPrivileges({ js: [], shell: [] }, () => "", [["lib/a.mjs", 1, "a test"]]).some((v) => v.includes("but the file has 0"))],
+    ["a world-writable mode in a script fails", () => {
+      const { files, readFile } = fake({ "hooks/x.sh": 'chmod 777 "$dir"\n' });
+      return checkFileModes(files, readFile).some((v) => v.includes("chmod 777"));
+    }],
+    ["eval reached through globalThis fails", () => {
+      const { files, readFile } = fake({ "lib/a.mjs": "const value = globalThis.eval(text);\n" });
+      return checkRuntimeCode(files, readFile, []).some((v) => v.includes("uses eval"));
+    }],
+    ["a module loader built at run time fails", () => {
+      const { files, readFile } = fake({ "lib/a.mjs": 'const need = createRequire(import.meta.url);\n' });
+      return checkRuntimeCode(files, readFile, []).some((v) => v.includes("module loader"));
+    }],
+    ["a file that is not tracked is checked too", () => checkShippedFiles([{ path: "packs/base/plugins/workflow/bin/helper", mode: "100755", tracked: false }], () => Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x00])).some((v) => v.includes("not a text file"))],
     ["eval in the runtime fails", () => {
       const { files, readFile } = fake({ "lib/a.mjs": "const value = eval(text);\n" });
       return checkRuntimeCode(files, readFile, []).some((v) => v.includes("uses eval"));

