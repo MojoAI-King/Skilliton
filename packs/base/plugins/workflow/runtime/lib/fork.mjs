@@ -35,7 +35,7 @@ export function readCanonicalJson(repo, rel) {
 }
 
 // The one marketplace the team template declares, with its GitHub repository.
-function templateMarketplace(template) {
+export function templateMarketplace(template) {
   const markets = isPlainObject(template.value.extraKnownMarketplaces) ? Object.entries(template.value.extraKnownMarketplaces) : [];
   if (markets.length !== 1) refuse(`${TEAM_TEMPLATE} declares ${markets.length} marketplaces under extraKnownMarketplaces; a company template declares exactly one. Nothing was written.`);
   const [name, entry] = markets[0];
@@ -93,7 +93,7 @@ export function planNewPlugin(repo, { plugin, pack, description, license }) {
   const plugins = Array.isArray(catalog.value.plugins) ? catalog.value.plugins : refuse(`${CATALOG} has no "plugins" list. Nothing was written.`);
   if (plugins.some((p) => p?.name === plugin)) refuse(`${CATALOG} already lists a plugin named "${plugin}". Nothing was written.`);
   const tm = templateMarketplace(template);
-  if (tm.name !== market) refuse(`${CATALOG} names the marketplace "${market}", but ${TEAM_TEMPLATE} names "${tm.name}", so the new plugin would be enabled under a marketplace clients do not install from. Make them agree first with: company init --name <company> --marketplace-repo <owner>/<repo>${market === tm.name ? "" : ` --marketplace-name ${market}`}. Nothing was written.`);
+  if (tm.name !== market) refuse(`${CATALOG} names the marketplace "${market}", but ${TEAM_TEMPLATE} names "${tm.name}", so the new plugin would be enabled under a marketplace clients do not install from. Make them agree first with: company init --name <company> --marketplace-repo <owner>/<repo> --marketplace-name ${market}. Nothing was written.`);
 
   const rel = `packs/${pack}/plugins/${plugin}`;
   const author = isPlainObject(catalog.value.owner) && typeof catalog.value.owner.name === "string" ? { name: catalog.value.owner.name } : null;

@@ -47,6 +47,7 @@ const GROUPS = [
       { name: "propose", summary: "turn a project lesson into a scrubbed improvement proposal for the company skills repository" },
       { name: "release", summary: "create, list, or withdraw a company release manifest (approval is a signed tag)" },
       { name: "verify", summary: "check installed plugins against approved releases: VERIFIED, TAMPERED, UNKNOWN VERSION, WITHDRAWN" },
+      { name: "join", summary: "set up this machine for a company: marketplace, plugins, release signers and terminal command, then verify (--apply; --undo)" },
       { name: "trust", summary: "record, show, or remove the company release signers this machine trusts" },
       { name: "delivery", summary: "install or run the trusted delivery check that tests a shared branch's combined result" },
     ],

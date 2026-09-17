@@ -2,6 +2,7 @@
 // The engine is lib/verify.mjs; the contract is docs/CONTRACTS.md section 13 and releases/SCHEMA.md.
 
 import { Refused, SKILLS_REPO, parseArgs, say, selfCommand } from "../lib/core.mjs";
+import { joinedSource } from "../lib/join.mjs";
 import { runVerify } from "../lib/verify.mjs";
 
 export const help = `verify: check the plugins a client has installed from the company marketplace against approved releases.
@@ -10,7 +11,8 @@ Writes nothing.
   verify [--client claude-code|codex] [--config-dir <dir>] [--source <skills repo path>] [--company <name>] [--json]
 
 Approved releases are read from --source, a clone of the company skills repository with its tags (default: the
-skills repository this copy of skillgate runs from, when there is one). A release counts only when its tag
+skills repository this copy of skillgate runs from, when there is one; otherwise the clone recorded by
+skillgate join for --company, or for the only company that joined this machine). A release counts only when its tag
 skillgate-release/<version> carries an SSH signature that git verify-tag accepts against the company's trust file
 (see: skillgate trust --help), and the manifest at the tagged commit has the signed manifest-sha256.
 
@@ -42,7 +44,8 @@ export async function run(argv) {
     const o = parseArgs(argv, { flags: ["json"], options: ["client", "config-dir", "source", "company"] }, "verify");
     if (o.help) { say(help); return 0; }
     if (o._.length) throw new Refused(`verify takes no plain arguments (got "${o._[0]}"); see: ${selfCommand()} verify --help`);
-    const report = runVerify({ client: o.client, configDir: o["config-dir"], source: o.source, company: o.company, defaultSource: SKILLS_REPO });
+    const defaultSource = o.source === undefined ? SKILLS_REPO ?? joinedSource(o.company) : undefined;
+    const report = runVerify({ client: o.client, configDir: o["config-dir"], source: o.source, company: o.company, defaultSource });
     if (json) printJson(report.result, report.summary, report.details);
     else {
       say("skillgate verify (writes nothing)");

@@ -1,13 +1,11 @@
 // commands/trust.mjs: `skillgate trust add | show | remove`, the release signers this machine trusts.
 // The engine is lib/trust.mjs; the contract is docs/CONTRACTS.md section 13.
 
-import { lstatSync, mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { lstatSync, readFileSync, unlinkSync } from "node:fs";
 import { Refused, backupFile, newStamp, parseArgs, refuse, say, selfCommand, tilde } from "../lib/core.mjs";
-import { sha256Hex } from "../lib/treehash.mjs";
 import {
-  MAX_TRUST_BYTES, describeSigner, insideGitWorkTree, listTrusted, parseAllowedSigners, readTrustFile, trustDir,
-  trustFilePath, validateCompany,
+  describeSigner, listTrusted, parseAllowedSigners, planTrustAdd, readTrustFile, trustDir, trustFilePath, validateCompany,
+  writeTrustFile,
 } from "../lib/trust.mjs";
 
 export const help = `trust: record, show, or remove the release signers this machine trusts, one file per company.
@@ -34,48 +32,22 @@ function add(argv) {
   const o = parseArgs(argv, { flags: ["apply"], options: ["company", "signers"] }, "trust");
   if (o._.length) refuse(`trust add takes no plain arguments (got "${o._[0]}")`);
   if (o.company === undefined) refuse("trust add needs --company <name>");
-  validateCompany(o.company);
   if (o.signers === undefined) refuse("trust add needs --signers <allowed_signers file>");
-  const source = resolve(o.signers);
-  let st;
-  try { st = statSync(source); } catch { refuse(`--signers ${tilde(source)} does not exist`); }
-  if (!st.isFile()) refuse(`--signers ${tilde(source)} is not a regular file`);
-  if (st.size > MAX_TRUST_BYTES) refuse(`--signers ${tilde(source)} is larger than ${MAX_TRUST_BYTES / 1024} KB, which is not an allowed_signers file`);
-  const bytes = readFileSync(source);
-  if (bytes.includes(0)) refuse(`--signers ${tilde(source)} is a binary file, not an allowed_signers file`);
-  const parsed = parseAllowedSigners(bytes.toString("utf8"));
-  if (parsed.problems.length) refuse(`--signers ${tilde(source)} is not a valid allowed_signers file: ${parsed.problems.map((p) => `${p.line ? `line ${p.line}: ` : ""}${p.problem}`).join("; ")}. Nothing was written.`);
-  if (!parsed.signers.length) refuse(`--signers ${tilde(source)} lists no signers. Nothing was written.`);
-  const dir = trustDir();
-  if (insideGitWorkTree(dir)) refuse(`the trust folder ${tilde(dir)} is inside a Git repository, where a pull or checkout could change whom this machine trusts. Set SKILLGATE_TRUST_DIR to a folder outside every repository. Nothing was written.`);
-  const dest = trustFilePath(o.company);
-  let existing = null;
-  try {
-    const d = lstatSync(dest);
-    if (d.isSymbolicLink() || !d.isFile()) refuse(`${tilde(dest)} exists and is not a regular file; remove it by hand first. Nothing was written.`);
-    existing = readFileSync(dest);
-  } catch (e) {
-    if (e instanceof Refused) throw e;
-    if (e.code !== "ENOENT") throw e;
-  }
+  const plan = planTrustAdd(o.company, o.signers);
 
   say(`skillgate trust add${o.apply ? "" : " (preview; nothing written)"}`);
   say(`company: ${o.company}`);
-  say(`signers file: ${tilde(source)} (sha256 ${sha256Hex(bytes).slice(0, 12)}), ${parsed.signers.length} signer(s):`);
-  for (const s of parsed.signers) say(`  ${describeSigner(s)}`);
-  for (const n of parsed.notes) say(`  note: ${n}`);
-  if (existing) {
-    if (Buffer.compare(existing, bytes) === 0) { say(`${tilde(dest)} already holds exactly this file; nothing to change.`); return 0; }
-    refuse(`company "${o.company}" is already trusted with a different signers file (${tilde(dest)}). Changing whom this machine trusts is deliberate: run trust remove --company ${o.company} --apply first (it keeps a backup), then add again. Nothing was written.`);
-  }
+  say(`signers file: ${tilde(plan.source)} (sha256 ${plan.sha256.slice(0, 12)}), ${plan.parsed.signers.length} signer(s):`);
+  for (const s of plan.parsed.signers) say(`  ${describeSigner(s)}`);
+  for (const n of plan.parsed.notes) say(`  note: ${n}`);
+  if (plan.present) { say(`${tilde(plan.dest)} already holds exactly this file; nothing to change.`); return 0; }
   if (!o.apply) {
-    say(`would copy it to ${tilde(dest)}`);
+    say(`would copy it to ${tilde(plan.dest)}`);
     say("Next: run the same command with --apply.");
     return 0;
   }
-  mkdirSync(dir, { recursive: true, mode: 0o700 });
-  writeFileSync(dest, bytes, { flag: "wx", mode: 0o644 });
-  say(`copied to ${tilde(dest)}`);
+  writeTrustFile(plan);
+  say(`copied to ${tilde(plan.dest)}`);
   say(`Next: ${selfCommand()} release list --company ${o.company}, or ${selfCommand()} verify --company ${o.company} --source <skills repo>`);
   return 0;
 }
