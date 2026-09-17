@@ -20,6 +20,9 @@ export const REPORT_MARKER = "<!-- skilliton-security-evidence-report:v1 -->";
 export const MIGRATIONS_DIR = ".skilliton/migrations";
 export const LOCK_REL = ".skilliton/prepare.lock";
 export const GITIGNORE_COMMENT = "# Skilliton setup lock and private evidence";
+// What preparation writes where a handoff time will go, until a session writes one. The project state reads it as
+// "no handoff yet" rather than as a time it cannot make sense of (runtime/lib/lifecycle.mjs).
+export const HANDOFF_PLACEHOLDER = "not yet assessed";
 export const GITIGNORE_LINES = ["/.skilliton/prepare.lock", "/.skilliton/private-evidence/"];
 
 export const ROLE_LABELS = {
@@ -120,7 +123,7 @@ export function recordTemplate(role, project) {
     case "handoff":
       return doc("Handoff", "Kind: Living.", [
         "## RESUME HERE",
-        "Written: not yet assessed",
+        `Written: ${HANDOFF_PLACEHOLDER}`,
         [
           "- **State:** Skilliton created this project's records; the project's actual state has not been assessed.",
           "- **Next:** Establish the current task and the project's real setup and test commands.",

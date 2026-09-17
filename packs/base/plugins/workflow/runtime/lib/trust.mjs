@@ -41,11 +41,11 @@ export function gitEnv({ userFacing = false } = {}) {
 
 // Runs git with an argument array, with a repository's own configuration never able to make git start a program
 // (see runtime/lib/journal.mjs). Never throws for git's own failure; `notFound` says git is not installed.
-export function runGit(repo, args, { buffer = false, timeoutMs = 60000, userFacing = false, cwd } = {}) {
+export function runGit(repo, args, { buffer = false, timeoutMs = 60000, userFacing = false, cwd, extraEnv } = {}) {
   const r = spawnSync("git", repo ? ["-C", repo, ...NO_REPOSITORY_PROGRAMS, ...args] : [...NO_REPOSITORY_PROGRAMS, ...args], {
     cwd,
     encoding: buffer ? "buffer" : "utf8",
-    env: gitEnv({ userFacing }),
+    env: { ...gitEnv({ userFacing }), ...extraEnv },
     timeout: timeoutMs,
     maxBuffer: 256 * 1024 * 1024,
     stdio: userFacing ? ["inherit", "inherit", "inherit"] : ["ignore", "pipe", "pipe"],

@@ -38,26 +38,30 @@ function walk(dir, out = []) {
   return out;
 }
 
-// Files that hold no code to read: documentation, manifests, fixtures and data.
+// Files that hold no code to read: documentation, manifests and data. The extension is trusted only outside the
+// folders that hold code, because a file a hook reads is code however it is named (a hook can source hooks/note.md).
 const DATA_FILE = /\.(md|json|jsonl|ya?ml|toml|txt|lock|png|jpg|jpeg|gif|svg|ico|pdf|zip|tar|gz)$/i;
+const CODE_FOLDER = /\/(hooks|bin|runtime|scripts)\//;
+// The manifests a client reads, which are data wherever they sit.
+const MANIFEST = /\/(hooks|plugin|marketplace|settings|package)\.json$/;
 
 // Files in scope, as repository-relative paths with forward slashes: { js, shell, other }. `other` holds files under
 // the plugins that are neither, which callers must treat as a problem: a file nothing reads is a file that can start
-// anything (a hook sourcing hooks/common.bash, a helper written in Python). The first line decides when the name does
-// not: a shebang naming a shell makes it a script, one naming node makes it JavaScript.
+// anything. The first line decides before the name does, so a shell script named .mjs is read as a shell script.
+// Nothing under the plugins is skipped, the eval fixtures included: they ship with the plugin.
 export function scopeFiles(root = REPO) {
-  const plugin = walk(join(root, PLUGINS)).map((p) => toPosix(relative(root, p))).filter((p) => !/\/evals\//.test(p));
+  const plugin = walk(join(root, PLUGINS)).map((p) => toPosix(relative(root, p)));
   const js = ["scripts/skilliton.mjs", "scripts/setup.mjs"];
   const shell = ["scripts/scrub-check.sh"];
   const other = [];
   for (const p of plugin) {
+    const first = firstLine(join(root, p));
+    if (/^#!.*\b(ba|k|z|da)?sh\b/.test(first)) { shell.push(p); continue; }
+    if (/^#!.*\bnode\b/.test(first)) { js.push(p); continue; }
     if (/\.(mjs|cjs|js)$/.test(p)) { js.push(p); continue; }
     if (/\.(sh|bash|ksh|zsh)$/.test(p)) { shell.push(p); continue; }
-    if (DATA_FILE.test(p)) continue;
-    const first = firstLine(join(root, p));
-    if (/^#!.*\b(ba|k|z|da)?sh\b/.test(first)) shell.push(p);
-    else if (/^#!.*\bnode\b/.test(first)) js.push(p);
-    else other.push(p);
+    if (MANIFEST.test(p) || (DATA_FILE.test(p) && !CODE_FOLDER.test(p))) continue;
+    other.push(p);
   }
   return { js: js.sort(), shell: shell.sort(), other: other.sort() };
 }
@@ -82,12 +86,14 @@ const RUNS_NEXT = {
   timeout: ["-s", "-k"], sudo: ["-u", "-g", "-C", "-D", "-h", "-p", "-U"], doas: ["-u", "-C"], stdbuf: ["-i", "-o", "-e"],
 };
 
-// Returns { commands: [{ word, line, args }], dynamic: [{ text, line }], functions: [names], problems: [{ text, line }] }.
+// Returns { commands: [{ word, line, args }], dynamic: [{ text, line, args }], functions: [names], sourced: [{ path,
+// line }], problems: [{ text, line }] }. `sourced` names the files a script reads with . or source, whose contents run
+// as if they were part of it.
 // `word` is the command word as written (a path stays a path) and `args` its arguments, each the argument's text
 // without quotes or null when it holds an expansion. Builtins, keywords and the script's own functions are included in
 // commands, and callers filter them with SHELL_BUILTINS and `functions`.
 export function shellCommands(text) {
-  const result = { commands: [], dynamic: [], functions: new Set(), problems: [] };
+  const result = { commands: [], dynamic: [], functions: new Set(), sourced: [], problems: [] };
   const lineStarts = [0];
   for (let k = 0; k < text.length; k++) if (text[k] === "\n") lineStarts.push(k + 1);
   const lineAt = (index) => {
@@ -121,6 +127,7 @@ function parseScript(src, start, stop, result, lineAt, offset) {
 
   const line = (index) => lineAt(index + offset);
   let current = null; // the command being read, so its arguments are collected
+  let sourcing = null; // the . or source command being read, whose argument names a file that runs as part of this one
   const record = (word, index) => {
     current = { word, line: line(index), args: [] };
     result.commands.push(current);
@@ -130,10 +137,18 @@ function parseScript(src, start, stop, result, lineAt, offset) {
     else runsNext = null;
     pendingScriptArg = base === "trap" ? "trap" : null;
     if (base === "eval") result.problems.push({ text: "eval runs text this reader cannot see", line: line(index) });
+    if (base === "." || base === "source") sourcing = current;
   };
 
-  const endCommand = () => { expectCommand = true; runsNext = null; pendingScriptArg = null; commandName = null; current = null; };
-  const argument = (w) => { if (current) current.args.push(w.literal); };
+  const endCommand = () => { expectCommand = true; runsNext = null; pendingScriptArg = null; commandName = null; current = null; sourcing = null; };
+  const argument = (w) => {
+    if (!current) return;
+    current.args.push(w.literal);
+    if (sourcing === current && current.args.length === 1) {
+      result.sourced.push({ path: w.literal, line: current.line });
+      sourcing = null;
+    }
+  };
 
   while (i < n) {
     const c = src[i];
@@ -261,7 +276,13 @@ function parseScript(src, start, stop, result, lineAt, offset) {
     const after = src.slice(i).match(/^[ \t]*\([ \t]*\)/);
     if (after && w.literal !== null) { result.functions.add(w.literal); i += after[0].length; expectCommand = true; continue; }
 
-    if (w.literal === null) { result.dynamic.push({ text: w.raw, line: line(at) }); expectCommand = false; commandName = w.raw; runsNext = null; continue; }
+    if (w.literal === null) {
+      current = { word: w.raw, line: line(at), args: [] };
+      result.dynamic.push(current);
+      current.text = w.raw;
+      expectCommand = false; commandName = w.raw; runsNext = null;
+      continue;
+    }
     record(w.literal, at);
     expectCommand = false;
   }

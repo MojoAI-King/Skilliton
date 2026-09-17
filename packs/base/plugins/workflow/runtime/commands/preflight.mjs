@@ -1,5 +1,5 @@
-// commands/preflight.mjs: `skilliton preflight`, the checks that run before a machine is set up. Writes nothing
-// except one small file it removes again in each folder it tests. The engine is lib/preflight.mjs.
+// commands/preflight.mjs: `skilliton preflight`, the checks that run before a machine is set up. It sets nothing up;
+// what it writes while testing a folder it takes away again. The engine is lib/preflight.mjs.
 
 import { Refused, SKILLS_REPO, parseArgs, resolveSkillsRepo, say, selfCommand } from "../lib/core.mjs";
 import { TEAM_TEMPLATE, templateMarketplace } from "../lib/fork.mjs";
@@ -14,9 +14,9 @@ export const help = `preflight: check that this machine lets Skilliton work, bef
 
 For a laptop with endpoint security (application allowlisting, ringfencing, an inspecting proxy), this says which of
 the things Skilliton needs are allowed on this machine, and names what IT would have to allow for each one that is
-not. It changes nothing: every program is started once with --version and its output thrown away, each folder is
-tested by writing one small file and removing it again, and the company repository is asked for its branch list with
-prompts turned off.
+not. It sets nothing up: every program is started once with --version and its output thrown away; each folder is
+tested by writing one small file in it and removing it again, creating the folder first if it does not exist yet and
+removing that too; and the company repository is asked for its branch list with prompts turned off.
 
 The programs hooks use are started by the plugin's own probe script, run by its path the way Claude Code runs a hook,
 so a policy that stops scripts running from the plugin folder shows up here. The programs the runtime starts are
@@ -43,7 +43,7 @@ function marketplaceFrom(o) {
   } catch { return undefined; }
 }
 
-export function run(argv) {
+export async function run(argv) {
   const json = argv.includes("--json");
   try {
     const o = parseArgs(argv, { flags: ["json", "no-network", "wide"], options: ["client", "marketplace", "bin-dir", "repo"] }, "preflight");
@@ -52,7 +52,7 @@ export function run(argv) {
       : o.client === "claude-code" ? ["claude"] : o.client === "codex" ? ["codex"]
         : (() => { throw new Refused(`--client must be all, claude-code or codex (got "${o.client}")`); })();
 
-    const report = runPreflight({ clients, marketplace: marketplaceFrom(o), binDir: o["bin-dir"], network: !o["no-network"] });
+    const report = await runPreflight({ clients, marketplace: marketplaceFrom(o), binDir: o["bin-dir"], network: !o["no-network"] });
     if (json) {
       process.stdout.write(`${JSON.stringify({
         schema: "skilliton.result/1", command: "preflight",
@@ -62,7 +62,7 @@ export function run(argv) {
       }, null, 2)}\n`);
       return report.exitCode;
     }
-    say("skilliton preflight (checks only; it writes one small file in each folder it tests and removes it again)");
+    say("skilliton preflight (checks only; in each folder it tests it writes one small file, and creates the folder if it is missing, then removes both again)");
     say("");
     for (const line of reportLines(report, { wide: o.wide })) say(line);
     say("");

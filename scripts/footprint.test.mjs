@@ -25,7 +25,7 @@
 //   node scripts/footprint.test.mjs --self-test  proves each rule fails on known-bad input
 
 import { spawnSync } from "node:child_process";
-import { readFileSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { NETWORK_PROGRAMS, REPO, SHELL_BUILTINS, jsProgramCalls, networkUses, scopeFiles, shellCommands } from "./inventory.mjs";
 
@@ -55,10 +55,13 @@ const PERSISTENCE_PATTERNS = [
 ];
 // Where a child process is deliberately put in its own group, and why. Each of these waits for the child and kills
 // the group if it has to, which is the opposite of letting something outlive the command.
+// Each of these starts the child asynchronously, keeps hold of it, and kills the group when a timeout passes or the
+// command is interrupted: scripts/preflight.test.mjs proves the last one against a program that ignores being asked
+// to stop. A synchronous start cannot make that promise, so a new entry here needs the same shape.
 export const PROCESS_GROUPS = [
   [`${PLUGINS}/workflow/runtime/lib/collectors.mjs`, 1, "a policy's test command, so a timeout can stop the whole group"],
   [`${PLUGINS}/workflow/runtime/lib/delivery.mjs`, 1, "the same, in the delivery gate"],
-  [`${PLUGINS}/workflow/runtime/lib/preflight.mjs`, 1, "one program being checked, so a program that hangs can be taken away with its children"],
+  [`${PLUGINS}/workflow/runtime/lib/preflight.mjs`, 1, "one program being checked, so a program that hangs is taken away with its children"],
 ];
 
 // Absolute paths outside a home folder or a repository that the code may name, and what each is for. Nothing here is
@@ -113,7 +116,9 @@ export function checkPrivileges(files, readFile, groups = PROCESS_GROUPS) {
   for (const path of [...files.js, ...files.shell]) {
     const text = readFile(path);
     for (const { line, number } of codeLines(text)) {
-      if (/detached\s*:/.test(line)) { seen.set(path, (seen.get(path) ?? 0) + 1); continue; }
+      // A line that starts a child in its own group is counted, and still read by every other rule: a rule that let
+      // a line skip the others would be a place to hide one.
+      if (/detached\s*:/.test(line)) seen.set(path, (seen.get(path) ?? 0) + 1);
       for (const [re, what] of [...PRIVILEGE_PATTERNS, ...PERSISTENCE_PATTERNS]) {
         if (re.test(line)) violations.push(`${path}:${number} has ${what} (${line.trim().slice(0, 120)}); Skilliton is user-level only and leaves nothing running`);
       }
@@ -259,17 +264,32 @@ function shippedEntries() {
     const m = /^(\d{6}) [0-9a-f]+ \d\t([\s\S]*)$/.exec(entry);
     if (m) indexModes.set(m[2], m[1]);
   }
-  // Untracked files count too, unless git is told to ignore them: a file nobody added still ships in a release built
-  // from this folder, and it is the untracked one that a check reading only the index would miss.
-  const others = spawnSync("git", ["-C", REPO, "ls-files", "--others", "--exclude-standard", "-z", "--", PLUGINS, "scripts"], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-  if (others.status !== 0) return null;
-  const entries = [...indexModes.keys()].map((path) => ({ path, mode: indexModes.get(path), tracked: true }));
-  for (const path of others.stdout.split("\0").filter(Boolean)) {
-    let st;
-    try { st = statSync(join(REPO, path)); } catch { continue; }
-    entries.push({ path, mode: `100${(st.mode & 0o777).toString(8)}`, tracked: false });
+  // The folder as it is on disk, not as git sees it: a release is built from these folders, so a file nobody added,
+  // and a file git is told to ignore, ship the same as any other. The mode comes from the index for a tracked file
+  // (that is what a release records) and from the file itself otherwise.
+  const entries = [];
+  for (const dir of [PLUGINS, "scripts"]) {
+    for (const path of walkFiles(join(REPO, dir), dir)) {
+      if (IGNORED_ARTEFACTS.includes(path.split("/").pop())) continue;
+      const tracked = indexModes.has(path);
+      entries.push({ path, mode: tracked ? indexModes.get(path) : `100${(statSync(join(REPO, path)).mode & 0o777).toString(8)}`, tracked });
+    }
   }
   return entries;
+}
+
+// Files an operating system leaves behind, which are not part of the product and are never installed by a client.
+const IGNORED_ARTEFACTS = [".DS_Store", "Thumbs.db"];
+
+function walkFiles(dir, prefix, out = []) {
+  for (const name of readdirSync(dir).sort()) {
+    if (name === ".git" || name === "node_modules") continue;
+    const path = join(dir, name);
+    const st = statSync(path);
+    if (st.isDirectory()) walkFiles(path, `${prefix}/${name}`, out);
+    else if (st.isFile()) out.push(`${prefix}/${name}`);
+  }
+  return out;
 }
 
 function main() {

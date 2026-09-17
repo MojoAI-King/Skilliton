@@ -197,32 +197,63 @@ test("a marketplace folder without a catalog is named without contacting anythin
   assert.match(r.out, /the folder has no \.claude-plugin\/marketplace\.json/);
 });
 
-test("a repository the check is run inside cannot rewrite the address it contacts", (t) => {
-  const ctx = fixture(t);
-  // A folder carrying a hostile .git/config, the way a copied repository would. git's ext:: transport runs a command,
-  // and url.<base>.insteadOf points the company's address at it.
-  const hostile = join(ctx.base, "hostile");
-  const marker = join(hostile, "RAN"); // made by mkdir, which is one of the few programs on the fixture's PATH
-  mkdirSync(hostile, { recursive: true });
-  const git = (...args) => spawnSync(toolPath("git"), ["-C", hostile, ...args], { encoding: "utf8", env: { PATH: ctx.tools, HOME: ctx.home, ...GIT_ENV } });
-  git("init", "-q", "-b", "main");
-  writeFileSync(join(hostile, ".git", "config"), `${readFileSync(join(hostile, ".git", "config"), "utf8")}
-[protocol "ext"]
-\tallow = always
-[url "ext::sh -c mkdir% ${marker}% #"]
-\tinsteadOf = https://github.com/
-`);
+// Two ways a folder's own .git/config can make git run a command of its author's choosing: the ext transport, and an
+// ssh command for an address rewritten to ssh. A copied working folder carries that file, and a developer stands in
+// such a folder all day. Each case sets the trap, proves plain git falls into it, and then checks that preflight does
+// not, with the temporary folder inside the hostile one so that no choice of working folder helps.
+for (const trap of [
+  { name: "the ext transport", config: (marker) => `[protocol "ext"]\n\tallow = always\n[url "ext::sh -c mkdir% ${marker}% #"]\n\tinsteadOf = https://github.com/\n` },
+  { name: "an ssh command", config: (marker) => `[url "ssh://example.invalid/x"]\n\tinsteadOf = https://github.com/\n[core]\n\tsshCommand = sh -c 'mkdir ${marker}' #\n` },
+]) {
+  test(`a repository the check is run inside cannot make git run a command through ${trap.name}`, (t) => {
+    const ctx = fixture(t);
+    const hostile = join(ctx.base, "hostile");
+    const marker = join(hostile, "RAN"); // made by mkdir, one of the few programs on the fixture's PATH
+    mkdirSync(hostile, { recursive: true });
+    const gitEnv = { PATH: ctx.tools, HOME: ctx.home, ...GIT_ENV };
+    spawnSync(toolPath("git"), ["-C", hostile, "init", "-q", "-b", "main"], { encoding: "utf8", env: gitEnv });
+    writeFileSync(join(hostile, ".git", "config"), `${readFileSync(join(hostile, ".git", "config"), "utf8")}\n${trap.config(marker)}`);
 
-  // The positive control: plain git in that folder does run the command, so the check below means something.
-  const control = spawnSync(toolPath("git"), ["ls-remote", "--heads", "--", "https://github.com/acme/skills.git"], { cwd: hostile, encoding: "utf8", env: { PATH: ctx.tools, HOME: ctx.home, ...GIT_ENV } });
-  assert.equal(existsSync(marker), true, `the fixture did not make plain git run the command, so this case would prove nothing (git said: ${control.stderr?.trim().slice(0, 300)})`);
-  rmSync(marker, { recursive: true, force: true });
+    // The positive control: plain git in that folder does run the command, so the check below means something.
+    const control = spawnSync(toolPath("git"), ["ls-remote", "--heads", "--", "https://github.com/acme/skills.git"], { cwd: hostile, encoding: "utf8", env: gitEnv });
+    assert.equal(existsSync(marker), true, `the fixture did not make plain git run the command, so this case would prove nothing (git said: ${control.stderr?.trim().slice(0, 300)})`);
+    rmSync(marker, { recursive: true, force: true });
 
-  const r = spawnSync(process.execPath, [join(ctx.repo, "scripts", "skilliton.mjs"), "preflight", "--client", "claude-code", "--bin-dir", ctx.bin, "--marketplace", "acme/skills"], {
-    encoding: "utf8", cwd: hostile, timeout: 120000,
-    env: { PATH: ctx.tools, HOME: ctx.home, LANG: "C.UTF-8", SKILLITON_SELF: "skilliton", SKILLITON_TRUST_DIR: join(ctx.home, "trust"), SKILLITON_JOIN_DIR: join(ctx.home, "joined"), SKILLITON_BACKUPS: join(ctx.home, "backups"), CLAUDE_CONFIG_DIR: join(ctx.home, "claude"), CODEX_HOME: join(ctx.home, "codex") },
+    const r = spawnSync(process.execPath, [join(ctx.repo, "scripts", "skilliton.mjs"), "preflight", "--client", "claude-code", "--bin-dir", ctx.bin, "--marketplace", "acme/skills"], {
+      encoding: "utf8", cwd: hostile, timeout: 120000,
+      env: {
+        PATH: ctx.tools, HOME: ctx.home, LANG: "C.UTF-8", SKILLITON_SELF: "skilliton", TMPDIR: hostile,
+        SKILLITON_TRUST_DIR: join(ctx.home, "trust"), SKILLITON_JOIN_DIR: join(ctx.home, "joined"),
+        SKILLITON_BACKUPS: join(ctx.home, "backups"), CLAUDE_CONFIG_DIR: join(ctx.home, "claude"), CODEX_HOME: join(ctx.home, "codex"),
+      },
+    });
+    assert.equal(existsSync(marker), false, `the repository's configuration made the check run a command:\n${r.stdout}${r.stderr}`);
   });
-  assert.equal(existsSync(marker), false, `the repository's configuration made the check run a command:\n${r.stdout}${r.stderr}`);
+}
+
+test("a program that never answers is stopped with its children, and the check finishes", (t) => {
+  if (process.platform === "win32") return t.skip("process groups work differently on Windows");
+  const ctx = fixture(t);
+  // A program that ignores being asked to stop, with a child of its own holding the output open: the shape that made
+  // a synchronous start wait for ever.
+  // Absolute paths, because the fixture's PATH holds only what the check looks for, and not sleep.
+  standIn(ctx, "git", `#!/bin/bash\ntrap '' TERM\n( /bin/sleep 120 ) &\n/bin/sleep 120\n`, 0o755);
+  const started = Date.now();
+  const r = preflight(ctx, ["--client", "claude-code", "--bin-dir", ctx.bin]);
+  const seconds = (Date.now() - started) / 1000;
+  assert.ok(seconds < 90, `the check took ${seconds}s, so a program that hangs was not stopped`);
+  assert.match(item(r.out, "git"), /SKIPPED\s+git: it did not answer/);
+  const left = spawnSync("pgrep", ["-f", join(ctx.tools, "git")], { encoding: "utf8" });
+  assert.equal(left.stdout.trim(), "", `the check left a program running:\n${left.stdout}`);
+});
+
+test("a token pasted into a marketplace value is never printed back", (t) => {
+  const ctx = fixture(t);
+  for (const value of ["https://joe:ghp_colonform@github.com/acme/skills.git", "https://ghp_bareform@github.com/acme/skills.git", "https://github.com/acme/skills.git?token=ghp_queryform"]) {
+    const r = preflight(ctx, ["--client", "claude-code", "--bin-dir", ctx.bin, "--marketplace", value], { network: true });
+    assert.equal(r.code, 2, r.out);
+    assert.doesNotMatch(r.out, /ghp_[a-z]+form/, `a token was printed back for ${value}:\n${r.out}`);
+  }
 });
 
 test("a marketplace value that is neither a repository nor a folder is refused, with nothing checked", (t) => {

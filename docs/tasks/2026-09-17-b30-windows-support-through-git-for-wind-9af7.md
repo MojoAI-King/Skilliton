@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-17T19:53:46.689Z
+- **Updated:** 2026-09-17T20:27:59.854Z
 
 ## Request
 
@@ -33,6 +33,13 @@ not yet written
 - **Evidence:** claude plugin validate --strict passes with the shell field on 2.1.274 and 2.1.92; full offline suite 33 of 33 after updating the two hook registration tests; no Windows machine has run anything
 - **Next:** the owner runs docs/WINDOWS.md and reports what happens
 - **Git:** main @ e78c914, 22 uncommitted
+
+### 2026-09-17T20:27:59.854Z
+
+- **State:** The second review's blockers and majors are fixed and proven, and the B14 demo kit runs end to end
+- **Evidence:** preflight tests 15 of 15 including a hanging program stopped with its children and both git-config attacks; footprint mutation proved the detached rule no longer hides a line; an ignored binary in the plugin tree is caught; full offline suite 34 of 34; node scripts/demo-day.mjs runs all five steps and the gate rejects the combined result
+- **Next:** close the task records, write the handoff, push
+- **Git:** main @ 9116c0d, 24 uncommitted
 
 ## Handoff
 

@@ -125,6 +125,9 @@ jobs:
       - name: End-to-end demo (disposable project, no model, no network)
         run: node scripts/autopilot-demo.mjs
 
+      - name: The demonstration's five steps (stand-in clients, no model)
+        run: node scripts/demo-day.mjs
+
       - name: Project rehearsal (M1 and M2, offline)
         run: node scripts/rehearsals/projects.mjs --no-evidence
 
