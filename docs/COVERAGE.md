@@ -25,7 +25,13 @@ Kind: Living. Where Skillgate has and has not actually been run: platforms, vers
 ## Releases and signing
 
 - Exercised: git SSH signing with throwaway ed25519 keys that have no passphrase (`scripts/release.test.mjs`, the company release rehearsal). A fork renamed with `company init` (marketplace `acme-skills`) with a plugin outside `packs/base` (license `UNLICENSED`, accepted by `claude plugin validate --strict` on 2.1.273), released, installed from a local folder and verified on Claude Code 2.1.273 and Codex 0.154.0-alpha.6.2 (fork rehearsal).
-- Not exercised: a marketplace added from a GitHub `owner/repo` source (every install so far is from a local folder; M7); update, tamper, rollback and withdrawal under a renamed marketplace (the company release rehearsal keeps the default name).
+- Exercised: a marketplace added from a GitHub `owner/repo` source on Claude Code 2.1.273 and Codex 0.154.0-alpha.6.2, from this public repository with no login (machine rehearsal J8, evidence/rehearsals/2026-09-17-machine); it has no signed release, so verify reports UNKNOWN VERSION there.
+- Not exercised: a private GitHub repository (credentials); a GitHub source holding signed release tags (this repository has none until the owner signs one, B6); update, tamper, rollback and withdrawal under a renamed marketplace (the company release rehearsal keeps the default name).
+
+## Machine setup (`join`)
+
+- Exercised: `join` and `join --undo` on clean Claude Code 2.1.273 and Codex 0.154.0-alpha.6.2 homes with a signed release, a marketplace and plugin installed by hand beforehand, a repeat, and three refusals (machine rehearsal J1 to J7); stand-in clients in CI (`scripts/join.test.mjs`: failure part way, changed launcher and signers, several receipts).
+- Not exercised: the launcher from a real shell session with `~/.local/bin` on PATH (the rehearsal runs it by path); shells other than `/bin/sh` starting it; a person's existing Claude Code or Codex configuration; several companies joined on one real machine; Windows.
 - Not exercised: passphrase-protected keys, ssh-agent, third-party signing programs; a present `.agents/plugins/marketplace.json` (the Codex catalog path, its path-mismatch refusal and `clients.codex` recording); `release create` with evidence of kind `skill-evaluation` or `other`; which cached version Codex loads when several are cached; whether a client's marketplace clone holds release tags.
 
 ## Security evidence

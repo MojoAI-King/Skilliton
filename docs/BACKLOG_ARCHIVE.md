@@ -6,6 +6,7 @@ Each closed item keeps its ID, outcome, closure date and evidence.
 
 | ID | Outcome | Closed | Evidence |
 |---|---|---|---|
+| B12 (M7) | `skillgate join` sets up a machine in one command (company marketplace, plugins, release signers, a verify source, a terminal command) ending VERIFIED on Claude Code and Codex, and `join --undo` reverses it; installing from a GitHub source measured | 2026-09-16 | decision entry "Machine setup runs from a clone of the company repository, with a receipt"; evidence/rehearsals/2026-09-17-machine; `scripts/join.test.mjs` |
 | O18 (from B8) | `verify` reports a file that lost the executable bit its release gives it as attention (exit 1), naming it | 2026-09-16 | DECISIONS.md "Follow-ups closed without owner input"; `scripts/release.test.mjs` |
 | O20 (from B8) | One ID rule for tasks, decisions and lessons in `runtime/lib/ids.mjs` | 2026-09-16 | same decision; `scripts/records.test.mjs` |
 | O5 | `setup.mjs --undo` keeps settings edits made after `--apply` and removes a file `--apply` created | 2026-09-16 | same decision; `scripts/setup.test.mjs` |

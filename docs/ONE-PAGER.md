@@ -24,7 +24,7 @@ Kind: Living. Updated 2026-09-16 with the integrated build. What is proved and w
 |---|---|---|
 | The skills and plugins your team gets | your fork of this repository: `packs/base/` plus your own `packs/<company>/`, named with `skillgate company init` and extended with `new-plugin` and `new-skill` | `node scripts/skillgate.mjs doctor`, `node scripts/packs.test.mjs` |
 | What the assistant is told | `packs/base/plugins/workflow/templates/harness.md` | changes reach projects through `skillgate migrate` (preview, receipt, rollback) |
-| Approved releases | `releases/<version>.json`, signed tags | `skillgate release list`; each developer runs `skillgate verify` |
+| Approved releases | `releases/<version>.json`, signed tags | `skillgate release list`; each developer sets up with `skillgate join` and checks with `skillgate verify` |
 | A project's records | the project's own `docs/`, `DECISIONS.md` and `.skillgate/` | `skillgate status --dir <project>` |
 | Project security evidence | the project's `.skillgate/security/` | `skillgate security status --dir <project>` |
 | What may merge | the project's `.skillgate/delivery.json` and the delivery check on the shared repository | [DELIVERY.md](DELIVERY.md) |
