@@ -25,7 +25,7 @@ The open acceptance items after the 2026-09-16 integration. Details and history 
 | B20 (M10) | A security audit that runs in a Claude Code routine, a git pre-push hook and the merge gate, with recorded findings and evals on planted flaws | open; order 3 | PLAN.md M10 |
 | B21 (M11) | Routines while working: dispatch suggestion, checkpoint snapshot around compaction, maintain suggestion, each measured live on Claude Code | open; order 4 | PLAN.md M11 |
 | B22 (M12) | Enrollment through a company's device management: profile, bundle, first-login setup, detection and offboarding scripts, rings | open; order 2 is the automatic registration spike; a real Intune or Jamf tenant needs the owner | PLAN.md M12; docs/PHASE-3.md riskiest assumption |
-| B23 (M13) | Any AI coding tool: an adapter and a measured CLIENTS.md column per tool | open; order 5 is Cursor with a Grok model (the owner's account), then Grok Build without login (O24, decided); live Cursor sessions need the owner's login on this machine | PLAN.md M13; docs/PHASE-3.md Tool support |
+| B23 (M13) | Any AI coding tool: an adapter and a measured CLIENTS.md column per tool | open; order 5 is Cursor, on the owner's account (O24, decided); live sessions need the owner's Cursor login on this machine; other tools ranked after it | PLAN.md M13; docs/PHASE-3.md Tool support |
 | B11 | The stated Node.js 18 floor either run in CI or raised to a version CI runs, and supported operating systems stated as exercised | open, no owner input needed | docs/COVERAGE.md |
 
 Give each item a stable ID and link its task and decisions. Move a completed item to `docs/BACKLOG_ARCHIVE.md` with its closure date and evidence.
