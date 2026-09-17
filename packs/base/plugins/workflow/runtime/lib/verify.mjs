@@ -249,7 +249,9 @@ export function runVerify({ client = "claude-code", configDir, source, company, 
   if (!state.versions.some((v) => v.releaseRef)) notes.push(`${tilde(repo)} has no skillgate-release/<version> tags at all, so nothing can be approved; if it is a shallow or single-branch clone, fetch its tags (git fetch --tags) and run verify again`);
   for (const r of releases) names.add(client === "codex" ? (r.manifest.clients?.codex?.marketplace ?? r.manifest.marketplace) : r.manifest.marketplace);
   try {
-    const catalog = client === "codex" ? readCodexCatalog(repo) : readClaudeCatalog(repo);
+    // Codex reads .claude-plugin/marketplace.json when there is no Codex catalog (measured on 0.154.0-alpha.6.2), the
+    // same fallback a release manifest records for its codex client.
+    const catalog = client === "codex" ? readCodexCatalog(repo) ?? readClaudeCatalog(repo) : readClaudeCatalog(repo);
     if (catalog) names.add(catalog.name);
   } catch (e) {
     if (!(e instanceof Refused)) throw e;

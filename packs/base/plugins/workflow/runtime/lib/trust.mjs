@@ -15,7 +15,7 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { refuse, selfCommand, tilde, validateName } from "./core.mjs";
@@ -71,6 +71,44 @@ export function validateCompany(company) {
 }
 
 export const trustFilePath = (company) => join(trustDir(), `${company}${TRUST_SUFFIX}`);
+
+// Check a signers file for adding it as a company's trust, refusing (before anything is written) a file that is not a
+// valid allowed_signers file, a trust folder inside a repository, or a different file already trusted for the company.
+// `present` is true when exactly this file is already trusted. Used by `trust add` and `join`.
+export function planTrustAdd(company, signersPath) {
+  validateCompany(company);
+  const source = resolve(signersPath);
+  let st;
+  try { st = statSync(source); } catch { refuse(`--signers ${tilde(source)} does not exist`); }
+  if (!st.isFile()) refuse(`--signers ${tilde(source)} is not a regular file`);
+  if (st.size > MAX_TRUST_BYTES) refuse(`--signers ${tilde(source)} is larger than ${MAX_TRUST_BYTES / 1024} KB, which is not an allowed_signers file`);
+  const bytes = readFileSync(source);
+  if (bytes.includes(0)) refuse(`--signers ${tilde(source)} is a binary file, not an allowed_signers file`);
+  const parsed = parseAllowedSigners(bytes.toString("utf8"));
+  if (parsed.problems.length) refuse(`--signers ${tilde(source)} is not a valid allowed_signers file: ${parsed.problems.map((p) => `${p.line ? `line ${p.line}: ` : ""}${p.problem}`).join("; ")}. Nothing was written.`);
+  if (!parsed.signers.length) refuse(`--signers ${tilde(source)} lists no signers. Nothing was written.`);
+  const dir = trustDir();
+  if (insideGitWorkTree(dir)) refuse(`the trust folder ${tilde(dir)} is inside a Git repository, where a pull or checkout could change whom this machine trusts. Set SKILLGATE_TRUST_DIR to a folder outside every repository. Nothing was written.`);
+  const dest = trustFilePath(company);
+  let existing = null;
+  try {
+    const d = lstatSync(dest);
+    if (d.isSymbolicLink() || !d.isFile()) refuse(`${tilde(dest)} exists and is not a regular file; remove it by hand first. Nothing was written.`);
+    existing = readFileSync(dest);
+  } catch (e) {
+    if (e.code !== "ENOENT") throw e;
+  }
+  if (existing && Buffer.compare(existing, bytes) !== 0) {
+    refuse(`company "${company}" is already trusted with a different signers file (${tilde(dest)}). Changing whom this machine trusts is deliberate: run trust remove --company ${company} --apply first (it keeps a backup), then add again. Nothing was written.`);
+  }
+  return { company, source, bytes, sha256: createHash("sha256").update(bytes).digest("hex"), parsed, dir, dest, present: existing !== null };
+}
+
+// Write a planned trust file; never replaces an existing one.
+export function writeTrustFile(plan) {
+  mkdirSync(plan.dir, { recursive: true, mode: 0o700 });
+  writeFileSync(plan.dest, plan.bytes, { flag: "wx", mode: 0o644 });
+}
 
 export function listTrusted() {
   const dir = trustDir();
