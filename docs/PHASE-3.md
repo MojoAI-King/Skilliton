@@ -208,6 +208,18 @@ The demonstration shows only what has passed its acceptance checks by that day. 
 | 6 | B14 demonstration script covering what passed in 1 to 5 | Nothing unproven is shown |
 | After | M12 bundle and rings, M13 further tools, M14, M8's three repositories, M5 | Each needs the spikes above, owner access, or paid runs |
 
+### The demonstration as planned on 2026-09-17 (B14)
+
+The owner will show how a company would use Skilliton. The plan agreed in conversation, limited to what has passed:
+
+1. **The company package:** a fork renamed with `company init`, one company skill made with `new-plugin` and `new-skill`, and a signed release.
+2. **A new laptop:** `skilliton join` on a clean machine (a container, a second macOS account or a virtual machine), ending VERIFIED. Device management pushing it with no one typing anything is presented as the plan, with the Linux enrollment spike's result as its evidence so far.
+3. **The product repository:** `skilliton prepare` on a small sample application created for the demonstration, never the audience's own code, and the one reviewable commit it makes.
+4. **A developer session:** Claude Code opens with the project state, turns a request into a task, has a force-push blocked by guardrails, and writes a handoff.
+5. **The merge check:** a change that passes alone and breaks once combined is rejected, as `node scripts/autopilot-demo.mjs` shows offline.
+
+Not claimed in it: device-management delivery with no developer command, the merge check running on GitHub itself (B4), Windows (B30), work alongside endpoint security (B29), any time or cost saving, and tools beyond Claude Code and Codex. The kit (the sample application, a scripted run of the five steps and a talk track) is not built yet.
+
 ## Belief check
 
 What the owner described, checked against what can be built and proven. None of it is false as a direction; the corrections are about scope and proof, written down here before the demonstration.
@@ -277,8 +289,8 @@ User-stated at the end of the M9 session:
 | Tool order and accounts | M13 | Decided 2026-09-16: Cursor next, on the owner's Cursor account (O24); other tools, Grok Build included, ranked after that spike. A Cursor login on this machine is needed for live sessions |
 | Access to an Intune or Jamf test tenant, or a spare device | M12 on real device management | Optional; clean containers and accounts cover the files and scripts |
 | A spending ceiling for the comparison runs | M14 | A number |
-| An endpoint-security product to test under (a ThreatLocker trial or a company test tenant) | M12 | One laptop or virtual machine enrolled with a default-deny policy |
-| Whether Windows is in scope, and how (PowerShell versions of the scripts, or requiring WSL or Git Bash) | M12, M13 | A decision |
+| An endpoint-security product to test under (a ThreatLocker trial or a company test tenant) | M12 | Not available as of 2026-09-17: the preflight is proved against blocks created on purpose, and a run under a product stays not measured |
+| Whether Windows is in scope, and how (PowerShell versions of the scripts, or requiring WSL or Git Bash) | M12, M13 | Decided 2026-09-17: in scope, tested on the owner's Windows machine; the approach is to be proposed |
 | Approval for a throwaway private GitHub repository as a company package | M12 | The same kind of approval as B4 |
 | A cloud machine for clean-machine rehearsals | M12 | The owner plans an EC2 instance for virtual machines (2026-09-17); the Linux spike can start locally meanwhile |
 | Existing items | M3, M5, M7 | B2, B3, B4, B6, B7 and B1 in [BACKLOG.md](BACKLOG.md) |
