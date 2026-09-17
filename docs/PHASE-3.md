@@ -258,6 +258,13 @@ Also documented, for later adapters: **Gemini CLI** (skills in `.agents/skills`,
 3. **Company delivery is per tool, and nearly all of it is a file device management can place.** The enrollment bundle (M12) holds one file per configured tool. Cursor's Required plugins and Claude Code's server-managed settings are dashboard settings instead, documented as steps for an administrator.
 4. **Hermes Agent on macOS and Windows** gets skills, instructions, git hooks and the merge gate, but no managed settings, until Hermes supports them there.
 
+## Direction the owner added on 2026-09-17 (not yet planned)
+
+User-stated at the end of the M9 session:
+- **The measure of success:** the product can be built and verified, and it supports teams of developers who build with AI together, at every experience level, following the healthy delivery pipeline a company sets for its staff, automatically and with little effort from the people coding.
+- **Growing each person's skills:** Skilliton should do much of the routine work and also lift up and improve each employee's own skills over time. Nothing in M8 to M14 does this yet. It needs its own milestone, with a way to measure it (for example fewer repeated review findings or interventions per person), before anything is claimed. Backlog B24.
+- **Clean-machine testing:** the owner plans to start an EC2 instance to host virtual machines for the enrollment rehearsals (M12). The Linux part can also run in Docker or Colima on the build machine; cost and any minimum-allocation terms for the chosen instance types are to be checked before starting one.
+
 ## Owner inputs
 
 | Input | Needed for | Smallest version |
@@ -266,6 +273,7 @@ Also documented, for later adapters: **Gemini CLI** (skills in `.agents/skills`,
 | Tool order and accounts | M13 | Decided 2026-09-16: Cursor next, on the owner's Cursor account (O24); other tools, Grok Build included, ranked after that spike. A Cursor login on this machine is needed for live sessions |
 | Access to an Intune or Jamf test tenant, or a spare device | M12 on real device management | Optional; clean containers and accounts cover the files and scripts |
 | A spending ceiling for the comparison runs | M14 | A number |
+| A cloud machine for clean-machine rehearsals | M12 | The owner plans an EC2 instance for virtual machines (2026-09-17); the Linux spike can start locally meanwhile |
 | Existing items | M3, M5, M7 | B2, B3, B4, B6, B7 and B1 in [BACKLOG.md](BACKLOG.md) |
 
 ## Sources
