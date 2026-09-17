@@ -1,6 +1,6 @@
 # Multiplayer AI development: a companion project
 
-Kind: Living. An idea the owner recorded on 2026-09-17 for a separate project with its own repository, meant to work alongside Skilliton. It is not a Skilliton milestone (PLAN.md section 9). Written for the owner and for the Claude session that will start that project. Nothing here is built or researched; beyond what the owner said, the sketch and the questions are proposals to react to.
+Kind: Living. An idea the owner recorded on 2026-09-17 for a separate project with its own repository, meant to work alongside Skilliton. It is not a Skilliton milestone (PLAN.md section 9). Written for the owner and for sessions in this repository; the new project starts from its own standalone brief (last section). Nothing here is built or researched; beyond what the owner said, the sketch and the questions are proposals to react to.
 
 ## Two projects and the line between them
 
@@ -16,7 +16,7 @@ Kind: Living. An idea the owner recorded on 2026-09-17 for a separate project wi
 | Where context lives | Files in the repository: handoff, task records, decisions, lessons | Context that belongs to the team, channel or project |
 | State | Built through M9; the rest of Phase 3 is planned in [PHASE-3.md](PHASE-3.md) | An idea; nothing built |
 
-The owner expects the two to work in conjunction. How they connect is an open question (see the last section before the brief); until it is answered, no Skilliton milestone depends on the multiplayer project.
+The owner expects the two to work in conjunction. How they connect is an open question (see "How it could connect to Skilliton"); until it is answered, no Skilliton milestone depends on the multiplayer project.
 
 ## The analogy
 
@@ -62,8 +62,4 @@ Much of what the pillars call team-owned context already exists in a repository 
 
 ## Starting the new project
 
-A brief to paste into a new Claude session in the new repository:
-
-> We are starting a new project: an environment where a small development team works with AI agents together, live. Read `docs/MULTIPLAYER.md` in the Skilliton repository for the idea, the four pillars and the open questions. Skilliton is a separate project, a harness for each developer, and it stays out of scope here apart from how the two might connect.
->
-> Before writing code: (1) research the prior art named there and record each capability with its source and the date retrieved, marking anything not confirmed as unverified; (2) propose answers to "where the agent runs", "who may do what" and "what teammates can see", security model first; (3) propose the smallest slice that proves the idea with real people, for example two developers watching and steering one Claude Code session on one repository; (4) start a DECISIONS.md and record each choice I make. Ask me before choosing a name, a hosting provider, or anything that costs money.
+Start it from a standalone brief written for a repository that knows nothing about Skilliton. It covers the idea, the pillars, the open questions, a short description of Skilliton and what not to rebuild, working rules, and first steps. That brief is kept outside this repository until the new one exists, and then becomes the new project's own document. This page stays Skilliton's record of the idea and of where Skilliton stops.

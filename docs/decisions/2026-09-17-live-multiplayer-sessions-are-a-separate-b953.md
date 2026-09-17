@@ -8,7 +8,7 @@ Kind: Living. Decision entry.
 
 ## Decision
 
-Live multiplayer sessions, where a team of developers watches and steers one agent session together with context the team owns, are a separate companion project with its own repository. They are not part of Skilliton. Skilliton stays the harness for each developer working with an AI assistant: the company package on every machine, the project records, the security checks and the merge gate. The idea, its four pillars (shared sessions, observable work, live steering and handoffs, team-owned context), open questions and a starting brief are in docs/MULTIPLAYER.md, and PLAN.md section 9 lists it as out of scope.
+Live multiplayer sessions, where a team of developers watches and steers one agent session together with context the team owns, are a separate companion project with its own repository. They are not part of Skilliton. Skilliton stays the harness for each developer working with an AI assistant: the company package on every machine, the project records, the security checks and the merge gate. The idea, its four pillars (shared sessions, observable work, live steering and handoffs, team-owned context), and open questions are in docs/MULTIPLAYER.md, the new project starts from a standalone brief kept outside this repository, and PLAN.md section 9 lists it as out of scope.
 
 ## Why
 
