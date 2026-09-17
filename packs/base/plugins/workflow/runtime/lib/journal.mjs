@@ -33,13 +33,18 @@ export class GitError extends Error {
 // Git hook inherits them, which would make every answer below describe the wrong checkout.
 const REPOSITORY_OVERRIDES = ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_PREFIX", "GIT_OBJECT_DIRECTORY"];
 
+// Options that stop a repository's own configuration from making git start a program. A repository is data, and a
+// copied working folder carries its .git/config with it: core.fsmonitor names a program git runs during an ordinary
+// status (measured), so every git call Skilliton makes turns it off (backlog B33).
+export const NO_REPOSITORY_PROGRAMS = ["-c", "core.fsmonitor=false"];
+
 // Runs git in a folder. Returns { status, stdout, stderr }. Throws GitError only when git could not run at all or
 // timed out; a non-zero exit is returned for the caller to judge. --no-optional-locks keeps `git status` from
 // refreshing the index while a person's own git command may hold its lock.
 export function runGit(dir, args, { timeoutMs = 15000 } = {}) {
   const env = { ...process.env, GIT_OPTIONAL_LOCKS: "0" };
   for (const key of REPOSITORY_OVERRIDES) delete env[key];
-  const r = spawnSync("git", ["-C", dir, "--no-optional-locks", ...args], {
+  const r = spawnSync("git", ["-C", dir, "--no-optional-locks", ...NO_REPOSITORY_PROGRAMS, ...args], {
     encoding: "utf8", timeout: timeoutMs, maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"], env,
   });
   if (r.error) {

@@ -113,6 +113,9 @@ jobs:
       - name: Preflight against blocks made on purpose (missing, unrunnable, unwritable, unreachable)
         run: node --test scripts/preflight.test.mjs
 
+      - name: A repository's own git configuration cannot start a program
+        run: node --test scripts/git-config.test.mjs
+
       - name: Rename to Skilliton (migration 0003 on a project the earlier release prepared, earlier state reported)
         run: node --test scripts/rename.test.mjs
 

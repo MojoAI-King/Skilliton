@@ -31,6 +31,7 @@ import {
   CATALOG_REL, GITIGNORE_LINES, LOCK_REL, RECORDS_README_REL, ROLE_LABELS, SECURITY_README_REL,
   entryFolderReadme, gitignoreWithSkilliton, recordTemplate, recordsReadme, securityReadme,
 } from "./project-files.mjs";
+import { NO_REPOSITORY_PROGRAMS } from "./journal.mjs";
 import { PROTOTYPE_RUNTIME_PATH } from "./prototype-v1.mjs";
 import { LEGACY_CONFIG_REL, LEGACY_NAME, LEGACY_PROJECT_DIR } from "./legacy-names.mjs";
 
@@ -69,7 +70,7 @@ export function resolveGitRoot(dirInput) {
   try { root = realpathSync(resolve(dirInput)); } catch { refuse(`the folder ${argPath(resolve(dirInput))} does not exist or cannot be opened`); }
   if (!lstatSync(root).isDirectory()) refuse(`${argPath(root)} is not a folder`);
   if (!which("git")) throw new OperationFailed("git is not on PATH. Skilliton needs it to confirm the repository root and to keep backups in the Git folder; install git, then run again. Nothing was written");
-  const r = runProgram("git", ["-C", root, "rev-parse", "--show-toplevel", "--absolute-git-dir"], 15000);
+  const r = runProgram("git", ["-C", root, ...NO_REPOSITORY_PROGRAMS, "rev-parse", "--show-toplevel", "--absolute-git-dir"], 15000);
   if (!r.ok) refuse(`${argPath(root)} is not a Git repository (git rev-parse ${r.failure}${r.stderr.trim() ? `: ${r.stderr.trim().split("\n")[0]}` : ""}). Skilliton works on a Git repository root, because its backups live in the Git folder`);
   const [top, gitDir] = r.stdout.split("\n");
   let topReal;
@@ -82,7 +83,7 @@ export function resolveGitRoot(dirInput) {
 }
 
 export function currentBranch(root) {
-  const r = runProgram("git", ["-C", root, "symbolic-ref", "--short", "-q", "HEAD"], 15000);
+  const r = runProgram("git", ["-C", root, ...NO_REPOSITORY_PROGRAMS, "symbolic-ref", "--short", "-q", "HEAD"], 15000);
   const name = r.ok ? r.stdout.trim() : "";
   return name || null;
 }

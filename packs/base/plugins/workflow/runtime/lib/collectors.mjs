@@ -13,6 +13,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { NO_REPOSITORY_PROGRAMS } from './journal.mjs';
 import {
   LIMIT, PRIVATE_EVIDENCE_DIR, SECRET_SHAPES, SecurityRefusal,
   appendEvidence, closeEvidenceFile, createEvidenceFile, createRecord, digest, fingerprintAttachment, inspectPath,
@@ -48,14 +49,14 @@ function pluginVersion() {
 export function toolVersions() {
   let git = null;
   try {
-    const r = spawnSync('git', ['--version'], { encoding: 'utf8', timeout: 20000, stdio: ['ignore', 'pipe', 'ignore'] });
+    const r = spawnSync('git', [...NO_REPOSITORY_PROGRAMS, '--version'], { encoding: 'utf8', timeout: 20000, stdio: ['ignore', 'pipe', 'ignore'] });
     if (!r.error && r.status === 0) git = /^git version (\S+(?: \([^)]{1,40}\))?)/.exec(r.stdout.trim())?.[1] ?? null;
   } catch { git = null; }
   return { node: process.version, git, plugin: pluginVersion() };
 }
 
 function runGit(root, args, maxBuffer = 16 * 1024 * 1024) {
-  const r = spawnSync('git', ['-C', root, ...args], { timeout: 120000, maxBuffer, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' } });
+  const r = spawnSync('git', ['-C', root, ...NO_REPOSITORY_PROGRAMS, ...args], { timeout: 120000, maxBuffer, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' } });
   if (r.error?.code === 'ENOENT') fail('GIT_NOT_FOUND');
   if (r.error) fail('GIT_FAILED', `git ${args[0]} did not finish (${r.error.code ?? 'error'})`);
   return { status: r.status, stdout: r.stdout };
@@ -64,7 +65,7 @@ function runGit(root, args, maxBuffer = 16 * 1024 * 1024) {
 // true: git ignores .skilliton/private-evidence/; false: it does not; null: it could not be checked.
 export function privateEvidenceIgnored(root) {
   try {
-    const r = spawnSync('git', ['-C', root, 'check-ignore', '-q', '--no-index', '--', `${PRIVATE_EVIDENCE_DIR}/probe.txt`], { timeout: 20000, stdio: 'ignore' });
+    const r = spawnSync('git', ['-C', root, ...NO_REPOSITORY_PROGRAMS, 'check-ignore', '-q', '--no-index', '--', `${PRIVATE_EVIDENCE_DIR}/probe.txt`], { timeout: 20000, stdio: 'ignore' });
     if (r.error) return null;
     return r.status === 0 ? true : r.status === 1 ? false : null;
   } catch { return null; }
