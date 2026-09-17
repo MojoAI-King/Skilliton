@@ -1,4 +1,4 @@
-// commands/join.mjs: `skillgate join`, which sets up this machine for a company's Skilliton in one previewable command
+// commands/join.mjs: `skilliton join`, which sets up this machine for a company's Skilliton in one previewable command
 // and takes that setup back out with --undo. The engine is lib/join.mjs; the contract is docs/CONTRACTS.md section 13.
 
 import { Refused, backupFile, newStamp, parseArgs, refuse, resolveSkillsRepo, say, selfCommand, tilde } from "../lib/core.mjs";
@@ -13,20 +13,20 @@ export const help = `join: set up this machine for a company's Skilliton, then v
   join --undo --company <name> [--claude <path>] [--codex <path>] [--apply]
 
 Run it from a full clone of the company skills repository:
-  git clone https://github.com/<owner>/<repo> && node <repo>/scripts/skillgate.mjs join --company <name> --signers <file>
+  git clone https://github.com/<owner>/<repo> && node <repo>/scripts/skilliton.mjs join --company <name> --signers <file>
 
 For each coding client found (Claude Code, Codex; --client picks one) join adds the company marketplace and installs
 the plugins the team settings template enables (--plugins overrides; workflow is required; verify expects every
 plugin of the newest approved release, so installing fewer ends with NOT INSTALLED and exit 1). It trusts the release
 signers from --signers, a file the company gives you through a channel other than the repository. It writes a
-skillgate launcher into --bin-dir (default ~/.local/bin) that runs the clone's command line, and says so when that
+skilliton launcher into --bin-dir (default ~/.local/bin) that runs the clone's command line, and says so when that
 folder is not on PATH; it never edits a shell profile. Then it runs verify for each client against the clone.
 
 --marketplace defaults to the GitHub repository in templates/project-settings.json. A marketplace of the same name
 from a different source, a different signers file already trusted for the company, a shallow clone, or a catalog and
 template that disagree are refused before anything is written. Anything already in place is left as it is.
 
-Everything join adds is recorded in $SKILLGATE_JOIN_DIR/<company>.json (default ~/.config/skillgate/joined/), updated
+Everything join adds is recorded in $SKILLITON_JOIN_DIR/<company>.json (default ~/.config/skilliton/joined/), updated
 after each step, so a failure part way can be undone. join --undo uninstalls the plugins join installed, removes the
 marketplace when join added it and nothing else was installed from it, and removes the signers file and launcher when
 they are unchanged; it keeps what was there before join and says what it kept. Measured limits: Claude Code leaves
@@ -59,7 +59,7 @@ function join(o) {
     binDir: o["bin-dir"], noLauncher: o["no-launcher"], claude: o.claude, codex: o.codex, trustPlan,
   });
 
-  say(`skillgate join${o.apply ? "" : " (preview; nothing written)"}`);
+  say(`skilliton join${o.apply ? "" : " (preview; nothing written)"}`);
   say(`company: ${plan.company}`);
   say(`skills repository: ${tilde(plan.repo)} (commit ${plan.clone.head ?? "unknown"}, ${plan.clone.releaseTags} release tag(s))`);
   say(`marketplace: ${plan.market.name} from ${plan.market.source.kind === "github" ? `GitHub ${plan.market.source.location}` : `folder ${tilde(plan.market.source.location)}`}`);
@@ -79,8 +79,8 @@ function join(o) {
   say("terminal command:");
   if (l.action === "none") say("  skipped (--no-launcher)");
   else if (l.action === "skip") say(`  not written: ${l.reason}`);
-  else step(l.action === "present", `${tilde(l.path)}, which runs ${tilde(plan.repo)}/scripts/skillgate.mjs`);
-  if (l.action !== "none" && !l.onPath) say(`  note: ${tilde(l.dir)} is not on PATH. To use skillgate in new terminals, add this line to your shell profile: export PATH="${l.dir}:$PATH"`);
+  else step(l.action === "present", `${tilde(l.path)}, which runs ${tilde(plan.repo)}/scripts/skilliton.mjs`);
+  if (l.action !== "none" && !l.onPath) say(`  note: ${tilde(l.dir)} is not on PATH. To use skilliton in new terminals, add this line to your shell profile: export PATH="${l.dir}:$PATH"`);
   if (!plan.clone.releaseTags) say(`note: ${tilde(plan.repo)} has no release tags yet, so verify will not find an approved release until your company signs one and you fetch its tags (git -C ${tilde(plan.repo)} fetch --tags).`);
   say("");
 
@@ -117,7 +117,7 @@ function join(o) {
   const launcherOk = l.action !== "skip";
   say("");
   say(allVerified && launcherOk
-    ? `Done: this machine is set up for ${plan.company}. Start a new session in any project; to prepare one, run skillgate prepare --dir <project>.`
+    ? `Done: this machine is set up for ${plan.company}. Start a new session in any project; to prepare one, run skilliton prepare --dir <project>.`
     : `Set up, with attention needed above${launcherOk ? "" : " (the terminal command was not written)"}. To take it back out: ${selfCommand()} join --undo --company ${plan.company} --apply`);
   return allVerified && launcherOk ? 0 : 1;
 }
@@ -129,7 +129,7 @@ function undo(o) {
   if (o["no-launcher"]) refuse("join --undo takes no --no-launcher: it removes what the receipt records");
   const plan = planUndo({ company: o.company, claude: o.claude, codex: o.codex });
 
-  say(`skillgate join --undo${o.apply ? "" : " (preview; nothing written)"}`);
+  say(`skilliton join --undo${o.apply ? "" : " (preview; nothing written)"}`);
   say(`company: ${plan.company}, joined from ${tilde(plan.receipt.source)} (receipt ${tilde(plan.path)})`);
   for (const c of plan.clients) {
     say(`${c.driver.label} (${tilde(c.home)}):`);

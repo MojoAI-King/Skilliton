@@ -1,7 +1,7 @@
-// collectors.mjs: the evidence collectors behind `skillgate security collect <name>` (docs/CONTRACTS.md sections 12
+// collectors.mjs: the evidence collectors behind `skilliton security collect <name>` (docs/CONTRACTS.md sections 12
 // and 14).
 //
-// Each collector gathers real evidence, saves it under .skillgate/private-evidence/ (local; prepare adds it to
+// Each collector gathers real evidence, saves it under .skilliton/private-evidence/ (local; prepare adds it to
 // .gitignore), and records one observation through security.mjs whose note names the collector, its version, and the
 // node and git versions. Without apply a collector only plans: it runs no check and writes nothing. A collector that
 // cannot run records nothing and throws SecurityRefusal with the reason. Collectors never print: `log` receives
@@ -23,8 +23,8 @@ import {
 export const HIGH_CONFIDENCE_RULES = ['private-key-block', 'known-token-prefix', 'json-web-token'];
 
 const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-export const DELIVERY_REL = '.skillgate/delivery.json';
-export const DELIVERY_SCHEMA = 'skillgate.delivery/1';
+export const DELIVERY_REL = '.skilliton/delivery.json';
+export const DELIVERY_SCHEMA = 'skilliton.delivery/1';
 const DELIVERY_LIMIT = 256 * 1024;
 const DEFAULT_TIMEOUT_SECONDS = 600;
 const BRANCH_RE = /^(?!.*\.\.)(?!\/)(?!.*\/$)[A-Za-z0-9._/-]{1,100}$/;
@@ -61,7 +61,7 @@ function runGit(root, args, maxBuffer = 16 * 1024 * 1024) {
   return { status: r.status, stdout: r.stdout };
 }
 
-// true: git ignores .skillgate/private-evidence/; false: it does not; null: it could not be checked.
+// true: git ignores .skilliton/private-evidence/; false: it does not; null: it could not be checked.
 export function privateEvidenceIgnored(root) {
   try {
     const r = spawnSync('git', ['-C', root, 'check-ignore', '-q', '--no-index', '--', `${PRIVATE_EVIDENCE_DIR}/probe.txt`], { timeout: 20000, stdio: 'ignore' });
@@ -79,7 +79,7 @@ function requireControl(catalog, control, collector) {
 }
 
 function reviewerFor(collector, reviewer) {
-  const label = reviewer ?? `skillgate collect ${collector}`;
+  const label = reviewer ?? `skilliton collect ${collector}`;
   if (!textField(label, 120)) fail('INVALID_RECORD_INPUT');
   return label;
 }
@@ -277,7 +277,7 @@ export async function collectTests(root, { sources = [], control, reviewer, appl
 
 // Files the evidence engine validates against the same shapes on every read; their fingerprints are 64-character
 // hashes by design, which the long-encoded-run shape would always match.
-const engineValidated = (rel) => rel === '.skillgate/security/catalog.json' || rel === '.skillgate/security/applicability.json' || /^\.skillgate\/security\/records\/[a-f0-9-]{36}\.json$/.test(rel);
+const engineValidated = (rel) => rel === '.skilliton/security/catalog.json' || rel === '.skilliton/security/applicability.json' || /^\.skilliton\/security\/records\/[a-f0-9-]{36}\.json$/.test(rel);
 const SKIP_REASONS = {
   MISSING_FILE: 'listed by git but missing from the working tree',
   SYMLINK_REFUSED: 'a symbolic link, not followed',

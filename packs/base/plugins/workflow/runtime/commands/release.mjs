@@ -1,4 +1,4 @@
-// commands/release.mjs: `skillgate release create | sign | withdraw | list`.
+// commands/release.mjs: `skilliton release create | sign | withdraw | list`.
 // The engine is lib/release.mjs; the contract is docs/CONTRACTS.md section 13 and releases/SCHEMA.md.
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -24,16 +24,16 @@ create   builds releases/<x.y.z>.json: every plugin in .claude-plugin/marketplac
          untracked or ignored files, the version already has a manifest or tag, a plugin path escapes the repository
          (.., absolute, or through a symbolic link), or a plugin's .claude-plugin and .codex-plugin versions disagree.
 sign     checks that the manifest is committed and valid and that every plugin folder still matches it, then runs
-         git tag -s skillgate-release/<x.y.z> with the message "skillgate release <x.y.z>" and the line
+         git tag -s skilliton-release/<x.y.z> with the message "skilliton release <x.y.z>" and the line
          "manifest-sha256: <hex>". Git signs with your own configured SSH key (gpg.format ssh); Skilliton never passes
          a key. Approval is that signed tag, checked against each machine's trust file.
-withdraw runs git tag -s skillgate-withdrawn/<x.y.z> on the approved commit with the line "reason: <text>". Verify
+withdraw runs git tag -s skilliton-withdrawn/<x.y.z> on the approved commit with the line "reason: <text>". Verify
          then reports installed copies of that release as WITHDRAWN; withdrawal does not disable or remove them.
 list     shows every version: approved (its tag verifies against the trust file named by --company, or the only one
          configured, and the manifest matches the signed hash), unapproved (why), and withdrawn. Writes nothing.
 
 create, sign and withdraw preview by default and write or tag only with --apply. --repo defaults to the skills
-repository this copy of skillgate runs from. Tags are not pushed; that stays your step.
+repository this copy of skilliton runs from. Tags are not pushed; that stays your step.
 Exit codes: 0 complete; 1 a tag was created but is not SSH-signed; 2 refused or invalid (for list: trust is not
 configured, or a tag or manifest does not check out); 3 an operation failed.`;
 
@@ -65,7 +65,7 @@ async function create(argv) {
   if (o.version === undefined) refuse("release create needs --version <x.y.z>");
   const plan = await planRelease({ repoInput: repoOption(o), version: o.version, evidence });
   const m = plan.manifest;
-  say(`skillgate release create ${m.release}${o.apply ? "" : " (preview; nothing written)"}`);
+  say(`skilliton release create ${m.release}${o.apply ? "" : " (preview; nothing written)"}`);
   say(`repository: ${tilde(plan.repo)} at commit ${short(plan.head)}`);
   say(`marketplace: ${m.marketplace} (${m.components.length} plugin(s))`);
   const width = Math.max(...m.components.map((c) => c.name.length));
@@ -114,7 +114,7 @@ function sign(argv) {
   if (o._.length !== 1) refuse("release sign needs exactly one version: release sign <x.y.z>");
   const version = o._[0];
   const plan = planSign(repoOption(o), version);
-  say(`skillgate release sign ${version}${o.apply ? "" : " (preview; nothing tagged)"}`);
+  say(`skilliton release sign ${version}${o.apply ? "" : " (preview; nothing tagged)"}`);
   say(`repository: ${tilde(plan.repo)}`);
   say(`manifest: ${manifestRel(version)} at commit ${short(plan.head)}, manifest-sha256 ${plan.manifestSha256}`);
   say("checked: the manifest is committed and valid, the version has no tag yet, and every plugin folder still matches the manifest");
@@ -132,7 +132,7 @@ function withdraw(argv) {
   if (o._.length !== 1) refuse("release withdraw needs exactly one version: release withdraw <x.y.z> --reason \"<text>\"");
   const version = o._[0];
   const plan = planWithdraw(repoOption(o), version, o.reason);
-  say(`skillgate release withdraw ${version}${o.apply ? "" : " (preview; nothing tagged)"}`);
+  say(`skilliton release withdraw ${version}${o.apply ? "" : " (preview; nothing tagged)"}`);
   say(`repository: ${tilde(plan.repo)}`);
   say(`withdraws: ${RELEASE_TAG}${version} (commit ${short(plan.target)})`);
   say(`reason: ${plan.reason}`);
@@ -175,7 +175,7 @@ function list(argv) {
     trustProblem = e.message;
   }
   const state = readReleaseState(repo, trust);
-  say("skillgate release list (writes nothing)");
+  say("skilliton release list (writes nothing)");
   say(`repository: ${tilde(repo)}`);
   say(trust ? `trust: company ${trust.company}${trust.inferred ? " (the only company configured)" : ""}, ${tilde(trust.path)}, ${trust.signers.length} signer(s)` : `trust: NOT CONFIGURED (${trustProblem})`);
   for (const n of state.notes) say(`note: ${n}`);

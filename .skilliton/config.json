@@ -12,7 +12,7 @@
       ".claude-plugin/marketplace.json",
       "docs/CONTRACTS.md",
       "packs/base/plugins/workflow/templates/harness.md",
-      "packs/base/plugins/workflow/runtime/skillgate.mjs",
+      "packs/base/plugins/workflow/runtime/skilliton.mjs",
       "packs/base/plugins/workflow/runtime/lib/core.mjs",
       "packs/base/plugins/workflow/runtime/lib/config.mjs",
       "packs/base/plugins/workflow/hooks/hooks.json",
@@ -56,14 +56,14 @@
     "integrationBranches": [
       "main"
     ],
-    "version": 2,
+    "version": 3,
     "directories": {
       "tasks": "docs/tasks",
       "decisions": "docs/decisions",
       "lessons": "docs/lessons"
     },
     "requires": {
-      "workflow": "0.3.0"
+      "workflow": "0.6.0"
     }
   }
 }

@@ -1,8 +1,8 @@
 // join.mjs: set up one machine for a company's Skilliton, and take that setup back out (docs/CONTRACTS.md section 13).
 //
-// `skillgate join` runs from a full clone of the company skills repository. For each coding client found it adds the
+// `skilliton join` runs from a full clone of the company skills repository. For each coding client found it adds the
 // company marketplace and installs the plugins the team settings template enables; it records the release signers
-// from a file the company hands out separately; it writes a small `skillgate` launcher into a folder meant for the
+// from a file the company hands out separately; it writes a small `skilliton` launcher into a folder meant for the
 // terminal path; and it finishes with verify against that clone. Everything it adds goes into a receipt, one per
 // company, so `join --undo` removes exactly that and keeps whatever was there before.
 //
@@ -26,9 +26,10 @@ import { TEAM_TEMPLATE, templateMarketplace, validateRepo } from "./fork.mjs";
 import { readClaudeCatalog } from "./release.mjs";
 import { runGit, trustFilePath, validateCompany } from "./trust.mjs";
 import { claudeConfigDir, codexHome, readClaudeInstalls, readCodexInstalls } from "./verify.mjs";
+import { LEGACY_COMMAND, legacyJoinDir } from "./legacy-names.mjs";
 
-export const RECEIPT_SCHEMA = "skillgate.join/1";
-export const LAUNCHER_NAME = "skillgate";
+export const RECEIPT_SCHEMA = "skilliton.join/1";
+export const LAUNCHER_NAME = "skilliton";
 const CLIENT_TIMEOUT_MS = 300000;
 const SHA256_RE = /^[0-9a-f]{64}$/;
 
@@ -46,7 +47,7 @@ function realpathOrNull(path) {
 // ---------- receipts ----------
 
 export function joinDir() {
-  return resolve(process.env.SKILLGATE_JOIN_DIR || join(homedir(), ".config", "skillgate", "joined"));
+  return resolve(process.env.SKILLITON_JOIN_DIR || join(homedir(), ".config", "skilliton", "joined"));
 }
 
 export const receiptPath = (company) => join(joinDir(), `${company}.json`);
@@ -59,7 +60,7 @@ function receiptProblem(r, company) {
   if (!isPlainObject(m) || typeof m.name !== "string" || !NAME_RE.test(m.name) || !["github", "directory"].includes(m.kind) || typeof m.location !== "string") return "marketplace is not { name, kind, location }";
   if (r.trust !== null && !(isPlainObject(r.trust) && typeof r.trust.path === "string" && isAbsolute(r.trust.path) && SHA256_RE.test(r.trust.sha256 ?? ""))) return "trust is not null or { path, sha256 }";
   const l = r.launcher;
-  if (l !== null && !(isPlainObject(l) && typeof l.path === "string" && isAbsolute(l.path) && basename(l.path) === LAUNCHER_NAME && typeof l.createdFolder === "boolean")) return "launcher is not null or { path to a file named skillgate, createdFolder }";
+  if (l !== null && !(isPlainObject(l) && typeof l.path === "string" && isAbsolute(l.path) && basename(l.path) === LAUNCHER_NAME && typeof l.createdFolder === "boolean")) return "launcher is not null or { path to a file named skilliton, createdFolder }";
   if (!isPlainObject(r.clients)) return "clients is not an object";
   for (const [id, c] of Object.entries(r.clients)) {
     if (!Object.hasOwn(DRIVERS, id)) return `clients names an unknown client ${JSON.stringify(id)}`;
@@ -91,7 +92,7 @@ export function readReceipt(company) {
 export function joinedSource(company) {
   if (company !== undefined) {
     const r = readReceipt(company);
-    return r ? { source: r.source } : { reason: `company ${company} has not joined this machine with skillgate join` };
+    return r ? { source: r.source } : { reason: `company ${company} has not joined this machine with skilliton join` };
   }
   let names;
   try { names = readdirSync(joinDir()).filter((n) => n.endsWith(".json")).map((n) => n.slice(0, -".json".length)).filter((n) => NAME_RE.test(n)).sort(); } catch (e) {
@@ -99,7 +100,7 @@ export function joinedSource(company) {
     names = [];
   }
   if (names.length === 1) return { source: readReceipt(names[0]).source };
-  return { reason: names.length ? `several companies joined this machine (${names.join(", ")}); pass --company <name>` : "no company has joined this machine with skillgate join" };
+  return { reason: names.length ? `several companies joined this machine (${names.join(", ")}); pass --company <name>` : "no company has joined this machine with skilliton join" };
 }
 
 // Written to a new temporary file and renamed, so a receipt is never half written.
@@ -242,7 +243,7 @@ function inspectClone(repo) {
     refuse(`${tilde(repo)} is a shallow clone, which can miss the signed release tags verify checks against. Run: git -C ${tilde(repo)} fetch --unshallow --tags, then join again. Nothing was changed.`);
   }
   const head = runGit(repo, ["rev-parse", "--short", "HEAD"]);
-  const tags = runGit(repo, ["tag", "--list", "skillgate-release/*"]);
+  const tags = runGit(repo, ["tag", "--list", "skilliton-release/*"]);
   return { head: head.ok ? head.stdout.trim() : null, releaseTags: tags.ok ? tags.stdout.split("\n").filter(Boolean).length : 0 };
 }
 
@@ -282,7 +283,7 @@ function planPlugins(market, requested) {
   }
   const unknown = plugins.filter((p) => !market.catalogPlugins.includes(p));
   if (unknown.length) refuse(`the catalog does not list ${unknown.join(", ")}, so it cannot be installed. Nothing was changed.`);
-  if (!plugins.includes("workflow")) refuse("the plugins to install do not include workflow, which carries the skillgate runtime and verify; add it. Nothing was changed.");
+  if (!plugins.includes("workflow")) refuse("the plugins to install do not include workflow, which carries the skilliton runtime and verify; add it. Nothing was changed.");
   return plugins;
 }
 
@@ -301,13 +302,13 @@ const shellQuote = (text) => `'${text.replace(/'/g, `'\\''`)}'`;
 export function launcherText(company, repo) {
   return [
     "#!/bin/sh",
-    `# skillgate launcher for company ${company}, written by \`skillgate join\`; \`skillgate join --undo --company ${company}\` removes it.`,
-    `# It runs the Skillgate command line from the company skills repository clone ${repo.replace(/[\r\n]/g, " ")}.`,
+    `# skilliton launcher for company ${company}, written by \`skilliton join\`; \`skilliton join --undo --company ${company}\` removes it.`,
+    `# It runs the Skilliton command line from the company skills repository clone ${repo.replace(/[\r\n]/g, " ")}.`,
     "if ! command -v node >/dev/null 2>&1; then",
-    "  echo \"skillgate: node was not found on PATH. Install Node.js 18 or later, then run the command again. Nothing was run.\" >&2",
+    "  echo \"skilliton: node was not found on PATH. Install Node.js 18 or later, then run the command again. Nothing was run.\" >&2",
     "  exit 3",
     "fi",
-    `SKILLGATE_SELF="\${SKILLGATE_SELF:-skillgate}" exec node ${shellQuote(join(repo, "scripts", "skillgate.mjs"))} "$@"`,
+    `SKILLITON_SELF="\${SKILLITON_SELF:-skilliton}" exec node ${shellQuote(join(repo, "scripts", "skilliton.mjs"))} "$@"`,
     "",
   ].join("\n");
 }
@@ -331,8 +332,20 @@ function planLauncher(company, repo, binDir, disabled) {
 
 // ---------- join ----------
 
+// A machine set up for this company before the rename has a receipt under the earlier name. Joining again would add a
+// second marketplace and launcher and record the first setup's changes as already present, so its undo could never
+// remove them. Only the release that wrote the receipt reads it, so it is named, not read.
+function refuseLegacySetup(company) {
+  const path = join(legacyJoinDir(), `${company}.json`);
+  let present = false;
+  try { lstatSync(path); present = true; } catch (e) { if (e.code !== "ENOENT" && e.code !== "ENOTDIR") throw e; }
+  if (!present) return;
+  refuse(`company ${company} was set up on this machine before the rename to Skilliton (its receipt is ${tilde(path)}). Remove that setup first with the release that wrote it: in a clone of the company skills repository checked out at a commit from before the rename, run node scripts/${LEGACY_COMMAND}.mjs join --undo --company ${company} --apply, then run join here again. Nothing was changed.`);
+}
+
 export function planJoin({ repo, company, client = "all", marketplace, plugins, binDir, noLauncher, claude, codex, trustPlan }) {
   validateCompany(company);
+  refuseLegacySetup(company);
   if (!["all", ...Object.keys(DRIVERS)].includes(client)) refuse(`--client must be all, claude-code or codex (got "${client}")`);
   const clone = inspectClone(repo);
   const market = planMarketplace(repo, marketplace);
@@ -344,7 +357,7 @@ export function planJoin({ repo, company, client = "all", marketplace, plugins, 
     if (realpathOrNull(previous.source) !== realpathSync(repo) || previous.marketplace.name !== market.name || !sameSource(previous.marketplace, market.source)) {
       refuse(`company ${company} already joined this machine from ${tilde(previous.source)} (marketplace ${previous.marketplace.name} from ${sourceLabel(previous.marketplace)}). ${again}`);
     }
-    if (previous.trust && previous.trust.path !== trustPlan.dest) refuse(`company ${company} trusted its signers at ${tilde(previous.trust.path)}, but the trust folder is now ${tilde(trustPlan.dir)}; set SKILLGATE_TRUST_DIR as it was, or undo first. ${again}`);
+    if (previous.trust && previous.trust.path !== trustPlan.dest) refuse(`company ${company} trusted its signers at ${tilde(previous.trust.path)}, but the trust folder is now ${tilde(trustPlan.dir)}; set SKILLITON_TRUST_DIR as it was, or undo first. ${again}`);
     if (previous.launcher && launcher.action !== "none" && previous.launcher.path !== launcher.path) refuse(`company ${company} wrote its terminal command at ${tilde(previous.launcher.path)}, not ${tilde(launcher.path)}; pass --bin-dir ${tilde(dirname(previous.launcher.path))}, or undo first. ${again}`);
   }
 
@@ -482,7 +495,7 @@ export function planUndo({ company, claude, codex }) {
   let trust = { action: "none" };
   if (receipt.trust) {
     const path = trustFilePath(company);
-    if (receipt.trust.path !== path) refuse(`the receipt records the signers file at ${tilde(receipt.trust.path)}, but company ${company}'s trust file is ${tilde(path)}; set SKILLGATE_TRUST_DIR as it was when joining. Nothing was changed.`);
+    if (receipt.trust.path !== path) refuse(`the receipt records the signers file at ${tilde(receipt.trust.path)}, but company ${company}'s trust file is ${tilde(path)}; set SKILLITON_TRUST_DIR as it was when joining. Nothing was changed.`);
     const st = lstatOrNull(path);
     if (!st) trust = { action: "gone", path };
     else if (st.isFile() && sha256(readFileSync(path)) === receipt.trust.sha256) trust = { action: "remove", path };

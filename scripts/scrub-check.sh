@@ -7,7 +7,7 @@
 #   3. an absolute home-directory path (macOS or Linux style)
 #
 # The denylist is NOT in this repo, because a list of names to keep out of the repo is itself
-# a list of names. It lives at $SKILLGATE_DENYLIST (default ~/.config/skillgate/denylist),
+# a list of names. It lives at $SKILLITON_DENYLIST (default ~/.config/skilliton/denylist),
 # one case-insensitive extended regex per line, # for comments.
 # If the denylist is missing, the name scan did not run, and this script says so and exits 2.
 # A check that cannot run is never reported as a check that found nothing.
@@ -25,7 +25,16 @@
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$here/.." && pwd)"
-DENY="${SKILLGATE_DENYLIST:-$HOME/.config/skillgate/denylist}"
+DENY="${SKILLITON_DENYLIST:-$HOME/.config/skilliton/denylist}"
+# Before the rename to Skilliton the default was ~/.config/skillgate/denylist. That file is not read; it is named, so a
+# name scan that did not run is never mistaken for one that found nothing.
+LEGACY_DENY="$HOME/.config/skillgate/denylist"
+deny_missing() {
+  echo "NAME SCAN NOT RUN: no denylist at the configured path (set SKILLITON_DENYLIST)"
+  if [ -z "${SKILLITON_DENYLIST:-}" ] && [ -f "$LEGACY_DENY" ]; then
+    echo "  A denylist exists at the earlier default, ~/.config/skillgate/denylist, which is no longer read. Move it: mkdir -p ~/.config/skilliton && mv ~/.config/skillgate/denylist ~/.config/skilliton/denylist"
+  fi
+}
 EN=$(printf '\xe2\x80\x93'); EM=$(printf '\xe2\x80\x94')
 HOMEPATH='(/Users|/home)/[A-Za-z0-9._-]+/'
 
@@ -99,8 +108,8 @@ if [ "${1:-}" = "--self-test" ]; then
     echo "SELF-TEST NOT RUN: git could not build the history fixture"; exit 2
   fi
   hist=0
-  SKILLGATE_DENYLIST="$DENY" bash "$repo/scripts/scrub-check.sh" --history >/dev/null 2>&1; [ $? -eq 0 ] && hist=$((hist+1))
-  SKILLGATE_DENYLIST="$DENY" bash "$repo/scripts/scrub-check.sh" --history-all >/dev/null 2>&1; [ $? -eq 1 ] && hist=$((hist+1))
+  SKILLITON_DENYLIST="$DENY" bash "$repo/scripts/scrub-check.sh" --history >/dev/null 2>&1; [ $? -eq 0 ] && hist=$((hist+1))
+  SKILLITON_DENYLIST="$DENY" bash "$repo/scripts/scrub-check.sh" --history-all >/dev/null 2>&1; [ $? -eq 1 ] && hist=$((hist+1))
   [ $hist -eq 2 ] || { echo "SELF-TEST FAIL: history scope: --history must pass a clean branch and --history-all must fail on a dash in another branch"; exit 1; }
   echo "self-test passed: clean tree passes; names, dashes, and home paths each fail; --history reads the branch and --history-all every ref"; exit 0
 fi
@@ -112,7 +121,7 @@ if [ "${1:-}" = "--path" ]; then
   # PATH_MODE: list every file (not only what git tracks), and make grep print the file name even when the folder
   # holds one file; without -H a lone file's hits print as line:text, and cut would show the matched text.
   PATH_MODE=1
-  if [ ! -f "$DENY" ]; then echo "NAME SCAN NOT RUN: no denylist at the configured path (set SKILLGATE_DENYLIST)"; fi
+  if [ ! -f "$DENY" ]; then deny_missing; fi
   scan_tree "$target"; total=$?
   if [ $total -gt 0 ]; then echo "scrub-check: FAIL ($total scan(s) failed)"; exit 1; fi
   if [ ! -f "$DENY" ]; then echo "scrub-check: INCOMPLETE (dashes and paths clean; names not scanned)"; exit 2; fi
@@ -120,7 +129,7 @@ if [ "${1:-}" = "--path" ]; then
 fi
 
 total=0
-if [ ! -f "$DENY" ]; then echo "NAME SCAN NOT RUN: no denylist at the configured path (set SKILLGATE_DENYLIST)"; fi
+if [ ! -f "$DENY" ]; then deny_missing; fi
 scan_tree "$root"; total=$((total+$?))
 if [ "${1:-}" = "--history" ]; then scan_history "$root" head; total=$((total+$?)); fi
 if [ "${1:-}" = "--history-all" ]; then scan_history "$root" all; total=$((total+$?)); fi

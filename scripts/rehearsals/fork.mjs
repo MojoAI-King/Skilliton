@@ -19,8 +19,8 @@ import { join } from "node:path";
 import { REPO, Rehearsal, findClient, git, initRepo, isolatedEnv, parseFlags, readJson, run, sshKey, useSigningKey, workspace } from "./lib.mjs";
 
 const flags = parseFlags(process.argv.slice(2), { claude: "value", codex: "value", keep: "flag", "no-evidence": "flag" });
-const claude = findClient(flags.claude, "SKILLGATE_CLAUDE", "claude");
-const codex = findClient(flags.codex, "SKILLGATE_CODEX", "codex");
+const claude = findClient(flags.claude, "SKILLITON_CLAUDE", "claude");
+const codex = findClient(flags.codex, "SKILLITON_CODEX", "codex");
 if (!claude) { console.log("NOT RUN: Claude Code was not found (pass --claude <path>); the validate and install steps need it."); process.exit(2); }
 
 const COMPANY = "acme", MARKET = "acme-skills", GITHUB = "acme/skills", PLUGIN = "acme-review", SKILL = "billing-check";
@@ -33,7 +33,7 @@ const app = join(ws, "app");
 const cfg = join(ws, "claude-config");
 const codexHome = join(ws, "codex-home");
 const keys = join(ws, "keys");
-const sg = (args, opts = {}) => run(process.execPath, [join(fork, "scripts", "skillgate.mjs"), ...args], { env, cwd: fork, ...opts });
+const sg = (args, opts = {}) => run(process.execPath, [join(fork, "scripts", "skilliton.mjs"), ...args], { env, cwd: fork, ...opts });
 const cc = (args) => run(claude.path, args, { env: { ...env, CLAUDE_CONFIG_DIR: cfg }, timeoutMs: 300000 });
 const cx = (args) => run(codex.path, args, { env: { ...env, CODEX_HOME: codexHome }, timeoutMs: 300000 });
 const jsonOf = (r) => { try { return JSON.parse(r.out); } catch { return null; } };
@@ -75,7 +75,7 @@ await R.step("K2", "new-plugin and new-skill add a company plugin with a skill; 
   const plugin = sg(["new-plugin", PLUGIN, "--pack", COMPANY, "--description", "Acme's own review rules.", "--apply"]);
   const skill = sg(["new-skill", PLUGIN, SKILL, "--pack", COMPANY, "--description", "Use when a change touches billing or invoices: check rounding, currency and repeated charges."]);
   const skillFile = join(fork, "packs", COMPANY, "plugins", PLUGIN, "skills", SKILL, "SKILL.md");
-  writeFileSync(skillFile, readFileSync(skillFile, "utf8").replace(/TODO\(skillgate\)[^\n]*/g, "Check amounts are rounded once, in the invoice currency, and that a retried request cannot charge twice."));
+  writeFileSync(skillFile, readFileSync(skillFile, "utf8").replace(/TODO\(skilliton\)[^\n]*/g, "Check amounts are rounded once, in the invoice currency, and that a retried request cannot charge twice."));
   const packs = run(process.execPath, [join(fork, "scripts", "packs.test.mjs"), "--root", fork], { env });
   const validateRepo = cc(["plugin", "validate", "--strict", fork]);
   const validatePlugin = cc(["plugin", "validate", "--strict", join(fork, "packs", COMPANY, "plugins", PLUGIN)]);
@@ -129,9 +129,9 @@ await R.step("K6", "a new application gets the fork's team settings and is prepa
   git(app, ["commit", "-q", "-m", "App"], { env });
   const settings = sg(["project-settings", "--dir", app, "--apply"]);
   const s = readJson(join(app, ".claude", "settings.json"));
-  const declared = s.extraKnownMarketplaces?.[MARKET]?.source?.repo === GITHUB && s.enabledPlugins?.[`${PLUGIN}@${MARKET}`] === true && !Object.keys(s.enabledPlugins ?? {}).some((id) => id.endsWith("@skillgate"));
+  const declared = s.extraKnownMarketplaces?.[MARKET]?.source?.repo === GITHUB && s.enabledPlugins?.[`${PLUGIN}@${MARKET}`] === true && !Object.keys(s.enabledPlugins ?? {}).some((id) => id.endsWith("@skilliton"));
   const installed = readJson(join(cfg, "plugins", "installed_plugins.json")).plugins?.[`workflow@${MARKET}`]?.[0]?.installPath;
-  const bin = installed ? join(installed, "bin", "skillgate") : null;
+  const bin = installed ? join(installed, "bin", "skilliton") : null;
   const prep = bin ? run(bin, ["prepare", "--dir", app, "--apply"], { env }) : { code: -1, all: "no installed workflow plugin" };
   const check = bin ? run(bin, ["prepare", "--dir", app, "--check"], { env }) : { code: -1, all: "" };
   const doctor = sg(["doctor", "--dir", app]);

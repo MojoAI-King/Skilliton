@@ -1,4 +1,4 @@
-// config.mjs: the project configuration contract, .skillgate/config.json, and the adopted record map.
+// config.mjs: the project configuration contract, .skilliton/config.json, and the adopted record map.
 // docs/CONTRACTS.md ("Project config") is the prose version of this file; change both together, with tests.
 //
 // Every reader goes through resolveProject(), so prepare, doctor, status, the hooks and the skills agree on where a
@@ -6,13 +6,18 @@
 
 import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
+import { LEGACY_CONFIG_REL, LEGACY_NAME, LEGACY_PROJECT_DIR } from "./legacy-names.mjs";
 
-export const CONFIG_REL = ".skillgate/config.json";
+export const PROJECT_DIR = ".skilliton";
+export const CONFIG_REL = `${PROJECT_DIR}/config.json`;
 
 // The prepared-project layout this runtime writes. 1 was the standalone prototype (copied runtime, skillgate:project
-// markers); 2 is the integrated layout (package-owned runtime, one harness block per instruction file).
-export const LAYOUT_VERSION = 2;
-export const SUPPORTED_LAYOUTS = [1, 2];
+// markers); 2 is the integrated layout (package-owned runtime, one harness block per instruction file); 3 is layout 2
+// under the Skilliton names (.skilliton/, skilliton markers). Layouts 1 and 2 keep their configuration in the earlier
+// project folder (legacy-names.mjs), and only migrate, status, doctor and the hooks open such a project.
+export const LAYOUT_VERSION = 3;
+export const SUPPORTED_LAYOUTS = [1, 2, 3];
+export const LEGACY_LAYOUTS = [1, 2];
 
 export const KNOWN_SECTIONS = ["prepare", "handoff", "maintain", "dispatch", "guardrails", "checkpoints", "security"];
 
@@ -44,8 +49,9 @@ export const DEFAULTS = {
 };
 
 // kind: "invalid" (the configuration or a path in it is wrong; exit 2) or "failed" (it could not be read; exit 3).
+// legacy: true when the project still uses the earlier names and only migrate can open it; callers add the command.
 export class ConfigError extends Error {
-  constructor(message, kind = "invalid") { super(message); this.kind = kind; }
+  constructor(message, kind = "invalid", { legacy = false } = {}) { super(message); this.kind = kind; this.legacy = legacy; }
 }
 
 const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -83,23 +89,38 @@ export function checkRecordPath(root, rel, what = "a record path") {
   return target;
 }
 
-// { exists, text, config }. A missing file is an empty configuration; a file that does not parse, or does not hold a
-// JSON object, throws ConfigError, because every default below would otherwise hide the mistake.
-export function readProjectConfig(root) {
-  const path = join(root, CONFIG_REL);
-  let st;
-  try { st = lstatSync(path); } catch (e) {
-    if (e.code === "ENOENT" || e.code === "ENOTDIR") return { exists: false, text: null, config: {} };
-    throw new ConfigError(`${CONFIG_REL} could not be inspected (${e.code ?? "error"})`, "failed");
+// Whether a configuration file exists at root/rel, without following links. A path that cannot be inspected throws.
+function configPresent(root, rel) {
+  try { lstatSync(join(root, rel)); return true; } catch (e) {
+    if (e.code === "ENOENT" || e.code === "ENOTDIR") return false;
+    throw new ConfigError(`${rel} could not be inspected (${e.code ?? "error"})`, "failed");
   }
-  if (st.isSymbolicLink() || !st.isFile()) throw new ConfigError(`${CONFIG_REL} is not a regular file`);
-  if (st.size > 256 * 1024) throw new ConfigError(`${CONFIG_REL} is larger than 256 KB, which is not a configuration file`);
+}
+
+// { exists, text, config, rel, legacy }. rel is the configuration file this project uses: .skilliton/config.json, or
+// the earlier project folder's config.json when only that exists (legacy: true). A missing file is an empty configuration; a
+// file that does not parse, or does not hold a JSON object, throws ConfigError, because every default below would
+// otherwise hide the mistake. Both files at once throws, because either one could be the project's real settings.
+export function readProjectConfig(root) {
+  const current = configPresent(root, CONFIG_REL);
+  const legacy = configPresent(root, LEGACY_CONFIG_REL);
+  if (current && legacy) throw new ConfigError(`both ${CONFIG_REL} and ${LEGACY_CONFIG_REL} exist, so it is not clear which holds this project's settings. Nothing was read. Keep the one you want (a migrated project keeps ${CONFIG_REL}), move the other folder out of the project, then run again`);
+  const rel = legacy ? LEGACY_CONFIG_REL : CONFIG_REL;
+  if (!current && !legacy) return { exists: false, text: null, config: {}, rel, legacy: false };
+  const path = join(root, rel);
+  const st = lstatSync(path);
+  if (st.isSymbolicLink() || !st.isFile()) throw new ConfigError(`${rel} is not a regular file`);
+  if (st.size > 256 * 1024) throw new ConfigError(`${rel} is larger than 256 KB, which is not a configuration file`);
   let text;
-  try { text = readFileSync(path, "utf8"); } catch (e) { throw new ConfigError(`${CONFIG_REL} could not be read (${e.code ?? "error"})`, "failed"); }
+  try { text = readFileSync(path, "utf8"); } catch (e) { throw new ConfigError(`${rel} could not be read (${e.code ?? "error"})`, "failed"); }
   let config;
-  try { config = JSON.parse(text); } catch (e) { throw new ConfigError(`${CONFIG_REL} is not valid JSON (${e.message})`); }
-  if (!isObject(config)) throw new ConfigError(`${CONFIG_REL} must hold a JSON object`);
-  return { exists: true, text, config };
+  // The parser's own message can quote the file, which may hold a value that should not be printed; only its position is kept.
+  try { config = JSON.parse(text); } catch (e) {
+    const where = /line \d+ column \d+|position \d+/.exec(e.message);
+    throw new ConfigError(`${rel} is not valid JSON${where ? ` (near ${where[0]})` : ""}`);
+  }
+  if (!isObject(config)) throw new ConfigError(`${rel} must hold a JSON object`);
+  return { exists: true, text, config, rel, legacy };
 }
 
 // Problems with the shape of known sections, as plain sentences. An unknown section is reported separately by
@@ -138,12 +159,20 @@ export function configProblems(config) {
 
 // The project as every component sees it. Throws ConfigError when the configuration is unusable: invalid shapes, a
 // record path that is unsafe, two roles on one file, or handoff.file disagreeing with prepare.artifacts.handoff.
-export function resolveProject(rootInput) {
+//
+// A project still under the earlier names (only the earlier config.json) is refused unless allowLegacy is set, because
+// every file this runtime reads or writes lives under .skilliton/, so any other command would report the project's
+// evidence as missing or start a second folder beside the first. migrate, status, doctor and the hooks pass
+// allowLegacy to report the pending migration; the returned project then has legacyNames: true.
+export function resolveProject(rootInput, { allowLegacy = false } = {}) {
   const root = resolve(rootInput);
-  const { exists, text, config } = readProjectConfig(root);
+  const { exists, text, config, rel, legacy } = readProjectConfig(root);
   const problems = configProblems(config);
-  if (problems.length) throw new ConfigError(`${CONFIG_REL}: ${problems.join("; ")}`);
+  if (problems.length) throw new ConfigError(`${rel}: ${problems.join("; ")}`);
   const prepare = isObject(config.prepare) ? config.prepare : {};
+  if (legacy && !LEGACY_LAYOUTS.includes(prepare.version ?? 2)) throw new ConfigError(`${rel} says layout ${prepare.version}, which is only ever written to ${CONFIG_REL}. Move the file to ${CONFIG_REL} by hand, or restore it from Git history, then run again`);
+  if (!legacy && exists && prepare.version !== undefined && LEGACY_LAYOUTS.includes(prepare.version)) throw new ConfigError(`${rel} says layout ${prepare.version}, which keeps its configuration in ${LEGACY_CONFIG_REL}; restore the file from Git history, then run migrate`);
+  if (legacy && !allowLegacy) throw new ConfigError(`this project still uses the earlier ${LEGACY_NAME} names (${LEGACY_PROJECT_DIR}/, layout ${prepare.version ?? "unknown"}), and this runtime works only with ${PROJECT_DIR}/. Nothing was read or written.`, "invalid", { legacy: true });
   const overrides = isObject(prepare.artifacts) ? prepare.artifacts : {};
   const handoffSection = isObject(config.handoff) ? config.handoff : {};
   const reserved = new Set(RESERVED_PATHS.map((p) => p.toLowerCase()));
@@ -155,7 +184,8 @@ export function resolveProject(rootInput) {
     const configured = overrides[role] ?? (role === "handoff" ? handoffSection.file : undefined);
     if (configured !== undefined) {
       checkRecordPath(root, configured, `the ${role} record`);
-      if (configured.toLowerCase().startsWith(".skillgate/") || reserved.has(configured.toLowerCase())) throw new ConfigError(`the ${role} record cannot be ${configured}: that path belongs to Skilliton or to the instruction files`);
+      const lowered = configured.toLowerCase();
+      if (lowered.startsWith(`${PROJECT_DIR}/`) || lowered.startsWith(`${LEGACY_PROJECT_DIR}/`) || reserved.has(lowered)) throw new ConfigError(`the ${role} record cannot be ${configured}: that path belongs to Skilliton or to the instruction files`);
       artifacts[role] = configured;
       source[role] = "config";
     } else {
@@ -183,6 +213,8 @@ export function resolveProject(rootInput) {
     root,
     configExists: exists,
     configText: text,
+    configRel: rel,
+    legacyNames: legacy,
     config,
     layoutVersion: prepare.version ?? null,
     requires: isObject(prepare.requires) ? { ...prepare.requires } : {},

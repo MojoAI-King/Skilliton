@@ -18,19 +18,20 @@ import { closeSync, constants, fchmodSync, fstatSync, fsyncSync, linkSync, lstat
 import { join, resolve } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { ConfigError, resolveProject } from './config.mjs';
+import { LEGACY_MANIFEST_MARKER } from './legacy-names.mjs';
 
 export const LIMIT = { catalog: 1024 * 1024, record: 64 * 1024, applicability: 1024 * 1024, backlog: 4 * 1024 * 1024, file: 32 * 1024 * 1024, total: 256 * 1024 * 1024, scanTotal: 1024 * 1024 * 1024, records: 5000, controls: 500, attachments: 32, decisions: 5000, manifestEntries: 200000 };
-export const SECURITY_DIR = '.skillgate/security';
+export const SECURITY_DIR = '.skilliton/security';
 export const RECORDS_DIR = `${SECURITY_DIR}/records`;
 export const CATALOG_REL = `${SECURITY_DIR}/catalog.json`;
 export const APPLICABILITY_REL = `${SECURITY_DIR}/applicability.json`;
 export const APPLICABILITY_LOCK_REL = `${SECURITY_DIR}/applicability.lock`;
 export const REPORT_REL = `${SECURITY_DIR}/REPORT.md`;
-export const PRIVATE_EVIDENCE_DIR = '.skillgate/private-evidence';
-export const REPORT_MARKER = '<!-- skillgate-security-evidence-report:v1 -->';
-export const MANIFEST_MARKER = '# skillgate-file-manifest/1';
-export const FINDINGS_START = '<!-- skillgate:security-findings:start -->';
-export const FINDINGS_END = '<!-- skillgate:security-findings:end -->';
+export const PRIVATE_EVIDENCE_DIR = '.skilliton/private-evidence';
+export const REPORT_MARKER = '<!-- skilliton-security-evidence-report:v1 -->';
+export const MANIFEST_MARKER = '# skilliton-file-manifest/1';
+export const FINDINGS_START = '<!-- skilliton:security-findings:start -->';
+export const FINDINGS_END = '<!-- skilliton:security-findings:end -->';
 export const ASSESSMENTS = ['observed', 'gap', 'needs-human'];
 const ID = /^[A-Za-z][A-Za-z0-9_.:-]{0,63}$/;
 const VERSION = /^[A-Za-z0-9][A-Za-z0-9_.+-]{0,63}$/;
@@ -52,26 +53,26 @@ const REFUSALS = {
   INPUT_LIMIT: 'an input is larger than its limit (catalog 1 MB, record 64 KB, attached file 32 MB, 5000 records, 256 MB read in one run)',
   FILE_CHANGED_DURING_READ: 'a file changed while it was being read; run the command again',
   MALFORMED_JSON: 'a JSON file does not parse',
-  MISSING_CATALOG: 'there is no security catalog at .skillgate/security/catalog.json; prepare the project first',
+  MISSING_CATALOG: 'there is no security catalog at .skilliton/security/catalog.json; prepare the project first',
   INVALID_CATALOG: 'the security catalog does not match schema 1 (schemaVersion 1, a catalogVersion, and controls with a unique id, a title, related https mappings, expectedEvidence, and an optional whole-number maxAgeDays from 1 to 3650)',
   INVALID_RECORD_INPUT: 'the control is not in the catalog, the assessment is not observed, gap or needs-human, an attached file is listed twice, or the note (up to 1000 characters) or reviewer (up to 120) is empty, too long, has surrounding spaces or control characters, or looks like a secret; values are not shown',
   OBSERVED_REQUIRES_ATTACHMENTS: 'an observed assessment needs at least one source file and one artifact file',
-  UNSAFE_RECORD_DIRECTORY: 'the records path .skillgate/security/records is not a folder',
+  UNSAFE_RECORD_DIRECTORY: 'the records path .skilliton/security/records is not a folder',
   UNSAFE_DIRECTORY: 'a folder Skilliton writes into is not a real folder',
   UNSAFE_OUTPUT: 'the output path exists and is not a regular single-link file, or a record with that name already exists',
-  NON_GENERATED_REPORT: '.skillgate/security/REPORT.md lacks the generated marker, so it is a human document and was left untouched; move it aside to regenerate the report',
+  NON_GENERATED_REPORT: '.skilliton/security/REPORT.md lacks the generated marker, so it is a human document and was left untouched; move it aside to regenerate the report',
   CHANGED_SINCE_READ: 'the file changed after Skilliton read it; run the command again',
   WRITE_FAILED: 'a file could not be written',
-  INVALID_APPLICABILITY: 'the applicability file .skillgate/security/applicability.json does not match schema 1 (schemaVersion 1, and decisions each with controlId, applies true or false, rationale, decidedBy and a past ISO decidedAt)',
+  INVALID_APPLICABILITY: 'the applicability file .skilliton/security/applicability.json does not match schema 1 (schemaVersion 1, and decisions each with controlId, applies true or false, rationale, decidedBy and a past ISO decidedAt)',
   INVALID_DECISION_INPUT: 'the control is not in the catalog, or the rationale (up to 1000 characters) or decided-by label (up to 120) is empty, too long, has surrounding spaces or control characters, or looks like a secret; values are not shown',
-  APPLICABILITY_LOCKED: 'another applicability write holds .skillgate/security/applicability.lock; if no other write is running, an earlier one was interrupted, so delete that lock file and run again',
+  APPLICABILITY_LOCKED: 'another applicability write holds .skilliton/security/applicability.lock; if no other write is running, an earlier one was interrupted, so delete that lock file and run again',
   INVALID_EVIDENCE: 'the security evidence is invalid (run security status to see why), so the findings section was not regenerated',
   MISSING_BACKLOG: 'the backlog record does not exist; prepare the project (or create the file) first',
   INVALID_FINDINGS_MARKERS: 'the backlog record has a security-findings start or end marker that is duplicated, unpaired, out of order, or not on a line of its own',
   UNKNOWN_CONTROL: 'the control is not in the project catalog; pass --control with one of the catalog control ids',
   SOURCE_REQUIRED: 'the tests collector needs at least one --source file that its checks cover',
-  NO_DELIVERY_POLICY: 'there is no .skillgate/delivery.json, so there are no checks to run',
-  INVALID_DELIVERY_POLICY: 'the delivery policy .skillgate/delivery.json is not usable',
+  NO_DELIVERY_POLICY: 'there is no .skilliton/delivery.json, so there are no checks to run',
+  INVALID_DELIVERY_POLICY: 'the delivery policy .skilliton/delivery.json is not usable',
   NO_DELIVERY_CHECKS: 'the delivery policy defines no checks',
   GIT_NOT_FOUND: 'git was not found on PATH',
   GIT_FAILED: 'a git command failed',
@@ -306,7 +307,7 @@ export function ensureDirectory(root, rel) {
 //   mode "record":  a new immutable file, linked into place, so an existing file is never replaced.
 //   mode "report":  replaces the file only when it is absent or starts with REPORT_MARKER.
 //   mode "replace": replaces the file only when its bytes still equal `expected` (null: it must still be absent).
-// Temporary files live in tempDir (default .skillgate/security, outside the records folder, so every entry in records
+// Temporary files live in tempDir (default .skilliton/security, outside the records folder, so every entry in records
 // must validate, including unexpected hidden files).
 function publish(root, rel, data, mode, { expected = null, tempDir = SECURITY_DIR, fileMode = 0o600, budget = newBudget() } = {}) {
   const { path, stat } = checkedPath(root, rel, true);
@@ -448,7 +449,8 @@ export function recordDecision(root, input, { apply = false, beforeReplace = nul
 export function renderManifest(entries, description) {
   return [MANIFEST_MARKER, `# ${description}`, '# Each line: sha256 size mtimeMs path', ...entries.map((e) => `${e.sha256} ${e.size} ${e.mtimeMs} ${e.path}`), ''].join('\n');
 }
-const isManifest = (buffer) => buffer.subarray(0, MANIFEST_MARKER.length + 1).toString('utf8') === `${MANIFEST_MARKER}\n`;
+// An artifact saved before the rename starts with the earlier marker and is checked the same way: records are immutable.
+const isManifest = (buffer) => [MANIFEST_MARKER, LEGACY_MANIFEST_MARKER].some((marker) => buffer.subarray(0, marker.length + 1).toString('utf8') === `${marker}\n`);
 
 // 'same' | 'changed' | 'unsafe' (the manifest itself does not parse).
 function verifyManifest(root, buffer, budget) {
@@ -646,7 +648,7 @@ export function openFindings(ev) {
 
 export function renderFindingsBlock(ev, findings) {
   const lines = [FINDINGS_START, '## Security findings', '',
-    `Generated by skillgate security findings from ${SECURITY_DIR} (catalog ${md(ev.catalog.catalogVersion)}). Do not edit this section: record evidence, then run the command again. Text outside the two marker lines is never changed.`, ''];
+    `Generated by skilliton security findings from ${SECURITY_DIR} (catalog ${md(ev.catalog.catalogVersion)}). Do not edit this section: record evidence, then run the command again. Text outside the two marker lines is never changed.`, ''];
   if (!findings.length) lines.push('No open findings: every applicable control has a current observed record and an applicability decision.');
   else lines.push('| ID | Control | State | Next step |', '| --- | --- | --- | --- |', ...findings.map((f) => `| ${md(f.id)} | ${md(f.title)} | ${f.state} | ${f.next} |`));
   lines.push(FINDINGS_END);
@@ -695,7 +697,7 @@ export function writeFindings(root, plan) {
 
 // ---------- private evidence files ----------
 
-// Creates a new file .skillgate/private-evidence/<timestamp>-<label>.txt (never replacing one) and returns
+// Creates a new file .skilliton/private-evidence/<timestamp>-<label>.txt (never replacing one) and returns
 // { rel, fd }. The folder is created with mode 700 and the file with mode 600; neither may be a link.
 export function createEvidenceFile(root, label, at = new Date()) {
   if (!/^[a-z][a-z0-9-]{0,40}$/.test(label)) fail('INVALID_ARGUMENTS');

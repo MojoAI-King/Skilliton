@@ -280,8 +280,8 @@ Details recorded from the lane's report, measured:
 **Risk:** A green run that checked nothing. The first run (GitHub run 35131047580, 36 seconds) was opened step by step: every suite printed its passing result, including guardrails 246 of 246 and the handoff hook 104 of 104 on Linux (bash 5.2, git 2.55), which closes the "only tested on macOS" items both hook lanes reported. The private name scan printed NOT RUN and INCOMPLETE with a warning annotation, never a pass.
 **Reversibility:** EASY.
 
-<!-- skillgate:index:decisions:start -->
-Decision entries in `docs/decisions/`, sorted by ID. `skillgate index` writes this list from the entries; edit the entries, not the list.
+<!-- skilliton:index:decisions:start -->
+Decision entries in `docs/decisions/`, sorted by ID. `skilliton index` writes this list from the entries; edit the entries, not the list.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
@@ -290,4 +290,5 @@ Decision entries in `docs/decisions/`, sorted by ID. `skillgate index` writes th
 | [2026-09-16-phase-3-is-a-company-wide-autopilot-and-2339](docs/decisions/2026-09-16-phase-3-is-a-company-wide-autopilot-and-2339.md) | Phase 3 is a company-wide autopilot, and every technical name becomes Skilliton | accepted | 2026-09-16 |
 | [2026-09-16-roadmap-after-m5-make-it-yours-one-comma-b003](docs/decisions/2026-09-16-roadmap-after-m5-make-it-yours-one-comma-b003.md) | Roadmap after M5: make it yours, one command per machine, autopilot on arrival | accepted | 2026-09-16 |
 | [2026-09-16-skilliton-is-the-evolved-product-name-0be0](docs/decisions/2026-09-16-skilliton-is-the-evolved-product-name-0be0.md) | Skilliton is the evolved product name | accepted | 2026-09-16 |
-<!-- skillgate:index:decisions:end -->
+| [2026-09-16-the-rename-moves-projects-by-migration-r-a319](docs/decisions/2026-09-16-the-rename-moves-projects-by-migration-r-a319.md) | The rename moves projects by migration, refuses old machine setup, and keeps protection in force until a project moves | accepted | 2026-09-16 |
+<!-- skilliton:index:decisions:end -->

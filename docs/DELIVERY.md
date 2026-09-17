@@ -15,23 +15,23 @@ Neither one is the assistant guardrails hook, and neither is a security or compl
 
 ## 1. The policy file
 
-Commit `.skillgate/delivery.json` to each protected branch:
+Commit `.skilliton/delivery.json` to each protected branch:
 
 ```json
 {
-  "schema": "skillgate.delivery/1",
+  "schema": "skilliton.delivery/1",
   "protectedBranches": ["main"],
   "checks": [
     { "name": "tests", "command": ["node", "--test"], "timeoutSeconds": 600 }
   ],
-  "policyPaths": [".skillgate/delivery.json", ".github/workflows/", ".github/CODEOWNERS", "CODEOWNERS"]
+  "policyPaths": [".skilliton/delivery.json", ".github/workflows/", ".github/CODEOWNERS", "CODEOWNERS"]
 }
 ```
 
-- **schema** must be exactly `skillgate.delivery/1`.
+- **schema** must be exactly `skilliton.delivery/1`.
 - **protectedBranches** lists plain branch names (`main`, `release/2.x`), with no `refs/` prefix and no wildcards.
 - **checks** run in order. `command` is an argument list, never a shell string: `["npm", "test"]`, not `"npm test"`. If you need a shell, say so explicitly: `["sh", "-c", "..."]`. `name` is 1 to 64 letters, digits, spaces or `. _ : + / -`, and unique. `timeoutSeconds` is optional (default 600, at most 86400). An empty list is allowed and means nothing runs.
-- **policyPaths** are repository paths; a trailing `/` means a folder and everything in it. The list must cover `.skillgate/delivery.json` itself, or a change to the policy would need no approval. Add any file that controls what the checks do, such as a test configuration or `.gitattributes`, if a quiet change to it should need approval.
+- **policyPaths** are repository paths; a trailing `/` means a folder and everything in it. The list must cover `.skilliton/delivery.json` itself, or a change to the policy would need no approval. Add any file that controls what the checks do, such as a test configuration or `.gitattributes`, if a quiet change to it should need approval.
 - Unknown keys are refused, so a typo cannot silently turn a rule off.
 
 ## 2. Which branches are protected
@@ -62,13 +62,13 @@ On the machine that holds the shared bare repository: a git version that verifie
 3. **Preview, then install:**
 
    ```sh
-   skillgate delivery install --bare /srv/git/app.git --approvers /srv/git/app.approvers
-   skillgate delivery install --bare /srv/git/app.git --approvers /srv/git/app.approvers --apply
+   skilliton delivery install --bare /srv/git/app.git --approvers /srv/git/app.approvers
+   skilliton delivery install --bare /srv/git/app.git --approvers /srv/git/app.approvers --apply
    ```
 
-   (From a skills repository checkout, `node scripts/skillgate.mjs delivery install ...` does the same.) The preview shows the hook it will write, the two git config values it will set (`skillgate.approvers`, `skillgate.runtime`) and what the current policy protects. `--runtime <path>` points the hook at a specific `bin/skillgate`; by default it uses the launcher of the plugin you ran install from.
+   (From a skills repository checkout, `node scripts/skilliton.mjs delivery install ...` does the same.) The preview shows the hook it will write, the two git config values it will set (`skilliton.approvers`, `skilliton.runtime`) and what the current policy protects. `--runtime <path>` points the hook at a specific `bin/skilliton`; by default it uses the launcher of the plugin you ran install from.
 
-   Install refuses, and writes nothing, when: the folder is not a bare repository; `core.hooksPath` is set (git would never run the hook); `HEAD` does not name a branch; the approvers file is missing, empty, malformed or a private key; the runtime is missing, not executable or cannot run `delivery --help`; or a `pre-receive` hook already exists that install did not write. Running install again replaces its own hook and keeps a copy of the old one under the backup folder (`$SKILLGATE_BACKUPS`, default `~/.claude/backups/skillgate/delivery/`).
+   Install refuses, and writes nothing, when: the folder is not a bare repository; `core.hooksPath` is set (git would never run the hook); `HEAD` does not name a branch; the approvers file is missing, empty, malformed or a private key; the runtime is missing, not executable or cannot run `delivery --help`; or a `pre-receive` hook already exists that install did not write. Running install again replaces its own hook and keeps a copy of the old one under the backup folder (`$SKILLITON_BACKUPS`, default `~/.claude/backups/skilliton/delivery/`).
 4. **Approvers sign policy changes.** An approver configures SSH signing in their clone (`git config gpg.format ssh`, `git config user.signingkey <key>`) and signs the commits that change policy paths (`git commit -S`). Everyone else commits as usual.
 
 ### What happens on every push
@@ -83,7 +83,7 @@ For each update to a protected branch, in this order:
 6. Each check runs in that folder with its timeout and a minimal environment: `PATH`, a temporary `HOME`, `LANG`. The first failure rejects the push:
 
    ```text
-   remote: skillgate delivery: rejected refs/heads/main: check "tests" failed (exit 1)
+   remote: skilliton delivery: rejected refs/heads/main: check "tests" failed (exit 1)
    remote:   | <the last 20 lines of the check's output>
    ```
 
@@ -92,8 +92,8 @@ A rejected push updates no ref at all, including other refs in the same push. Th
 ### Check before you push
 
 ```sh
-skillgate delivery check                    # the current branch against origin, as last fetched
-skillgate delivery check --ref main --remote origin --approvers <allowed_signers>
+skilliton delivery check                    # the current branch against origin, as last fetched
+skilliton delivery check --ref main --remote origin --approvers <allowed_signers>
 ```
 
 It runs the same evaluation on your committed `HEAD` as a push to that branch, without pushing. Run `git fetch` first: it compares with the remote-tracking tip you last fetched. Uncommitted changes are not part of it. Without `--approvers` it cannot verify signatures on policy changes; it says **NOT CHECKED** and exits 1 instead of reporting a pass.
@@ -123,7 +123,16 @@ It does not prove:
 - **Rotate approvers:** edit the approvers file. The next push uses it.
 - **Move the runtime:** run install again with the new `--runtime`.
 - **A protected branch that rejects everything** (no policy, or an invalid one, from before the gate): push the fixed commit to an unprotected branch, then an administrator moves the protected branch on the server, for example `git --git-dir /srv/git/app.git update-ref refs/heads/main <fixed commit> <current tip>`. Server-side ref updates do not run hooks, so treat this as an administrative override.
-- **Remove the gate:** delete `<repo.git>/hooks/pre-receive` and run `git --git-dir <repo.git> config --remove-section skillgate`.
+- **Remove the gate:** delete `<repo.git>/hooks/pre-receive` and run `git --git-dir <repo.git> config --remove-section skilliton`.
+
+### A policy or gate from before the rename
+
+Skilliton was named Skillgate before workflow 0.6.0 (docs/BRANDING.md). Two things carry over on a shared repository:
+
+- **A branch whose policy is still at the earlier `.skillgate/delivery.json`** stays protected by it: the gate reads that file in its earlier format while the current `.skilliton/delivery.json` is absent. The project's migration commit moves the policy, so it needs an approver's signature, like any policy change. Every commit that touches either policy file needs that signature, so a weaker policy cannot be added under the other name. The combined result is checked as well: a policy path that differs between the branch's tip and the pushed tip must hold content an approver-signed commit in the push gave it, so a merge cannot quietly bring back the older policy.
+- **A `pre-receive` hook written by the earlier release** is left untouched by `delivery install`, which names the steps: move the hook out of the hooks folder, run `git config --unset skillgate.approvers` and `git config --unset skillgate.runtime` in the bare repository, then run install again. Until then the branch keeps the earlier gate, which runs the earlier runtime. Nothing is unprotected in between if the new hook is installed straight after the old one is moved.
+
+Measured in `scripts/delivery.test.mjs` (a policy at the earlier path, real pushes) and `scripts/rename.test.mjs` (install beside an earlier hook).
 
 ## 4. The GitHub adapter
 
@@ -131,17 +140,17 @@ It does not prove:
 
 ### Set up the workflow
 
-1. Copy `templates/github/skillgate-delivery.yml` from the skills repository to `.github/workflows/skillgate-delivery.yml` in the application repository. Add the application's own setup steps (language runtimes, dependency installs) where the template marks the place.
-2. Add a `CODEOWNERS` file that assigns owners to every policy path, including `.github/workflows/` and `.skillgate/delivery.json`.
+1. Copy `templates/github/skilliton-delivery.yml` from the skills repository to `.github/workflows/skilliton-delivery.yml` in the application repository. Add the application's own setup steps (language runtimes, dependency installs) where the template marks the place.
+2. Add a `CODEOWNERS` file that assigns owners to every policy path, including `.github/workflows/` and `.skilliton/delivery.json`.
 3. In the branch protection rule (or ruleset) for each protected branch:
-   - require the status check **skillgate-delivery**;
+   - require the status check **skilliton-delivery**;
    - require branches to be up to date before merging, or use a merge queue, so the checks ran on the combined result that will land;
    - require review from Code Owners;
    - do not allow the rule to be bypassed except by the administrators who decide policy changes.
 
 ### What it does
 
-On every pull request it checks out the merge commit GitHub built, and on every merge queue group it checks out the group's commit. It reads `.skillgate/delivery.json` from the base side of that merge, never from the pull request, validates it with the same rules as the local gate, and runs every check with its timeout and a minimal environment. A base branch not listed in its own policy's `protectedBranches` gets no checks and passes. A base branch without a policy fails.
+On every pull request it checks out the merge commit GitHub built, and on every merge queue group it checks out the group's commit. It reads `.skilliton/delivery.json` from the base side of that merge, never from the pull request, validates it with the same rules as the local gate, and runs every check with its timeout and a minimal environment. A base branch not listed in its own policy's `protectedBranches` gets no checks and passes. A base branch without a policy fails.
 
 A change that touches any policy path **fails the job on purpose**. The workflow cannot prove who approved a policy change, so such a change needs code-owner review enforced by branch protection, and an administrator who decides policy changes merges it past the failed check.
 

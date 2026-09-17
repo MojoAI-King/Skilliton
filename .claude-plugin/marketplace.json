@@ -1,5 +1,5 @@
 {
-  "name": "skillgate",
+  "name": "skilliton",
   "owner": {
     "name": "MojoAI",
     "url": "https://github.com/MojoAI-King"
@@ -22,7 +22,7 @@
     {
       "name": "workflow",
       "source": "./packs/base/plugins/workflow",
-      "description": "The team's way of working and the Skilliton runtime. Skills: task (a request becomes a tracked, recoverable piece of work), dispatch (many items become verified parallel lanes), handoff, maintain, review (plain-English review with a commit verdict) and security (evidence, not assurances). Runtime (skillgate on the shell path in Claude Code): prepare and migrate projects, task records and checkpoints, status, decision and lesson entries, project security evidence, release verification and the delivery gate. Hooks: session start shows the handoff and project state; stop reminds to record a checkpoint; pre-compact and session end keep a local journal for recovery.",
+      "description": "The team's way of working and the Skilliton runtime. Skills: task (a request becomes a tracked, recoverable piece of work), dispatch (many items become verified parallel lanes), handoff, maintain, review (plain-English review with a commit verdict) and security (evidence, not assurances). Runtime (skilliton on the shell path in Claude Code): prepare and migrate projects, task records and checkpoints, status, decision and lesson entries, project security evidence, release verification and the delivery gate. Hooks: session start shows the handoff and project state; stop reminds to record a checkpoint; pre-compact and session end keep a local journal for recovery.",
       "author": {
         "name": "MojoAI"
       },

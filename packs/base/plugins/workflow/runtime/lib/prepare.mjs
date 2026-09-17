@@ -3,10 +3,10 @@
 // Two jobs, shared by the prepare, migrate, remove, record and index commands:
 //   planPrepare()   what a layout-2 project needs: adopt every existing record untouched, create the missing ones as
 //                   "not yet assessed", entry-folder READMEs, the security catalog and READMEs, the .gitignore lines,
-//                   the harness blocks (only through core.mjs planHarnessFile), and the merged .skillgate/config.json.
-//   applyChanges()  writes a planned change set transactionally: one lock (.skillgate/prepare.lock), every
+//                   the harness blocks (only through core.mjs planHarnessFile), and the merged .skilliton/config.json.
+//   applyChanges()  writes a planned change set transactionally: one lock (.skilliton/prepare.lock), every
 //                   destination rechecked immediately before it is replaced or deleted, backups of every changed file
-//                   in <git-dir>/skillgate-backups/<backup id>/ (never inside the work tree, so never addable), and on
+//                   in <git-dir>/skilliton-backups/<backup id>/ (never inside the work tree, so never addable), and on
 //                   a failure a rollback that restores only files still holding what this run wrote, so an edit made
 //                   by someone else meanwhile is kept.
 //
@@ -26,12 +26,13 @@ import {
   PLUGIN_ROOT, HARNESS_FILES, Refused, refuse, isPlainObject, clone, sameJson, tilde, argPath, which, runProgram,
   cmpVersion, planHarnessFile, readHarnessTemplate, HARNESS_TEMPLATE, readPluginVersion, selfCommand,
 } from "./core.mjs";
-import { CONFIG_REL, ConfigError, LAYOUT_VERSION, ROLES, resolveProject, templateVars, validRelPath } from "./config.mjs";
+import { CONFIG_REL, ConfigError, LAYOUT_VERSION, PROJECT_DIR, ROLES, resolveProject, templateVars, validRelPath } from "./config.mjs";
 import {
   CATALOG_REL, GITIGNORE_LINES, LOCK_REL, RECORDS_README_REL, ROLE_LABELS, SECURITY_README_REL,
-  entryFolderReadme, gitignoreWithSkillgate, recordTemplate, recordsReadme, securityReadme,
+  entryFolderReadme, gitignoreWithSkilliton, recordTemplate, recordsReadme, securityReadme,
 } from "./project-files.mjs";
 import { PROTOTYPE_RUNTIME_PATH } from "./prototype-v1.mjs";
+import { LEGACY_CONFIG_REL, LEGACY_NAME, LEGACY_PROJECT_DIR } from "./legacy-names.mjs";
 
 export const MAX_BYTES = 1024 * 1024;
 const PROTOTYPE_TEXT = "skillgate:project:";
@@ -88,14 +89,12 @@ export function currentBranch(root) {
 
 // resolveProject with its errors turned into this runtime's exit meanings. A JSON parser message is not repeated,
 // because some Node versions quote the start of the file in it.
-export function loadProject(root) {
-  try { return resolveProject(root); } catch (e) {
+export function loadProject(root, { allowLegacy = false } = {}) {
+  try { return resolveProject(root, { allowLegacy }); } catch (e) {
     if (!(e instanceof ConfigError)) throw e;
     if (e.kind === "failed") throw new OperationFailed(`${e.message}; nothing was written`);
-    if (e.message.startsWith(`${CONFIG_REL} is not valid JSON`)) {
-      const where = /line \d+ column \d+|position \d+/.exec(e.message);
-      refuse(`${CONFIG_REL} is not valid JSON${where ? ` (near ${where[0]})` : ""}; nothing was written. The parser's own message is not shown because it can quote the file. Fix the file, then run again`);
-    }
+    if (e.legacy) refuse(`${e.message} Preview the move: ${selfCommand()} migrate`);
+    if (/ is not valid JSON/.test(e.message)) refuse(`${e.message}; nothing was written. The parser's own message is not shown because it can quote the file. Fix the file, then run again`);
     refuse(`${e.message}; nothing was written`);
   }
 }
@@ -162,18 +161,24 @@ export function newBackupId(command) {
   return `${stamp}-${command}-${randomBytes(4).toString("hex")}`;
 }
 
-// Create each missing folder on rel's path, one level at a time, recording the ones created.
+// Create each missing folder on rel's path, one level at a time, recording the ones created. mode is a permission
+// number, or a function of the folder's relative path that returns one (or undefined for the default).
 function ensureParents(base, rel, created, mode = undefined) {
   const parts = rel.split("/").slice(0, -1);
   let cursor = base;
-  for (const part of parts) {
-    cursor = join(cursor, part);
+  for (let i = 0; i < parts.length; i++) {
+    cursor = join(cursor, parts[i]);
     let st = null;
     try { st = lstatSync(cursor); } catch (e) { if (e.code !== "ENOENT") throw e; }
-    if (!st) { mkdirSync(cursor, mode === undefined ? undefined : { mode }); if (created) created.push(cursor); }
+    const folderMode = typeof mode === "function" ? mode(parts.slice(0, i + 1).join("/")) : mode;
+    if (!st) { mkdirSync(cursor, folderMode === undefined ? undefined : { mode: folderMode }); if (created) created.push(cursor); }
     else if (st.isSymbolicLink() || !st.isDirectory()) throw new DestinationChanged(rel, "while it was being written (a folder on its path was replaced)");
   }
 }
+
+// Private evidence stays readable by its owner only, however it is written (collectors create it 0700 and 0600).
+const PRIVATE_EVIDENCE_PART = /(^|\/)private-evidence(\/|$)/;
+const projectFolderMode = (rel) => (PRIVATE_EVIDENCE_PART.test(rel) ? 0o700 : undefined);
 
 // Current bytes for a recheck. A path that became a link, a folder or a hard link counts as changed.
 function currentBytes(root, rel) {
@@ -186,7 +191,7 @@ function currentBytes(root, rel) {
 // mode is null for a new file (the process umask applies) or the permission bits an existing file had, which are kept
 // exactly: a temporary file's mode would otherwise be reduced by the umask.
 function writeAtomically(abs, bytes, mode, beforeRename) {
-  const temp = join(dirname(abs), `.skillgate-${randomUUID()}.tmp`);
+  const temp = join(dirname(abs), `.skilliton-${randomUUID()}.tmp`);
   try {
     writeFileSync(temp, bytes, { flag: "wx", mode: mode ?? 0o644 });
     if (mode !== null) chmodSync(temp, mode);
@@ -206,21 +211,22 @@ function acquireLock(root, command, created) {
     if (e.code === "EEXIST") refuse(`${LOCK_REL} exists, so another prepare, migrate, remove, record or index run may be writing this project. Nothing was written. If no other run is active (for example after a crash), delete ${LOCK_REL} and run again`);
     throw new OperationFailed(`the lock file ${LOCK_REL} could not be created (${e.code ?? "error"}); nothing was written`);
   }
-  try { writeFileSync(fd, `skillgate ${command}, process ${process.pid}, started ${new Date().toISOString()}\n`); } catch { /* the lock holds by existing */ }
+  try { writeFileSync(fd, `skilliton ${command}, process ${process.pid}, started ${new Date().toISOString()}\n`); } catch { /* the lock holds by existing */ }
   return { fd, abs: info.abs };
 }
 
 function removeCreatedFolders(created) {
   for (const dir of [...created].reverse()) {
-    try { rmdirSync(dir); } catch (e) { if (!["ENOTEMPTY", "EEXIST", "ENOENT"].includes(e.code)) process.stderr.write(`skillgate: note: an empty folder this run created could not be removed (${e.code ?? "error"})\n`); }
+    try { rmdirSync(dir); } catch (e) { if (!["ENOTEMPTY", "EEXIST", "ENOENT"].includes(e.code)) process.stderr.write(`skilliton: note: an empty folder this run created could not be removed (${e.code ?? "error"})\n`); }
   }
   created.length = 0;
 }
 
-// After a file under .skillgate/ is deleted, remove folders it leaves empty, up to .skillgate itself.
-function pruneEmptySkillgateFolders(root, rel) {
+// After a file under .skilliton/ (or, when migration 0003 moves a project, the earlier project folder) is deleted, remove
+// folders it leaves empty, up to that project folder itself.
+function pruneEmptyProjectFolders(root, rel) {
   const parts = rel.split("/").slice(0, -1);
-  while (parts.length && parts[0] === ".skillgate") {
+  while (parts.length && (parts[0] === PROJECT_DIR || parts[0] === LEGACY_PROJECT_DIR)) {
     try { rmdirSync(join(root, ...parts)); } catch { return; }
     parts.pop();
   }
@@ -238,7 +244,7 @@ function rollBack(root, written) {
       const abs = join(root, ...change.path.split("/"));
       if (change.before === null) unlinkSync(abs);
       else {
-        ensureParents(root, change.path, null);
+        ensureParents(root, change.path, null, projectFolderMode);
         writeAtomically(abs, change.before, change.mode, () => {
           if (!same(currentBytes(root, change.path), change.after)) throw new DestinationChanged(change.path, "during the rollback");
         });
@@ -251,8 +257,9 @@ function rollBack(root, written) {
   return { restored, kept };
 }
 
-// changes: [{ path, before: Buffer | null, after: Buffer | null }] in write order (null means absent). Every path is
-// written at most once. Returns { backupId, backupDir (null when nothing was backed up), written: [paths] }.
+// changes: [{ path, before: Buffer | null, after: Buffer | null, mode? }] in write order (null means absent). Every path
+// is written at most once. An existing file keeps its permissions; a new one gets mode when given (a moved file keeps
+// its source's), 0600 under a private-evidence folder, and otherwise 0644 less the umask. Returns { backupId, backupDir (null when nothing was backed up), written: [paths] }.
 export function applyChanges({ root, gitDir, command, changes, backupId = newBackupId(command) }) {
   const seen = new Set();
   for (const c of changes) {
@@ -260,10 +267,10 @@ export function applyChanges({ root, gitDir, command, changes, backupId = newBac
     if (seen.has(key)) throw new Error(`internal: ${c.path} appears twice in one change set`);
     seen.add(key);
   }
-  inspectFolder(gitDir, "skillgate-backups", "the backup folder in the Git folder");
+  inspectFolder(gitDir, "skilliton-backups", "the backup folder in the Git folder");
   const created = [];
   const lock = acquireLock(root, command, created);
-  const backupRoot = `skillgate-backups/${backupId}`;
+  const backupRoot = `skilliton-backups/${backupId}`;
   const written = [], deleted = [];
   let backedUp = 0, succeeded = false;
   try {
@@ -273,7 +280,8 @@ export function applyChanges({ root, gitDir, command, changes, backupId = newBac
         if (e instanceof Refused) throw new DestinationChanged(planned.path, "after the plan was made (it is now a link, a folder or a hard link)");
         throw e;
       }
-      const change = { ...planned, mode: info.exists ? info.stat.mode & 0o777 : null };
+      const newFileMode = PRIVATE_EVIDENCE_PART.test(planned.path) ? 0o600 : Number.isInteger(planned.mode) ? planned.mode & 0o777 : null;
+      const change = { ...planned, mode: info.exists ? info.stat.mode & 0o777 : newFileMode };
       const recheck = (when) => {
         if (!same(currentBytes(root, change.path), change.before)) throw new DestinationChanged(change.path, when);
       };
@@ -291,7 +299,7 @@ export function applyChanges({ root, gitDir, command, changes, backupId = newBac
         unlinkSync(info.abs);
         deleted.push(change.path);
       } else {
-        ensureParents(root, change.path, created);
+        ensureParents(root, change.path, created, projectFolderMode);
         writeAtomically(info.abs, change.after, change.mode, () => recheck("while its replacement was being staged"));
       }
       written.push(change);
@@ -311,16 +319,16 @@ export function applyChanges({ root, gitDir, command, changes, backupId = newBac
     });
   } finally {
     try { closeSync(lock.fd); } catch { /* already closed */ }
-    try { unlinkSync(lock.abs); } catch (e) { if (e.code !== "ENOENT") process.stderr.write(`skillgate: note: the lock file ${LOCK_REL} could not be removed (${e.code ?? "error"}); delete it by hand\n`); }
+    try { unlinkSync(lock.abs); } catch (e) { if (e.code !== "ENOENT") process.stderr.write(`skilliton: note: the lock file ${LOCK_REL} could not be removed (${e.code ?? "error"}); delete it by hand\n`); }
     removeCreatedFolders(created);
-    if (succeeded) for (const rel of deleted) pruneEmptySkillgateFolders(root, rel);
+    if (succeeded) for (const rel of deleted) pruneEmptyProjectFolders(root, rel);
   }
 }
 
 // Plain-language lines describing a TransactionFailed, and the exit code it means: 2 when a destination changed and
 // everything this run wrote was put back (nothing from the run remains), 3 otherwise.
 export function describeFailure(command, e) {
-  const lines = [`skillgate ${command} did not complete: ${e.cause}.`];
+  const lines = [`skilliton ${command} did not complete: ${e.cause}.`];
   if (!e.written.length) lines.push("Nothing had been written yet.");
   else if (e.rollbackComplete) lines.push(`Every file this run wrote was rolled back: ${e.restored.join(", ")}.`);
   if (e.destinationChanged && e.rollbackComplete) lines.push(`Nothing from this run remains. Check the change to ${e.changedPath} (another program or person may still be editing it), then run the command again to see a fresh plan.`);
@@ -335,7 +343,7 @@ export function describeFailure(command, e) {
 }
 
 export function resultJson(command, result, summary, details) {
-  return JSON.stringify({ schema: "skillgate.result/1", command, result, summary, details });
+  return JSON.stringify({ schema: "skilliton.result/1", command, result, summary, details });
 }
 
 // ---------- catalogs ----------
@@ -405,9 +413,9 @@ export function prototypeContent(root, project) {
   return found;
 }
 
-const describeSource = (source) => (source === "config" ? "named in .skillgate/config.json" : "found at a conventional path");
+const describeSource = (source) => (source === "config" ? "named in .skilliton/config.json" : "found at a conventional path");
 
-// The next .skillgate/config.json object: existing keys kept in place, unknown keys kept, and the prepare keys set.
+// The next .skilliton/config.json object: existing keys kept in place, unknown keys kept, and the prepare keys set.
 function nextConfig(project, runtimeVersion) {
   const config = clone(project.config);
   const prepare = isPlainObject(config.prepare) ? config.prepare : (config.prepare = {});
@@ -439,9 +447,12 @@ function configChanges(before, after) {
 // Everything prepare would do, without writing. items: [{ path, action: "create" | "update" | "adopt" | "current",
 // what, before, after }] in write order; changes: the create and update items. notes: facts the person should read.
 export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLUGIN_ROOT) } = {}) {
-  const project = loadProject(root);
-  if (project.layoutVersion === 1) {
-    throw new NeedsMigration(`this project uses layout 1, written by the standalone prototype (copied runtime, skillgate:project blocks), and prepare writes layout 2 only. Nothing was written. Preview the migration: ${selfCommand()} migrate --dir ${argPath(root)}; then apply it: ${selfCommand()} migrate --apply --dir ${argPath(root)}`);
+  const project = loadProject(root, { allowLegacy: true });
+  if (project.legacyNames) {
+    const what = project.layoutVersion === 1 ? "layout 1, written by the standalone prototype (copied runtime, skillgate:project blocks)" : `layout ${project.layoutVersion ?? "2"}, under the earlier ${LEGACY_NAME} names (${LEGACY_PROJECT_DIR}/)`;
+    const needs = new NeedsMigration(`this project uses ${what}, and prepare writes layout ${LAYOUT_VERSION} only. Nothing was written. Preview the migration: ${selfCommand()} migrate --dir ${argPath(root)}; then apply it: ${selfCommand()} migrate --apply --dir ${argPath(root)}`);
+    needs.layoutVersion = project.layoutVersion;
+    throw needs;
   }
   if (!runtimeVersion) throw new OperationFailed("the workflow plugin's version could not be read from its .claude-plugin/plugin.json; reinstall the plugin. Nothing was written");
   const required = project.requires.workflow;
@@ -450,7 +461,7 @@ export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLU
   }
   const leftovers = prototypeContent(root, project);
   if (leftovers.length) {
-    refuse(`this project still holds content from the standalone prototype: ${leftovers.join("; ")}. prepare does not remove it, and two instruction writers must not share a project. To migrate it, set "prepare": { "version": 1 } in ${CONFIG_REL} and run ${selfCommand()} migrate --dir ${argPath(root)}. Nothing was written`);
+    refuse(`this project still holds content from the standalone prototype: ${leftovers.join("; ")}. prepare does not remove it, and two instruction writers must not share a project. To migrate it, keep the configuration in ${LEGACY_CONFIG_REL} (the prototype's folder) with "prepare": { "version": 1 }, leaving no ${CONFIG_REL}, and run ${selfCommand()} migrate --dir ${argPath(root)}. Nothing was written`);
   }
 
   const items = [], notes = [];
@@ -470,7 +481,7 @@ export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLU
     inspectFolder(root, dir, `the ${kind} folder`);
     createOrAdopt(`${dir}/README.md`, `explains the ${kind.replace(/s$/, "")} entry format`, "entry folder README already present; left exactly as it is", () => entryFolderReadme(kind, project));
   }
-  createOrAdopt(SECURITY_README_REL, "explains the security evidence register and skillgate security status", "already present; left exactly as it is", securityReadme);
+  createOrAdopt(SECURITY_README_REL, "explains the security evidence register and skilliton security status", "already present; left exactly as it is", securityReadme);
 
   const catalog = readPath(root, CATALOG_REL, "the project's security catalog");
   if (catalog === null) {
@@ -482,8 +493,8 @@ export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLU
     const engine = await securityEngine();
     if (engine) {
       const summary = await engine.securitySummary(root);
-      if (!summary || summary.available !== true) refuse(`the security engine cannot use ${CATALOG_REL} or its records (${summary?.reason ?? "no reason given"}). They were preserved and nothing was written. Run skillgate security status for details`);
-      if (summary.invalid > 0) refuse(`the security engine found ${summary.invalid} invalid observation record(s) under .skillgate/security/records. They were preserved and nothing was written. Run skillgate security status for details`);
+      if (!summary || summary.available !== true) refuse(`the security engine cannot use ${CATALOG_REL} or its records (${summary?.reason ?? "no reason given"}). They were preserved and nothing was written. Run skilliton security status for details`);
+      if (summary.invalid > 0) refuse(`the security engine found ${summary.invalid} invalid observation record(s) under .skilliton/security/records. They were preserved and nothing was written. Run skilliton security status for details`);
       add(CATALOG_REL, "adopt", `security catalog ${summary.catalogVersion ?? "(version not reported)"}, read by the security engine; left exactly as it is`);
     } else {
       add(CATALOG_REL, "adopt", "security catalog already present; left exactly as it is");
@@ -494,7 +505,7 @@ export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLU
 
   const ignore = readPath(root, ".gitignore");
   const ignoreText = ignore === null ? "" : ignore.toString("latin1");
-  const ignoreNext = gitignoreWithSkillgate(ignoreText);
+  const ignoreNext = gitignoreWithSkilliton(ignoreText);
   if (ignore !== null && ignoreNext === ignoreText) add(".gitignore", "current", `already lists ${GITIGNORE_LINES.join(" and ")}`);
   else add(".gitignore", ignore === null ? "create" : "update", `${ignore === null ? "lists" : "add"} ${GITIGNORE_LINES.join(" and ")} (the lock and private evidence stay out of Git)`, ignore, Buffer.from(ignoreNext, "latin1"));
 
@@ -528,7 +539,7 @@ export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLU
 
   for (const rel of [SECURITY_README_REL, RECORDS_README_REL, ...["tasks", "decisions", "lessons"].map((k) => `${project.directories[k]}/README.md`)]) {
     const bytes = items.some((i) => i.path === rel && i.action === "adopt") ? readPath(root, rel) : null;
-    if (bytes && bytes.includes(PROTOTYPE_RUNTIME_PATH)) notes.push(`${rel} still tells people to run ${PROTOTYPE_RUNTIME_PATH}, which layout 2 does not have; replace that text by hand with skillgate security status (prepare never rewrites a file it adopted).`);
+    if (bytes && bytes.includes(PROTOTYPE_RUNTIME_PATH)) notes.push(`${rel} still tells people to run ${PROTOTYPE_RUNTIME_PATH}, which layout 2 does not have; replace that text by hand with skilliton security status (prepare never rewrites a file it adopted).`);
   }
 
   return { project, root, runtimeVersion, items, notes, changes: items.filter((i) => i.action === "create" || i.action === "update") };

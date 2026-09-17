@@ -17,12 +17,12 @@ const ok = (cond, label) => { if (cond) { oks++; console.log(`ok   ${label}`); }
 function sandbox(initial) {
   const dir = mkdtempSync(join(tmpdir(), "setup-test-"));
   const settings = join(dir, "claude", "settings.json");
-  const backups = join(dir, "claude", "backups", "skillgate");
+  const backups = join(dir, "claude", "backups", "skilliton");
   mkdirSync(dirname(settings), { recursive: true });
   if (initial != null) writeFileSync(settings, initial);
   const run = (...args) => {
     try {
-      const out = execFileSync("node", [SETUP, ...args], { env: { ...process.env, HOME: dir, SKILLGATE_SETTINGS: settings, SKILLGATE_BACKUPS: backups }, stdio: ["ignore", "pipe", "pipe"] }).toString();
+      const out = execFileSync("node", [SETUP, ...args], { env: { ...process.env, HOME: dir, SKILLITON_SETTINGS: settings, SKILLITON_BACKUPS: backups }, stdio: ["ignore", "pipe", "pipe"] }).toString();
       return { code: 0, out };
     } catch (e) { return { code: e.status ?? 1, out: `${e.stdout ?? ""}${e.stderr ?? ""}` }; }
   };
@@ -61,7 +61,7 @@ console.log("\n== show writes nothing");
 
 console.log("\n== regression: another tool's folder in the shared backup root does not break undo");
 {
-  // Found 2026-09-16: skillgate harness writes backups under <root>/harness/. "harness" sorts after every
+  // Found 2026-09-16: skilliton harness writes backups under <root>/harness/. "harness" sorts after every
   // ISO timestamp, and setup.mjs took the last name as its newest backup, then refused: "backup .../harness/settings.json missing".
   const original = '{ "theme": "dark" }\n';
   const s = sandbox(original);

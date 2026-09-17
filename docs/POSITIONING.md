@@ -7,14 +7,14 @@ Kind: Living. For the owner and anyone presenting Skilliton to an engineering le
 - **The package is the company's copy of this repository.** It is an ordinary git repository on the company's GitHub. Maintainers change it like any code: a branch, a pull request, review, then a signed release.
 - **The marketplace is the catalog inside that copy** (`.claude-plugin/marketplace.json`). It lists the plugins people install, and `company init` gives it the company's name.
 - **The plugins** are the base ones (workflow, guardrails, context-hygiene) plus the company's own. Each is a folder of skills, hooks and commands.
-- **Developers never open the company repository.** They run `skillgate join` once and receive updates through their coding tool's plugin update, and `skillgate verify` shows whether what they run is what was approved.
-- **Projects** get the company's instructions and records with `skillgate prepare`.
+- **Developers never open the company repository.** They run `skilliton join` once and receive updates through their coding tool's plugin update, and `skilliton verify` shows whether what they run is what was approved.
+- **Projects** get the company's instructions and records with `skilliton prepare`.
 
 A company adds its way of working in five places:
 
 1. The instruction template, `packs/base/plugins/workflow/templates/harness.md`: review policy, branch rules, things never to touch.
 2. Its own skills: `new-plugin`, `new-skill`, or `import` for skills it already has.
-3. Merge checks per repository: `.skillgate/delivery.json`.
+3. Merge checks per repository: `.skilliton/delivery.json`.
 4. Which security controls apply, and who decided.
 5. Which plugins the team settings turn on: `templates/project-settings.json`.
 
@@ -23,10 +23,10 @@ A company adds its way of working in five places:
 | Layer | What it holds | How strongly it holds |
 |---|---|---|
 | Company | The signed release: skills, hooks, the instruction template, the security catalog | Installed files are verified against the release. The merge gate is the hard line: it decides what reaches the shared branch |
-| Project | `.skillgate/config.json` (record paths, checkpoint timing, handoff size, guardrail settings such as protected branches); `.skillgate/delivery.json`; existing documents, adopted rather than replaced | Merge checks are enforced on the shared repository. Other project settings shape what the assistant is told and reminded of |
+| Project | `.skilliton/config.json` (record paths, checkpoint timing, handoff size, guardrail settings such as protected branches); `.skilliton/delivery.json`; existing documents, adopted rather than replaced | Merge checks are enforced on the shared repository. Other project settings shape what the assistant is told and reminded of |
 | Personal | A developer's own Claude Code skills and settings (documented client behavior) | The person's choice |
 
-The framing that holds up under questioning is to **guide on the laptop and enforce at the merge**. Local hooks and instructions help people do the right thing. A developer can still turn them off (for example `SKILLGATE_GUARDRAILS=off` for a session), and they do not see other terminals. Only the merge gate stops code.
+The framing that holds up under questioning is to **guide on the laptop and enforce at the merge**. Local hooks and instructions help people do the right thing. A developer can still turn them off (for example `SKILLITON_GUARDRAILS=off` for a session), and they do not see other terminals. Only the merge gate stops code.
 
 ## Value claims and their evidence
 

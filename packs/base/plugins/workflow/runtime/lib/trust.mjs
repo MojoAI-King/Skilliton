@@ -1,8 +1,8 @@
 // trust.mjs: which release signers this machine trusts, and checking a signed tag against them
 // (docs/CONTRACTS.md section 13).
 //
-// Trust is one SSH allowed_signers file per company, copied to $SKILLGATE_TRUST_DIR/<company>.allowed_signers
-// (default ~/.config/skillgate/trust), outside every repository, so pulling a repository can never change whom a
+// Trust is one SSH allowed_signers file per company, copied to $SKILLITON_TRUST_DIR/<company>.allowed_signers
+// (default ~/.config/skilliton/trust), outside every repository, so pulling a repository can never change whom a
 // machine trusts. A tag is verified only when all of these hold:
 //   1. the tag object carries an SSH signature (checked by the caller from the raw object; a tag signed any other way
 //      is not verifiable here, even if some other keyring would accept it);
@@ -19,6 +19,7 @@ import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, 
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { refuse, selfCommand, tilde, validateName } from "./core.mjs";
+import { legacyTrustDir } from "./legacy-names.mjs";
 
 export const TRUST_SUFFIX = ".allowed_signers";
 export const MAX_TRUST_BYTES = 64 * 1024;
@@ -63,7 +64,7 @@ export function requireGitAvailable() {
 // ---------- trust files ----------
 
 export function trustDir() {
-  return resolve(process.env.SKILLGATE_TRUST_DIR || join(homedir(), ".config", "skillgate", "trust"));
+  return resolve(process.env.SKILLITON_TRUST_DIR || join(homedir(), ".config", "skilliton", "trust"));
 }
 
 export function validateCompany(company) {
@@ -88,7 +89,7 @@ export function planTrustAdd(company, signersPath) {
   if (parsed.problems.length) refuse(`--signers ${tilde(source)} is not a valid allowed_signers file: ${parsed.problems.map((p) => `${p.line ? `line ${p.line}: ` : ""}${p.problem}`).join("; ")}. Nothing was written.`);
   if (!parsed.signers.length) refuse(`--signers ${tilde(source)} lists no signers. Nothing was written.`);
   const dir = trustDir();
-  if (insideGitWorkTree(dir)) refuse(`the trust folder ${tilde(dir)} is inside a Git repository, where a pull or checkout could change whom this machine trusts. Set SKILLGATE_TRUST_DIR to a folder outside every repository. Nothing was written.`);
+  if (insideGitWorkTree(dir)) refuse(`the trust folder ${tilde(dir)} is inside a Git repository, where a pull or checkout could change whom this machine trusts. Set SKILLITON_TRUST_DIR to a folder outside every repository. Nothing was written.`);
   const dest = trustFilePath(company);
   let existing = null;
   try {
@@ -227,11 +228,19 @@ export function describeSigner(s) {
   return `${s.principals}  ${s.keyType}  ${s.fingerprint}${s.options ? `  ${s.options}` : ""}`;
 }
 
+// A sentence naming the signers file this machine kept for the company under the earlier name, or "". The file is not
+// read: whom to trust is decided again from the file the company hands out.
+function legacyTrustHint(company) {
+  const path = join(legacyTrustDir(), `${company}${TRUST_SUFFIX}`);
+  try { lstatSync(path); } catch { return ""; }
+  return `. This machine trusted company ${company}'s signers before the rename to Skilliton, at ${tilde(path)}, which is no longer read; if that is still the file your company handed out, pass it as --signers`;
+}
+
 // Reads and checks one trust file. Throws Refused when it is missing, a link, too large or invalid.
 export function readTrustFile(path, company) {
   let st;
   try { st = lstatSync(path); } catch (e) {
-    if (e.code === "ENOENT" || e.code === "ENOTDIR") refuse(`trust is not configured for company "${company}": ${tilde(path)} does not exist. Run: ${selfCommand()} trust add --company ${company} --signers <allowed_signers file> --apply`);
+    if (e.code === "ENOENT" || e.code === "ENOTDIR") refuse(`trust is not configured for company "${company}": ${tilde(path)} does not exist. Run: ${selfCommand()} trust add --company ${company} --signers <allowed_signers file> --apply${legacyTrustHint(company)}`);
     throw e;
   }
   if (st.isSymbolicLink()) refuse(`the trust file ${tilde(path)} is a symbolic link; trust add never creates one, so it was not followed. Remove it and run trust add again.`);

@@ -1,4 +1,4 @@
-// commands/security.mjs: `skillgate security` (docs/CONTRACTS.md section 12): status, record, applicability,
+// commands/security.mjs: `skilliton security` (docs/CONTRACTS.md section 12): status, record, applicability,
 // collect, findings. Parsing, output and exit codes live here; the evidence engine is lib/security.mjs and the
 // collectors are lib/collectors.mjs.
 //
@@ -11,7 +11,8 @@
 
 import { basename, join } from 'node:path';
 import { Refused, backupFile, forDisplay, newStamp, parseArgs, say, selfCommand, tilde, unifiedDiff } from '../lib/core.mjs';
-import { ConfigError } from '../lib/config.mjs';
+import { ConfigError, readProjectConfig } from '../lib/config.mjs';
+import { LEGACY_NAME } from '../lib/legacy-names.mjs';
 import * as security from '../lib/security.mjs';
 import * as collectors from '../lib/collectors.mjs';
 
@@ -20,42 +21,42 @@ collectors, and open findings in the backlog record. Commands that write show th
 --apply. --dir names the project folder (default: the current folder).
 
   security status [--dir <project>] [--apply]
-      Print the evidence report for every control in .skillgate/security/catalog.json: applicability, the latest
+      Print the evidence report for every control in .skilliton/security/catalog.json: applicability, the latest
       assessment, and freshness (current, stale, expired, missing, invalid). --apply also writes
-      .skillgate/security/REPORT.md; only a report carrying the generated marker is replaced. Status never creates or
+      .skilliton/security/REPORT.md; only a report carrying the generated marker is replaced. Status never creates or
       re-dates a record. A record is stale when a fingerprinted file changed or disappeared or the control or catalog
       changed, and expired when it is older than maxAgeDays (the control's, else security.maxAgeDays in
-      .skillgate/config.json).
+      .skilliton/config.json).
 
   security record --control <id> --assessment observed|gap|needs-human --note <text> --reviewer <label>
                   [--source <file>]... [--artifact <file>]... [--dir <project>] [--apply]
-      Validate one assessment; --apply writes it as a new, never edited file under .skillgate/security/records/.
+      Validate one assessment; --apply writes it as a new, never edited file under .skilliton/security/records/.
       observed needs at least one --source and one --artifact. Files are repository-relative and fingerprinted
       (SHA-256). Repeat --source and --artifact for more files; quote values that contain spaces.
 
   security applicability --control <id> --applies true|false --rationale <text> --decided-by <label>
                          [--dir <project>] [--apply]
-      Add a decision to .skillgate/security/applicability.json; the newest decision per control wins. A control with
+      Add a decision to .skilliton/security/applicability.json; the newest decision per control wins. A control with
       no decision is undecided and counts as needing a human. applies false removes the control from the denominator,
       and the report lists it with its rationale.
 
   security collect tests --source <file> [--source <file>]... [--control <id>] [--reviewer <label>] [--dir] [--apply]
-      Run each check in .skillgate/delivery.json (an argument list, no shell, with its timeout), save the combined
-      output as .skillgate/private-evidence/<timestamp>-tests.txt, and record observed when every check passes or gap
+      Run each check in .skilliton/delivery.json (an argument list, no shell, with its timeout), save the combined
+      output as .skilliton/private-evidence/<timestamp>-tests.txt, and record observed when every check passes or gap
       when any fails. Sources are the files the checks cover (the policy file is added). Default control:
       SG-SECURITY-TESTS.
   security collect secrets [--control <id>] [--reviewer <label>] [--dir <project>] [--apply]
       Scan the files git tracks for secret-shaped lines, save a report of file:line and rule (never the matched text)
-      and a file manifest under .skillgate/private-evidence/, and record gap on any match or observed when clean. The
+      and a file manifest under .skilliton/private-evidence/, and record gap on any match or observed when clean. The
       project folder must be the repository root. Default control: SG-SECRETS-IN-SOURCE.
   security collect delivery-policy [--control <id>] [--reviewer <label>] [--dir <project>] [--apply]
-      Record observed when .skillgate/delivery.json parses with at least one check and a protected branch, gap
+      Record observed when .skilliton/delivery.json parses with at least one check and a protected branch, gap
       otherwise. Default control: SG-CHECK-CRITERIA.
       Without --apply a collector shows its plan and runs nothing. A collector that cannot run records nothing.
 
   security findings [--dir <project>] [--apply]
       Show, or with --apply write, one row per open finding (keyed SEC-<control id>, sorted) in the managed section
-      of the backlog record, between <!-- skillgate:security-findings:start --> and <!-- skillgate:security-findings:end -->.
+      of the backlog record, between <!-- skilliton:security-findings:start --> and <!-- skilliton:security-findings:end -->.
       Rerunning never duplicates a row, a resolved finding leaves the section, and text outside the markers is
       never changed.
 
@@ -122,12 +123,22 @@ function parse(argv) {
 }
 
 function projectDir(o) {
-  try { return security.projectRoot(o.dir ?? process.cwd()); } catch (e) {
+  let root;
+  try { root = security.projectRoot(o.dir ?? process.cwd()); } catch (e) {
     if (e instanceof security.SecurityRefusal && e.kind === 'invalid') {
       throw new Refused(o.dir === undefined ? 'the current folder cannot be used as the project folder' : 'the --dir folder does not exist or is not a folder (the value is not shown)');
     }
     throw e;
   }
+  // A project under the earlier names keeps its register in the earlier folder; reporting it as missing here would
+  // read as "never assessed", so it is refused with the migration instead.
+  let config;
+  try { config = readProjectConfig(root); } catch (e) {
+    if (e instanceof ConfigError) throw new Refused(e.message);
+    throw e;
+  }
+  if (config.legacy) throw new Refused(`this project still uses the earlier ${LEGACY_NAME} names (${config.rel}), and its security evidence stays there until it is migrated. Nothing was read or written. Preview the move: ${selfCommand()} migrate`);
+  return root;
 }
 
 function requireOptions(o, sub, names) {
@@ -283,11 +294,11 @@ export async function run(argv) {
   } catch (e) {
     if (e instanceof security.SecurityRefusal) {
       const text = `${label}: ${e.kind === 'failed' ? 'operation failed' : 'refused'} (${e.code}): ${security.refusalText(e.code)}${e.detail ? `. ${e.detail}` : ''}.`;
-      if (e.kind === 'failed') { console.error(`skillgate: ${text}`); return 3; }
+      if (e.kind === 'failed') { console.error(`skilliton: ${text}`); return 3; }
       throw new Refused(`${text} Nothing was written.`);
     }
     if (e instanceof ConfigError) {
-      if (e.kind === 'failed') { console.error(`skillgate: ${label}: ${e.message}`); return 3; }
+      if (e.kind === 'failed') { console.error(`skilliton: ${label}: ${e.message}`); return 3; }
       throw new Refused(`${label}: ${e.message}`);
     }
     throw e;

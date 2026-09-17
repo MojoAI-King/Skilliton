@@ -53,7 +53,7 @@ SS="$(dirname "$HOOK")/session-start-guardrails.sh"
 export HOME="$TMP/home" GIT_CONFIG_GLOBAL="$TMP/gitconfig" GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
 mkdir -p "$HOME"; : > "$GIT_CONFIG_GLOBAL"
-unset SKILLGATE_GUARDRAILS SKILLGATE_GUARDRAILS_CLIENT CLAUDE_PROJECT_DIR CLAUDE_PLUGIN_ROOT CLAUDE_PLUGIN_DATA PLUGIN_ROOT PLUGIN_DATA
+unset SKILLITON_GUARDRAILS SKILLITON_GUARDRAILS_CLIENT CLAUDE_PROJECT_DIR CLAUDE_PLUGIN_ROOT CLAUDE_PLUGIN_DATA PLUGIN_ROOT PLUGIN_DATA
 
 fails=0; oks=0
 ok()  { echo "ok   $1"; oks=$((oks + 1)); }
@@ -74,7 +74,7 @@ verdict() {
 
 # The first line of every deny that Codex-shaped input gets where Claude-shaped input is asked.
 CODEX_LEAD='Blocked: this command would normally need your confirmation. Codex cannot ask for confirmation from a hook, so it was blocked. If you meant it, run it yourself in your terminal. The confirmation would have said:'
-OVERRIDE_NOTE='Note: SKILLGATE_GUARDRAILS_CLIENT is set, but not to claude-code or codex, so it was ignored and the client was worked out from the hook input.'
+OVERRIDE_NOTE='Note: SKILLITON_GUARDRAILS_CLIENT is set, but not to claude-code or codex, so it was ignored and the client was worked out from the hook input.'
 
 jstr() { printf '%s' "$1" | jq -Rs .; }
 TRANSCRIPT_JSON=$(jstr "$TMP/transcript.jsonl"); SCRATCH_JSON=$(jstr "$TMP/scratchpad")
@@ -206,7 +206,7 @@ RA="$TMP/repo-add"     # untracked app.js with a key, README.md gains a key line
 RI="$TMP/repo-ignored" # .env present but listed in .gitignore
 RD="$TMP/repo-remove"  # a committed .env.production staged for removal
 RU="$TMP/repo-upstream" # branch topic pushes to origin/main (push.default=upstream)
-RCFG="$TMP/repo-config"  # .skillgate/config.json rewritten per case
+RCFG="$TMP/repo-config"  # .skilliton/config.json rewritten per case
 RDH="$TMP/repo-detached" # HEAD detached, so there is no current branch
 RMANY="$TMP/repo-many"   # 2001 new files, more than guardrails scans for secrets
 for d in "$R" "$RF" "$RS" "$RA" "$RI" "$RD" "$RU" "$RCFG" "$RDH" "$RMANY"; do
@@ -227,8 +227,8 @@ git init -q --bare "$TMP/remote.git"
 git -C "$RU" remote add origin "$TMP/remote.git" && git -C "$RU" push -q origin main feature 2>/dev/null \
   && git -C "$RU" checkout -q -b topic --track origin/main && git -C "$RU" config push.default upstream \
   || { echo "FAIL: could not build the upstream fixture"; exit 1; }
-printf 'SECRET=placeholder\n' > "$RCFG/.env"; mkdir -p "$RCFG/.skillgate"
-write_config() { printf '%s\n' "$1" > "$RCFG/.skillgate/config.json"; }
+printf 'SECRET=placeholder\n' > "$RCFG/.env"; mkdir -p "$RCFG/.skilliton"
+write_config() { printf '%s\n' "$1" > "$RCFG/.skilliton/config.json"; }
 git -C "$RDH" checkout -q --detach || { echo "FAIL: could not build the detached HEAD fixture"; exit 1; }
 i=0; while [ "$i" -lt 2001 ]; do : > "$RMANY/new-$i.txt"; i=$((i + 1)); done
 NOREPO="$TMP/not-a-repo"; mkdir -p "$NOREPO"      # a folder that is not a git repository
@@ -448,7 +448,7 @@ OUT=$(printf '{"cwd":"%s","tool_name":"Bash","tool_input":{}}' "$R" | env CLAUDE
 if [ "$RC" -eq 0 ] && [ -z "$OUT" ]; then ok "no tool_input.command -> allow, exit 0"; else bad "no tool_input.command -> exit $RC, output: $OUT"; fi
 
 # ---------------------------------------------------------------- settings
-section "settings: .skillgate/config.json"
+section "settings: .skilliton/config.json"
 write_config '{"guardrails":{"blockForcePush":false}}'
 expect "blockForcePush false: git push -f origin main" allow "$RCFG" 'git push -f origin main'
 expect "blockForcePush false: --no-verify still blocked" deny "$RCFG" 'git commit --no-verify -m "x"'
@@ -470,21 +470,21 @@ write_config '{"handoff":{"file":"docs/HANDOFF.md"}}'
 expect "config without a guardrails section: defaults" deny "$RCFG" 'git push -f origin main'
 write_config '{"guardrails": '
 expect "unreadable config: defaults stay on"           deny "$RCFG" 'git push -f origin main'
-reason_has "unreadable config: the reason says the config could not be read" ".skillgate/config.json could not be read"
+reason_has "unreadable config: the reason says the config could not be read" ".skilliton/config.json could not be read"
 write_config '{"guardrails":{"blockForcePush":false}}'
 expect "config read from CLAUDE_PROJECT_DIR (rule off there)" allow "$R" 'git push -f origin main' CLAUDE_PROJECT_DIR="$RCFG"
 expect "config falls back to the input cwd"           allow "$RCFG" 'git push -f origin main' CLAUDE_PROJECT_DIR=
-rm -f "$RCFG/.skillgate/config.json"
+rm -f "$RCFG/.skilliton/config.json"
 
-section "SKILLGATE_GUARDRAILS=off"
-expect "off: git push --force origin main"             allow "$R" 'git push --force origin main' SKILLGATE_GUARDRAILS=off
-expect "off: git add .env"                             allow "$R" 'git add .env' SKILLGATE_GUARDRAILS=off
+section "SKILLITON_GUARDRAILS=off"
+expect "off: git push --force origin main"             allow "$R" 'git push --force origin main' SKILLITON_GUARDRAILS=off
+expect "off: git add .env"                             allow "$R" 'git add .env' SKILLITON_GUARDRAILS=off
 expect "unset again: git push --force origin main"     deny "$R" 'git push --force origin main'
 
 # ---------------------------------------------------------------- SessionStart line
 section "SessionStart line"
 HEALTHY='[guardrails] on: force-push to protected branches, --no-verify, and secret files are blocked.'
-OFFLINE='[guardrails] OFF for this session (SKILLGATE_GUARDRAILS=off). Force-push, --no-verify, and secret-file checks are not running.'
+OFFLINE='[guardrails] OFF for this session (SKILLITON_GUARDRAILS=off). Force-push, --no-verify, and secret-file checks are not running.'
 ss() { # ss <project dir> [VAR=value...]: runs the SessionStart hook by path; sets OUT and RC
   local dir=$1; shift
   OUT=$(printf '{"hook_event_name":"SessionStart","source":"startup","session_id":"t","cwd":%s}' "$(jstr "$dir")" \
@@ -492,17 +492,17 @@ ss() { # ss <project dir> [VAR=value...]: runs the SessionStart hook by path; se
 }
 ss "$R"
 if [ "$RC" -eq 0 ] && [ "$OUT" = "$HEALTHY" ]; then ok "healthy: exactly the on line"; else bad "healthy: exit $RC, got: $OUT"; fi
-ss "$R" SKILLGATE_GUARDRAILS=off
-if [ "$RC" -eq 0 ] && [ "$OUT" = "$OFFLINE" ]; then ok "SKILLGATE_GUARDRAILS=off: exactly the OFF line"; else bad "off: exit $RC, got: $OUT"; fi
+ss "$R" SKILLITON_GUARDRAILS=off
+if [ "$RC" -eq 0 ] && [ "$OUT" = "$OFFLINE" ]; then ok "SKILLITON_GUARDRAILS=off: exactly the OFF line"; else bad "off: exit $RC, got: $OUT"; fi
 write_config '{"guardrails":{"blockForcePush":false}}'
 ss "$RCFG"
-if [ "$OUT" = "[guardrails] on. Blocked: --no-verify and secret files. Turned off in .skillgate/config.json: force-push to protected branches." ]; then
+if [ "$OUT" = "[guardrails] on. Blocked: --no-verify and secret files. Turned off in .skilliton/config.json: force-push to protected branches." ]; then
   ok "a rule turned off in the config is named in the line"
 else bad "rule turned off not reported as expected: $OUT"; fi
 # Codex-shaped SessionStart input (a model key) and no CLAUDE_PROJECT_DIR: the project comes from the input cwd
 printf '{"session_id":"t","transcript_path":null,"cwd":%s,"hook_event_name":"SessionStart","model":"guardrails-test-model","source":"startup"}' "$(jstr "$RCFG")" > "$TMP/ss-codex.json"
 OUT=$("$SS" < "$TMP/ss-codex.json" 2>/dev/null); RC=$?
-if [ "$RC" -eq 0 ] && [ "$OUT" = "[guardrails] on. Blocked: --no-verify and secret files. Turned off in .skillgate/config.json: force-push to protected branches." ]; then
+if [ "$RC" -eq 0 ] && [ "$OUT" = "[guardrails] on. Blocked: --no-verify and secret files. Turned off in .skilliton/config.json: force-push to protected branches." ]; then
   ok "Codex-shaped SessionStart input: the config is found from the input cwd"
 else bad "Codex-shaped SessionStart input with a config: exit $RC, got: $OUT"; fi
 printf '{"session_id":"t","transcript_path":null,"cwd":%s,"hook_event_name":"SessionStart","model":"guardrails-test-model","source":"startup"}' "$(jstr "$R")" > "$TMP/ss-codex.json"
@@ -511,7 +511,7 @@ if [ "$RC" -eq 0 ] && [ "$OUT" = "$HEALTHY" ]; then ok "Codex-shaped SessionStar
 write_config '{"guardrails": '
 ss "$RCFG"
 case "$OUT" in "$HEALTHY"$'\n'*"could not be read"*) ok "unreadable config: on line plus a could-not-be-read line" ;; *) bad "unreadable config not reported: $OUT" ;; esac
-rm -f "$RCFG/.skillgate/config.json"
+rm -f "$RCFG/.skilliton/config.json"
 mkdir -p "$TMP/lonely"; cp "$SS" "$TMP/lonely/"
 OUT=$(printf '{}' | "$TMP/lonely/session-start-guardrails.sh" 2>/dev/null); RC=$?
 case "$OUT" in *"did not run"*) [ "$RC" -eq 0 ] && ok "guard-bash.sh missing: SessionStart says the check did not run" || bad "guard-bash.sh missing: exit $RC" ;; *) bad "guard-bash.sh missing: silent or wrong: $OUT" ;; esac
@@ -580,7 +580,7 @@ for P in node python3; do
   write_config '{"guardrails":{"blockNoVerify":false}'
   expect "[$P] unreadable config keeps defaults"      deny "$RCFG" 'git commit -n -m "x"' PATH="$BIN"
   reason_has "[$P] and says the config could not be read" "could not be read"
-  rm -f "$RCFG/.skillgate/config.json"
+  rm -f "$RCFG/.skilliton/config.json"
 done
 
 # ---------------------------------------------------------------- Codex: cannot decide
@@ -611,8 +611,8 @@ cannot_decide_checks() {
   judge conv "no JSON reader, Codex-shaped input (turn_id and model keys found in the text)" deny "$CODEX_LEAD"$'\n'"$NOPARSER_REASON"
   np_hook "$R" 'git reset --hard' PLUGIN_ROOT="$TMP/plugin-root" CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
   judge conv "no JSON reader, Claude-shaped input, PLUGIN_ROOT equal to CLAUDE_PLUGIN_ROOT" deny "$CODEX_LEAD"$'\n'"$NOPARSER_REASON"
-  np_hook "$R" 'git reset --hard' SKILLGATE_GUARDRAILS_CLIENT=codex
-  judge conv "no JSON reader, SKILLGATE_GUARDRAILS_CLIENT=codex" deny "$CODEX_LEAD"$'\n'"$NOPARSER_REASON"
+  np_hook "$R" 'git reset --hard' SKILLITON_GUARDRAILS_CLIENT=codex
+  judge conv "no JSON reader, SKILLITON_GUARDRAILS_CLIENT=codex" deny "$CODEX_LEAD"$'\n'"$NOPARSER_REASON"
   np_hook "$R" "git commit -m '{\"model\": 1, \"turn_id\": 2}'"
   judge claude "no JSON reader, a command whose text holds \"model\": and \"turn_id\": (escaped in JSON, so not keys)" ask "$NOPARSER_REASON"
   SHAPE=codex; np_hook "$R" 'ls -la'; SHAPE=claude
@@ -685,31 +685,31 @@ client_detection_checks() {
   hook_file PLUGIN_ROOT= CLAUDE_PLUGIN_ROOT=
   judge claude "PLUGIN_ROOT and CLAUDE_PLUGIN_ROOT both empty" ask "$base"
 
-  section "client: SKILLGATE_GUARDRAILS_CLIENT wins both ways"
+  section "client: SKILLITON_GUARDRAILS_CLIENT wins both ways"
   payload "$R" 'git reset --hard' > "$TMP/payload.json"
-  hook_file SKILLGATE_GUARDRAILS_CLIENT=codex CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
-  judge conv "SKILLGATE_GUARDRAILS_CLIENT=codex with Claude-shaped input" deny "$CODEX_LEAD"$'\n'"$base"
-  hook_file SKILLGATE_GUARDRAILS_CLIENT=CODEX
-  judge conv "SKILLGATE_GUARDRAILS_CLIENT=CODEX (letter case does not matter)" deny "$CODEX_LEAD"$'\n'"$base"
+  hook_file SKILLITON_GUARDRAILS_CLIENT=codex CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
+  judge conv "SKILLITON_GUARDRAILS_CLIENT=codex with Claude-shaped input" deny "$CODEX_LEAD"$'\n'"$base"
+  hook_file SKILLITON_GUARDRAILS_CLIENT=CODEX
+  judge conv "SKILLITON_GUARDRAILS_CLIENT=CODEX (letter case does not matter)" deny "$CODEX_LEAD"$'\n'"$base"
   payload_codex "$R" 'git reset --hard' > "$TMP/payload.json"
   hook_file PLUGIN_ROOT="$TMP/plugin-root" CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
   judge conv "every Codex signal at once: turn_id, model, and PLUGIN_ROOT" deny "$CODEX_LEAD"$'\n'"$base"
-  hook_file SKILLGATE_GUARDRAILS_CLIENT=claude-code PLUGIN_ROOT="$TMP/plugin-root" CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
-  judge claude "SKILLGATE_GUARDRAILS_CLIENT=claude-code with every Codex signal" ask "$base"
-  hook_file SKILLGATE_GUARDRAILS_CLIENT=codex-cli
-  judge conv "unrecognized SKILLGATE_GUARDRAILS_CLIENT, Codex-shaped input: detected, and a note says so" deny "$CODEX_LEAD"$'\n'"$base"$'\n'"$OVERRIDE_NOTE"
+  hook_file SKILLITON_GUARDRAILS_CLIENT=claude-code PLUGIN_ROOT="$TMP/plugin-root" CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
+  judge claude "SKILLITON_GUARDRAILS_CLIENT=claude-code with every Codex signal" ask "$base"
+  hook_file SKILLITON_GUARDRAILS_CLIENT=codex-cli
+  judge conv "unrecognized SKILLITON_GUARDRAILS_CLIENT, Codex-shaped input: detected, and a note says so" deny "$CODEX_LEAD"$'\n'"$base"$'\n'"$OVERRIDE_NOTE"
   payload "$R" 'git reset --hard' > "$TMP/payload.json"
-  hook_file SKILLGATE_GUARDRAILS_CLIENT=codex-cli
-  judge claude "unrecognized SKILLGATE_GUARDRAILS_CLIENT, Claude-shaped input: detected, and a note says so" ask "$base"$'\n'"$OVERRIDE_NOTE"
+  hook_file SKILLITON_GUARDRAILS_CLIENT=codex-cli
+  judge claude "unrecognized SKILLITON_GUARDRAILS_CLIENT, Claude-shaped input: detected, and a note says so" ask "$base"$'\n'"$OVERRIDE_NOTE"
   payload "$R" 'git push --force origin main' > "$TMP/payload.json"
-  hook_file SKILLGATE_GUARDRAILS_CLIENT=codex
-  judge same "SKILLGATE_GUARDRAILS_CLIENT=codex: a force-push is the same deny" deny "$fp"
+  hook_file SKILLITON_GUARDRAILS_CLIENT=codex
+  judge same "SKILLITON_GUARDRAILS_CLIENT=codex: a force-push is the same deny" deny "$fp"
   payload_codex "$R" 'git push --force origin main' > "$TMP/payload.json"
-  hook_file SKILLGATE_GUARDRAILS_CLIENT=claude-code
-  judge same "SKILLGATE_GUARDRAILS_CLIENT=claude-code with Codex-shaped input: a force-push is the same deny" deny "$fp"
+  hook_file SKILLITON_GUARDRAILS_CLIENT=claude-code
+  judge same "SKILLITON_GUARDRAILS_CLIENT=claude-code with Codex-shaped input: a force-push is the same deny" deny "$fp"
   payload "$R" 'git status' > "$TMP/payload.json"
-  hook_file SKILLGATE_GUARDRAILS_CLIENT=codex
-  judge same "SKILLGATE_GUARDRAILS_CLIENT=codex: git status is allowed" allow
+  hook_file SKILLITON_GUARDRAILS_CLIENT=codex
+  judge same "SKILLITON_GUARDRAILS_CLIENT=codex: git status is allowed" allow
   payload_codex "$R" 'git status' > "$TMP/payload.json"
   hook_file PLUGIN_ROOT="$TMP/plugin-root" CLAUDE_PLUGIN_ROOT="$TMP/plugin-root"
   judge same "every Codex signal at once: git status is allowed" allow

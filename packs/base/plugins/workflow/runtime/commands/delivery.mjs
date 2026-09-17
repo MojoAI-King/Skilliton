@@ -7,10 +7,10 @@ import { applyInstall, describeInstall, planInstall, runGate, runLocalCheck } fr
 
 export const help = `delivery: trusted delivery checks for a shared branch (docs/DELIVERY.md).
 
-  delivery install --bare <repo.git> --approvers <allowed_signers> [--runtime <bin/skillgate>] [--apply]
+  delivery install --bare <repo.git> --approvers <allowed_signers> [--runtime <bin/skilliton>] [--apply]
       Shows, and with --apply writes, the pre-receive hook of a shared bare repository, and records the approvers
-      file and the runtime in that repository's git config (skillgate.approvers, skillgate.runtime). The runtime
-      defaults to this plugin's bin/skillgate. Refuses to replace a pre-receive hook that install did not write, and
+      file and the runtime in that repository's git config (skilliton.approvers, skilliton.runtime). The runtime
+      defaults to this plugin's bin/skilliton. Refuses to replace a pre-receive hook that install did not write, and
       refuses when core.hooksPath would stop git from running the hook.
 
   delivery gate --bare <repo.git>
@@ -28,11 +28,11 @@ export const help = `delivery: trusted delivery checks for a shared branch (docs
       --approvers, signatures on policy changes cannot be verified; the output says so and the exit code is 1.
 
 Protected branches are the ones the policy on the repository's default branch lists. Until the default branch holds a
-policy, the default branch alone is protected, and the push that creates it must contain .skillgate/delivery.json and
-be signed by an approver. The policy format is .skillgate/delivery.json:
-  { "schema": "skillgate.delivery/1", "protectedBranches": ["main"],
+policy, the default branch alone is protected, and the push that creates it must contain .skilliton/delivery.json and
+be signed by an approver. The policy format is .skilliton/delivery.json:
+  { "schema": "skilliton.delivery/1", "protectedBranches": ["main"],
     "checks": [{ "name": "tests", "command": ["node", "--test"], "timeoutSeconds": 600 }],
-    "policyPaths": [".skillgate/delivery.json", ".github/workflows/", ".github/CODEOWNERS", "CODEOWNERS"] }
+    "policyPaths": [".skilliton/delivery.json", ".github/workflows/", ".github/CODEOWNERS", "CODEOWNERS"] }
 
 Exit codes: 0 accepted (install: previewed or written); 1 rejected, or the check needs attention; 2 invalid or
 refused, nothing written; 3 the operation failed (the gate rejects the push when it cannot finish).`;
@@ -71,7 +71,7 @@ export async function run(argv) {
     return runLocalCheck({ repo: o.repo, ref: o.ref, remote: o.remote ?? "origin", approvers: o.approvers });
   }
 
-  const plan = planInstall({ bare: o.bare, approvers: o.approvers, runtime: o.runtime, defaultRuntime: join(PLUGIN_ROOT, "bin", "skillgate") });
+  const plan = planInstall({ bare: o.bare, approvers: o.approvers, runtime: o.runtime, defaultRuntime: join(PLUGIN_ROOT, "bin", "skilliton") });
   say(`delivery install for ${plan.bare}${o.apply ? "" : " (preview: nothing written; add --apply to write)"}`);
   for (const line of describeInstall(plan)) say(`  ${line}`);
   if (!o.apply) return 0;

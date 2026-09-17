@@ -12,21 +12,21 @@ Kind: Living. The protocol for PLAN.md milestone M5: a real person who has not u
 
 1. A machine account where Claude Code is installed and logged in, with Node.js 18 or later and git. The builder uses their normal terminal or editor.
 2. A practice company skills repository: a clone of this repository with a release signed by a practice key (see docs/RELEASING.md once it exists; until then the release rehearsal script shows the commands), and the practice trust file.
-3. A small practice application repository with a working test command, a delivery policy (`.skillgate/delivery.json`), and a shared bare repository with the delivery gate installed, so pushes to `main` are checked.
+3. A small practice application repository with a working test command, a delivery policy (`.skilliton/delivery.json`), and a shared bare repository with the delivery gate installed, so pushes to `main` are checked.
 4. A one-page task card for the builder in plain language, for example: "People should be able to mark a to-do item as done, and done items should show with a strike-through. Keep the existing tests passing." Write the acceptance criteria the facilitator will score against before the session, and do not show them to the builder.
 5. A timer and the observation sheet below.
 
 ## The steps (read aloud, one at a time)
 
-1. **Join.** "Follow the README to get the company's tools and open the practice project." (Expected: marketplace added, plugins installed, `skillgate doctor` and `skillgate status` read.)
-2. **Prepare.** "The project should be set up the way the company works. Ask the assistant to do that." (Expected: `skillgate prepare` previewed and applied, harness instructions present.)
+1. **Join.** "Follow the README to get the company's tools and open the practice project." (Expected: marketplace added, plugins installed, `skilliton doctor` and `skilliton status` read.)
+2. **Prepare.** "The project should be set up the way the company works. Ask the assistant to do that." (Expected: `skilliton prepare` previewed and applied, harness instructions present.)
 3. **Describe the work.** Hand over the task card. "Ask the assistant for this in your own words."
 4. **Build.** Let the builder work with the assistant until they believe the task is done.
 5. **Interruption.** At a moment the facilitator chooses mid-build, close the assistant session without warning. "Start a new session and carry on."
 6. **Review and submit.** "Get the change ready to share and push it to the shared repository."
 7. **A blocked change.** The facilitator has prepared a second small change that passes on its own but breaks the tests once combined with the builder's work. "Push this change too." (Expected: the delivery gate rejects it; the builder understands why and recovers.)
 8. **Receive an update.** The facilitator publishes an approved release with one improved skill and a project migration. "The company says there is an update. Get it."
-9. **Recover.** "Something looks wrong with your tools." (The facilitator has changed one byte in an installed plugin file.) Expected: `skillgate verify` reports TAMPERED and the builder reinstalls.
+9. **Recover.** "Something looks wrong with your tools." (The facilitator has changed one byte in an installed plugin file.) Expected: `skilliton verify` reports TAMPERED and the builder reinstalls.
 
 ## Observation sheet (one row per step)
 
@@ -39,7 +39,7 @@ After the session also record:
 - **Reviewer effort:** minutes the reviewer spent, what they had to ask the builder, and what they found that the review summary missed.
 - **Integration repairs:** fixes needed before the change could merge.
 - **Enforced versus instructed:** which behaviors happened because a hook ran and which because the assistant followed instructions; anything instructed that did not happen.
-- **Client and versions:** Claude Code version, plugin versions (`skillgate verify` output), operating system.
+- **Client and versions:** Claude Code version, plugin versions (`skilliton verify` output), operating system.
 
 ## Recording the result
 

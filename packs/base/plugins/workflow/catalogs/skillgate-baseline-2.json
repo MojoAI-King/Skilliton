@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogVersion": "skillgate-baseline-2",
-  "description": "Partial original practice summaries related to NIST SSDF 1.1 tasks and OWASP ASVS 5.0.0 requirements. Related references are not equivalence or compliance claims. Applicability requires project review. Sources and verification: docs/security-catalog-sources.md in the Skillgate repository.",
+  "description": "Partial original practice summaries related to NIST SSDF 1.1 tasks and OWASP ASVS 5.0.0 requirements. Related references are not equivalence or compliance claims. Applicability requires project review. Sources and verification: docs/security-catalog-sources.md in the Skilliton repository.",
   "controls": [
     {
       "id": "SG-CHECK-CRITERIA",

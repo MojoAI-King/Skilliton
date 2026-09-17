@@ -1,5 +1,5 @@
 // delivery.mjs: trusted delivery checks for shared branches. Contract: docs/CONTRACTS.md section 14; the plain-language
-// guide is docs/DELIVERY.md. This is the engine behind `skillgate delivery install | gate | check`.
+// guide is docs/DELIVERY.md. This is the engine behind `skilliton delivery install | gate | check`.
 //
 // A shared bare repository runs `delivery gate` from its pre-receive hook. For each update to a protected branch the
 // gate, in this order:
@@ -31,14 +31,15 @@ import {
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { argPath, backupFile, isDir, isPlainObject, newStamp, refuse, runProgram } from "./core.mjs";
+import { LEGACY_DELIVERY_CONFIG_KEYS, LEGACY_DELIVERY_HOOK_MARKER, LEGACY_POLICY_FILE, LEGACY_POLICY_SCHEMA } from "./legacy-names.mjs";
 
-export const POLICY_FILE = ".skillgate/delivery.json";
-export const POLICY_SCHEMA = "skillgate.delivery/1";
+export const POLICY_FILE = ".skilliton/delivery.json";
+export const POLICY_SCHEMA = "skilliton.delivery/1";
 export const DEFAULT_TIMEOUT_SECONDS = 600;
 export const MAX_TIMEOUT_SECONDS = 86400;
 export const TAIL_LINES = 20;
-export const HOOK_MARKER = "# skillgate:delivery-hook v1";
-const HOOK_MARKER_RE = /^# skillgate:delivery-hook v\d+[ \t]*$/m;
+export const HOOK_MARKER = "# skilliton:delivery-hook v1";
+const HOOK_MARKER_RE = /^# skilliton:delivery-hook v\d+[ \t]*$/m;
 const MAX_POLICY_BYTES = 256 * 1024;
 const MAX_APPROVERS_BYTES = 1024 * 1024;
 const GIT_MAX_BUFFER = 512 * 1024 * 1024;
@@ -85,15 +86,19 @@ export function matchPolicyPath(path, policyPaths) {
   return null;
 }
 
+// The policy file and schema this runtime writes, and the ones a shared branch may still carry from before the rename.
+const CURRENT_FORMAT = { file: POLICY_FILE, schema: POLICY_SCHEMA };
+const LEGACY_FORMAT = { file: LEGACY_POLICY_FILE, schema: LEGACY_POLICY_SCHEMA };
+
 // Every problem with a parsed policy value, in plain words. An empty list means the policy is valid.
-export function policyProblems(value) {
+export function policyProblems(value, { file = POLICY_FILE, schema = POLICY_SCHEMA } = CURRENT_FORMAT) {
   if (!isPlainObject(value)) return ["the file must hold a JSON object"];
   const problems = [];
   for (const key of Object.keys(value)) {
     if (!POLICY_KEYS.includes(key)) problems.push(`unknown key "${key}" (allowed: ${POLICY_KEYS.join(", ")})`);
   }
-  if (value.schema !== POLICY_SCHEMA) {
-    problems.push(`"schema" must be "${POLICY_SCHEMA}" (${value.schema === undefined ? "missing" : `found ${JSON.stringify(value.schema)}`})`);
+  if (value.schema !== schema) {
+    problems.push(`"schema" must be "${schema}" (${value.schema === undefined ? "missing" : `found ${JSON.stringify(value.schema)}`})`);
   }
 
   if (!Array.isArray(value.protectedBranches)) problems.push(`"protectedBranches" must be an array of branch names, for example ["main"]`);
@@ -132,19 +137,19 @@ export function policyProblems(value) {
     value.policyPaths.forEach((entry, i) => {
       if (!validPolicyPath(entry)) problems.push(`"policyPaths"[${i}] ${JSON.stringify(entry)} is not a repository-relative path`);
     });
-    if (value.policyPaths.every(validPolicyPath) && !matchPolicyPath(POLICY_FILE, value.policyPaths)) {
-      problems.push(`"policyPaths" must cover ${POLICY_FILE} itself; otherwise a change to the policy would need no approval`);
+    if (value.policyPaths.every(validPolicyPath) && !matchPolicyPath(file, value.policyPaths)) {
+      problems.push(`"policyPaths" must cover ${file} itself; otherwise a change to the policy would need no approval`);
     }
   }
   return problems;
 }
 
 // Parse policy text: { policy } with defaults filled in, or { problems }.
-export function parsePolicyText(text) {
+export function parsePolicyText(text, format = CURRENT_FORMAT) {
   const body = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
   let value;
   try { value = JSON.parse(body); } catch (e) { return { problems: [`not valid JSON (${e.message})`] }; }
-  const problems = policyProblems(value);
+  const problems = policyProblems(value, format);
   if (problems.length) return { problems };
   return {
     policy: {
@@ -237,20 +242,25 @@ export function revParseCommit(git, name) {
   return r.status === 0 ? r.stdout.trim() : null;
 }
 
-// The policy at a commit: { state: "absent" } | { state: "invalid", problems } | { state: "valid", policy }.
+// The policy at a commit: { state: "absent" } | { state: "invalid", problems, file } | { state: "valid", policy, file }.
+// A commit without .skilliton/delivery.json that still has the earlier policy file (legacy-names.mjs) is governed by that
+// policy, read in its earlier format, so a shared branch stays protected until its migration commit moves the file.
 export function readPolicyAt(git, commit) {
-  const listing = git(["ls-tree", "-z", "--full-tree", commit, "--", POLICY_FILE]).stdout;
-  const entry = listing.split("\0").find(Boolean);
-  if (!entry) return { state: "absent" };
-  const m = /^(\d{6}) (\w+) ([0-9a-f]{40,64})\t([\s\S]*)$/.exec(entry);
-  if (!m) throw new DeliveryError(`unexpected git ls-tree output for ${POLICY_FILE} at ${short(commit)}`);
-  if (m[2] !== "blob" || (m[1] !== "100644" && m[1] !== "100755")) {
-    return { state: "invalid", problems: [`${POLICY_FILE} must be a regular file (found a ${m[2]} with mode ${m[1]})`] };
+  for (const format of [CURRENT_FORMAT, LEGACY_FORMAT]) {
+    const listing = git(["ls-tree", "-z", "--full-tree", commit, "--", format.file]).stdout;
+    const entry = listing.split("\0").find(Boolean);
+    if (!entry) continue;
+    const m = /^(\d{6}) (\w+) ([0-9a-f]{40,64})\t([\s\S]*)$/.exec(entry);
+    if (!m) throw new DeliveryError(`unexpected git ls-tree output for ${format.file} at ${short(commit)}`);
+    if (m[2] !== "blob" || (m[1] !== "100644" && m[1] !== "100755")) {
+      return { state: "invalid", file: format.file, problems: [`${format.file} must be a regular file (found a ${m[2]} with mode ${m[1]})`] };
+    }
+    const size = Number(git(["cat-file", "-s", m[3]]).stdout.trim());
+    if (!(size <= MAX_POLICY_BYTES)) return { state: "invalid", file: format.file, problems: [`${format.file} is ${size} bytes; the limit is ${MAX_POLICY_BYTES}`] };
+    const parsed = parsePolicyText(git(["cat-file", "blob", m[3]]).stdout, format);
+    return parsed.policy ? { state: "valid", policy: parsed.policy, file: format.file } : { state: "invalid", file: format.file, problems: parsed.problems };
   }
-  const size = Number(git(["cat-file", "-s", m[3]]).stdout.trim());
-  if (!(size <= MAX_POLICY_BYTES)) return { state: "invalid", problems: [`${POLICY_FILE} is ${size} bytes; the limit is ${MAX_POLICY_BYTES}`] };
-  const parsed = parsePolicyText(git(["cat-file", "blob", m[3]]).stdout);
-  return parsed.policy ? { state: "valid", policy: parsed.policy } : { state: "invalid", problems: parsed.problems };
+  return { state: "absent" };
 }
 
 // Where branch tips and the default branch come from. The gate reads the bare repository's own refs; `delivery check`
@@ -328,6 +338,12 @@ function signatureStatus(ctx, commit) {
 function commitsBetween(git, oldId, newId) {
   return git(["rev-list", "--reverse", "--topo-order", "--parents", `${oldId}..${newId}`]).stdout
     .split("\n").filter(Boolean).map((line) => { const [id, parent = null] = line.split(" "); return { id, parent }; });
+}
+
+// The blob id at commit:path, or null when the path is absent there.
+function blobAt(git, commit, path) {
+  const r = git(["rev-parse", "--verify", "-q", `${commit}:${path}`], { allowExit: "any" });
+  return r.status === 0 ? r.stdout.trim() : null;
 }
 
 function changedPaths(git, id, parent) {
@@ -508,16 +524,31 @@ export async function evaluateUpdate(ctx, update) {
     if (ff.status !== 0) return reject(`non-fast-forward update: the pushed commit ${short(newId)} does not contain the current tip ${short(oldId)}; fetch and merge (or rebase), then push again`);
     const current = readPolicyAt(git, oldId);
     if (current.state === "absent") return reject("no delivery policy on the protected branch");
-    if (current.state === "invalid") return reject(`the delivery policy on the protected branch (${POLICY_FILE} at ${short(oldId)}) is invalid: ${current.problems.join("; ")}`);
+    if (current.state === "invalid") return reject(`the delivery policy on the protected branch (${current.file} at ${short(oldId)}) is invalid: ${current.problems.join("; ")}`);
     policy = current.policy;
-    source = `the policy at the current tip ${short(oldId)}`;
+    source = `the policy at the current tip ${short(oldId)}${current.file === LEGACY_POLICY_FILE ? ` (${LEGACY_POLICY_FILE}, from before the rename to Skilliton)` : ""}`;
+    // Both policy files are always guarded, whichever one governs the branch, so a commit cannot add a weaker policy
+    // under the other name without an approver's signature.
+    const guarded = [...policy.policyPaths, POLICY_FILE, LEGACY_POLICY_FILE];
+    const approved = [];
     for (const { id, parent } of commitsBetween(git, oldId, newId)) {
-      const touched = changedPaths(git, id, parent).filter((path) => matchPolicyPath(path, policy.policyPaths));
+      const touched = changedPaths(git, id, parent).filter((path) => matchPolicyPath(path, guarded));
       if (!touched.length) continue;
       const what = `commit ${short(id)} changes the policy path ${touched[0]}${touched.length > 1 ? ` (and ${touched.length - 1} more)` : ""}`;
       const sig = signatureStatus(ctx, id);
       if (sig.state === "unverified") return reject(`${what} without an approver signature: ${sig.reason}`);
       if (sig.state === "not-checked") notChecked.push(`${what} and needs an approver signature`);
+      approved.push({ id, touched });
+    }
+    // Each commit above is compared with its first parent only, so a merge can bring back an earlier version of a
+    // guarded file (or drop the current policy, letting an earlier one govern) without any commit changing it. The
+    // combined result closes that: every guarded path that differs between the current tip and the pushed tip must
+    // hold exactly the content an approved commit in this push gave it.
+    for (const path of changedPaths(git, newId, oldId).filter((p) => matchPolicyPath(p, guarded))) {
+      const final = blobAt(git, newId, path);
+      if (!approved.some((c) => c.touched.includes(path) && blobAt(git, c.id, path) === final)) {
+        return reject(`the pushed result changes the policy path ${path} to content that no approver-signed commit in this push gave it (for example a merge that brings back an earlier version); push the policy change as its own signed commit`);
+      }
     }
     const next = readPolicyAt(git, newId);
     if (next.state === "absent") return reject(`the pushed commit ${short(newId)} removes ${POLICY_FILE}; accepting it would reject every later push to this branch`);
@@ -528,7 +559,7 @@ export async function evaluateUpdate(ctx, update) {
     say(`checking ${update.ref} at ${short(newId)} with ${source}: it lists no checks, so nothing was run`);
     return { verdict: "accepted", checks: [], notChecked };
   }
-  const work = mkdtempSync(join(tmpdir(), "skillgate-delivery-"));
+  const work = mkdtempSync(join(tmpdir(), "skilliton-delivery-"));
   try {
     const tree = join(work, "tree");
     const home = join(work, "home");
@@ -571,9 +602,9 @@ export function parseRefUpdates(text) {
 }
 
 function approversSetting(git) {
-  const r = git(["config", "--get", "skillgate.approvers"], { allowExit: [0, 1] });
+  const r = git(["config", "--get", "skilliton.approvers"], { allowExit: [0, 1] });
   const path = r.status === 0 ? r.stdout.replace(/\n$/, "") : "";
-  if (!path) return { problem: "skillgate.approvers is not set in this repository's git config; run skillgate delivery install" };
+  if (!path) return { problem: "skilliton.approvers is not set in this repository's git config; run skilliton delivery install" };
   const found = readApproversFile(path);
   if (found.problems) return { problem: `the approvers file ${path} ${found.problems.join("; ")}` };
   return { path };
@@ -581,7 +612,7 @@ function approversSetting(git) {
 
 // Evaluates a whole push. Returns 0 (accept), 1 (reject) or 3 (the gate could not finish, so it rejects).
 export async function runGate({ bare, input, print = (line) => console.log(line) }) {
-  const say = (text) => print(`skillgate delivery: ${text}`);
+  const say = (text) => print(`skilliton delivery: ${text}`);
   let current = "this push";
   try {
     const { updates, problems } = parseRefUpdates(input);
@@ -620,7 +651,7 @@ export async function runGate({ bare, input, print = (line) => console.log(line)
 // ---------- delivery check (by hand, before pushing) ----------
 
 export async function runLocalCheck({ repo, ref, remote = "origin", approvers, print = (line) => console.log(line) }) {
-  const say = (text) => print(`skillgate delivery check: ${text}`);
+  const say = (text) => print(`skilliton delivery check: ${text}`);
   const dir = resolve(repo ?? process.cwd());
   if (!isDir(dir)) refuse(`--repo ${dir} is not an existing folder`);
   const top = gitRunner(["-C", dir])(["rev-parse", "--show-toplevel"], { allowExit: "any" });
@@ -682,24 +713,24 @@ export function hookScript() {
   return [
     "#!/bin/sh",
     HOOK_MARKER,
-    "# Written by `skillgate delivery install`; run install again instead of editing this file. Git runs this hook before",
+    "# Written by `skilliton delivery install`; run install again instead of editing this file. Git runs this hook before",
     "# it updates any ref in this repository, with one \"<old> <new> <ref>\" line per update on standard input. The lines",
     "# go to the Skilliton delivery gate, and the hook exits with the gate's status: anything but 0 rejects the whole",
     "# push. It fails closed: when the runtime, its setting or node is missing, the push is rejected.",
     "",
     "reject() {",
-    "  printf 'skillgate delivery: rejected: %s\\n' \"$1\"",
+    "  printf 'skilliton delivery: rejected: %s\\n' \"$1\"",
     "  exit 1",
     "}",
     "repo=$(cd \"${GIT_DIR:-.}\" 2>/dev/null && pwd -P) || reject \"cannot resolve the repository folder\"",
-    "runtime=$(git config --get skillgate.runtime 2>/dev/null) || runtime=",
-    "[ -n \"$runtime\" ] || reject \"skillgate.runtime is not set in this repository's git config; run skillgate delivery install again\"",
+    "runtime=$(git config --get skilliton.runtime 2>/dev/null) || runtime=",
+    "[ -n \"$runtime\" ] || reject \"skilliton.runtime is not set in this repository's git config; run skilliton delivery install again\"",
     "[ -f \"$runtime\" ] && [ -x \"$runtime\" ] || reject \"the delivery runtime $runtime is missing or not executable\"",
     "command -v node >/dev/null 2>&1 || reject \"node was not found on PATH, so the delivery checks cannot run\"",
     "\"$runtime\" delivery gate --bare \"$repo\"",
     "status=$?",
     "if [ \"$status\" -ne 0 ]; then",
-    "  [ \"$status\" -eq 1 ] || printf 'skillgate delivery: rejected: the delivery gate exited with status %s\\n' \"$status\"",
+    "  [ \"$status\" -eq 1 ] || printf 'skilliton delivery: rejected: the delivery gate exited with status %s\\n' \"$status\"",
     "  exit \"$status\"",
     "fi",
     "exit 0",
@@ -744,7 +775,7 @@ export function planInstall({ bare, approvers, runtime, defaultRuntime }) {
 
   const runtimePath = resolve(runtime ?? defaultRuntime);
   const rst = lstatOrNull(runtimePath) && statSync(runtimePath, { throwIfNoEntry: false });
-  if (!rst || !rst.isFile()) refuse(`the runtime ${runtimePath} is not a file (--runtime names the bin/skillgate launcher of the workflow plugin)`);
+  if (!rst || !rst.isFile()) refuse(`the runtime ${runtimePath} is not a file (--runtime names the bin/skilliton launcher of the workflow plugin)`);
   try { accessSync(runtimePath, fsConstants.X_OK); } catch { refuse(`the runtime ${runtimePath} is not executable`); }
   const probe = runProgram(runtimePath, ["delivery", "--help"], 60000);
   if (!probe.ok) refuse(`the runtime ${runtimePath} failed to run "delivery --help" (${probe.failure}); a hook using it would reject every push`);
@@ -755,13 +786,16 @@ export function planInstall({ bare, approvers, runtime, defaultRuntime }) {
   if (existing) {
     if (!existing.isFile()) refuse(`${hookPath} exists but is not a regular file; it was left untouched`);
     const text = readFileSync(hookPath, "utf8");
+    if (!HOOK_MARKER_RE.test(text) && LEGACY_DELIVERY_HOOK_MARKER.test(text)) {
+      refuse(`${hookPath} was written by delivery install before the rename to Skilliton; it was left untouched, because it runs the runtime named in the git settings ${LEGACY_DELIVERY_CONFIG_KEYS.join(" and ")}. To replace it: move the hook out of the hooks folder, remove those two settings (git config --unset ${LEGACY_DELIVERY_CONFIG_KEYS[0]}; git config --unset ${LEGACY_DELIVERY_CONFIG_KEYS[1]}), then run install again. Until then the shared branch keeps the earlier gate.`);
+    }
     if (!HOOK_MARKER_RE.test(text)) {
-      refuse(`${hookPath} already exists and was not written by skillgate delivery install (it has no "${HOOK_MARKER}" line); it was left untouched. Combine the two hooks by hand or move the existing one away, then run install again.`);
+      refuse(`${hookPath} already exists and was not written by skilliton delivery install (it has no "${HOOK_MARKER}" line); it was left untouched. Combine the two hooks by hand or move the existing one away, then run install again.`);
     }
     hookAction = text === hookText && (existing.mode & 0o111) === 0o111 ? "unchanged" : "replace";
   }
 
-  const config = [["skillgate.approvers", approversPath], ["skillgate.runtime", runtimePath]]
+  const config = [["skilliton.approvers", approversPath], ["skilliton.runtime", runtimePath]]
     .map(([key, to]) => ({ key, from: configValue(git, key), to }));
 
   const notes = [];
@@ -804,7 +838,7 @@ export function applyInstall(plan, { stamp = newStamp() } = {}) {
   for (const c of plan.config) if (c.from !== c.to) git(["config", c.key, c.to]);
   if (plan.hookAction !== "unchanged") {
     mkdirSync(dirname(plan.hookPath), { recursive: true });
-    const temp = join(dirname(plan.hookPath), `.pre-receive.skillgate-${process.pid}`);
+    const temp = join(dirname(plan.hookPath), `.pre-receive.skilliton-${process.pid}`);
     writeFileSync(temp, plan.hookText, { mode: 0o755 });
     chmodSync(temp, 0o755);
     renameSync(temp, plan.hookPath);

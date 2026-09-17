@@ -4,7 +4,7 @@
 // Found on 2026-09-16: README.md and docs/RELEASING.md told a company to run `new-skill <plugin> <skill> --pack
 // <company>`, which refused on a fresh fork because no command created the plugin; the test for new-skill built the
 // plugin folder by hand, so the documented path had never run as written. This test holds the guides to what exists:
-//   - every `skillgate <command> [<verb>]` in a code span or code block of the guides names a command the CLI lists,
+//   - every `skilliton <command> [<verb>]` in a code span or code block of the guides names a command the CLI lists,
 //     and, for a command whose --help lists verbs (such as release create), a verb it lists
 //   - every relative Markdown link in the guides resolves to a file or folder in the checkout
 //   - every Markdown file under docs/, and README.md, says its Kind near the top
@@ -21,15 +21,15 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const CLI = join(here, "skillgate.mjs");
+const CLI = join(here, "skilliton.mjs");
 const GUIDES = ["README.md", "docs/HOW-IT-WORKS.md", "docs/ONBOARDING.md", "docs/RELEASING.md"];
 const argv = process.argv.slice(2);
 const rootArg = argv.includes("--root") ? argv[argv.indexOf("--root") + 1] : null;
 if (argv.includes("--root") && (!rootArg || rootArg.startsWith("--"))) { console.error("--root needs a folder; nothing was checked"); process.exit(2); }
 
 function helpOf(args) {
-  const r = spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8", env: { ...process.env, SKILLGATE_SELF: "skillgate" } });
-  if (r.status !== 0) throw new Error(`node scripts/skillgate.mjs ${args.join(" ")} exited ${r.status}: ${r.stderr}`);
+  const r = spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8", env: { ...process.env, SKILLITON_SELF: "skilliton" } });
+  if (r.status !== 0) throw new Error(`node scripts/skilliton.mjs ${args.join(" ")} exited ${r.status}: ${r.stderr}`);
   return r.stdout;
 }
 const COMMANDS = new Set([...helpOf(["--help"]).matchAll(/^ {2}([a-z][a-z-]*) {2,}/gm)].map((m) => m[1]));
@@ -80,12 +80,12 @@ function check(root) {
     if (!existsSync(file)) { failures.push(`${rel}: missing (the guides this test checks are ${GUIDES.join(", ")})`); continue; }
     const { code, prose } = parts(readFileSync(file, "utf8"));
     for (const { line, text } of code) {
-      for (const m of text.matchAll(/(?:^|[\s"'(])(?:skillgate|scripts\/skillgate\.mjs|bin\/skillgate)[ \t]+([a-z][a-z-]*)(?:[ \t]+([a-z][a-z-]*))?/g)) {
+      for (const m of text.matchAll(/(?:^|[\s"'(])(?:skilliton|scripts\/skilliton\.mjs|bin\/skilliton)[ \t]+([a-z][a-z-]*)(?:[ \t]+([a-z][a-z-]*))?/g)) {
         commands++;
         const [, command, verb] = m;
-        if (!COMMANDS.has(command)) { failures.push(`${rel}:${line}: "skillgate ${command}" is not a command (skillgate --help lists ${[...COMMANDS].join(", ")})`); continue; }
+        if (!COMMANDS.has(command)) { failures.push(`${rel}:${line}: "skilliton ${command}" is not a command (skilliton --help lists ${[...COMMANDS].join(", ")})`); continue; }
         const verbs = verbsOf(command);
-        if (verb && verbs.size && !verbs.has(verb)) failures.push(`${rel}:${line}: "skillgate ${command} ${verb}": ${command} has no verb "${verb}" (its help lists ${[...verbs].join(", ")})`);
+        if (verb && verbs.size && !verbs.has(verb)) failures.push(`${rel}:${line}: "skilliton ${command} ${verb}": ${command} has no verb "${verb}" (its help lists ${[...verbs].join(", ")})`);
       }
     }
     for (const { line, text } of prose) {
@@ -98,7 +98,7 @@ function check(root) {
       }
     }
   }
-  oks.push(`${commands} skillgate command mention(s) in ${GUIDES.length} guides name real commands and verbs`);
+  oks.push(`${commands} skilliton command mention(s) in ${GUIDES.length} guides name real commands and verbs`);
   oks.push(`${links} relative link(s) in the guides resolve`);
   const docs = [join(root, "README.md"), ...(existsSync(join(root, "docs")) ? markdownFiles(join(root, "docs")) : [])].filter(existsSync);
   for (const file of docs) {
@@ -116,8 +116,8 @@ if (argv.includes("--self-test")) {
   const tmp = mkdtempSync(join(tmpdir(), "docs-selftest-"));
   const add = (d, rel, text) => appendFileSync(join(d, rel), text);
   const cases = [
-    ["an unknown command", (d) => add(d, "docs/HOW-IT-WORKS.md", "\nRun `skillgate frobnicate --apply`.\n"), /"skillgate frobnicate" is not a command/],
-    ["an unknown verb", (d) => add(d, "docs/RELEASING.md", "\n```bash\nnode scripts/skillgate.mjs release publish 1.0.0\n```\n"), /release has no verb "publish"/],
+    ["an unknown command", (d) => add(d, "docs/HOW-IT-WORKS.md", "\nRun `skilliton frobnicate --apply`.\n"), /"skilliton frobnicate" is not a command/],
+    ["an unknown verb", (d) => add(d, "docs/RELEASING.md", "\n```bash\nnode scripts/skilliton.mjs release publish 1.0.0\n```\n"), /release has no verb "publish"/],
     ["a broken link", (d) => add(d, "README.md", "\nSee [the missing page](docs/NOWHERE.md).\n"), /link to docs\/NOWHERE\.md does not resolve/],
     ["a missing Kind label", (d) => { const f = join(d, "docs/ONBOARDING.md"); writeFileSync(f, readFileSync(f, "utf8").replace(/Kind: [A-Z][a-z]+\./, "")); }, /ONBOARDING\.md: no Kind label/],
   ];

@@ -21,8 +21,8 @@ import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const HOME = homedir();
-const SETTINGS = process.env.SKILLGATE_SETTINGS ?? join(HOME, ".claude", "settings.json");
-const BACKUPS = process.env.SKILLGATE_BACKUPS ?? join(HOME, ".claude", "backups", "skillgate");
+const SETTINGS = process.env.SKILLITON_SETTINGS ?? join(HOME, ".claude", "settings.json");
+const BACKUPS = process.env.SKILLITON_BACKUPS ?? join(HOME, ".claude", "backups", "skilliton");
 const here = dirname(fileURLToPath(import.meta.url));
 const STATUSLINE = resolve(here, "..", "packs/base/plugins/context-hygiene/hooks/statusline-quota.sh");
 const mode = process.argv.includes("--apply") ? "apply" : process.argv.includes("--undo") ? "undo" : "show";
@@ -36,11 +36,21 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const looksApplied = (line) => line?.type === "command" && typeof line.command === "string" && line.command.endsWith("/statusline-quota.sh");
 
 if (mode === "undo") {
-  if (!existsSync(BACKUPS)) { console.log("nothing to undo: no backups directory"); process.exit(0); }
   // Only folders this script created (ISO timestamps) are backups. Other tools share the root (for example
-  // skillgate harness writes harness/), and a name that sorts after the timestamps must not be taken as newest.
-  const dirs = readdirSync(BACKUPS).filter((d) => /^\d{4}-\d{2}-\d{2}T/.test(d)).sort();
-  if (!dirs.length) { console.log("nothing to undo: no backups"); process.exit(0); }
+  // skilliton harness writes harness/), and a name that sorts after the timestamps must not be taken as newest.
+  const backupsIn = (root) => (existsSync(root) ? readdirSync(root).filter((d) => /^\d{4}-\d{2}-\d{2}T/.test(d)).sort() : []);
+  const dirs = backupsIn(BACKUPS);
+  if (!dirs.length) {
+    // Before the rename to Skilliton the default backup folder was ~/.claude/backups/skillgate. It is not read, so an
+    // --apply made then is named instead of being reported as nothing to undo.
+    const earlier = join(HOME, ".claude", "backups", "skillgate");
+    if (process.env.SKILLITON_BACKUPS === undefined && backupsIn(earlier).length) {
+      console.log(`no backups in ${BACKUPS}, but ${earlier} holds backups made before the rename to Skilliton, which this version does not read. Compare ${join(earlier, backupsIn(earlier).at(-1), "settings.json")} with ${SETTINGS} and restore the statusLine key by hand.`);
+      process.exit(1);
+    }
+    console.log(existsSync(BACKUPS) ? "nothing to undo: no backups" : "nothing to undo: no backups directory");
+    process.exit(0);
+  }
   const bdir = join(BACKUPS, dirs[dirs.length - 1]);
   const backup = join(bdir, "settings.json");
   if (!existsSync(backup)) { console.log(`backup ${backup} missing; refusing to guess`); process.exit(1); }

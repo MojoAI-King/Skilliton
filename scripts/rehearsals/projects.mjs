@@ -3,7 +3,7 @@
 //
 //   node scripts/rehearsals/projects.mjs [--keep] [--no-evidence]
 //
-// Drives the Skillgate command line the way a person or a client hook does: a fresh project, adoption of an existing
+// Drives the Skilliton command line the way a person or a client hook does: a fresh project, adoption of an existing
 // project (a synthetic one and a clone of this repository), a prototype (layout 1) project migrated, security evidence
 // that goes stale and becomes a backlog finding, the stop reminder, recovery after an interrupted session, two
 // contributors whose records never collide, and removal that keeps history. Hooks are called with the JSON a client
@@ -19,7 +19,7 @@ const flags = parseFlags(process.argv.slice(2), { keep: "flag", "no-evidence": "
 const ws = workspace("projects");
 const R = new Rehearsal("projects", "Project preparation and continuity rehearsal (M1, M2)");
 const env = isolatedEnv(ws);
-const BIN = join(REPO, "packs", "base", "plugins", "workflow", "bin", "skillgate");
+const BIN = join(REPO, "packs", "base", "plugins", "workflow", "bin", "skilliton");
 const sg = (args, opts = {}) => run(process.execPath, [CLI, ...args], { env, ...opts });
 const hook = (event, payload, opts = {}) => run(BIN, ["hook", event], { env, input: JSON.stringify(payload), ...opts });
 const built = (command) => !/not built in this version/.test(sg([command, "--help"]).all);
@@ -31,12 +31,12 @@ function snapshot(dir) {
   walk(dir);
   return out.sort().join("\n");
 }
-const LAYOUT2 = ["docs/STATUS.md", "docs/BACKLOG.md", "docs/BACKLOG_ARCHIVE.md", "docs/ROADMAP.md", "DECISIONS.md", "docs/LESSONS.md", "docs/HANDOFF.md", "docs/HANDOFF_ARCHIVE.md", "docs/MAINTAIN.md", "docs/tasks/README.md", "docs/decisions/README.md", "docs/lessons/README.md", "docs/security/README.md", ".skillgate/config.json", ".skillgate/security/catalog.json", "CLAUDE.md", "AGENTS.md"];
+const LAYOUT2 = ["docs/STATUS.md", "docs/BACKLOG.md", "docs/BACKLOG_ARCHIVE.md", "docs/ROADMAP.md", "DECISIONS.md", "docs/LESSONS.md", "docs/HANDOFF.md", "docs/HANDOFF_ARCHIVE.md", "docs/MAINTAIN.md", "docs/tasks/README.md", "docs/decisions/README.md", "docs/lessons/README.md", "docs/security/README.md", ".skilliton/config.json", ".skilliton/security/catalog.json", "CLAUDE.md", "AGENTS.md"];
 
 console.log(`workspace: ${ws}`);
 
 const fresh = join(ws, "fresh");
-await R.step("N1", "fresh project: preview writes nothing, apply creates layout 2, repeat apply changes nothing", () => {
+await R.step("N1", "fresh project: preview writes nothing, apply creates layout 3, repeat apply changes nothing", () => {
   const miss = need("prepare"); if (miss) return { ...miss, critical: true };
   initRepo(fresh, env);
   writeFileSync(join(fresh, "README.md"), "# Fresh\n");
@@ -50,14 +50,14 @@ await R.step("N1", "fresh project: preview writes nothing, apply creates layout 
   const afterFirst = snapshot(fresh);
   const again = sg(["prepare", "--dir", fresh, "--apply"]);
   const idempotent = snapshot(fresh) === afterFirst;
-  const noCopiedRuntime = !existsSync(join(fresh, ".skillgate", "bin"));
+  const noCopiedRuntime = !existsSync(join(fresh, ".skilliton", "bin"));
   commit(fresh, "Prepare");
   return { ok: preview.code === 0 && unchanged && apply.code === 0 && !missing.length && check.code === 0 && again.code === 0 && idempotent && noCopiedRuntime, critical: true, detail: `preview exit ${preview.code}, wrote nothing: ${unchanged}; apply exit ${apply.code}; missing layout files: ${missing.join(", ") || "none"}; check exit ${check.code}; repeat apply exit ${again.code}, byte-identical: ${idempotent}; no copied runtime: ${noCopiedRuntime}` };
 });
 
 await R.step("N2", "doctor recognizes the prepared project's layout, versions and instruction blocks", () => {
   const d = sg(["doctor", "--dir", fresh]);
-  const layout = /^OK +project layout: layout 2/m.test(d.out);
+  const layout = /^OK +project layout: layout 3/m.test(d.out);
   const requires = /^OK +requires workflow:/m.test(d.out);
   const blocks = ["CLAUDE.md", "AGENTS.md"].every((f) => new RegExp(`^OK +${f.replace(".", "\\.")}: harness block present and matches the current template`, "m").test(d.out));
   return { ok: layout && requires && blocks, detail: `layout line OK: ${layout}; requires line OK: ${requires}; both harness blocks current: ${blocks} (doctor exit ${d.code}; machine-level plugin lines are not part of this step)` };
@@ -73,19 +73,19 @@ await R.step("A1", "adoption of an existing project keeps its records, names and
     "HANDOFF.md": "# Handoff\n\n## RESUME HERE\n\nWritten: 2026-09-01 10:00\n\n- **State:** mid-way through invoices.\n",
     "docs/DECISIONS.md": "# Decisions\n\nWe use plain SQL.\n",
     "CLAUDE.md": "# Team notes\n\nAlways run the linter.\n",
-    ".skillgate/config.json": JSON.stringify({ dispatch: { minItemsForLanes: 9 }, teamExtra: { keep: true } }, null, 2) + "\n",
+    ".skilliton/config.json": JSON.stringify({ dispatch: { minItemsForLanes: 9 }, teamExtra: { keep: true } }, null, 2) + "\n",
   };
   for (const [p, text] of Object.entries(files)) { mkdirSync(join(existing, p, ".."), { recursive: true }); writeFileSync(join(existing, p), text); }
   commit(existing, "existing project");
   const apply = sg(["prepare", "--dir", existing, "--apply"]);
   const kept = ["STATUS.md", "TODO.md", "HANDOFF.md", "docs/DECISIONS.md"].every((p) => readFileSync(join(existing, p), "utf8") === files[p]);
-  const cfg = JSON.parse(readFileSync(join(existing, ".skillgate", "config.json"), "utf8"));
+  const cfg = JSON.parse(readFileSync(join(existing, ".skilliton", "config.json"), "utf8"));
   const adopted = cfg.prepare?.artifacts?.status === "STATUS.md" && cfg.prepare?.artifacts?.backlog === "TODO.md" && cfg.prepare?.artifacts?.handoff === "HANDOFF.md" && cfg.prepare?.artifacts?.decisions === "docs/DECISIONS.md";
   const settingsKept = cfg.dispatch?.minItemsForLanes === 9 && cfg.teamExtra?.keep === true;
   const claudeMd = readFileSync(join(existing, "CLAUDE.md"), "utf8");
   const humanKept = claudeMd.startsWith(files["CLAUDE.md"]);
   const namesAdopted = claudeMd.includes("`HANDOFF.md`") && !claudeMd.includes("docs/HANDOFF.md");
-  if (apply.code === 0) commit(existing, "Prepare with Skillgate");
+  if (apply.code === 0) commit(existing, "Prepare with Skilliton");
   return { ok: apply.code === 0 && kept && adopted && settingsKept && humanKept && namesAdopted, detail: `apply exit ${apply.code}; existing records byte-identical: ${kept}; adopted paths recorded: ${adopted}; unrelated settings kept: ${settingsKept}; human CLAUDE.md text kept: ${humanKept}; instructions name the adopted handoff: ${namesAdopted}` };
 });
 
@@ -101,12 +101,12 @@ await R.step("A2", "adoption of a large real project (a clone of this repository
   const kept = watched.every((p) => readFileSync(join(clone, p), "utf8") === before[p]);
   const claude = readFileSync(join(clone, "CLAUDE.md"), "utf8");
   const humanRulesKept = claude.includes("Rules for every session in this repo:");
-  const oneBlock = (claude.match(/skillgate:harness:start/g) ?? []).length === 1;
+  const oneBlock = (claude.match(/skilliton:harness:start/g) ?? []).length === 1;
   const again = sg(["prepare", "--dir", clone, "--check"]);
   return { ok: preview.code === 0 && apply.code === 0 && kept && humanRulesKept && oneBlock && again.code === 0, detail: `preview ${preview.code}; apply ${apply.code}; living documents byte-identical: ${kept}; human rules kept in CLAUDE.md: ${humanRulesKept}; exactly one managed block: ${oneBlock}; check after apply ${again.code}` };
 });
 
-await R.step("G1", "a prototype (layout 1) project migrates to layout 2 through the command line", () => {
+await R.step("G1", "a prototype (layout 1) project migrates to layout 3 (the integrated layout under the Skilliton names) through the command line", () => {
   const miss = need("migrate"); if (miss) return miss;
   const proto = join(REPO, "scripts", "fixtures", "prototype-v1");
   if (!existsSync(join(proto, "prepare.mjs"))) return { ok: false, detail: "the prototype fixture is not in this build (scripts/fixtures/prototype-v1)" };
@@ -123,20 +123,20 @@ await R.step("G1", "a prototype (layout 1) project migrates to layout 2 through 
   const preview = sg(["migrate", "--dir", legacy]);
   const apply = sg(["migrate", "--dir", legacy, "--apply"]);
   const claude = readFileSync(join(legacy, "CLAUDE.md"), "utf8");
-  const migrated = !existsSync(join(legacy, ".skillgate", "bin", "security-evidence.mjs")) && !claude.includes("skillgate:project") && claude.includes("skillgate:harness:start") && claude.includes("Keep this.");
-  const receipts = existsSync(join(legacy, ".skillgate", "migrations")) ? readdirSync(join(legacy, ".skillgate", "migrations")).length : 0;
-  return { ok: old.code === 0 && hadCopy && refused.code === 2 && apply.code === 0 && migrated && receipts === 1, detail: `prototype setup exit ${old.code} (copied runtime present: ${hadCopy}); prepare on layout 1 refused: exit ${refused.code}; migrate preview ${preview.code}, apply ${apply.code}; migrated with human text kept: ${migrated}; receipts ${receipts}` };
+  const migrated = !existsSync(join(legacy, ".skillgate")) && existsSync(join(legacy, ".skilliton", "config.json")) && !claude.includes("skillgate:project") && claude.includes("skilliton:harness:start") && claude.includes("Keep this.");
+  const receipts = existsSync(join(legacy, ".skilliton", "migrations")) ? readdirSync(join(legacy, ".skilliton", "migrations")).length : 0;
+  return { ok: old.code === 0 && hadCopy && refused.code === 2 && apply.code === 0 && migrated && receipts === 2, detail: `prototype setup exit ${old.code} (copied runtime present: ${hadCopy}); prepare on layout 1 refused: exit ${refused.code}; migrate preview ${preview.code}, apply ${apply.code}; migrated with human text kept: ${migrated}; receipts ${receipts}` };
 });
 
 await R.step("S1", "security evidence: an observation goes stale when its source changes and becomes one backlog finding", () => {
   const miss = need("security"); if (miss) return miss;
   mkdirSync(join(fresh, "src"), { recursive: true });
-  mkdirSync(join(fresh, ".skillgate", "private-evidence"), { recursive: true });
+  mkdirSync(join(fresh, ".skilliton", "private-evidence"), { recursive: true });
   writeFileSync(join(fresh, "src", "access.js"), "export const mayEdit = (role) => role === 'admin';\n");
-  writeFileSync(join(fresh, ".skillgate", "private-evidence", "access-tests.txt"), "2 tests passed\n");
+  writeFileSync(join(fresh, ".skilliton", "private-evidence", "access-tests.txt"), "2 tests passed\n");
   commit(fresh, "access check");
-  const rec = sg(["security", "record", "--dir", fresh, "--control", "SG-SECURITY-TESTS", "--assessment", "observed", "--source", "src/access.js", "--artifact", ".skillgate/private-evidence/access-tests.txt", "--note", "Role check tests passed for admin and viewer.", "--reviewer", "rehearsal", "--apply"]);
-  const recordsDir = join(fresh, ".skillgate", "security", "records");
+  const rec = sg(["security", "record", "--dir", fresh, "--control", "SG-SECURITY-TESTS", "--assessment", "observed", "--source", "src/access.js", "--artifact", ".skilliton/private-evidence/access-tests.txt", "--note", "Role check tests passed for admin and viewer.", "--reviewer", "rehearsal", "--apply"]);
+  const recordsDir = join(fresh, ".skilliton", "security", "records");
   const recordFile = existsSync(recordsDir) ? readdirSync(recordsDir).find((f) => f.endsWith(".json")) : null;
   const recordBytes = recordFile ? readFileSync(join(recordsDir, recordFile), "utf8") : null;
   const st1 = sg(["security", "status", "--dir", fresh]);
@@ -153,7 +153,7 @@ await R.step("S1", "security evidence: an observation goes stale when its source
 
 await R.step("I1", "the stop reminder asks once for a checkpoint, then recovery after an interrupted session shows what was left", () => {
   const miss = need("hook", "task", "checkpoint"); if (miss) return miss;
-  const cfgPath = join(fresh, ".skillgate", "config.json");
+  const cfgPath = join(fresh, ".skilliton", "config.json");
   const cfg = JSON.parse(readFileSync(cfgPath, "utf8"));
   cfg.checkpoints = { stopReminder: true, minMinutes: 0 };
   writeFileSync(cfgPath, JSON.stringify(cfg, null, 2) + "\n");
@@ -217,9 +217,9 @@ await R.step("D1", "remove keeps every record, entry, observation and the histor
   const before = git(fresh, ["rev-list", "--count", "HEAD"], { env }).out.trim();
   const rm = sg(["remove", "--dir", fresh, "--apply"]);
   const claude = existsSync(join(fresh, "CLAUDE.md")) ? readFileSync(join(fresh, "CLAUDE.md"), "utf8") : "";
-  const kept = ["docs/STATUS.md", "docs/HANDOFF.md", "docs/tasks", ".skillgate/security/records"].every((p) => existsSync(join(fresh, p)));
+  const kept = ["docs/STATUS.md", "docs/HANDOFF.md", "docs/tasks", ".skilliton/security/records"].every((p) => existsSync(join(fresh, p)));
   const after = git(fresh, ["rev-list", "--count", "HEAD"], { env }).out.trim();
-  return { ok: rm.code === 0 && !claude.includes("skillgate:harness:start") && kept && before === after, detail: `remove exit ${rm.code}; managed block gone: ${!claude.includes("skillgate:harness:start")}; records kept: ${kept}; commits ${before} and ${after}` };
+  return { ok: rm.code === 0 && !claude.includes("skilliton:harness:start") && kept && before === after, detail: `remove exit ${rm.code}; managed block gone: ${!claude.includes("skilliton:harness:start")}; records kept: ${kept}; commits ${before} and ${after}` };
 }, { requires: ["N1"] });
 
 const meta = { Node: process.version, git: run("git", ["--version"]).out.trim() };

@@ -1,4 +1,4 @@
-// commands/migrate.mjs: `skillgate migrate`. The engine is lib/migrations.mjs; this file parses arguments, prints each
+// commands/migrate.mjs: `skilliton migrate`. The engine is lib/migrations.mjs; this file parses arguments, prints each
 // migration's file changes (or one JSON result), and maps outcomes to exit codes (docs/CONTRACTS.md sections 6, 9, 10).
 
 import {
@@ -6,6 +6,7 @@ import {
   tilde, unifiedDiff,
 } from "../lib/core.mjs";
 import { LAYOUT_VERSION } from "../lib/config.mjs";
+import { LEGACY_MARKETPLACE, LEGACY_NAME, LEGACY_PROJECT_DIR } from "../lib/legacy-names.mjs";
 import { MIGRATIONS, applyMigration, applyRollback, migrationById, migrationState, planMigration, planRollback } from "../lib/migrations.mjs";
 import { OperationFailed, TransactionFailed, describeFailure, loadProject, resolveGitRoot, resultJson, sha256 } from "../lib/prepare.mjs";
 
@@ -23,11 +24,19 @@ refuses a block someone edited inside the markers since Skilliton last wrote it.
 prototype (layout 1) to layout 2: it removes .skillgate/bin/security-evidence.mjs only when its bytes match the
 prototype runtime released at 23aae41, removes the skillgate:project blocks from CLAUDE.md, AGENTS.md and the maintain
 record only when they are exactly what the prototype wrote, adds the harness blocks, and sets prepare.version 2 and
-prepare.requires.workflow. Anything else (a changed runtime, a hand-edited block, a file that changes while the
-migration is being written) is refused, and the refusal names the step that reconciles it.
+prepare.requires.workflow. 0003-skilliton-names moves a layout-2 project from the earlier ${LEGACY_NAME} names to the
+Skilliton names (layout 3): every file under ${LEGACY_PROJECT_DIR}/ to .skilliton/ (private evidence stays owner-only),
+the managed markers in CLAUDE.md, AGENTS.md, the records and the security report, the "${LEGACY_MARKETPLACE}" marketplace keys
+in .claude/settings.json, and the READMEs prepare generated when they are exactly what it wrote; it adds the current
+.gitignore lines and keeps the earlier ones for clones not yet migrated. It refuses an instruction block that is not
+exactly what the earlier release wrote, a link, a file over 1 MB, file names that differ only in letter case, team
+settings it would have to merge or reformat, and a .skilliton folder that already holds files. Until it is applied, every command except
+migrate, status and doctor refuses the project. Anything else (a changed runtime, a hand-edited block, a file that
+changes while the migration is being written) is refused, and the refusal names the step that reconciles it. A receipt
+written before the rename is rolled back only with the release that wrote it.
 
-Applying writes under .skillgate/prepare.lock, backs up every file it changes into <git folder>/skillgate-backups/<id>/
-(local to this clone, never committed), and leaves a receipt in .skillgate/migrations/<id>.json listing each file's
+Applying writes under .skilliton/prepare.lock, backs up every file it changes into <git folder>/skilliton-backups/<id>/
+(local to this clone, never committed), and leaves a receipt in .skilliton/migrations/<id>.json listing each file's
 sha256 before and after (commit the receipt). A rollback restores those backups only when every file still holds
 exactly what the migration wrote; otherwise it lists the files that changed and writes nothing. Updating or rolling
 back the plugin never reverses a project migration by itself.
@@ -65,10 +74,10 @@ export async function run(argv) {
     root = repo.root;
     const dirArg = o.dir ? ` --dir ${argPath(root)}` : "";
     const runtimeVersion = readPluginVersion(PLUGIN_ROOT);
-    let project = loadProject(root);
+    let project = loadProject(root, { allowLegacy: true });
     const state = migrationState(project);
     const title = { preview: "preview", apply: "apply", "rollback-preview": "rollback preview", rollback: "rollback" }[mode];
-    out(`skillgate migrate (${title}): ${tilde(root)}`);
+    out(`skilliton migrate (${title}): ${tilde(root)}`);
 
     // ----- rollback -----
     if (o.rollback) {
@@ -171,10 +180,27 @@ export async function run(argv) {
       applied.push({ id: migration.id, receipt: done.receiptRel, backup: done.result.backupDir ? { id: done.result.backupId, path: done.result.backupDir } : null });
       out(`Applied ${migration.id}. Receipt: ${done.receiptRel}.${done.result.backupDir ? ` Backups: ${tilde(done.result.backupDir)} (inside the Git folder, never committed).` : ""}`);
       const layoutBefore = project.layoutVersion;
-      project = loadProject(root);
+      project = loadProject(root, { allowLegacy: true });
       if (migration.kind !== "instructions" && project.layoutVersion === layoutBefore) throw new OperationFailed(`${migration.id} was written but prepare.version is still ${layoutBefore}; stopping instead of repeating it`);
     }
     const ids = applied.map((a) => a.id);
+    // After the move, private evidence must still be out of Git: a .gitignore rule elsewhere (a negation, a nested
+    // file) could undo the line the migration added, and "commit the changed files" must not sweep evidence in.
+    let ignored = true;
+    if (ids.includes("0003-skilliton-names")) {
+      const { privateEvidenceIgnored } = await import("../lib/collectors.mjs");
+      ignored = privateEvidenceIgnored(root);
+    }
+    if (ignored !== true) {
+      const problem = ignored === false
+        ? `.skilliton/private-evidence/ is not ignored by Git in this project after the move, so evidence there could be committed. Do not commit yet: find the .gitignore rule that re-includes it (git check-ignore -v --no-index .skilliton/private-evidence/x shows the rule), fix it, then commit`
+        : `whether .skilliton/private-evidence/ is ignored by Git could not be checked; before committing, run git check-ignore --no-index .skilliton/private-evidence/x and confirm it prints the path`;
+      const summary = `layout ${project.layoutVersion}; ${applied.length} migration(s) applied (${ids.join(", ")}), but ${problem}.`;
+      if (json) { emit("attention", summary, { root, mode, state, migrations: described, applied, privateEvidenceIgnored: ignored }); return 1; }
+      out("");
+      out(`Summary: ${summary}`);
+      return 1;
+    }
     const summary = `layout ${project.layoutVersion}; ${applied.length} migration(s) applied (${ids.join(", ")}). Commit the changed files together with the receipt(s). Next: ${selfCommand()} prepare --check${dirArg} shows anything else layout ${LAYOUT_VERSION} expects. To undo: ${selfCommand()} migrate --rollback ${ids.at(-1)} --apply${dirArg}`;
     if (json) { emit("complete", summary, { root, mode, state, migrations: described, applied }); return 0; }
     out("");
@@ -183,13 +209,13 @@ export async function run(argv) {
   } catch (e) {
     if (e instanceof OperationFailed) {
       if (json) emit("operation-failed", e.message, { root, mode });
-      else console.error(`skillgate: migrate could not run: ${e.message}`);
+      else console.error(`skilliton: migrate could not run: ${e.message}`);
       return 3;
     }
     if (json && e instanceof Refused) { emit("invalid", e.message, { root, mode }); return 2; }
     if (json) {
-      if (process.env.SKILLGATE_DEBUG) console.error(e?.stack);
-      emit("operation-failed", `unexpected internal error: ${e?.message ?? e}. This is a bug in skillgate.`, { root, mode });
+      if (process.env.SKILLITON_DEBUG) console.error(e?.stack);
+      emit("operation-failed", `unexpected internal error: ${e?.message ?? e}. This is a bug in skilliton.`, { root, mode });
       return 3;
     }
     throw e;

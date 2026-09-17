@@ -1,0 +1,118 @@
+{
+  "schema": "skilliton.migration-receipt/1",
+  "id": "0003-skilliton-names",
+  "from": 2,
+  "to": 3,
+  "appliedAt": "2026-09-17T02:01:44.255Z",
+  "runtime": "0.6.0",
+  "files": [
+    {
+      "path": ".skilliton/config.json",
+      "action": "create",
+      "beforeSha256": null,
+      "afterSha256": "2b7d9e6fa397b52d223bb4f80d6a3f24551d0ab1e9c702afbc60b85d0e340052"
+    },
+    {
+      "path": ".skilliton/migrations/0100-instructions-0728562859d7.json",
+      "action": "create",
+      "beforeSha256": null,
+      "afterSha256": "3c8ddafd4bebe11e89e8e01a02254ab33d8f197aceeb5797aa041ed02f848bd0"
+    },
+    {
+      "path": ".skilliton/security/catalog.json",
+      "action": "create",
+      "beforeSha256": null,
+      "afterSha256": "d36b129a7c28c6b95a983bb35c59b081bceaf35c94a8457acad487f700191708"
+    },
+    {
+      "path": ".skilliton/security/records/README.md",
+      "action": "create",
+      "beforeSha256": null,
+      "afterSha256": "8a286dbfe0130ad2cf7a81d664101931ef2bc998aed167fe006ee6b7b8aa0e90"
+    },
+    {
+      "path": "CLAUDE.md",
+      "action": "update",
+      "beforeSha256": "e43e063fce2c59e66c47328cf6d1d264db500039d10eec9cbdc6549e70303e21",
+      "afterSha256": "d5c012e17cff63bc89141da94df54facdce3736a6d6d12c4584050f7dc115f11"
+    },
+    {
+      "path": "AGENTS.md",
+      "action": "update",
+      "beforeSha256": "8c5520d2d4697b83512b88914a0b35e97b8c63cc9ff734becf56dc7f1209d98e",
+      "afterSha256": "69126c11d5b0d62516d4992345a3b8f03a209bb502aecf52bc49adff750f20b1"
+    },
+    {
+      "path": "docs/STATUS.md",
+      "action": "update",
+      "beforeSha256": "0f0cdd31c62184c62ce7497ccc85ec461b33528e36f5fc037ba8218691a976c1",
+      "afterSha256": "35d22657f91bb9c6f8ade291fd8a5b957c7bb2b2752019c8caaefc6b2fd013f7"
+    },
+    {
+      "path": "DECISIONS.md",
+      "action": "update",
+      "beforeSha256": "94e5ee16f5e7eac7c97ce8b1889c94064b95f525ece492783b239eac3b7883c3",
+      "afterSha256": "faf66f5f985a5c377464d87cf287115cd5c946096f4437f5bd3a8502ba345c97"
+    },
+    {
+      "path": "docs/LESSONS.md",
+      "action": "update",
+      "beforeSha256": "c44af7a504c665fbe50763caa28655b824f491d9a9fd2c733f41af0723ba9555",
+      "afterSha256": "6be06eb08817cea5d09d2a23e9f835e230967f9c814bf7f4feb80dc06e3a2688"
+    },
+    {
+      "path": "docs/tasks/README.md",
+      "action": "update",
+      "beforeSha256": "3823e115ad40c0da9706e920517583825360405d66689c7fee1a061e5ba95f8c",
+      "afterSha256": "a6e285b952561fbfdd4dbaa11b43c3af9c7c66730117eed80df085fcae7df42b"
+    },
+    {
+      "path": "docs/decisions/README.md",
+      "action": "update",
+      "beforeSha256": "95702b635823b7d766f1d1d5b8300a0905d2d6471c497c1bf4a77589350895da",
+      "afterSha256": "0dbfba386d1d79cf4c56dbc3b354fc685b7dd09ac4028bd6a5c3f9991881e210"
+    },
+    {
+      "path": "docs/lessons/README.md",
+      "action": "update",
+      "beforeSha256": "400e540bf643b1c29a0b36ceafa975daedc149ad50b3a13b355bd6449cf712ae",
+      "afterSha256": "b962c162186a06e707834f762b32463d70a9140850739cc5d2778bde9df416cc"
+    },
+    {
+      "path": ".gitignore",
+      "action": "update",
+      "beforeSha256": "3b73b68fd2b281e92296dca470b2e94295ad6f76564a9db6616f9eaeee98e8f5",
+      "afterSha256": "7524c169432202b80995d029fd9dea601a47f66b17ab3f9cadb36f9e6da13252"
+    },
+    {
+      "path": ".skillgate/config.json",
+      "action": "delete",
+      "beforeSha256": "7ab6b0e7e3ff3f214bd0dac7774b7c7748e9162cd79435d153bf6dc2408f2a4e",
+      "afterSha256": null
+    },
+    {
+      "path": ".skillgate/migrations/0100-instructions-0728562859d7.json",
+      "action": "delete",
+      "beforeSha256": "3c8ddafd4bebe11e89e8e01a02254ab33d8f197aceeb5797aa041ed02f848bd0",
+      "afterSha256": null
+    },
+    {
+      "path": ".skillgate/security/catalog.json",
+      "action": "delete",
+      "beforeSha256": "d36b129a7c28c6b95a983bb35c59b081bceaf35c94a8457acad487f700191708",
+      "afterSha256": null
+    },
+    {
+      "path": ".skillgate/security/records/README.md",
+      "action": "delete",
+      "beforeSha256": "f422c9f80fa1da7dc943aa8b9538030ca6ce60d9bd7512802897e26ad68b54d2",
+      "afterSha256": null
+    }
+  ],
+  "backup": "20260917T020144Z-migrate-d26927b6",
+  "blocks": {
+    "CLAUDE.md": "0b9d0857b5f3b7b7774b9b527ed6b4253a6f56a4e1e12b8e9059ab1f1e93d78e",
+    "AGENTS.md": "0b9d0857b5f3b7b7774b9b527ed6b4253a6f56a4e1e12b8e9059ab1f1e93d78e"
+  },
+  "templateSha256": "36ef86cf6f40ee9e4e45976e70782e55c3c0a6ab8d1966af7f15b12b0bb94e01"
+}

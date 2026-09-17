@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// lifecycle.test.mjs: tests for task records, checkpoints, the journal, `skillgate status` and the lifecycle hooks
+// lifecycle.test.mjs: tests for task records, checkpoints, the journal, `skilliton status` and the lifecycle hooks
 // (packs/base/plugins/workflow/runtime: lib/tasks.mjs, lib/journal.mjs, lib/lifecycle.mjs, commands/task.mjs,
 // commands/checkpoint.mjs, commands/status.mjs, commands/hook.mjs, and hooks/hooks.json).
 //
-// Commands run the way a person runs them: `node scripts/skillgate.mjs <command>` in the project folder. Hooks run the
-// way Claude Code runs them: the shipped bin/skillgate executed by path with the hook JSON on stdin, and the exact
+// Commands run the way a person runs them: `node scripts/skilliton.mjs <command>` in the project folder. Hooks run the
+// way Claude Code runs them: the shipped bin/skilliton executed by path with the hook JSON on stdin, and the exact
 // hooks.json command strings through `sh -c` with CLAUDE_PLUGIN_ROOT set. Every test works in its own folder under
 // os.tmpdir(), with HOME pointed inside it so no personal Git configuration applies, and removes it afterwards.
 //
@@ -25,12 +25,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const REPO = join(here, "..");
-const CLI = join(here, "skillgate.mjs");
+const CLI = join(here, "skilliton.mjs");
 const PLUGIN = join(REPO, "packs", "base", "plugins", "workflow");
 // Whether the cross-lane modules status reads are in this build (they are optional to the lifecycle engine).
 const HAS_MIGRATIONS = existsSync(join(PLUGIN, "runtime", "lib", "migrations.mjs"));
 const HAS_SECURITY = existsSync(join(PLUGIN, "runtime", "lib", "security.mjs"));
-const BIN = join(PLUGIN, "bin", "skillgate");
+const BIN = join(PLUGIN, "bin", "skilliton");
 const HOOKS_JSON = join(PLUGIN, "hooks", "hooks.json");
 const INSTALLED = JSON.parse(readFileSync(join(PLUGIN, ".claude-plugin", "plugin.json"), "utf8")).version;
 const RECORD_FILES = ["docs/STATUS.md", "docs/BACKLOG.md", "docs/BACKLOG_ARCHIVE.md", "docs/ROADMAP.md", "DECISIONS.md", "docs/LESSONS.md", "docs/HANDOFF.md", "docs/HANDOFF_ARCHIVE.md", "docs/MAINTAIN.md"];
@@ -38,7 +38,7 @@ const RECORD_FILES = ["docs/STATUS.md", "docs/BACKLOG.md", "docs/BACKLOG_ARCHIVE
 // ---------------------------------------------------------------- harness
 
 async function withTemp(label, body) {
-  const dir = mkdtempSync(join(tmpdir(), `skillgate-lifecycle-${label}-`));
+  const dir = mkdtempSync(join(tmpdir(), `skilliton-lifecycle-${label}-`));
   const home = join(dir, "home");
   mkdirSync(home);
   const env = {
@@ -47,7 +47,7 @@ async function withTemp(label, body) {
     GIT_AUTHOR_NAME: "Test", GIT_AUTHOR_EMAIL: "test@example.com", GIT_COMMITTER_NAME: "Test", GIT_COMMITTER_EMAIL: "test@example.com",
     PATH: `${dirname(process.execPath)}${delimiter}${process.env.PATH}`,
   };
-  for (const key of ["SKILLGATE_SELF", "SKILLGATE_DEBUG", "CLAUDE_PROJECT_DIR", "CLAUDE_PLUGIN_ROOT", "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"]) delete env[key];
+  for (const key of ["SKILLITON_SELF", "SKILLITON_DEBUG", "CLAUDE_PROJECT_DIR", "CLAUDE_PLUGIN_ROOT", "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"]) delete env[key];
   try {
     await body({ dir, env });
   } finally {
@@ -68,14 +68,14 @@ function initRepo(dir, env, { branch = "main" } = {}) {
 }
 
 function writeConfig(dir, config) {
-  mkdirSync(join(dir, ".skillgate"), { recursive: true });
-  writeFileSync(join(dir, ".skillgate", "config.json"), `${JSON.stringify(config, null, 2)}\n`);
+  mkdirSync(join(dir, ".skilliton"), { recursive: true });
+  writeFileSync(join(dir, ".skilliton", "config.json"), `${JSON.stringify(config, null, 2)}\n`);
 }
 
 // A prepared project with every record, a current handoff, and everything committed.
 function preparedRepo(dir, env, { config = {}, written = new Date().toISOString() } = {}) {
   initRepo(dir, env);
-  writeConfig(dir, { prepare: { version: 2, requires: { workflow: INSTALLED } }, ...config });
+  writeConfig(dir, { prepare: { version: 3, requires: { workflow: INSTALLED } }, ...config });
   for (const rel of RECORD_FILES) {
     mkdirSync(dirname(join(dir, rel)), { recursive: true });
     writeFileSync(join(dir, rel), `# ${rel}\n\nKind: Living.\n`);
@@ -101,7 +101,7 @@ function hook(cwd, event, payload, env, { bin = BIN, raw = undefined } = {}) {
 }
 
 const gitDir = (dir, env) => git(dir, ["rev-parse", "--absolute-git-dir"], env).trim();
-const journalFile = (dir, env) => join(gitDir(dir, env), "skillgate", "journal.jsonl");
+const journalFile = (dir, env) => join(gitDir(dir, env), "skilliton", "journal.jsonl");
 
 function readEvents(dir, env) {
   const file = journalFile(dir, env);
@@ -144,7 +144,7 @@ function copyPlugin(dir, mutate = null) {
   const copy = join(dir, "plugin-copy");
   cpSync(PLUGIN, copy, { recursive: true });
   if (mutate) mutate(copy);
-  return { root: copy, bin: join(copy, "bin", "skillgate"), entry: join(copy, "runtime", "skillgate.mjs") };
+  return { root: copy, bin: join(copy, "bin", "skilliton"), entry: join(copy, "runtime", "skilliton.mjs") };
 }
 
 // Replaces one exact snippet in a copied file and proves the replacement happened.
@@ -263,9 +263,9 @@ test("task start, list, show, checkpoint and close round-trip with the exact fil
   assert.doesNotMatch(cli(p, ["task", "list"], env).out, new RegExp(id));
   assert.match(cli(p, ["task", "list", "--all"], env).out, new RegExp(`^  ${id}  done-local`, "m"));
   assert.equal(cli(p, ["task", "show"], env).code, 1, "a closed task is no longer the current task");
-  const backups = join(gitDir(p, env), "skillgate-backups");
+  const backups = join(gitDir(p, env), "skilliton-backups");
   assert.ok(existsSync(backups), "writes that replace a task file back it up under the git dir");
-  assert.equal(git(p, ["status", "--porcelain", "--ignored"], env).includes("skillgate-backups"), false);
+  assert.equal(git(p, ["status", "--porcelain", "--ignored"], env).includes("skilliton-backups"), false);
 }));
 
 test("human edits outside the header bullets are tolerated and every other byte is kept", async () => withTemp("edits", async ({ dir, env }) => {
@@ -331,7 +331,7 @@ test("corrupted task records are named as unreadable and never written", async (
     assert.equal(readFileSync(file, "utf8"), content, `${label}: the file is unchanged`);
   }
   assert.equal(readEvents(p, env).length, 0, "refused checkpoints record no event");
-  assert.equal(existsSync(join(gitDir(p, env), "skillgate-backups")), false, "refused writes make no backup");
+  assert.equal(existsSync(join(gitDir(p, env), "skilliton-backups")), false, "refused writes make no backup");
 
   writeFileSync(file, good);
   writeFileSync(join(p, "docs", "tasks", "README.md"), "# Tasks\n");
@@ -473,7 +473,7 @@ test("bad invocations are refused with exit 2 and write nothing", async () => wi
     assert.match(r.err, reason, args.join(" "));
   }
   assert.equal(existsSync(join(p, "docs")), false);
-  assert.equal(existsSync(join(gitDir(p, env), "skillgate")), false);
+  assert.equal(existsSync(join(gitDir(p, env), "skilliton")), false);
 
   const plain = join(dir, "not-a-repo");
   mkdirSync(plain);
@@ -635,17 +635,17 @@ test("session-start names every missing piece and stays within handoff.maxBytes"
   assert.equal(full.code, 0, full.all);
   assert.equal(full.err, "");
   const lines = full.out.trimEnd().split("\n");
-  assert.equal(lines[0], "[workflow] Project state (skillgate hook session-start):");
+  assert.equal(lines[0], "[workflow] Project state (skilliton hook session-start):");
   const expectLine = (pattern) => assert.ok(lines.some((line) => pattern.test(line)), `${pattern}\n${full.out}`);
   expectLine(/^- Branch: main @ [0-9a-f]{7,}, 1 uncommitted$/);
   expectLine(/^- Layout \(needs attention\): not prepared by Skilliton \(no prepare\.version/);
-  expectLine(HAS_MIGRATIONS ? /^- Pending migrations: none pending \(layout unknown, target 2\)$/ : /^- Pending migrations \(not run\): not available in this build \(runtime\/lib\/migrations\.mjs is not present\)$/);
+  expectLine(HAS_MIGRATIONS ? /^- Pending migrations: none pending \(layout unknown, target 3\)$/ : /^- Pending migrations \(not run\): not available in this build \(runtime\/lib\/migrations\.mjs is not present\)$/);
   expectLine(new RegExp(`^- Versions: workflow runtime ${escape(INSTALLED)} installed; the project names no minimum version`));
   expectLine(/^- Records \(needs attention\): 9 of 9 missing: docs\/STATUS\.md \(status\), /);
-  expectLine(/^- Current task: none \(no open task on branch main\); to start one: skillgate task start "<title>" --apply$/);
+  expectLine(/^- Current task: none \(no open task on branch main\); to start one: skilliton task start "<title>" --apply$/);
   expectLine(/^- Shared handoff: docs\/HANDOFF\.md is missing \(see records\)$/);
   expectLine(/^- Previous session: none recorded in this worktree's journal$/);
-  expectLine(HAS_SECURITY ? /^- Security \(not run\): security evidence not available: no security catalog at \.skillgate\/security\/catalog\.json/ : /^- Security \(not run\): not available in this build \(runtime\/lib\/security\.mjs is not present\)$/);
+  expectLine(HAS_SECURITY ? /^- Security \(not run\): security evidence not available: no security catalog at \.skilliton\/security\/catalog\.json/ : /^- Security \(not run\): not available in this build \(runtime\/lib\/security\.mjs is not present\)$/);
   assert.equal(full.out.includes("truncated"), false);
   const recorded = readEvents(wide, env);
   assert.equal(recorded.length, 1);
@@ -655,7 +655,7 @@ test("session-start names every missing piece and stays within handoff.maxBytes"
   assert.equal(cut.code, 0, cut.all);
   assert.ok(Buffer.byteLength(cut.out) <= 300, `${Buffer.byteLength(cut.out)} bytes:\n${cut.out}`);
   const cutLines = cut.out.trimEnd().split("\n");
-  assert.equal(cutLines[cutLines.length - 1], "[workflow] Project state truncated at 300 bytes; for all of it run: skillgate status");
+  assert.equal(cutLines[cutLines.length - 1], "[workflow] Project state truncated at 300 bytes; for all of it run: skilliton status");
   const comparable = (line) => (line.startsWith("- Branch: ") ? "- Branch:" : line);
   for (const line of cutLines.slice(0, -1)) assert.ok(lines.map(comparable).includes(comparable(line)), `a truncated block keeps whole lines only: ${line}`);
   assert.equal(readEvents(narrow, env).length, 1, "a truncated block still records the session start");
@@ -667,8 +667,8 @@ test("session-start names every missing piece and stays within handoff.maxBytes"
   writeConfig(narrow, { handoff: { maxBytes: 5 } });
   const broken = hook(narrow, "session-start", { session_id: "s3" }, env);
   assert.equal(broken.code, 0, broken.all);
-  assert.match(broken.out, /^- Configuration \(needs attention\): \.skillgate\/config\.json: handoff\.maxBytes must be a whole number from 200 to 100000$/m);
-  assert.match(broken.out, /^- Records \(not run\): not evaluated, because \.skillgate\/config\.json cannot be used \(see the configuration problem\)$/m);
+  assert.match(broken.out, /^- Configuration \(needs attention\): \.skilliton\/config\.json: handoff\.maxBytes must be a whole number from 200 to 100000$/m);
+  assert.match(broken.out, /^- Records \(not run\): not evaluated, because \.skilliton\/config\.json cannot be used \(see the configuration problem\)$/m);
   assert.match(broken.out, /^- Previous session \(needs attention\): interrupted: session s2 \(started [^)]+\) has no session-end; 1 uncommitted change\(s\)/m);
   assert.ok(Buffer.byteLength(broken.out) <= 6000);
 
@@ -686,7 +686,7 @@ test("session-start shows the current task, its last checkpoint and its handoff"
   assert.equal(r.code, 0, r.all);
   assert.match(r.out, new RegExp(`^- Current task: ${id} "Resume me" \\(in-progress, 1 checkpoint\\(s\\)\\); last checkpoint [^:]+:\\d\\d:[^:]+: State: Half done; Evidence: unit tests pass; Next: Finish the form$`, "m"));
   assert.match(r.out, /^- Task handoff: State: paused mid-form; Next: wire the submit button; Blocked: not yet written; Watch out: not yet written$/m);
-  assert.match(r.out, /^- Layout: layout 2 \(current for this runtime\)$/m);
+  assert.match(r.out, /^- Layout: layout 3 \(current for this runtime\)$/m);
   assert.match(r.out, /^- Records: all 9 present$/m);
 }));
 
@@ -750,7 +750,7 @@ test("stop blocks exactly once for a changed fingerprint after minMinutes", asyn
   assert.deepEqual(Object.keys(decision), ["decision", "reason"]);
   assert.equal(decision.decision, "block");
   assert.match(decision.reason, /changed since this session started \(30 minutes ago\), and no checkpoint has been recorded/);
-  assert.match(decision.reason, /No open task record matches branch main; otherwise start one, then record a checkpoint, by running: skillgate task start "<short title of this work>" --criteria "<what done means>" --apply and then: skillgate checkpoint --state "/);
+  assert.match(decision.reason, /No open task record matches branch main; otherwise start one, then record a checkpoint, by running: skilliton task start "<short title of this work>" --criteria "<what done means>" --apply and then: skilliton checkpoint --state "/);
   assert.match(decision.reason, /This reminder is given once for this working tree state; if this work should not be recorded, tell the user why and stop\./);
   assert.ok(decision.reason.endsWith("--apply"), "the command is the last thing in the reason, so it can be copied as it is");
   const reminded = eventsAfterFirst.filter((e) => e.event === "stop-reminded");
@@ -768,7 +768,7 @@ test("stop blocks exactly once for a changed fingerprint after minMinutes", asyn
 
   const { id } = startTask(p, env, "Record the work");
   const withTask = JSON.parse(hook(p, "stop", { session_id: "s1" }, env).out).reason;
-  assert.match(withTask, new RegExp(`Otherwise record where task ${id} stands \\(each value one line\\) by running: skillgate checkpoint --task ${id} --state "<what is done and what is not>" --evidence "<checks or tests you ran, with their results>" --next "<the next concrete step>" --apply$`));
+  assert.match(withTask, new RegExp(`Otherwise record where task ${id} stands \\(each value one line\\) by running: skilliton checkpoint --task ${id} --state "<what is done and what is not>" --evidence "<checks or tests you ran, with their results>" --next "<the next concrete step>" --apply$`));
 }));
 
 test("stop allows when stop_hook_active is true", async () => withTemp("stop-active", async ({ dir, env }) => {
@@ -937,14 +937,14 @@ test("status exits 0 for a clean prepared project, and --json is exactly one res
   const r = cli(p, ["status"], env);
   assert.equal(r.code, 0, r.all);
   for (const pattern of [
-    /^OK         layout: layout 2 \(current for this runtime\)$/m,
-    HAS_MIGRATIONS ? /^OK         migrations: none pending \(layout 2, target 2\)$/m : /^NOT RUN    migrations: not available in this build \(runtime\/lib\/migrations\.mjs is not present\)$/m,
+    /^OK         layout: layout 3 \(current for this runtime\)$/m,
+    HAS_MIGRATIONS ? /^OK         migrations: none pending \(layout 3, target 3\)$/m : /^NOT RUN    migrations: not available in this build \(runtime\/lib\/migrations\.mjs is not present\)$/m,
     new RegExp(`^OK         versions: workflow runtime ${escape(INSTALLED)} installed; the project requires workflow ${escape(INSTALLED)} or later: met$`, "m"),
     /^OK         records: all 9 present$/m,
     /^OK         tasks: no task records yet \(docs\/tasks does not exist\); no open task on main$/m,
     /^OK         handoff: docs\/HANDOFF\.md was written .+; no later commit or uncommitted change \(0 uncommitted path\(s\)\)$/m,
     /^NOTE       sessions: no session recorded in this worktree's journal/m,
-    HAS_SECURITY ? /^NOT RUN    security: security evidence not available: no security catalog at \.skillgate\/security\/catalog\.json/m : /^NOT RUN    security: not available in this build \(runtime\/lib\/security\.mjs is not present\)$/m,
+    HAS_SECURITY ? /^NOT RUN    security: security evidence not available: no security catalog at \.skilliton\/security\/catalog\.json/m : /^NOT RUN    security: not available in this build \(runtime\/lib\/security\.mjs is not present\)$/m,
     new RegExp("^Summary: Nothing needs attention among the checks that ran\\. Not run: " + [HAS_MIGRATIONS ? null : "migrations", "security"].filter(Boolean).join(", ") + "\\.$", "m"),
   ]) assert.match(r.out, pattern);
 
@@ -952,9 +952,9 @@ test("status exits 0 for a clean prepared project, and --json is exactly one res
   assert.equal(j.code, 0);
   assert.equal(j.err, "");
   assert.deepEqual(Object.keys(j.json), ["schema", "command", "result", "summary", "details"]);
-  assert.deepEqual([j.json.schema, j.json.command, j.json.result], ["skillgate.result/1", "status", "complete"]);
+  assert.deepEqual([j.json.schema, j.json.command, j.json.result], ["skilliton.result/1", "status", "complete"]);
   assert.deepEqual(j.json.details.checks.map((c) => c.name), ["layout", "migrations", "versions", "records", "tasks", "handoff", "sessions", "security"]);
-  assert.equal(j.json.details.layout.version, 2);
+  assert.equal(j.json.details.layout.version, 3);
   assert.equal(j.json.details.migrations.available, HAS_MIGRATIONS);
   assert.equal(j.json.details.versions.installed, INSTALLED);
   assert.equal(j.json.details.records.missing.length, 0);
@@ -977,7 +977,7 @@ test("status exits 1 for each attention condition and names it", async () => wit
     return j;
   };
 
-  const version = fresh({ config: { prepare: { version: 2, requires: { workflow: "99.0.0" } } } });
+  const version = fresh({ config: { prepare: { version: 3, requires: { workflow: "99.0.0" } } } });
   attentionOnly(version, "versions", /requires workflow 99\.0\.0 or later: NOT MET/);
 
   // A commit after the handoff makes the handoff stale on main, which is not what these cases test, so each case that
@@ -1121,9 +1121,9 @@ test("hooks.json parses, keeps the handoff hook first, and every command it name
   const commands = (event) => config.hooks[event].flatMap((group) => group.hooks);
   const sessionStart = commands("SessionStart");
   assert.equal(sessionStart[0].command, '"${CLAUDE_PLUGIN_ROOT}"/hooks/session-start-handoff.sh');
-  assert.deepEqual(sessionStart[1], { type: "command", command: '"${CLAUDE_PLUGIN_ROOT}"/bin/skillgate hook session-start', timeout: 15 });
+  assert.deepEqual(sessionStart[1], { type: "command", command: '"${CLAUDE_PLUGIN_ROOT}"/bin/skilliton hook session-start', timeout: 15 });
   for (const [event, arg] of [["Stop", "stop"], ["PreCompact", "pre-compact"], ["SessionEnd", "session-end"]]) {
-    assert.deepEqual(commands(event), [{ type: "command", command: `"\${CLAUDE_PLUGIN_ROOT}"/bin/skillgate hook ${arg}`, timeout: 15 }]);
+    assert.deepEqual(commands(event), [{ type: "command", command: `"\${CLAUDE_PLUGIN_ROOT}"/bin/skilliton hook ${arg}`, timeout: 15 }]);
   }
   assert.deepEqual(Object.keys(config.hooks).sort(), ["PreCompact", "SessionEnd", "SessionStart", "Stop"]);
 
@@ -1144,7 +1144,7 @@ test("hooks.json parses, keeps the handoff hook first, and every command it name
       }
       const r = spawnSync("sh", ["-c", h.command], { cwd: p, env: { ...env, CLAUDE_PLUGIN_ROOT: PLUGIN }, input: JSON.stringify({ session_id: "sh-1", cwd: p, hook_event_name: event }), encoding: "utf8" });
       assert.equal(r.status, 0, `${event}: ${h.command}\n${r.stdout}${r.stderr}`);
-      if (arg === "hook session-start") assert.match(r.stdout, /^\[workflow\] Project state \(skillgate hook session-start\):$/m);
+      if (arg === "hook session-start") assert.match(r.stdout, /^\[workflow\] Project state \(skilliton hook session-start\):$/m);
     }
   }
   assert.deepEqual(readEvents(p, env).map((e) => e.event).sort(), ["pre-compact", "session-end", "session-start"]);

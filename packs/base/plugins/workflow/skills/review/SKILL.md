@@ -34,7 +34,7 @@ Plain language, grouped by purpose ("the sign-in page now checks the email forma
 One bullet per risk, naming the file:
 - **Tests deleted or weakened:** a test file removed, checks removed, tests switched off (`.skip`, `xit`, `@pytest.mark.skip`, `t.Skip`), or expected values edited to match new output.
 - **Config or environment files:** `.env*`, `*.config.*`, `settings*.json`, Docker files, deploy files.
-- **Validation policy changes:** anything that decides what counts as passing: `.skillgate/delivery.json`, CI workflows (`.github/workflows/`), `CODEOWNERS`, branch or merge settings, `.skillgate/security/catalog.json` and `applicability.json`, test configuration that skips or excludes tests. Say plainly that this needs review by whoever approves policy for the repository, separately from the rest of the change: a change cannot approve its own weakening of checks.
+- **Validation policy changes:** anything that decides what counts as passing: `.skilliton/delivery.json`, CI workflows (`.github/workflows/`), `CODEOWNERS`, branch or merge settings, `.skilliton/security/catalog.json` and `applicability.json`, test configuration that skips or excludes tests. Say plainly that this needs review by whoever approves policy for the repository, separately from the rest of the change: a change cannot approve its own weakening of checks.
 - **Database migrations:** `migrations/`, `*.sql`, schema files; say whether the change can be undone.
 - **Dependency changes:** packages added, removed, or upgraded; a lockfile changed without its manifest, or the reverse.
 - **Auth or permission code:** sign-in, sessions, tokens, roles, permissions, access checks, CORS.
@@ -48,7 +48,7 @@ If none apply, write "Nothing flagged."
 ### What was checked
 Only what ran **in this session**, with its real result, for example "`npm test`: 42 passed, 0 failed, after the last edit". If nothing ran, write **not tested**. Never claim a pass you did not see; a run from before the last edit does not cover the current changes.
 
-Then one line on project security evidence: run `skillgate security status` if it is available and report its counts in plain words (for example "security evidence: 2 of 14 applicable controls have a current observation; 3 stale; 4 not yet decided"). If `skillgate` is not found or the project has no security register, write "security evidence: not set up in this project". Counts describe recorded evidence, never whether the code is secure or compliant.
+Then one line on project security evidence: run `skilliton security status` if it is available and report its counts in plain words (for example "security evidence: 2 of 14 applicable controls have a current observation; 3 stale; 4 not yet decided"). If `skilliton` is not found or the project has no security register, write "security evidence: not set up in this project". Counts describe recorded evidence, never whether the code is secure or compliant.
 
 Find the project's test command: `package.json` scripts (`test`, `lint`, `typecheck`), a `Makefile` (`test`, `check`), `pyproject.toml` or `pytest.ini` (`pytest`), `go.mod` (`go test ./...`), `Cargo.toml` (`cargo test`), or what `README.md`, `CLAUDE.md`, or `AGENTS.md` say. Name it and offer to run it. If there is none, say so.
 

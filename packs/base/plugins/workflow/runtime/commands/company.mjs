@@ -1,4 +1,4 @@
-// commands/company.mjs: `skillgate company init`, which gives a fork of the skills repository the company's own
+// commands/company.mjs: `skilliton company init`, which gives a fork of the skills repository the company's own
 // marketplace name, owner and team settings. The engine is lib/fork.mjs; the contract is docs/CONTRACTS.md section 6.
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -22,9 +22,9 @@ required: without it, projects prepared from this fork would keep installing the
 Only a GitHub repository can be named today. The base plugins keep their upstream author, homepage and repository,
 because packs/base is upstream work a fork leaves unchanged.
 
-Preview by default; --apply backs up each changed file under $SKILLGATE_BACKUPS/company-init/ and writes it. Running it
+Preview by default; --apply backs up each changed file under $SKILLITON_BACKUPS/company-init/ and writes it. Running it
 again with the same values changes nothing. A JSON file laid out differently from two-space JSON is refused, not
-reformatted. --repo defaults to the skills repository this copy of skillgate is in.
+reformatted. --repo defaults to the skills repository this copy of skilliton is in.
 Exit codes: 0 complete (or nothing to change); 2 refused, nothing written; 3 a write failed.`;
 
 export function run(argv) {
@@ -37,7 +37,7 @@ export function run(argv) {
   const repo = resolveSkillsRepo(o.repo);
   const plan = planCompanyInit(repo, { company: o.name, marketplaceRepo: o["marketplace-repo"], marketplaceName: o["marketplace-name"], ownerName: o["owner-name"] });
 
-  say(`skillgate company init${o.apply ? "" : " (preview; nothing written)"}`);
+  say(`skilliton company init${o.apply ? "" : " (preview; nothing written)"}`);
   say(`skills repository: ${tilde(repo)}`);
   say(`company: ${plan.company}`);
   say(`marketplace: ${plan.before.marketplace ?? "(none)"} -> ${plan.market}`);
@@ -68,6 +68,6 @@ export function run(argv) {
   say(`  1. Create a plugin for the company's own skills: ${sg} new-plugin <plugin> --pack ${plan.company} --apply`);
   say(`  2. Add a skill to it: ${sg} new-skill <plugin> <skill> --pack ${plan.company} --description "<what it does and when to use it>"`);
   say(`  3. Commit, then release: ${sg} release create --version <x.y.z> --apply (docs/RELEASING.md)`);
-  say(`Developers install from the ${plan.market} marketplace and trust your release signers with: skillgate trust add --company ${plan.company} --signers <file> --apply`);
+  say(`Developers install from the ${plan.market} marketplace and trust your release signers with: skilliton trust add --company ${plan.company} --signers <file> --apply`);
   return 0;
 }

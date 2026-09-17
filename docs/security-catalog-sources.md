@@ -65,10 +65,10 @@ The first seven controls are `skillgate-starter-1`'s, unchanged in id, title, ma
 - **SG-ACCESS-CONTROL:** documented access rules, function-level and data-level checks, and enforcement at a trusted service layer.
 - **SG-INPUT-INJECTION:** server-side input validation against expected values, output encoding for HTTP and HTML contexts, and parameterized database queries; the SSDF secure coding task lists input validation and output encoding among its examples. OS command construction stays with SG-COMMAND-INJECTION.
 - **SG-SECURITY-LOGGING:** a logging inventory, handling of sensitive data in logs, and logging of authentication and failed authorization events.
-- **SG-POLICY-CHANGE-REVIEW:** the SSDF tasks cover operating toolchains securely (including configuration kept as code) and protecting all forms of code, including configuration-as-code, with owner review of changes by others. docs/CONTRACTS.md section 7 requires separate review for changes to validation policy; `.skillgate/delivery.json` lists the policy paths.
+- **SG-POLICY-CHANGE-REVIEW:** the SSDF tasks cover operating toolchains securely (including configuration kept as code) and protecting all forms of code, including configuration-as-code, with owner review of changes by others. docs/CONTRACTS.md section 7 requires separate review for changes to validation policy; `.skilliton/delivery.json` lists the policy paths.
 
 ## Limits
 
 - The catalog is partial: it does not cover every SSDF task or ASVS requirement, and a current observation for every control is not a compliance result.
-- Applicability is a project decision (`skillgate security applicability`); nothing here decides it.
+- Applicability is a project decision (`skilliton security applicability`); nothing here decides it.
 - The OWASP Web Security Testing Guide and NIST SP 800-115 remain references for assessment planning only; no catalog control maps to them yet.

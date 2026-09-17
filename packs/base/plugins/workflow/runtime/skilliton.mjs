@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// skillgate: the Skilliton command line. Node only, no dependencies.
+// skilliton: the Skilliton command line. Node only, no dependencies.
 //
-//   node scripts/skillgate.mjs <command> ...   from a company skills repository checkout
-//   skillgate <command> ...                    through bin/skillgate of the installed workflow plugin
+//   node scripts/skilliton.mjs <command> ...   from a company skills repository checkout
+//   skilliton <command> ...                    through bin/skilliton of the installed workflow plugin
 //
 // Contracts: docs/CONTRACTS.md. Exit codes, for every command: 0 complete; 1 attention (an evaluated state needs
 // action); 2 invalid or refused (nothing was written); 3 operation failed (an internal error or a failed write).
@@ -15,6 +15,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Refused, say, selfCommand, cmdDoctor, cmdHarness, cmdProjectSettings, cmdNewSkill, cmdImport } from "./lib/core.mjs";
+import { legacyEnvironment } from "./lib/legacy-names.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -76,10 +77,13 @@ function helpText() {
 
 async function main(argv) {
   const [command, ...rest] = argv;
+  // A setting under the earlier name is ignored; saying so keeps, for example, a trust folder chosen with the earlier
+  // variable from silently becoming the default one.
+  for (const v of legacyEnvironment()) console.error(`skilliton: note: ${v.name} is set, but Skilliton no longer reads it; the variable is now ${v.replacement}.`);
   if (!command || command === "--help" || command === "-h" || command === "help") { say(helpText()); return 0; }
   if (command === "--version") {
     const { readPluginVersion, PLUGIN_ROOT } = await import("./lib/core.mjs");
-    say(`skillgate runtime ${readPluginVersion(PLUGIN_ROOT) ?? "(version unreadable)"} (workflow plugin)`);
+    say(`skilliton runtime ${readPluginVersion(PLUGIN_ROOT) ?? "(version unreadable)"} (workflow plugin)`);
     return 0;
   }
   const entry = COMMANDS.get(command);
@@ -98,10 +102,10 @@ try {
   process.exitCode = await main(process.argv.slice(2));
 } catch (e) {
   if (e instanceof Refused) {
-    console.error(`skillgate: refused: ${e.message}`);
+    console.error(`skilliton: refused: ${e.message}`);
     process.exitCode = 2;
   } else {
-    console.error(`skillgate: unexpected internal error: ${e?.message ?? e}. This is a bug in skillgate; steps printed above completed, and nothing after them ran.${process.env.SKILLGATE_DEBUG ? `\n${e?.stack}` : " Set SKILLGATE_DEBUG=1 to see where it happened."}`);
+    console.error(`skilliton: unexpected internal error: ${e?.message ?? e}. This is a bug in skilliton; steps printed above completed, and nothing after them ran.${process.env.SKILLITON_DEBUG ? `\n${e?.stack}` : " Set SKILLITON_DEBUG=1 to see where it happened."}`);
     process.exitCode = 3;
   }
 }

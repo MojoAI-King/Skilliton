@@ -4,7 +4,7 @@
 //   node scripts/rehearsals/machine.mjs [--claude <path>] [--codex <path>] [--no-github] [--keep] [--no-evidence]
 //
 // A company fork with its own name, a company plugin and a signed release is cloned by a developer, who runs
-// `skillgate join` on a machine with clean Claude Code and Codex homes. Claude Code already has the company marketplace
+// `skilliton join` on a machine with clean Claude Code and Codex homes. Claude Code already has the company marketplace
 // and one of its plugins, installed by hand before join. The rehearsal checks that the preview writes nothing, that
 // join sets up both clients, the release signers and the terminal command and ends VERIFIED, that verify then works
 // without --source from the terminal command and from an installed copy, that a repeat changes nothing, that undo
@@ -22,8 +22,8 @@ import { join } from "node:path";
 import { REPO, Rehearsal, findClient, git, isolatedEnv, parseFlags, readJson, run, sshKey, useSigningKey, workspace } from "./lib.mjs";
 
 const flags = parseFlags(process.argv.slice(2), { claude: "value", codex: "value", "no-github": "flag", keep: "flag", "no-evidence": "flag" });
-const claude = findClient(flags.claude, "SKILLGATE_CLAUDE", "claude");
-const codex = findClient(flags.codex, "SKILLGATE_CODEX", "codex");
+const claude = findClient(flags.claude, "SKILLITON_CLAUDE", "claude");
+const codex = findClient(flags.codex, "SKILLITON_CODEX", "codex");
 if (!claude || !codex) { console.log(`NOT RUN: ${!claude ? "Claude Code" : "Codex"} was not found (pass --claude <path> and --codex <path>); join is rehearsed on both clients.`); process.exit(2); }
 
 const GITHUB_REPO = "MojoAI-King/Skilliton";
@@ -42,11 +42,11 @@ const machine = {
   trust: join(ws, "trust"), joined: join(ws, "joined"), bin: join(ws, "bin"),
 };
 const env = isolatedEnv(ws, {
-  CLAUDE_CONFIG_DIR: machine.claude, CODEX_HOME: machine.codex, SKILLGATE_TRUST_DIR: machine.trust, SKILLGATE_JOIN_DIR: machine.joined,
+  CLAUDE_CONFIG_DIR: machine.claude, CODEX_HOME: machine.codex, SKILLITON_TRUST_DIR: machine.trust, SKILLITON_JOIN_DIR: machine.joined,
   PATH: process.env.PATH,
 });
-const sgFork = (args) => run(process.execPath, [join(fork, "scripts", "skillgate.mjs"), ...args], { env, cwd: fork });
-const sgDev = (args, e = env) => run(process.execPath, [join(dev, "scripts", "skillgate.mjs"), ...args], { env: e, cwd: dev, timeoutMs: 900000 });
+const sgFork = (args) => run(process.execPath, [join(fork, "scripts", "skilliton.mjs"), ...args], { env, cwd: fork });
+const sgDev = (args, e = env) => run(process.execPath, [join(dev, "scripts", "skilliton.mjs"), ...args], { env: e, cwd: dev, timeoutMs: 900000 });
 const cc = (args, e = env) => run(claude.path, args, { env: e, timeoutMs: 300000 });
 const clients = ["--claude", claude.path, "--codex", codex.path];
 const joinArgs = ["join", "--company", COMPANY, "--signers", signers, "--marketplace", fork, "--bin-dir", machine.bin, ...clients];
@@ -98,8 +98,8 @@ await R.step("J1", "a company fork with its own name, a company plugin and signe
   git(fork, ["commit", "-q", "-m", "Release 1.0.0 manifest"], { env });
   const sign = sgFork(["release", "sign", "1.0.0", "--apply"]);
   const clone = git(ws, ["clone", "-q", fork, dev], { env });
-  const tags = git(dev, ["tag", "--list", "skillgate-release/*"], { env }).out.trim();
-  const ok = steps.every((s) => s.code === 0) && create.code === 0 && sign.code === 0 && clone.code === 0 && tags === "skillgate-release/1.0.0";
+  const tags = git(dev, ["tag", "--list", "skilliton-release/*"], { env }).out.trim();
+  const ok = steps.every((s) => s.code === 0) && create.code === 0 && sign.code === 0 && clone.code === 0 && tags === "skilliton-release/1.0.0";
   return { ok, critical: true, detail: `company init, new-plugin, new-skill exits ${steps.map((s) => s.code).join(" ")}; release create exit ${create.code}, sign exit ${sign.code}; developer clone exit ${clone.code} with tags: ${tags || "none"}${ok ? "" : ` | ${tail(create)} ${tail(sign)}`}` };
 });
 
@@ -120,7 +120,7 @@ await R.step("J3", "join --apply installs on both clients, trusts the signers, w
   const receipt = existsSync(join(machine.joined, `${COMPANY}.json`)) ? readJson(join(machine.joined, `${COMPANY}.json`)) : null;
   const claudeNow = claudeInstalled();
   const codexNow = codexCached();
-  const launcher = join(machine.bin, "skillgate");
+  const launcher = join(machine.bin, "skilliton");
   const launcherOk = existsSync(launcher) && (statSync(launcher).mode & 0o111) !== 0;
   const verified = (r.out.match(/^ {2}VERIFIED\s/gm) ?? []).length;
   const receiptOk = receipt?.clients?.["claude-code"]?.marketplaceAdded === false && receipt.clients["claude-code"].installed.join() === JOINED_CLAUDE.join()
@@ -131,9 +131,9 @@ await R.step("J3", "join --apply installs on both clients, trusts the signers, w
 }, { requires: ["J2"] });
 
 await R.step("J4", "verify needs no --source afterwards: from the terminal command, and from the installed plugin's own copy", () => {
-  const viaLauncher = run(join(machine.bin, "skillgate"), ["verify", "--company", COMPANY, "--json"], { env });
+  const viaLauncher = run(join(machine.bin, "skilliton"), ["verify", "--company", COMPANY, "--json"], { env });
   const installPath = readJson(join(machine.claude, "plugins", "installed_plugins.json")).plugins[`workflow@${MARKET}`][0].installPath;
-  const viaInstalled = run(join(installPath, "bin", "skillgate"), ["verify", "--client", "codex", "--json"], { env });
+  const viaInstalled = run(join(installPath, "bin", "skilliton"), ["verify", "--client", "codex", "--json"], { env });
   const a = jsonOf(viaLauncher), b = jsonOf(viaInstalled);
   const ok = viaLauncher.code === 0 && a?.result === "complete" && viaInstalled.code === 0 && b?.result === "complete" && b?.details?.source === dev;
   return { ok, detail: `terminal command verify exit ${viaLauncher.code} (${a?.summary ?? tail(viaLauncher)}); installed copy verify --client codex exit ${viaInstalled.code}, source from the join receipt: ${b?.details?.source === dev}` };
@@ -168,7 +168,7 @@ await R.step("J7", "refusals before any change: a shallow clone, a different sig
   const otherSigners = join(keys, "other_signers");
   writeFileSync(otherSigners, `${otherKey.signersLine}\n`);
   const before = snapshot(machineRoots);
-  const fromShallow = run(process.execPath, [join(REPO, "scripts", "skillgate.mjs"), ...joinArgs.map((a) => a), "--repo", shallow, "--apply"], { env });
+  const fromShallow = run(process.execPath, [join(REPO, "scripts", "skilliton.mjs"), ...joinArgs.map((a) => a), "--repo", shallow, "--apply"], { env });
   const trustOther = sgDev(["trust", "add", "--company", COMPANY, "--signers", otherSigners, "--apply"]);
   const afterTrust = snapshot(machineRoots);
   const differentSigners = sgDev([...joinArgs, "--apply"]);
@@ -188,22 +188,22 @@ await R.step("J8", `GitHub source: join from a clone of ${GITHUB_REPO} installs 
   const clone = git(ws, ["clone", "-q", `https://github.com/${GITHUB_REPO}`, upstream], { env, timeoutMs: 600000 });
   if (clone.code) return { ok: false, detail: `clone failed: ${tail(clone)}` };
   const second = { claude: join(ws, "claude-config-github"), codex: join(ws, "codex-home-github"), trust: join(ws, "trust-github"), joined: join(ws, "joined-github") };
-  const e = { ...env, CLAUDE_CONFIG_DIR: second.claude, CODEX_HOME: second.codex, SKILLGATE_TRUST_DIR: second.trust, SKILLGATE_JOIN_DIR: second.joined };
+  const e = { ...env, CLAUDE_CONFIG_DIR: second.claude, CODEX_HOME: second.codex, SKILLITON_TRUST_DIR: second.trust, SKILLITON_JOIN_DIR: second.joined };
   mkdirSync(second.claude, { recursive: true });
-  const local = (args) => run(process.execPath, [join(REPO, "scripts", "skillgate.mjs"), ...args], { env: e, timeoutMs: 900000 });
+  const local = (args) => run(process.execPath, [join(REPO, "scripts", "skilliton.mjs"), ...args], { env: e, timeoutMs: 900000 });
   const r = local(["join", "--repo", upstream, "--company", "upstream", "--signers", signers, "--no-launcher", ...clients, "--apply"]);
   const records = existsSync(join(second.claude, "plugins", "installed_plugins.json")) ? readJson(join(second.claude, "plugins", "installed_plugins.json")).plugins : {};
   const known = existsSync(join(second.claude, "plugins", "known_marketplaces.json")) ? readJson(join(second.claude, "plugins", "known_marketplaces.json")) : {};
   const head = git(upstream, ["rev-parse", "HEAD"], { env }).out.trim();
-  const fromGithub = known.skillgate?.source?.source === "github" && records["workflow@skillgate"]?.[0]?.gitCommitSha === head && /source = "https:\/\/github\.com\/MojoAI-King\/Skilliton\.git"/.test(codexConfig(second.codex));
+  const fromGithub = known.skilliton?.source?.source === "github" && records["workflow@skilliton"]?.[0]?.gitCommitSha === head && /source = "https:\/\/github\.com\/MojoAI-King\/Skilliton\.git"/.test(codexConfig(second.codex));
   const unknown = (r.out.match(/^ {2}UNKNOWN VERSION\s/gm) ?? []).length;
   const undo = local(["join", "--undo", "--company", "upstream", ...clients, "--apply"]);
-  const cleaned = claudeInstalled(second.claude).length === 0 && codexCached(second.codex, "skillgate").length === 0 && !existsSync(join(second.joined, "upstream.json"));
+  const cleaned = claudeInstalled(second.claude).length === 0 && codexCached(second.codex, "skilliton").length === 0 && !existsSync(join(second.joined, "upstream.json"));
   const ok = r.code === 1 && fromGithub && unknown === 6 && !/^ {2}VERIFIED/m.test(r.out) && undo.code === 0 && cleaned;
-  return { ok, detail: `join exit ${r.code} (1: installed, not approved); Claude Code marketplace source ${known.skillgate?.source?.source ?? "none"}, workflow at commit ${records["workflow@skillgate"]?.[0]?.gitCommitSha?.slice(0, 7) ?? "none"} = clone HEAD ${head.slice(0, 7)}; Codex source is the GitHub URL: ${fromGithub}; UNKNOWN VERSION lines ${unknown} of 6; undo exit ${undo.code}, both clients clean: ${cleaned}${ok ? "" : ` | ${tail(r, 600)} ${tail(undo, 300)}`}` };
+  return { ok, detail: `join exit ${r.code} (1: installed, not approved); Claude Code marketplace source ${known.skilliton?.source?.source ?? "none"}, workflow at commit ${records["workflow@skilliton"]?.[0]?.gitCommitSha?.slice(0, 7) ?? "none"} = clone HEAD ${head.slice(0, 7)}; Codex source is the GitHub URL: ${fromGithub}; UNKNOWN VERSION lines ${unknown} of 6; undo exit ${undo.code}, both clients clean: ${cleaned}${ok ? "" : ` | ${tail(r, 600)} ${tail(undo, 300)}`}` };
 }, { requires: ["J1"] });
 
-R.note("Every client home, the trust folder, the join receipts and the terminal command folder are inside the disposable workspace (CLAUDE_CONFIG_DIR, CODEX_HOME, SKILLGATE_TRUST_DIR, SKILLGATE_JOIN_DIR, --bin-dir); nothing on the machine running the rehearsal is changed.");
+R.note("Every client home, the trust folder, the join receipts and the terminal command folder are inside the disposable workspace (CLAUDE_CONFIG_DIR, CODEX_HOME, SKILLITON_TRUST_DIR, SKILLITON_JOIN_DIR, --bin-dir); nothing on the machine running the rehearsal is changed.");
 R.note("Measured limits of undo: Claude Code leaves empty enabledPlugins and extraKnownMarketplaces entries in its settings and keeps downloaded plugins under plugins/cache/, which verify does not count because it reads installed_plugins.json; Codex deletes each removed plugin's cache folder, which is its install record, and keeps the empty plugins/cache/<marketplace>/ folder.");
 
 const meta = { "Claude Code": claude.version, Codex: codex.version, "GitHub step": flags["no-github"] ? "not run (--no-github)" : "run when github.com is reachable", Node: process.version };

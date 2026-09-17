@@ -11,8 +11,8 @@
 # family, so it is compared by family name; a context suffix such as [1m] is ignored.
 
 set -u
-SETTINGS="${SKILLGATE_SETTINGS:-$HOME/.claude/settings.json}"
-PROJECTS="${SKILLGATE_PROJECTS:-$HOME/.claude/projects}"
+SETTINGS="${SKILLITON_SETTINGS:-$HOME/.claude/settings.json}"
+PROJECTS="${SKILLITON_PROJECTS:-$HOME/.claude/projects}"
 
 declared_model="(no settings file)"
 if [ -f "$SETTINGS" ]; then

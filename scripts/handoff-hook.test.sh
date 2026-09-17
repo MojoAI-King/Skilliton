@@ -44,7 +44,7 @@ HEADER='[workflow] Handoff from docs/HANDOFF.md:'
 MISSING_FILE='[workflow] No handoff yet in this repo. When you finish a stretch of work, run /workflow:handoff so the next session can pick up.'
 MISSING_SECTION='[workflow] docs/HANDOFF.md has no "## RESUME HERE" section; run /workflow:handoff to write one.'
 EMPTY_SECTION='[workflow] docs/HANDOFF.md has an empty "## RESUME HERE" section; run /workflow:handoff to write one.'
-NO_PARSER_NOTE='[workflow] .skillgate/config.json has handoff settings but was not read (no jq, node, or python3 found); using docs/HANDOFF.md and 6000 bytes.'
+NO_PARSER_NOTE='[workflow] .skilliton/config.json has handoff settings but was not read (no jq, node, or python3 found); using docs/HANDOFF.md and 6000 bytes.'
 
 # ---- fixtures -------------------------------------------------------------------------------
 IFS= read -r -d '' BODY <<'EOF'
@@ -156,14 +156,14 @@ echo
 
 # ---- (c) truncation from config -----------------------------------------------------------
 MAXB=200
-echo "== (c) truncation at handoff.maxBytes=$MAXB from .skillgate/config.json"
+echo "== (c) truncation at handoff.maxBytes=$MAXB from .skilliton/config.json"
 CASE="(c) premise"
 full=$(printf '%s\n' "## RESUME HERE$nl$BODY" | wc -c | tr -d ' ')
 if [ "$full" -gt "$MAXB" ]; then ok "$CASE: the untruncated section is $full bytes, more than $MAXB"
 else bad "$CASE: the untruncated section is only $full bytes; this case would pass vacuously"; fi
 if command -v jq >/dev/null 2>&1 || command -v node >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then
   repo="$tmp/c"; handoff_file "$repo/docs/HANDOFF.md" "## RESUME HERE"
-  mkdir -p "$repo/.skillgate"; printf '{"handoff": {"maxBytes": %s}}\n' "$MAXB" > "$repo/.skillgate/config.json"
+  mkdir -p "$repo/.skilliton"; printf '{"handoff": {"maxBytes": %s}}\n' "$MAXB" > "$repo/.skilliton/config.json"
   run "(c) maxBytes" "$repo" /dev/null CLAUDE_PROJECT_DIR="$repo"
   clean
   line_is 1 "$HEADER"
@@ -215,14 +215,14 @@ for p in jq node python3; do
   repo="$tmp/g-$p"
   handoff_file "$repo/notes/RESUME.md" "## RESUME HERE"
   handoff_file "$repo/docs/HANDOFF.md" "## RESUME HERE" WRONG-FILE-SENTINEL
-  mkdir -p "$repo/.skillgate"; printf '{"dispatch": {}, "handoff": {"file": "notes/RESUME.md", "maxBytes": %s}}\n' "$MAXB" > "$repo/.skillgate/config.json"
+  mkdir -p "$repo/.skilliton"; printf '{"dispatch": {}, "handoff": {"file": "notes/RESUME.md", "maxBytes": %s}}\n' "$MAXB" > "$repo/.skilliton/config.json"
   stdin_json "$tmp/stdin-g-$p.json" "$repo"
   run "(g-$p) stdin cwd and config via $p" "$decoy" "$tmp/stdin-g-$p.json" PATH="$bin"
   clean
   line_is 1 "[workflow] Handoff from notes/RESUME.md:"
   has STATE-SENTINEL; lacks DECOY-SENTINEL; lacks WRONG-FILE-SENTINEL
   has_line "[truncated at $MAXB bytes; open the file for the rest]"
-  lacks ".skillgate/config.json"
+  lacks ".skilliton/config.json"
 done
 repo="$tmp/g-fallback"; handoff_file "$repo/docs/HANDOFF.md" "## RESUME HERE"
 printf 'this is not json\n' > "$tmp/stdin-garbage"
@@ -242,7 +242,7 @@ if [ -z "$found" ]; then ok "$CASE: no parser on the restricted PATH"; else bad 
 repo="$tmp/h"
 handoff_file "$repo/docs/HANDOFF.md" "## RESUME HERE"
 handoff_file "$repo/notes/RESUME.md" "## RESUME HERE" CONFIG-FILE-SENTINEL
-mkdir -p "$repo/.skillgate"; printf '{"handoff": {"file": "notes/RESUME.md", "maxBytes": %s}}\n' "$MAXB" > "$repo/.skillgate/config.json"
+mkdir -p "$repo/.skilliton"; printf '{"handoff": {"file": "notes/RESUME.md", "maxBytes": %s}}\n' "$MAXB" > "$repo/.skilliton/config.json"
 run "(h) no parser" "$repo" "$tmp/stdin-decoy.json" PATH="$bin"
 clean
 line_is 1 "$HEADER"
@@ -255,17 +255,17 @@ echo
 echo "== (i) an unusable config is reported, never silently ignored"
 if command -v jq >/dev/null 2>&1 || command -v node >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then
   repo="$tmp/i1"; handoff_file "$repo/docs/HANDOFF.md" "## RESUME HERE"
-  mkdir -p "$repo/.skillgate"; printf '{"handoff": {"maxBytes": 50}\n' > "$repo/.skillgate/config.json"
+  mkdir -p "$repo/.skilliton"; printf '{"handoff": {"maxBytes": 50}\n' > "$repo/.skilliton/config.json"
   run "(i1) invalid JSON" "$repo" /dev/null CLAUDE_PROJECT_DIR="$repo"
   clean; line_is 1 "$HEADER"; has TAIL-SENTINEL; lacks "[truncated"; lacks EARLIER-SENTINEL
-  has "[workflow] .skillgate/config.json could not be read as JSON"
+  has "[workflow] .skilliton/config.json could not be read as JSON"
   repo="$tmp/i2/repo"; handoff_file "$repo/docs/HANDOFF.md" "## RESUME HERE"
   handoff_file "$tmp/i2/outside.md" "## RESUME HERE" OUTSIDE-SENTINEL
-  mkdir -p "$repo/.skillgate"; printf '{"handoff": {"file": "../outside.md", "maxBytes": "lots"}}\n' > "$repo/.skillgate/config.json"
+  mkdir -p "$repo/.skilliton"; printf '{"handoff": {"file": "../outside.md", "maxBytes": "lots"}}\n' > "$repo/.skilliton/config.json"
   run "(i2) path outside the repo, maxBytes not a number" "$repo" /dev/null CLAUDE_PROJECT_DIR="$repo"
   clean; line_is 1 "$HEADER"; has TAIL-SENTINEL; lacks OUTSIDE-SENTINEL; lacks "[truncated"; lacks EARLIER-SENTINEL
-  has_line "[workflow] handoff.file in .skillgate/config.json must be a path inside the repo; using docs/HANDOFF.md."
-  has_line "[workflow] handoff.maxBytes in .skillgate/config.json is not a positive whole number; using 6000."
+  has_line "[workflow] handoff.file in .skilliton/config.json must be a path inside the repo; using docs/HANDOFF.md."
+  has_line "[workflow] handoff.maxBytes in .skilliton/config.json is not a positive whole number; using 6000."
 else
   skip "(i): no jq, node, or python3 on PATH"
 fi

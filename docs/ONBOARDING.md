@@ -14,18 +14,18 @@ Kind: Living. For anyone who will build in a company's prepared repository with 
 You need Claude Code or Codex, Node.js 18 or later, and git, on macOS or Linux. The checks have run on Node.js 22 and 25; Node.js 18 has not been run yet, and Windows has not been tried (docs/COVERAGE.md).
 
 1. **Get two things from your company:** where its skills repository lives, and its release signers file. The signers file comes separately (for example from device management or an internal page), never from the repository itself.
-2. **Clone the repository and preview:** `git clone <company skills repository> ~/company-skills`, then `node ~/company-skills/scripts/skillgate.mjs join --company <company> --signers <file>`. It lists what it would add for each coding tool it finds, and writes nothing.
-3. **Apply it:** run the same command with `--apply`. It adds the company marketplace and plugins, trusts the signers, puts a `skillgate` command in `~/.local/bin`, and ends with `skillgate verify`, which should say VERIFIED for every plugin. If it says `~/.local/bin` is not on your PATH, add the line it prints to your shell profile.
-4. **To take it back out:** `skillgate join --undo --company <company> --apply` removes exactly what join added and keeps what you had before.
+2. **Clone the repository and preview:** `git clone <company skills repository> ~/company-skills`, then `node ~/company-skills/scripts/skilliton.mjs join --company <company> --signers <file>`. It lists what it would add for each coding tool it finds, and writes nothing.
+3. **Apply it:** run the same command with `--apply`. It adds the company marketplace and plugins, trusts the signers, puts a `skilliton` command in `~/.local/bin`, and ends with `skilliton verify`, which should say VERIFIED for every plugin. If it says `~/.local/bin` is not on your PATH, add the line it prints to your shell profile.
+4. **To take it back out:** `skilliton join --undo --company <company> --apply` removes exactly what join added and keeps what you had before.
 
-By hand instead: `claude plugin marketplace add <company>/<skills-repo>`, `claude plugin install workflow@<marketplace>` and each other plugin, `skillgate trust add --company <company> --signers <file> --apply`, then `skillgate verify --company <company> --source <clone>`. Inside a Claude Code session the workflow plugin also puts `skillgate` on the shell path.
+By hand instead: `claude plugin marketplace add <company>/<skills-repo>`, `claude plugin install workflow@<marketplace>` and each other plugin, `skilliton trust add --company <company> --signers <file> --apply`, then `skilliton verify --company <company> --source <clone>`. Inside a Claude Code session the workflow plugin also puts `skilliton` on the shell path.
 
-**Codex:** `join` sets Codex up too when it is installed. By hand, add the same marketplace with `codex plugin marketplace add <location>` and install with `codex plugin add workflow@<marketplace>`; `skillgate verify --client codex` checks the install. Codex gives you the skills and the `AGENTS.md` instructions, but it does not run hooks shipped inside plugins, so the session-start summary, the checkpoint reminder and guardrails need hooks your company configures for Codex, each trusted once (`/hooks` in the Codex CLI); ask your maintainer. The Codex IDE extension does not support plugins. See docs/CLIENTS.md for what is proved on each client.
+**Codex:** `join` sets Codex up too when it is installed. By hand, add the same marketplace with `codex plugin marketplace add <location>` and install with `codex plugin add workflow@<marketplace>`; `skilliton verify --client codex` checks the install. Codex gives you the skills and the `AGENTS.md` instructions, but it does not run hooks shipped inside plugins, so the session-start summary, the checkpoint reminder and guardrails need hooks your company configures for Codex, each trusted once (`/hooks` in the Codex CLI); ask your maintainer. The Codex IDE extension does not support plugins. See docs/CLIENTS.md for what is proved on each client.
 
 ## 2. Open a project
 
 - **A project the team already prepared:** clone it and start a session in its folder. The session start shows the latest handoff and a "Project state" block. Ask: "Where do things stand?"
-- **A new or existing project that is not prepared yet:** ask the assistant to prepare it, or run `skillgate prepare --dir <project>` to preview and `skillgate prepare --dir <project> --apply` to apply. It adopts records the project already has, adds only what is missing (marked "not yet assessed"), writes the instruction block, and changes nothing else. Running it again changes nothing.
+- **A new or existing project that is not prepared yet:** ask the assistant to prepare it, or run `skilliton prepare --dir <project>` to preview and `skilliton prepare --dir <project> --apply` to apply. It adopts records the project already has, adds only what is missing (marked "not yet assessed"), writes the instruction block, and changes nothing else. Running it again changes nothing.
 
 ## 3. Everyday work
 
@@ -38,16 +38,16 @@ By hand instead: `claude plugin marketplace add <company>/<skills-repo>`, `claud
 ## 4. When something goes wrong
 
 - **A command was blocked:** the assistant explains why and suggests a safe next step. Do not try to get around it; ask your maintainer if the rule seems wrong for your case.
-- **A push was rejected by the delivery gate:** the message names the failing check. Pull the latest shared branch, run the checks locally (`skillgate delivery check`), fix, and push again.
+- **A push was rejected by the delivery gate:** the message names the failing check. Pull the latest shared branch, run the checks locally (`skilliton delivery check`), fix, and push again.
 - **The session ended in the middle of work:** start a new one. The session start tells you the previous session was interrupted, shows the last checkpoint and what is uncommitted, and the assistant resumes from there.
 - **The session start says "stale":** the handoff or some security evidence is older than the latest changes. Ask the assistant to reconcile (`/workflow:maintain` on the shared branch, or a checkpoint on your task branch).
 
 ## 5. Receiving updates
 
 - Run `claude plugin marketplace update <marketplace>` and `claude plugin update <plugin>@<marketplace>`, then start a new session (measured: this follows the marketplace up to a new version and back down after a rollback). With auto-update on in the team settings, Claude Code documents checking at session start; that has not been observed in Skilliton's rehearsals yet.
-- After updating, run `skillgate verify`. VERIFIED means your installed files are exactly an approved release. TAMPERED, UNKNOWN VERSION or WITHDRAWN means stop and tell your maintainer; reinstalling the plugin usually fixes TAMPERED. If verify says a file is not executable, its hook or command cannot run: reinstall the plugin.
-- If the session start says the project needs a migration, preview it with `skillgate migrate` and apply it with `skillgate migrate --apply` on the shared branch (or ask your maintainer). A migration never rewrites your records or text outside the managed blocks; `skillgate migrate --rollback <id> --apply` undoes it while the migrated files are unchanged.
+- After updating, run `skilliton verify`. VERIFIED means your installed files are exactly an approved release. TAMPERED, UNKNOWN VERSION or WITHDRAWN means stop and tell your maintainer; reinstalling the plugin usually fixes TAMPERED. If verify says a file is not executable, its hook or command cannot run: reinstall the plugin.
+- If the session start says the project needs a migration, preview it with `skilliton migrate` and apply it with `skilliton migrate --apply` on the shared branch (or ask your maintainer). A migration never rewrites your records or text outside the managed blocks; `skilliton migrate --rollback <id> --apply` undoes it while the migrated files are unchanged.
 
 ## 6. Leaving or removing Skilliton
 
-`skillgate remove --dir <project> --apply` removes the managed instruction blocks and generated reports and keeps every record, task, decision, lesson, evidence record and the Git history. Uninstall the plugins with `claude plugin uninstall <plugin>@<marketplace>`.
+`skilliton remove --dir <project> --apply` removes the managed instruction blocks and generated reports and keeps every record, task, decision, lesson, evidence record and the Git history. Uninstall the plugins with `claude plugin uninstall <plugin>@<marketplace>`.

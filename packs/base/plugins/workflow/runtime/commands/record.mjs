@@ -1,4 +1,4 @@
-// commands/record.mjs: `skillgate record decision|lesson "<title>"` (docs/CONTRACTS.md section 11). The engine is
+// commands/record.mjs: `skilliton record decision|lesson "<title>"` (docs/CONTRACTS.md section 11). The engine is
 // lib/records.mjs createEntry; this file parses arguments, shows the entry, and writes it only with --apply.
 
 import { argPath, parseArgs, refuse, resolveExistingDir, say, selfCommand, tilde } from "../lib/core.mjs";
@@ -50,7 +50,7 @@ export async function run(argv) {
       return failure.exit;
     }
     const why = entry.integration ? `${entry.branch} is an integration branch` : entry.branch === null ? "HEAD is detached, so this is not an integration branch" : `${entry.branch} is not an integration branch (${project.integrationBranches.join(", ")})`;
-    say(`skillgate record ${kind} (${mode}): ${tilde(root)}`);
+    say(`skilliton record ${kind} (${mode}): ${tilde(root)}`);
     say(`${entry.written ? "Created" : "Would create"} ${entry.path} with the status ${entry.status} (${why}).`);
     if (!entry.written) {
       say("");
@@ -63,7 +63,7 @@ export async function run(argv) {
     say(`Summary: ${kind} entry ${entry.id} written. Fill in each section in plain language. ${entry.integration ? `To list it in ${record}: ${selfCommand()} index --apply${dirArg}` : `The integrating session lists it in ${record} after merging (index runs on an integration branch).`}`);
     return 0;
   } catch (e) {
-    if (e instanceof OperationFailed) { console.error(`skillgate: record could not run: ${e.message}`); return 3; }
-    throw e; // Refused (exit 2) and unexpected errors (exit 3) are reported by skillgate.mjs
+    if (e instanceof OperationFailed) { console.error(`skilliton: record could not run: ${e.message}`); return 3; }
+    throw e; // Refused (exit 2) and unexpected errors (exit 3) are reported by skilliton.mjs
   }
 }

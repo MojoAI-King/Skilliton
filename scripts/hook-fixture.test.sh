@@ -10,7 +10,7 @@
 #   bash scripts/hook-fixture.test.sh --hook FILE        run Part 2 against FILE instead of the shipped hook
 #                                                        (used to prove an older hook fails; never writes evidence)
 #
-# Optional, informational only (not a pass/fail check): set SKILLGATE_ORIGIN_LESSONS to a private
+# Optional, informational only (not a pass/fail check): set SKILLITON_ORIGIN_LESSONS to a private
 # lessons file to print the byte and line count the hook injects from it. Content is never printed.
 #
 # Exit 0 only if every check passes.
@@ -40,8 +40,8 @@ if [ ! -f "$HOOK" ]; then echo "FAIL: hook under test not found: $HOOK_LABEL"; e
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 OUT="$tmp/output.txt"
 
-NOT_FOUND='[context-hygiene] checklist heading not found in SKILLGATE_LESSONS; injecting nothing. (Reported, not silent.)'
-NOT_SET='[context-hygiene] SKILLGATE_LESSONS not set or file missing; injecting nothing. (Reported, not silent.)'
+NOT_FOUND='[context-hygiene] checklist heading not found in SKILLITON_LESSONS; injecting nothing. (Reported, not silent.)'
+NOT_SET='[context-hygiene] SKILLITON_LESSONS not set or file missing; injecting nothing. (Reported, not silent.)'
 
 run_all() {
   local fails=0 L S orig fix ob fb out rc
@@ -70,7 +70,7 @@ run_all() {
   # every check below pass while the real hook never runs, so check it the way it is actually invoked.
   if [ -x "$HOOK" ]; then
     echo "ok   (0) hook is executable (hooks.json runs it by path)"
-    direct=$(env -u SKILLGATE_CHECKLIST_HEADING SKILLGATE_LESSONS="$here/fixtures/hook/lessons-sample.md" "$HOOK" 2>&1)
+    direct=$(env -u SKILLITON_CHECKLIST_HEADING SKILLITON_LESSONS="$here/fixtures/hook/lessons-sample.md" "$HOOK" 2>&1)
     if printf "%s\n" "$direct" | grep -q -- '- step three'; then echo "ok   (0) invoked by path, the hook prints the checklist"
     else echo "FAIL (0) invoked by path, the hook did not print the checklist"; fails=$((fails+1)); fi
   else
@@ -80,7 +80,7 @@ run_all() {
   # check_section <label> <lessons file>: output must contain "- step three" and no "## Lesson" line
   check_section() {
     local label="$1" file="$2" out rc bytes
-    env -u SKILLGATE_CHECKLIST_HEADING SKILLGATE_LESSONS="$file" bash "$HOOK" > "$tmp/hook-out" 2>&1; rc=$?
+    env -u SKILLITON_CHECKLIST_HEADING SKILLITON_LESSONS="$file" bash "$HOOK" > "$tmp/hook-out" 2>&1; rc=$?
     bytes=$(wc -c < "$tmp/hook-out" | tr -d ' ')
     out=$(cat "$tmp/hook-out")
     echo "-- $label: exit $rc, ${bytes} bytes of raw output"
@@ -108,23 +108,23 @@ run_all() {
 
   printf '# LESSONS (control)\n\n## Some other heading\n- not the checklist\n\n## Lesson 1\ntext\n' > "$tmp/no-heading.md"
   check_exact "(c) missing-heading control" "$NOT_FOUND" \
-    env -u SKILLGATE_CHECKLIST_HEADING SKILLGATE_LESSONS="$tmp/no-heading.md" bash "$HOOK"
+    env -u SKILLITON_CHECKLIST_HEADING SKILLITON_LESSONS="$tmp/no-heading.md" bash "$HOOK"
 
-  check_exact "(d) SKILLGATE_LESSONS unset" "$NOT_SET" \
-    env -u SKILLGATE_LESSONS -u SKILLGATE_CHECKLIST_HEADING bash "$HOOK"
+  check_exact "(d) SKILLITON_LESSONS unset" "$NOT_SET" \
+    env -u SKILLITON_LESSONS -u SKILLITON_CHECKLIST_HEADING bash "$HOOK"
 
   printf '# LESSONS (control)\n\n## The new-app wiring checklist\n\n\n## Lesson 1\ntext\n' > "$tmp/empty-body.md"
   check_exact "(e) heading present, empty checklist" "$NOT_FOUND" \
-    env -u SKILLGATE_CHECKLIST_HEADING SKILLGATE_LESSONS="$tmp/empty-body.md" bash "$HOOK"
+    env -u SKILLITON_CHECKLIST_HEADING SKILLITON_LESSONS="$tmp/empty-body.md" bash "$HOOK"
   echo
 
   echo "== Informational (not a check): the originating lessons file (private, not in this repo)"
-  if [ -n "${SKILLGATE_ORIGIN_LESSONS:-}" ] && [ -f "${SKILLGATE_ORIGIN_LESSONS}" ]; then
-    env -u SKILLGATE_CHECKLIST_HEADING SKILLGATE_LESSONS="$SKILLGATE_ORIGIN_LESSONS" bash "$HOOK" > "$tmp/origin-out" 2>&1; rc=$?
+  if [ -n "${SKILLITON_ORIGIN_LESSONS:-}" ] && [ -f "${SKILLITON_ORIGIN_LESSONS}" ]; then
+    env -u SKILLITON_CHECKLIST_HEADING SKILLITON_LESSONS="$SKILLITON_ORIGIN_LESSONS" bash "$HOOK" > "$tmp/origin-out" 2>&1; rc=$?
     echo "exit $rc; injected $(wc -c < "$tmp/origin-out" | tr -d ' ') bytes of raw output, $(wc -l < "$tmp/origin-out" | tr -d ' ') lines (content not printed)"
     if grep -q '^\[context-hygiene\]' "$tmp/origin-out"; then echo "note: output contains a [context-hygiene] notice line"; fi
   else
-    echo "NOT MEASURED: SKILLGATE_ORIGIN_LESSONS not set or file missing"
+    echo "NOT MEASURED: SKILLITON_ORIGIN_LESSONS not set or file missing"
   fi
   echo
 
