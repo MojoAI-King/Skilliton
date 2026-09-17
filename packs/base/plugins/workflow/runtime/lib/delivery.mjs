@@ -366,7 +366,7 @@ function waitFor(child, program) {
 
 // git archive <commit> | tar -x, with both programs started from argument lists.
 async function extractArchive(git, commit, dir) {
-  const archive = spawn("git", [...git.where, "-c", "core.autocrlf=false", "archive", "--format=tar", commit], { env: git.env, stdio: ["ignore", "pipe", "pipe"] });
+  const archive = spawn("git", [...git.where, ...NO_REPOSITORY_PROGRAMS, "-c", "core.autocrlf=false", "archive", "--format=tar", commit], { env: git.env, stdio: ["ignore", "pipe", "pipe"] });
   const tar = spawn("tar", ["-x", "-f", "-", "-C", dir], { env: git.env, stdio: ["pipe", "ignore", "pipe"] });
   let archiveErr = "", tarErr = "";
   archive.stderr.on("data", (c) => { if (archiveErr.length < 8192) archiveErr += c; });

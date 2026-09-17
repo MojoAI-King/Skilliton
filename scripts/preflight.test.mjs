@@ -231,6 +231,45 @@ for (const trap of [
   });
 }
 
+// The other half of the same question: a prepared project's settings file can put variables into a session's
+// environment, so a configuration named there reaches git the same way one in .git/config does. Both routes are
+// tried with the ssh trap, each with the positive control that proves the trap is armed. What the machine's own
+// ~/.gitconfig says is followed on purpose, and is not what this tests; see lib/journal.mjs.
+const SSH_TRAP = (marker) => `[url "ssh://example.invalid/x"]\n\tinsteadOf = https://github.com/\n[core]\n\tsshCommand = sh -c 'mkdir ${marker}' #\n`;
+for (const route of [
+  { name: "a configuration file named in the environment", vars: (file) => ({ GIT_CONFIG_GLOBAL: file }) },
+  {
+    name: "settings passed in the environment",
+    vars: (file, marker) => ({ GIT_CONFIG_COUNT: "2", GIT_CONFIG_KEY_0: "url.ssh://example.invalid/x.insteadOf", GIT_CONFIG_VALUE_0: "https://github.com/", GIT_CONFIG_KEY_1: "core.sshCommand", GIT_CONFIG_VALUE_1: `sh -c 'mkdir ${marker}' #` }),
+  },
+]) {
+  test(`${route.name} cannot make the check run a command`, (t) => {
+    const ctx = fixture(t);
+    const marker = join(ctx.base, "RAN");
+    const file = join(ctx.base, "planted.gitconfig");
+    writeFileSync(file, SSH_TRAP(marker));
+    const planted = route.vars(file, marker);
+
+    // The positive control: plain git with the same variables does run the command.
+    const control = spawnSync(toolPath("git"), ["ls-remote", "--heads", "--", "https://github.com/acme/skills.git"], {
+      cwd: ctx.base, encoding: "utf8", env: { PATH: ctx.tools, HOME: ctx.home, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null", ...planted },
+    });
+    assert.equal(existsSync(marker), true, `the fixture did not make plain git run the command, so this case would prove nothing (git said: ${control.stderr?.trim().slice(0, 300)})`);
+    rmSync(marker, { recursive: true, force: true });
+
+    const r = spawnSync(process.execPath, [join(ctx.repo, "scripts", "skilliton.mjs"), "preflight", "--client", "claude-code", "--bin-dir", ctx.bin, "--marketplace", "acme/skills"], {
+      encoding: "utf8", cwd: ctx.base, timeout: 120000,
+      env: {
+        PATH: ctx.tools, HOME: ctx.home, LANG: "C.UTF-8", SKILLITON_SELF: "skilliton", TMPDIR: ctx.base,
+        SKILLITON_TRUST_DIR: join(ctx.home, "trust"), SKILLITON_JOIN_DIR: join(ctx.home, "joined"),
+        SKILLITON_BACKUPS: join(ctx.home, "backups"), CLAUDE_CONFIG_DIR: join(ctx.home, "claude"), CODEX_HOME: join(ctx.home, "codex"),
+        ...planted,
+      },
+    });
+    assert.equal(existsSync(marker), false, `a configuration from the environment made the check run a command:\n${r.stdout}${r.stderr}`);
+  });
+}
+
 test("a program that never answers is stopped with its children, and the check finishes", (t) => {
   if (process.platform === "win32") return t.skip("process groups work differently on Windows");
   const ctx = fixture(t);

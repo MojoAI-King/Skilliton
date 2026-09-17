@@ -147,8 +147,8 @@ function which(tool) {
 }
 
 // Run a program with a timeout; never throws for the program's own failure.
-function runProgram(file, args, timeoutMs = 20000) {
-  const r = spawnSync(file, args, { encoding: "utf8", timeout: timeoutMs, stdio: ["ignore", "pipe", "pipe"] });
+function runProgram(file, args, timeoutMs = 20000, { env } = {}) {
+  const r = spawnSync(file, args, { encoding: "utf8", timeout: timeoutMs, stdio: ["ignore", "pipe", "pipe"], env: env ?? process.env });
   const failure = r.error ? (r.error.code === "ETIMEDOUT" ? `timed out after ${timeoutMs / 1000}s` : r.error.message)
     : r.status !== 0 ? `exit ${r.status ?? "signal " + r.signal}` : null;
   return { ok: failure === null, failure, status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
