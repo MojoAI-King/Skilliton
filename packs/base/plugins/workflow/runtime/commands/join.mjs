@@ -29,9 +29,10 @@ template that disagree are refused before anything is written. Anything already 
 Everything join adds is recorded in $SKILLGATE_JOIN_DIR/<company>.json (default ~/.config/skillgate/joined/), updated
 after each step, so a failure part way can be undone. join --undo uninstalls the plugins join installed, removes the
 marketplace when join added it and nothing else was installed from it, and removes the signers file and launcher when
-they are unchanged; it keeps what was there before join and says what it kept. Claude Code leaves empty
-enabledPlugins and extraKnownMarketplaces entries in its settings, both clients keep their download caches, and a
-Codex home folder join created is kept, because Codex writes its own files there.
+they are unchanged; it keeps what was there before join and says what it kept. Measured limits: Claude Code leaves
+empty enabledPlugins and extraKnownMarketplaces entries in its settings and keeps downloaded plugins under
+plugins/cache/; Codex deletes each removed plugin's cache but keeps the empty plugins/cache/<marketplace>/ folder; and
+a Codex home folder join created is kept, because Codex writes its own files there.
 
 Preview by default; --apply makes the changes.
 Exit codes: 0 complete and every plugin VERIFIED (undo: everything join added is gone); 1 attention (verify found a
@@ -135,8 +136,8 @@ function undo(o) {
     for (const p of c.uninstall) say(`  will uninstall ${p}@${plan.receipt.marketplace.name}`);
     for (const p of c.gone) say(`  already gone: ${p}@${plan.receipt.marketplace.name}`);
     if (c.removeMarketplace) say(`  will remove marketplace ${plan.receipt.marketplace.name}`);
-    if (c.keptMarketplace) say(`  will keep marketplace ${plan.receipt.marketplace.name}: ${c.others.join(", ")} from it were installed separately`);
-    if (!c.uninstall.length && !c.removeMarketplace && !c.keptMarketplace) say("  nothing join added is still there");
+    if (c.keepReason) say(`  will keep marketplace ${plan.receipt.marketplace.name}: ${c.keepReason}`);
+    if (!c.uninstall.length && !c.removeMarketplace && !c.keepReason) say("  nothing join added is still there");
   }
   const describe = { remove: "will remove", gone: "already gone:", changed: "will keep (changed since join):" };
   if (plan.trust.action !== "none") say(`release signers: ${describe[plan.trust.action]} ${tilde(plan.trust.path)}`);

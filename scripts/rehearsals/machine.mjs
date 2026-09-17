@@ -204,7 +204,7 @@ await R.step("J8", `GitHub source: join from a clone of ${GITHUB_REPO} installs 
 }, { requires: ["J1"] });
 
 R.note("Every client home, the trust folder, the join receipts and the terminal command folder are inside the disposable workspace (CLAUDE_CONFIG_DIR, CODEX_HOME, SKILLGATE_TRUST_DIR, SKILLGATE_JOIN_DIR, --bin-dir); nothing on the machine running the rehearsal is changed.");
-R.note("Measured limits of undo: Claude Code leaves empty enabledPlugins and extraKnownMarketplaces entries in its settings, and both clients keep their download caches; verify reads install records, so a cache left behind is not reported as installed.");
+R.note("Measured limits of undo: Claude Code leaves empty enabledPlugins and extraKnownMarketplaces entries in its settings and keeps downloaded plugins under plugins/cache/, which verify does not count because it reads installed_plugins.json; Codex deletes each removed plugin's cache folder, which is its install record, and keeps the empty plugins/cache/<marketplace>/ folder.");
 
 const meta = { "Claude Code": claude.version, Codex: codex.version, "GitHub step": flags["no-github"] ? "not run (--no-github)" : "run when github.com is reachable", Node: process.version };
 if (!flags["no-evidence"]) R.writeEvidence(ws, meta);

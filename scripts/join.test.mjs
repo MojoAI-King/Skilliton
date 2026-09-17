@@ -264,7 +264,7 @@ test("verify from an installed copy finds its source in the join receipt", (t) =
   writeFileSync(second, readFileSync(join(ctx.joined, "acme.json"), "utf8").replace('"company": "acme"', '"company": "other"'));
   const ambiguous = sg(ctx, ["verify", "--client", "codex"], { cli });
   assert.equal(ambiguous.code, 2, "with two receipts and no --company, verify asks for --source");
-  assert.match(ambiguous.all, /verify needs --source/);
+  assert.match(ambiguous.all, /verify needs --source .*several companies joined this machine \(acme, other\); pass --company <name>/);
   const named = sg(ctx, ["verify", "--client", "codex", "--company", "acme", "--json"], { cli });
   assert.equal(JSON.parse(named.out).details.source, ctx.repo, named.all);
 });
@@ -308,4 +308,149 @@ test("refusals happen before anything is written", async (t) => {
       assert.deepEqual(calls(ctx), [], `${label}: no client command`);
     });
   }
+});
+
+// Regressions from the security-first review of 2026-09-16: each case reproduces a finding and shows it now holds.
+test("undo treats the receipt as untrusted and deletes nothing it does not own", async (t) => {
+  const joined = (tt) => {
+    const ctx = fixture(tt);
+    assert.equal(sg(ctx, [...joinArgs(ctx), "--apply"]).code, 1);
+    return ctx;
+  };
+  const rewrite = (ctx, change) => {
+    const rec = receipt(ctx);
+    change(rec);
+    writeFileSync(join(ctx.joined, "acme.json"), `${JSON.stringify(rec, null, 2)}\n`);
+  };
+
+  await t.test("a launcher path pointing at another file is refused, and the file is kept", (tt) => {
+    const ctx = joined(tt);
+    const victim = join(ctx.base, "victim.txt");
+    writeFileSync(victim, "keep me\n");
+    rewrite(ctx, (rec) => { rec.launcher.path = victim; });
+    const r = sg(ctx, ["join", "--undo", "--company", "acme", "--apply"]);
+    assert.equal(r.code, 2, r.all);
+    assert.match(r.all, /not a valid join receipt .*launcher/);
+    assert.equal(readFileSync(victim, "utf8"), "keep me\n");
+  });
+
+  await t.test("a launcher path to a different file named skillgate is kept, because its text is not join's", (tt) => {
+    const ctx = joined(tt);
+    const other = join(ctx.base, "elsewhere", "skillgate");
+    mkdirSync(dirname(other), { recursive: true });
+    writeFileSync(other, "#!/bin/sh\necho mine\n");
+    rewrite(ctx, (rec) => { rec.launcher.path = other; });
+    const r = sg(ctx, ["join", "--undo", "--company", "acme", "--apply"]);
+    assert.equal(r.code, 1, r.all);
+    assert.equal(readFileSync(other, "utf8"), "#!/bin/sh\necho mine\n");
+  });
+
+  await t.test("a signers path outside the company's trust file is refused, and the file is kept", (tt) => {
+    const ctx = joined(tt);
+    const elsewhere = join(ctx.base, "elsewhere", "acme.allowed_signers");
+    mkdirSync(dirname(elsewhere), { recursive: true });
+    cpSync(join(ctx.trust, "acme.allowed_signers"), elsewhere);
+    rewrite(ctx, (rec) => { rec.trust.path = elsewhere; });
+    const r = sg(ctx, ["join", "--undo", "--company", "acme", "--apply"]);
+    assert.equal(r.code, 2, r.all);
+    assert.match(r.all, /company acme's trust file is/);
+    assert.ok(existsSync(elsewhere));
+  });
+
+  for (const [label, change] of [
+    ["an empty trust object", (rec) => { rec.trust = {}; }],
+    ["an inherited client name", (rec) => { rec.clients = JSON.parse('{"__proto__": {"home": "/x", "marketplaceAdded": false, "installed": []}}'); }],
+    ["a plugin name shaped like an option", (rec) => { rec.clients.codex.installed.push("--scope=project"); }],
+  ]) {
+    await t.test(`${label} is refused, not crashed on`, (tt) => {
+      const ctx = joined(tt);
+      rewrite(ctx, change);
+      const r = sg(ctx, ["join", "--undo", "--company", "acme", "--apply"]);
+      assert.equal(r.code, 2, r.all);
+      assert.match(r.all, /not a valid join receipt/);
+    });
+  }
+});
+
+test("join refuses client state it cannot read, instead of treating a marketplace as absent", async (t) => {
+  const cases = [
+    { label: "known_marketplaces.json that is not valid JSON", setup: (ctx) => { mkdirSync(join(ctx.claude, "plugins"), { recursive: true }); writeFileSync(join(ctx.claude, "plugins", "known_marketplaces.json"), "{"); }, expect: /known_marketplaces\.json is not valid JSON/ },
+    { label: "known_marketplaces.json that is a symbolic link", setup: (ctx) => {
+      mkdirSync(join(ctx.claude, "plugins"), { recursive: true });
+      writeJson(join(ctx.base, "elsewhere.json"), { [MARKET]: { source: { source: "github", repo: "someone/else" } } });
+      symlinkSync(join(ctx.base, "elsewhere.json"), join(ctx.claude, "plugins", "known_marketplaces.json"));
+    }, expect: /known_marketplaces\.json is not a regular file/ },
+    { label: "a Codex marketplaces table in another form", setup: (ctx) => { mkdirSync(ctx.codex, { recursive: true }); writeFileSync(join(ctx.codex, "config.toml"), `[ marketplaces.${MARKET} ]\nsource_type = "git"\nsource = "https://github.com/someone/else.git"\n`); }, expect: /config\.toml line 1 declares a marketplaces table in another form/ },
+    { label: "a Codex marketplace set with a dotted key", setup: (ctx) => { mkdirSync(ctx.codex, { recursive: true }); writeFileSync(join(ctx.codex, "config.toml"), `marketplaces.${MARKET}.source = "x"\n`); }, expect: /sets marketplaces with a dotted key/ },
+    { label: "a marketplace folder whose catalog has another name", setup: (ctx) => {
+      const other = join(ctx.base, "upstream");
+      cpSync(ctx.repo, other, { recursive: true });
+      writeJson(join(other, ".claude-plugin", "marketplace.json"), { ...JSON.parse(readFileSync(join(ctx.repo, ".claude-plugin", "marketplace.json"), "utf8")), name: "upstream" });
+      return ["--marketplace", other];
+    }, expect: /is named "upstream", but this clone's catalog names "acme-skills"/ },
+    { label: "a template repository shaped like an option", setup: (ctx) => {
+      writeJson(join(ctx.repo, "templates", "project-settings.json"), { extraKnownMarketplaces: { [MARKET]: { source: { source: "github", repo: "-x/y" } } }, enabledPlugins: { [`workflow@${MARKET}`]: true } });
+      return ["--no-marketplace-flag"];
+    }, expect: /the repository in templates\/project-settings\.json must look like owner\/repo/ },
+  ];
+  for (const { label, setup, expect } of cases) {
+    await t.test(label, (tt) => {
+      const ctx = fixture(tt);
+      const extra = setup(ctx) ?? [];
+      const args = extra[0] === "--no-marketplace-flag"
+        ? ["join", "--company", "acme", "--signers", ctx.signers, "--bin-dir", ctx.bin, "--apply"]
+        : [...joinArgs(ctx).filter((a, i, all) => !(extra[0] === "--marketplace" && (a === "--marketplace" || all[i - 1] === "--marketplace"))), ...extra, "--apply"];
+      const before = snapshot(ctx);
+      const r = sg(ctx, args);
+      assert.equal(r.code, 2, r.all);
+      assert.match(r.all, expect);
+      assert.equal(snapshot(ctx), before);
+      assert.deepEqual(calls(ctx), []);
+    });
+  }
+});
+
+test("undo keeps a marketplace that now points elsewhere, and join counts only user-scope installs as present", (t) => {
+  const ctx = fixture(t);
+  assert.equal(sg(ctx, [...joinArgs(ctx), "--client", "claude-code", "--apply"]).code, 1);
+  const knownPath = join(ctx.claude, "plugins", "known_marketplaces.json");
+  writeJson(knownPath, { [MARKET]: { source: { source: "github", repo: "me/my-fork" } } });
+  const r = sg(ctx, ["join", "--undo", "--company", "acme", "--apply"]);
+  assert.equal(r.code, 1, r.all);
+  assert.match(r.out, /Kept:\n.*marketplace acme-skills, because it now comes from github me\/my-fork/);
+  assert.equal(calls(ctx).filter((c) => c.includes("marketplace remove")).length, 0);
+
+  const scoped = fixture(t);
+  writeJson(join(scoped.claude, "plugins", "installed_plugins.json"), { version: 2, plugins: { [`workflow@${MARKET}`]: [{ scope: "project", installPath: join(scoped.base, "project-install"), version: "0.5.0" }] } });
+  const preview = sg(scoped, [...joinArgs(scoped), "--client", "claude-code"]);
+  assert.equal(preview.code, 0, preview.all);
+  assert.match(preview.out, /will add\s+plugin workflow@acme-skills/);
+});
+
+test("joining again with other folders, or from a moved clone, is refused with the way forward", (t) => {
+  const ctx = fixture(t);
+  assert.equal(sg(ctx, [...joinArgs(ctx), "--apply"]).code, 1);
+  const otherBin = sg(ctx, ["join", "--company", "acme", "--signers", ctx.signers, "--marketplace", ctx.repo, "--bin-dir", join(ctx.base, "other-bin"), "--apply"]);
+  assert.equal(otherBin.code, 2, otherBin.all);
+  assert.match(otherBin.all, /wrote its terminal command at .*launcher-bin\/skillgate/);
+  const otherTrust = sg(ctx, [...joinArgs(ctx), "--apply"], { env: { SKILLGATE_TRUST_DIR: join(ctx.base, "other-trust") } });
+  assert.equal(otherTrust.code, 2, otherTrust.all);
+  assert.match(otherTrust.all, /set SKILLGATE_TRUST_DIR as it was/);
+
+  const moved = join(ctx.base, "moved-clone");
+  execFileSync("mv", [ctx.repo, moved]);
+  const r = sg(ctx, ["join", "--company", "acme", "--signers", ctx.signers, "--marketplace", moved, "--bin-dir", ctx.bin], { cli: join(moved, "scripts", "skillgate.mjs") });
+  assert.equal(r.code, 2, r.all);
+  assert.match(r.all, /already joined this machine from .*company-skills/);
+});
+
+test("verify validates the company name before reading a receipt", (t) => {
+  const ctx = fixture(t);
+  writeFileSync(join(ctx.base, "notes.json"), '"private text"');
+  const installedCopy = join(ctx.base, "installed-workflow");
+  cpSync(join(ctx.repo, "packs", "base", "plugins", "workflow"), installedCopy, { recursive: true });
+  const r = sg(ctx, ["verify", "--company", "../notes"], { cli: join(installedCopy, "runtime", "skillgate.mjs") });
+  assert.equal(r.code, 2, r.all);
+  assert.match(r.all, /--company "\.\.\/notes" is not allowed/);
+  assert.doesNotMatch(r.all, /private text/);
 });

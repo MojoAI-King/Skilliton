@@ -222,12 +222,12 @@ export function evaluateInstall(install, releases) {
 // ---------- the whole check ----------
 
 // Returns { exitCode, result, summary, details, text: [lines] }. Throws Refused for invalid input or missing trust.
-export function runVerify({ client = "claude-code", configDir, source, company, defaultSource }) {
+export function runVerify({ client = "claude-code", configDir, source, company, defaultSource, sourceHint }) {
   if (!CLIENTS.includes(client)) refuse(`--client must be one of ${CLIENTS.join(", ")} (got "${client}")`);
   let sourceInput = source;
   const text = [];
   if (sourceInput === undefined) {
-    if (!defaultSource) refuse("verify needs --source <path of a clone of the company skills repository>: this copy of skillgate is not inside one, and the client's own marketplace copy is not assumed to hold every release tag");
+    if (!defaultSource) refuse(`verify needs --source <path of a clone of the company skills repository>: this copy of skillgate is not inside one${sourceHint ? `, and ${sourceHint}` : ""}. The client's own marketplace copy is not assumed to hold every release tag.`);
     sourceInput = defaultSource;
   }
   if (/^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(sourceInput) || /^[^/\s]+@[^/\s]+:/.test(sourceInput)) refuse("--source as a URL is not built in this version; clone the company skills repository (with its tags) and pass the clone's path");
