@@ -55,6 +55,12 @@ jobs:
       - name: Allow list checks can fail
         run: node scripts/allowlist.test.mjs --self-test
 
+      - name: Small footprint (no network, no admin rights, nothing left running)
+        run: node scripts/footprint.test.mjs
+
+      - name: Footprint rules can fail
+        run: node scripts/footprint.test.mjs --self-test
+
       - name: Plugin and marketplace validation (Claude Code CLI)
         run: |
           npm install --global @anthropic-ai/claude-code
