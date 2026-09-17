@@ -244,7 +244,8 @@ test("a program that never answers is stopped with its children, and the check f
   assert.ok(seconds < 90, `the check took ${seconds}s, so a program that hangs was not stopped`);
   assert.match(item(r.out, "git"), /SKIPPED\s+git: it did not answer/);
   const left = spawnSync("pgrep", ["-f", join(ctx.tools, "git")], { encoding: "utf8" });
-  assert.equal(left.stdout.trim(), "", `the check left a program running:\n${left.stdout}`);
+  if (left.error) t.diagnostic(`pgrep is not here, so "nothing was left running" was not checked: ${left.error.code}`);
+  else assert.equal((left.stdout ?? "").trim(), "", `the check left a program running:\n${left.stdout}`);
 });
 
 test("a token pasted into a marketplace value is never printed back", (t) => {
