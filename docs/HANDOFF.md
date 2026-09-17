@@ -4,8 +4,19 @@ Kind: Living.
 
 ## RESUME HERE
 
-Written: 2026-09-17 00:30 EDT
+Written: 2026-09-17 00:55 EDT
 
+- **State:** M9 is done: every current technical name is Skilliton (workflow 0.6.0, guardrails 0.3.0, context-hygiene 0.2.0, project layout 3), published as 5a67e74 and 1b626d1 with CI 35176795761 passing 34 of 34 (the letter-case test ran on Linux). Rehearsals under the new names on Claude Code 2.1.273 and Codex 0.154.0-alpha.6.2: fork 7 of 7, machine 8 of 8 including the GitHub install of the renamed marketplace, company release 18 of 18, project 9 of 9. Earlier projects move by migration `0003-skilliton-names`; this repository moved itself. Earlier machine and repository state is named where found, never read as trust; guardrails and the delivery gate keep protection in force until a project moves. An independent security-first review found 13 issues in the first local version, including a gate bypass by merge that predates the rename; all were fixed with regression tests before publishing. Owner decisions: keep `SG-` control IDs (O23); Cursor as the next tool (O24). The private denylist is now at `~/.config/skilliton/denylist`. Installed on the owner's own machine: nothing. Released: none.
+- **Next:**
+  1. Phase 3 order (docs/PHASE-3.md): the M12 enrollment spike (a Claude Code managed-settings drop-in on a clean container and a clean macOS account), then the M10 security audit, M11 routines, the Cursor spike (needs the owner's Cursor login on this Mac), and the B14 demonstration around 2026-09-23.
+  2. Owner inputs unchanged: B2, B3, B4, B7, B6, B1; a spending ceiling for M14.
+  3. Without owner input: B11 and O10.
+- **Blocked:** as before (M5 participant, Codex hooks login, hosted delivery approval, first signed release, any cost statement).
+- **Watch out:** the rehearsals clone the committed HEAD, so commit before running them, and a second run on one day writes `<date>-<name>-run-<n>` rather than replacing evidence (the M7 machine evidence is `2026-09-17-machine`, the M9 run is `-run-2`). Run the whole suite on the exact tree before saying it passes. Use the editor-bundled Claude Code 2.1.273 for `plugin validate --strict` (the terminal `claude` is 2.1.92).
+
+## Earlier
+
+### 2026-09-17 00:30 EDT
 - **State:** M9 (one name) is built locally and not yet published. Every current technical name is Skilliton (workflow 0.6.0, guardrails 0.3.0, context-hygiene 0.2.0, project layout 3). `runtime/lib/legacy-names.mjs` names the earlier ones, and `scripts/names.test.mjs` fails on any other use outside a scoped allowlist. Earlier projects move by migration `0003-skilliton-names`; this repository moved itself (receipt in `.skilliton/migrations/`). Earlier machine and repository state is named where found, never read as trust. Guardrails and the delivery gate keep enforcing an unmigrated project's settings and a policy at the earlier path. An independent security-first review of the first local commit found 13 issues, including a gate bypass by merge that predates the rename; all are fixed with regression tests (decision 2026-09-16-the-rename-moves-projects-by-migration-r-a319, lessons 70e5, 76ff, 8d09, 6d54). Every offline suite and strict validation pass on this tree. Owner decisions recorded: keep `SG-` control IDs (O23); Cursor as the next tool (O24). The private denylist moved to `~/.config/skilliton/denylist`. Published: e5900d5 (CI 35171801478). Installed and released: nothing.
 - **Next:**
   1. Rerun the fork, machine (without GitHub), company release and project rehearsals on the final commit; push; read CI; run the machine rehearsal's GitHub step J8 against the pushed repository and commit that evidence.
@@ -13,8 +24,6 @@ Written: 2026-09-17 00:30 EDT
   3. Owner inputs unchanged: B2, B3, B4, B7, B6, B1; a spending ceiling for M14.
 - **Blocked:** as before (M5 participant, Codex hooks login, hosted delivery approval, first signed release, any cost statement).
 - **Watch out:** the rehearsals clone the committed HEAD, so commit before running them. A rehearsal never replaces recorded evidence: a second run on one day writes `<date>-<name>-run-<n>`. Run the whole suite on the exact tree before saying it passes. The case-only file name test is skipped on macOS and runs in CI on Linux.
-
-## Earlier
 
 ### 2026-09-16 21:33 EDT
 - **State:** The owner set the Phase 3 direction, and it is planned, not started. **Phase 3, a company-wide autopilot**, is written into PLAN.md section 7 (phases 1 to 3; new milestones M9 to M14, with M8 now part of Phase 3) and explained in docs/PHASE-3.md. That page covers the device-management mapping (Autopilot, Intune, Entra ID, Jamf), a diagram, what "automatic" means per layer, each milestone's acceptance, the order until the demonstration, a belief check, the non-capability list, kill criteria, a tool support table built from vendor documentation retrieved 2026-09-16, and sources. It also records the owner's instruction that every technical name become Skilliton (M9), which supersedes the compatibility list in docs/BRANDING.md once built. Backlog rows B19 to B23 were added, and B14 to B18 were tied into Phase 3. Decision entry 2026-09-16-phase-3-is-a-company-wide-autopilot-and-2339; open items O23 and O24, both since decided by the owner (see Next). Nothing in code changed; workflow is still 0.5.1. Published before this note: d6ea791 (CI 35169548181, 31 of 31). Installed: nothing from this marketplace in the owner's own configurations. Released: none.

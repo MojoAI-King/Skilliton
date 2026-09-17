@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-16-m9-rename-every-technical-name-to-skilli-b0fa
-- **State:** in-progress
+- **State:** verified
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-17T03:04:11.724Z
+- **Updated:** 2026-09-17T03:08:00.783Z
 
 ## Request
 
