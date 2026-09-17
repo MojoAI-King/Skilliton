@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// standin.mjs: a stand-in for the Claude Code and Codex plugin commands that `skillgate join` drives, used by
+// standin.mjs: a stand-in for the Claude Code and Codex plugin commands that `skilliton join` drives, used by
 // scripts/join.test.mjs so the tests run without either client. Invoked as `standin.mjs <claude|codex> <args...>`.
 //
 // It acts out the files each client was measured to write on 2026-09-16 (Claude Code 2.1.273, Codex 0.154.0-alpha.6.2;

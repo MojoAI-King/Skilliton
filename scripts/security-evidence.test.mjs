@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Acceptance tests for `skillgate security` status, record, applicability and findings, and for the engine's
-// securitySummary. The command runs the way people run it: node scripts/skillgate.mjs security ...
+// Acceptance tests for `skilliton security` status, record, applicability and findings, and for the engine's
+// securitySummary. The command runs the way people run it: node scripts/skilliton.mjs security ...
 //
 // Adapted in place from the standalone prototype's 25 synthetic CLI tests (the prototype was scripts/security-evidence.mjs
 // and is now packs/base/plugins/workflow/runtime/lib/security.mjs). Each of those tests still proves its protection.
@@ -22,13 +22,13 @@ import { spawn, spawnSync } from 'node:child_process';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..');
-const cli = join(here, 'skillgate.mjs');
+const cli = join(here, 'skilliton.mjs');
 const pluginDir = join(repo, 'packs', 'base', 'plugins', 'workflow');
 const engine = await import(pathToFileURL(join(pluginDir, 'runtime', 'lib', 'security.mjs')).href);
 const PROTOTYPE_COMMIT = 'c3fec4bdbc5b6712db3ed49478a6b6828662283b';
-const SECURITY = '.skillgate/security';
-const START = '<!-- skillgate:security-findings:start -->';
-const END = '<!-- skillgate:security-findings:end -->';
+const SECURITY = '.skilliton/security';
+const START = '<!-- skilliton:security-findings:start -->';
+const END = '<!-- skilliton:security-findings:end -->';
 const DAY = 24 * 60 * 60 * 1000;
 
 const control = () => ({ id: 'DEMO-ACCESS', title: 'Synthetic access observation', mappings: [{ framework: 'Demo', version: '1', reference: 'A.1', url: 'https://example.invalid/requirements', relationship: 'related' }], expectedEvidence: ['Source and synthetic check output'] });
@@ -50,8 +50,8 @@ function fixture(t, controls = [control()], { decide = true } = {}) {
   return dir;
 }
 function envFor(dir, extra = {}) {
-  const env = { ...process.env, HOME: join(dirname(dir), 'home'), SKILLGATE_BACKUPS: join(dirname(dir), 'backups'), ...extra };
-  delete env.SKILLGATE_DEBUG;
+  const env = { ...process.env, HOME: join(dirname(dir), 'home'), SKILLITON_BACKUPS: join(dirname(dir), 'backups'), ...extra };
+  delete env.SKILLITON_DEBUG;
   return env;
 }
 const withNodeOnPath = (dir) => envFor(dir, { PATH: `${dirname(process.execPath)}${delimiter}${process.env.PATH ?? ''}` });
@@ -175,7 +175,7 @@ test('malformed record remains prominently invalid even beside a valid latest re
   assert.equal(status.code, 2);
   assert.match(status.out, /invalid/i);
   assert.match(status.out, /Invalid evidence records: 1/);
-  assert.match(status.out, /Not written: \.skillgate\/security\/REPORT\.md/);
+  assert.match(status.out, /Not written: \.skilliton\/security\/REPORT\.md/);
   assert.equal(existsSync(join(dir, SECURITY, 'REPORT.md')), false);
   assert.equal(readFileSync(join(dir, SECURITY, 'records', 'broken.json'), 'utf8'), '{');
 });
@@ -261,7 +261,7 @@ test('concurrent writers create independent records and newest assessment wins',
 test('the installed plugin copy runs without imports from, or a repository around, the skills repository', (t) => {
   const dir = fixture(t);
   const copy = copyPlugin(dir, 'installed');
-  const result = spawnSync(join(copy, 'bin', 'skillgate'), ['security', 'status', '--dir', dir], { encoding: 'utf8', env: withNodeOnPath(dir) });
+  const result = spawnSync(join(copy, 'bin', 'skilliton'), ['security', 'status', '--dir', dir], { encoding: 'utf8', env: withNodeOnPath(dir) });
   assert.equal(result.status, 1, result.stderr);
   assert.match(result.stdout, /missing/);
 });
@@ -382,7 +382,7 @@ test('status preserves human REPORT.md and refreshes only reports carrying its g
   assert.equal(readdirSync(join(dir, SECURITY)).some((f) => f.startsWith('.pending-')), false);
   rmSync(p);
   assert.equal(run(dir, 'status', '--apply').code, 0);
-  assert.match(readFileSync(p, 'utf8'), /^<!-- skillgate-security-evidence-report:v1 -->\n/);
+  assert.match(readFileSync(p, 'utf8'), /^<!-- skilliton-security-evidence-report:v1 -->\n/);
   writeFileSync(join(dir, 'source.js'), 'changed\n');
   assert.equal(run(dir, 'status', '--apply').code, 1);
   assert.match(readFileSync(p, 'utf8'), /observed.*stale/);
@@ -410,9 +410,9 @@ test('exit codes: complete 0, attention 1, invalid or refused 2 (the prototype u
   for (const args of [['security'], ['security', 'frobnicate'], ['security', 'status', '--force'], ['security', 'status', '--dir', join(dirname(dir), 'absent')], ['security', 'collect', 'nothing', '--dir', dir]]) {
     const p = spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8', env: envFor(dir) });
     assert.equal(p.status, 2, `${args.join(' ')} is refused with exit 2`);
-    assert.match(p.stderr, /^skillgate: refused: /);
+    assert.match(p.stderr, /^skilliton: refused: /);
   }
-  writeFileSync(join(dir, '.skillgate', 'config.json'), '{"security": {"maxAgeDays": 0}}');
+  writeFileSync(join(dir, '.skilliton', 'config.json'), '{"security": {"maxAgeDays": 0}}');
   assert.equal(run(dir, 'status').code, 2, 'an invalid project configuration is refused');
 });
 
@@ -515,7 +515,7 @@ test('an invalid or linked applicability file makes status invalid, visibly, and
     else writeFileSync(file, content);
     const status = run(dir, 'status', '--apply');
     assert.equal(status.code, 2);
-    assert.match(status.out, /applicability file \.skillgate\/security\/applicability\.json is invalid/);
+    assert.match(status.out, /applicability file \.skilliton\/security\/applicability\.json is invalid/);
     assert.equal(existsSync(join(dir, SECURITY, 'REPORT.md')), false);
     const summary = engine.securitySummary(dir);
     assert.equal(summary.available, true);
@@ -541,7 +541,7 @@ test('expiry from the project config, or from the control in the catalog, makes 
   const original = readFileSync(p, 'utf8');
   const modified = statSync(p).mtimeMs;
   assert.equal(run(dir, 'status').code, 0, 'without a maximum age, an old record stays current');
-  writeFileSync(join(dir, '.skillgate', 'config.json'), JSON.stringify({ security: { maxAgeDays: 30 } }));
+  writeFileSync(join(dir, '.skilliton', 'config.json'), JSON.stringify({ security: { maxAgeDays: 30 } }));
   for (let n = 0; n < 2; n++) {
     const status = run(dir, 'status', '--apply');
     assert.equal(status.code, 1);
@@ -550,11 +550,11 @@ test('expiry from the project config, or from the control in the catalog, makes 
     assert.equal(statSync(p).mtimeMs, modified);
   }
   assert.equal(engine.securitySummary(dir).expired, 1);
-  writeFileSync(join(dir, '.skillgate', 'config.json'), JSON.stringify({ security: { maxAgeDays: 60 } }));
+  writeFileSync(join(dir, '.skilliton', 'config.json'), JSON.stringify({ security: { maxAgeDays: 60 } }));
   assert.equal(run(dir, 'status').code, 0);
 
   const strict = fixture(t, [{ ...control(), maxAgeDays: 7 }]);
-  writeFileSync(join(strict, '.skillgate', 'config.json'), JSON.stringify({ security: { maxAgeDays: 60 } }));
+  writeFileSync(join(strict, '.skilliton', 'config.json'), JSON.stringify({ security: { maxAgeDays: 60 } }));
   aged(strict, 10);
   const status = run(strict, 'status');
   assert.equal(status.code, 1, "the control's own maxAgeDays takes precedence over the project setting");
@@ -572,8 +572,14 @@ test('records written by the prototype runtime still validate (record schema 1)'
   const dir = fixture(t);
   const script = join(dirname(dir), 'prototype-security-evidence.mjs');
   writeFileSync(script, prototype.stdout);
+  // The prototype keeps its register under the earlier .skillgate/ folder; migration 0003 moves the records unchanged.
+  cpSync(join(dir, '.skilliton'), join(dir, '.skillgate'), { recursive: true });
   const p = spawnSync(process.execPath, [script, 'record', '--dir', dir, ...observation.slice(1), '--apply'], { encoding: 'utf8' });
   assert.equal(p.status, 0, p.stderr);
+  const written = readdirSync(join(dir, '.skillgate', 'security', 'records')).filter((n) => n.endsWith('.json'));
+  assert.equal(written.length, 1, 'fixture: the prototype wrote one record');
+  cpSync(join(dir, '.skillgate', 'security', 'records', written[0]), join(dir, SECURITY, 'records', written[0]));
+  rmSync(join(dir, '.skillgate'), { recursive: true });
   assert.equal(recordFiles(dir).length, 1);
   const status = run(dir, 'status');
   assert.equal(status.code, 0);
@@ -641,7 +647,7 @@ test('the skillgate-baseline-2 catalog validates under the engine and keeps the 
   assert.equal(status.code, 1);
   for (const c of baseline.controls) assert.match(status.out, new RegExp(`\\| ${c.id} \\|`));
   const index = JSON.parse(readFileSync(join(catalogs, 'index.json'), 'utf8'));
-  assert.equal(index.schema, 'skillgate.catalogs/1');
+  assert.equal(index.schema, 'skilliton.catalogs/1');
   assert.equal(engine.validateCatalog(JSON.parse(readFileSync(join(catalogs, `${index.current}.json`), 'utf8'))).catalogVersion, index.current);
 });
 
@@ -693,7 +699,7 @@ test('findings: the preview writes nothing; broken markers, linked backlogs, a m
   const modified = statSync(backlog).mtimeMs;
   const preview = run(dir, 'findings');
   assert.equal(preview.code, 0);
-  assert.match(preview.out, /\+<!-- skillgate:security-findings:start -->/);
+  assert.match(preview.out, /\+<!-- skilliton:security-findings:start -->/);
   assert.match(preview.out, /Nothing was written/);
   assert.equal(readFileSync(backlog, 'utf8'), '# Backlog\n');
   assert.equal(statSync(backlog).mtimeMs, modified);
@@ -773,7 +779,7 @@ test('mutation check: a runtime that ignores changed fingerprints fails the drif
   const real = run(dir, 'status');
   assert.equal(real.code, 1);
   assert.match(real.out, /observed \| stale/);
-  const mutant = spawnSync(join(copy, 'bin', 'skillgate'), ['security', 'status', '--dir', dir], { encoding: 'utf8', env: withNodeOnPath(dir) });
+  const mutant = spawnSync(join(copy, 'bin', 'skilliton'), ['security', 'status', '--dir', dir], { encoding: 'utf8', env: withNodeOnPath(dir) });
   assert.equal(mutant.status, 0, 'the mutant reports complete, so the stale assertion above is able to fail');
   assert.match(mutant.stdout, /observed \| current/);
 });

@@ -1,6 +1,6 @@
 {
   "extraKnownMarketplaces": {
-    "skillgate": {
+    "skilliton": {
       "source": {
         "source": "github",
         "repo": "MojoAI-King/Skilliton"
@@ -9,8 +9,8 @@
     }
   },
   "enabledPlugins": {
-    "context-hygiene@skillgate": true,
-    "workflow@skillgate": true,
-    "guardrails@skillgate": true
+    "context-hygiene@skilliton": true,
+    "workflow@skilliton": true,
+    "guardrails@skilliton": true
   }
 }

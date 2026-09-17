@@ -28,7 +28,7 @@ fails=0; oks=0
 ok() { if [ "$1" -eq 0 ]; then oks=$((oks + 1)); echo "ok   $2"; else fails=$((fails + 1)); echo "FAIL $2"; fi; }
 run() { # settings text or "none"
   if [ "$1" = none ]; then rm -f "$tmp/settings.json"; else printf '%s\n' "$1" > "$tmp/settings.json"; fi
-  PATH="$tmp/bin:$PATH" SKILLGATE_SETTINGS="$tmp/settings.json" SKILLGATE_PROJECTS="$tmp/projects" "$SCRIPT" 2>&1
+  PATH="$tmp/bin:$PATH" SKILLITON_SETTINGS="$tmp/settings.json" SKILLITON_PROJECTS="$tmp/projects" "$SCRIPT" 2>&1
 }
 has() { printf '%s' "$1" | grep -qF -- "$2"; }
 

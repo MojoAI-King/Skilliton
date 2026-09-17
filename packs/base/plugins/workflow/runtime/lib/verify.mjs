@@ -22,7 +22,8 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 import { Refused, cmpVersion, isPlainObject, refuse, tilde } from "./core.mjs";
 import { VERSION_RE, openRepository, readClaudeCatalog, readCodexCatalog, readReleaseState } from "./release.mjs";
 import { scanTree, treeSha256Of } from "./treehash.mjs";
-import { resolveTrust } from "./trust.mjs";
+import { resolveTrust, runGit } from "./trust.mjs";
+import { LEGACY_MARKETPLACE, LEGACY_RELEASE_TAG } from "./legacy-names.mjs";
 
 export const CLIENTS = ["claude-code", "codex"];
 export const STATE_ORDER = ["VERIFIED", "TAMPERED", "UNKNOWN VERSION", "WITHDRAWN", "NOT INSTALLED"];
@@ -227,7 +228,7 @@ export function runVerify({ client = "claude-code", configDir, source, company, 
   let sourceInput = source;
   const text = [];
   if (sourceInput === undefined) {
-    if (!defaultSource) refuse(`verify needs --source <path of a clone of the company skills repository>: this copy of skillgate is not inside one${sourceHint ? `, and ${sourceHint}` : ""}. The client's own marketplace copy is not assumed to hold every release tag.`);
+    if (!defaultSource) refuse(`verify needs --source <path of a clone of the company skills repository>: this copy of skilliton is not inside one${sourceHint ? `, and ${sourceHint}` : ""}. The client's own marketplace copy is not assumed to hold every release tag.`);
     sourceInput = defaultSource;
   }
   if (/^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(sourceInput) || /^[^/\s]+@[^/\s]+:/.test(sourceInput)) refuse("--source as a URL is not built in this version; clone the company skills repository (with its tags) and pass the clone's path");
@@ -246,7 +247,12 @@ export function runVerify({ client = "claude-code", configDir, source, company, 
   const releases = state.versions.filter((v) => v.manifest && (v.state === "approved" || v.state === "withdrawn"));
   const names = new Set();
   const notes = [...state.notes];
-  if (!state.versions.some((v) => v.releaseRef)) notes.push(`${tilde(repo)} has no skillgate-release/<version> tags at all, so nothing can be approved; if it is a shallow or single-branch clone, fetch its tags (git fetch --tags) and run verify again`);
+  if (!state.versions.some((v) => v.releaseRef)) {
+    notes.push(`${tilde(repo)} has no skilliton-release/<version> tags at all, so nothing can be approved; if it is a shallow or single-branch clone, fetch its tags (git fetch --tags) and run verify again`);
+    const earlier = runGit(repo, ["tag", "--list", `${LEGACY_RELEASE_TAG}*`]);
+    const count = earlier.ok ? earlier.stdout.split("\n").filter(Boolean).length : 0;
+    if (count) notes.push(`${count} release tag(s) use the earlier prefix ${LEGACY_RELEASE_TAG}, which is no longer read; an approver re-creates each release under the Skilliton names (release create, then the signed tag it prints)`);
+  }
   for (const r of releases) names.add(client === "codex" ? (r.manifest.clients?.codex?.marketplace ?? r.manifest.marketplace) : r.manifest.marketplace);
   try {
     // Codex reads .claude-plugin/marketplace.json when there is no Codex catalog (measured on 0.154.0-alpha.6.2), the
@@ -263,6 +269,8 @@ export function runVerify({ client = "claude-code", configDir, source, company, 
   const installs = records.installs.filter((i) => names.has(i.marketplace));
   const otherIds = [...new Set(records.installs.filter((i) => !names.has(i.marketplace)).map((i) => i.id))];
   if (otherIds.length) notes.push(`plugins from other marketplaces were not checked: ${otherIds.join(", ")}`);
+  const earlierIds = otherIds.filter((id) => id.endsWith(`@${LEGACY_MARKETPLACE}`));
+  if (earlierIds.length && !names.has(LEGACY_MARKETPLACE)) notes.push(`${earlierIds.join(", ")} came from the marketplace's earlier name "${LEGACY_MARKETPLACE}"; set this machine up again with join (after undoing the earlier setup) so the plugins come from the current marketplace`);
   if (client === "claude-code") {
     const cache = join(dir, "plugins", "cache");
     for (const i of installs) if (!isInside(resolve(i.installPath), cache)) i.notes.push(`its install path is outside ${tilde(cache)}, where Claude Code has been observed to keep installed plugins`);

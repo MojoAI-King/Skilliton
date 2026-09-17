@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Acceptance tests for the evidence collectors: `skillgate security collect tests | secrets | delivery-policy`, run the
-// way people run them (node scripts/skillgate.mjs security collect ..., and the shipped bin/skillgate for the mutation
+// Acceptance tests for the evidence collectors: `skilliton security collect tests | secrets | delivery-policy`, run the
+// way people run them (node scripts/skilliton.mjs security collect ..., and the shipped bin/skilliton for the mutation
 // check). docs/CONTRACTS.md sections 12 and 14 are the contract.
 //
 // Every test works in its own temporary folder under the system temp folder, removed afterwards, with HOME and the
@@ -18,13 +18,13 @@ import { spawnSync } from 'node:child_process';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..');
-const cli = join(here, 'skillgate.mjs');
+const cli = join(here, 'skilliton.mjs');
 const pluginDir = join(repo, 'packs', 'base', 'plugins', 'workflow');
 const BASELINE = join(pluginDir, 'catalogs', 'skillgate-baseline-2.json');
 const STARTER = join(pluginDir, 'catalogs', 'skillgate-starter-1.json');
-const SECURITY = '.skillgate/security';
-const EVIDENCE = '.skillgate/private-evidence';
-const DELIVERY = '.skillgate/delivery.json';
+const SECURITY = '.skilliton/security';
+const EVIDENCE = '.skilliton/private-evidence';
+const DELIVERY = '.skilliton/delivery.json';
 
 const bases = [];
 const baseOf = (dir) => bases.find((b) => dir === b || dir.startsWith(`${b}/`));
@@ -44,8 +44,8 @@ function project(t, { git = false, catalog = BASELINE } = {}) {
 }
 function envFor(dir, extra = {}) {
   const base = baseOf(dir);
-  const env = { ...process.env, HOME: join(base, 'home'), SKILLGATE_BACKUPS: join(base, 'backups'), GIT_CONFIG_NOSYSTEM: '1', ...extra };
-  for (const name of ['SKILLGATE_DEBUG', 'GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_CONFIG_GLOBAL', 'XDG_CONFIG_HOME']) delete env[name];
+  const env = { ...process.env, HOME: join(base, 'home'), SKILLITON_BACKUPS: join(base, 'backups'), GIT_CONFIG_NOSYSTEM: '1', ...extra };
+  for (const name of ['SKILLITON_DEBUG', 'GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_CONFIG_GLOBAL', 'XDG_CONFIG_HOME']) delete env[name];
   return env;
 }
 function gitIn(dir, ...args) {
@@ -65,7 +65,7 @@ const records = (dir) => {
   return existsSync(folder) ? readdirSync(folder).map((f) => JSON.parse(readFileSync(join(folder, f), 'utf8'))).sort((a, b) => (a.recordedAt < b.recordedAt ? -1 : 1)) : [];
 };
 const evidenceFiles = (dir) => (existsSync(join(dir, EVIDENCE)) ? readdirSync(join(dir, EVIDENCE)).sort() : []);
-const writePolicy = (dir, checks, extra = {}) => writeFileSync(join(dir, DELIVERY), JSON.stringify({ schema: 'skillgate.delivery/1', protectedBranches: ['main'], checks, policyPaths: [DELIVERY], ...extra }));
+const writePolicy = (dir, checks, extra = {}) => writeFileSync(join(dir, DELIVERY), JSON.stringify({ schema: 'skilliton.delivery/1', protectedBranches: ['main'], checks, policyPaths: [DELIVERY], ...extra }));
 const nodeCheck = (name, code, timeoutSeconds = 60) => ({ name, command: [process.execPath, '-e', code], timeoutSeconds });
 const row = (controlId, applies, assessment, freshness) => new RegExp(`\\| ${controlId} \\| [^|]+ \\| ${applies} \\| ${assessment} \\| ${freshness} \\|`);
 const NOTE = (collector) => new RegExp(`^Collector: ${collector} version 1 \\(workflow plugin (\\d+\\.\\d+\\.\\d+|version unreadable)\\); node v\\d+\\.\\d+\\.\\d+; git (\\S.*|not found)\\. `);
@@ -80,7 +80,7 @@ test('tests collector: the preview runs nothing and writes nothing', (t) => {
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /preview: nothing is run or written/);
   assert.match(r.out, /1\. writes a marker: \S+ with 2 argument\(s\), timeout 60s/);
-  assert.match(r.out, /sources to fingerprint: app\.js, \.skillgate\/delivery\.json/);
+  assert.match(r.out, /sources to fingerprint: app\.js, \.skilliton\/delivery\.json/);
   assert.equal(existsSync(marker), false);
   assert.deepEqual(evidenceFiles(dir), []);
   assert.deepEqual(records(dir), []);
@@ -94,10 +94,10 @@ test('tests collector: passing checks record observed with the saved output, the
   assert.match(r.out, /Checks: 2 of 2 passed/);
   assert.equal(r.out.includes('unit output line'), false, 'check output is saved, not printed');
   const [rec] = records(dir);
-  assert.deepEqual([rec.assessment, rec.controlId, rec.reviewer], ['observed', 'SG-SECURITY-TESTS', 'skillgate collect tests']);
+  assert.deepEqual([rec.assessment, rec.controlId, rec.reviewer], ['observed', 'SG-SECURITY-TESTS', 'skilliton collect tests']);
   assert.deepEqual(rec.sources.map((s) => s.path), ['app.js', DELIVERY]);
   assert.equal(rec.artifacts.length, 1);
-  assert.match(rec.artifacts[0].path, /^\.skillgate\/private-evidence\/\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-tests\.txt$/);
+  assert.match(rec.artifacts[0].path, /^\.skilliton\/private-evidence\/\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-tests\.txt$/);
   assert.match(rec.note, NOTE('tests'));
   assert.ok(rec.note.includes(`node ${process.version};`));
   assert.match(rec.note, /All 2 checks passed: unit, lint\./);
@@ -113,7 +113,7 @@ test('tests collector: a failing command records gap, and findings pick it up', 
   writePolicy(dir, [
     nodeCheck('passes', 'process.exit(0)'),
     nodeCheck('fails', "console.log('boom'); process.exit(7)"),
-    { name: 'missing program', command: ['skillgate-test-no-such-program'], timeoutSeconds: 30 },
+    { name: 'missing program', command: ['skilliton-test-no-such-program'], timeoutSeconds: 30 },
   ]);
   const r = collect(dir, 'tests', ['--source', 'app.js', '--apply']);
   assert.equal(r.code, 0, r.out);
@@ -153,7 +153,7 @@ test('tests collector: refuses without --source, a policy, an argument-list comm
   };
   refused([], 2, /SOURCE_REQUIRED/);
   refused(['--source', 'app.js'], 2, /NO_DELIVERY_POLICY/);
-  writeFileSync(join(dir, DELIVERY), JSON.stringify({ schema: 'skillgate.delivery/1', protectedBranches: ['main'], checks: [{ name: 'shell', command: 'npm test && echo ok' }] }));
+  writeFileSync(join(dir, DELIVERY), JSON.stringify({ schema: 'skilliton.delivery/1', protectedBranches: ['main'], checks: [{ name: 'shell', command: 'npm test && echo ok' }] }));
   refused(['--source', 'app.js'], 2, /INVALID_DELIVERY_POLICY.*a shell string is not accepted/);
   writeFileSync(join(dir, DELIVERY), '{ not json');
   refused(['--source', 'app.js'], 2, /INVALID_DELIVERY_POLICY.*not valid JSON/);
@@ -211,13 +211,13 @@ test('secrets collector: a runtime-built fake key records gap, and the key is ne
   assert.equal(r.out.includes('Z'.repeat(20)), false);
   assert.match(r.out, /Lines matching a secret shape: 1 in 1 file\(s\) \(known-token-prefix 1\)/);
   const [rec] = records(dir);
-  assert.deepEqual([rec.assessment, rec.controlId, rec.reviewer], ['gap', 'SG-SECRETS-IN-SOURCE', 'skillgate collect secrets']);
+  assert.deepEqual([rec.assessment, rec.controlId, rec.reviewer], ['gap', 'SG-SECRETS-IN-SOURCE', 'skilliton collect secrets']);
   assert.match(rec.note, NOTE('secrets'));
   assert.equal(JSON.stringify(rec).includes('Z'.repeat(20)), false);
   const report = readFileSync(join(dir, rec.artifacts[0].path), 'utf8');
   assert.match(report, /^ {2}config\.js:1 known-token-prefix$/m);
-  assert.match(report, /\.skillgate\/security\/catalog\.json \(an evidence engine file/);
-  assert.match(readFileSync(join(dir, rec.sources[0].path), 'utf8'), /^# skillgate-file-manifest\/1\n/);
+  assert.match(report, /\.skilliton\/security\/catalog\.json \(an evidence engine file/);
+  assert.match(readFileSync(join(dir, rec.sources[0].path), 'utf8'), /^# skilliton-file-manifest\/1\n/);
   for (const f of evidenceFiles(dir)) assert.equal(readFileSync(join(dir, EVIDENCE, f), 'utf8').includes('Z'.repeat(20)), false, `${f} holds no part of the key`);
   assert.match(status(dir).out, row('SG-SECRETS-IN-SOURCE', 'undecided', 'gap', 'current'));
 });
@@ -240,7 +240,7 @@ test('secrets collector: only generic shapes (a long encoded run such as a lockf
 
 test('secrets collector: a clean repository records observed, and changing a scanned file makes it stale', (t) => {
   const dir = project(t, { git: true });
-  writeFileSync(join(dir, '.gitignore'), '/.skillgate/private-evidence/\n');
+  writeFileSync(join(dir, '.gitignore'), '/.skilliton/private-evidence/\n');
   writeFileSync(join(dir, 'image.bin'), Buffer.from([0, 1, 2, 3, 4]));
   gitIn(dir, 'add', '.');
   const r = collect(dir, 'secrets', ['--apply']);
@@ -299,7 +299,7 @@ test('delivery-policy collector: observed for checks and a protected branch, gap
   const latest = () => records(dir).at(-1);
   const preview = collect(dir, 'delivery-policy');
   assert.equal(preview.code, 0);
-  assert.match(preview.out, /would record: gap \(there is no \.skillgate\/delivery\.json\)/);
+  assert.match(preview.out, /would record: gap \(there is no \.skilliton\/delivery\.json\)/);
   assert.deepEqual(records(dir), []);
 
   assert.equal(collect(dir, 'delivery-policy', ['--apply']).code, 0);
@@ -311,9 +311,9 @@ test('delivery-policy collector: observed for checks and a protected branch, gap
   writePolicy(dir, [nodeCheck('unit', 'process.exit(0)')], { protectedBranches: [] });
   assert.equal(collect(dir, 'delivery-policy', ['--apply']).code, 0);
   assert.match(latest().note, /no protected branch is named/);
-  writeFileSync(join(dir, DELIVERY), JSON.stringify({ schema: 'skillgate.delivery/2', protectedBranches: ['main'], checks: [nodeCheck('unit', 'process.exit(0)')] }));
+  writeFileSync(join(dir, DELIVERY), JSON.stringify({ schema: 'skilliton.delivery/2', protectedBranches: ['main'], checks: [nodeCheck('unit', 'process.exit(0)')] }));
   assert.equal(collect(dir, 'delivery-policy', ['--apply']).code, 0);
-  assert.match(latest().note, /"schema" is not "skillgate\.delivery\/1"/);
+  assert.match(latest().note, /"schema" is not "skilliton\.delivery\/1"/);
 
   writePolicy(dir, [nodeCheck('unit', 'process.exit(0)')]);
   const r = collect(dir, 'delivery-policy', ['--apply']);
@@ -331,7 +331,7 @@ test('delivery-policy collector: observed for checks and a protected branch, gap
 test('delivery-policy collector: a symlinked policy is refused by every collector that reads it, and nothing is recorded', (t) => {
   const dir = project(t);
   const elsewhere = join(baseOf(dir), 'elsewhere.json');
-  writeFileSync(elsewhere, JSON.stringify({ schema: 'skillgate.delivery/1', protectedBranches: ['main'], checks: [nodeCheck('unit', 'process.exit(0)')] }));
+  writeFileSync(elsewhere, JSON.stringify({ schema: 'skilliton.delivery/1', protectedBranches: ['main'], checks: [nodeCheck('unit', 'process.exit(0)')] }));
   symlinkSync(elsewhere, join(dir, DELIVERY));
   for (const [name, args] of [['delivery-policy', []], ['tests', ['--source', 'app.js']]]) {
     const r = collect(dir, name, [...args, '--apply']);
@@ -354,7 +354,7 @@ test('mutation check: a tests collector that ignores exit codes is caught by the
   assert.equal(text.split(target).length, 2, 'the mutation target is in the collector exactly once');
   writeFileSync(file, text.replace(target, 'ok: !timedOut && !interrupted,'));
   writePolicy(dir, [nodeCheck('fails', 'process.exit(1)')]);
-  const mutant = spawnSync(join(copy, 'bin', 'skillgate'), ['security', 'collect', 'tests', '--dir', dir, '--source', 'app.js', '--apply'], {
+  const mutant = spawnSync(join(copy, 'bin', 'skilliton'), ['security', 'collect', 'tests', '--dir', dir, '--source', 'app.js', '--apply'], {
     encoding: 'utf8', env: envFor(dir, { PATH: `${dirname(process.execPath)}${delimiter}${process.env.PATH ?? ''}` }),
   });
   assert.equal(mutant.status, 0, mutant.stderr);

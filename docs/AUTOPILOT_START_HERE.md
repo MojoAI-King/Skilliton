@@ -18,7 +18,7 @@ Everything needed to continue the build is in this repository: the direction, th
 
 | Material | Location |
 |---|---|
-| The command line and its engines | [packs/base/plugins/workflow/runtime/](../packs/base/plugins/workflow/runtime/) (`skillgate.mjs`, `lib/`, `commands/`); run through [scripts/skillgate.mjs](../scripts/skillgate.mjs) or the plugin's `bin/skillgate` |
+| The command line and its engines | [packs/base/plugins/workflow/runtime/](../packs/base/plugins/workflow/runtime/) (`skilliton.mjs`, `lib/`, `commands/`); run through [scripts/skilliton.mjs](../scripts/skilliton.mjs) or the plugin's `bin/skilliton` |
 | Workflow skills, hooks, instruction template, catalogs | [packs/base/plugins/workflow/](../packs/base/plugins/workflow/) |
 | Guardrails | [packs/base/plugins/guardrails/](../packs/base/plugins/guardrails/) |
 | Tests | `scripts/*.test.mjs` and `scripts/*.test.sh`; the full list is [MAINTAIN.md](MAINTAIN.md) step 2 |

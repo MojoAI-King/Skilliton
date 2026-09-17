@@ -40,6 +40,12 @@ jobs:
       - name: Guides checks can fail
         run: node scripts/docs.test.mjs --self-test
 
+      - name: No current file uses the earlier name
+        run: node scripts/names.test.mjs
+
+      - name: Names check can fail
+        run: node scripts/names.test.mjs --self-test
+
       - name: Plugin and marketplace validation (Claude Code CLI)
         run: |
           npm install --global @anthropic-ai/claude-code
@@ -72,7 +78,7 @@ jobs:
         run: bash scripts/guardrails.test.sh
 
       - name: Onboarding CLI
-        run: node scripts/skillgate.test.mjs
+        run: node scripts/skilliton.test.mjs
 
       - name: Prepare, migrate, remove, records and indexes
         run: node --test scripts/prepare.test.mjs scripts/migrate.test.mjs scripts/records.test.mjs
@@ -88,6 +94,9 @@ jobs:
 
       - name: Machine setup with join and undo (stand-in clients)
         run: node --test scripts/join.test.mjs
+
+      - name: Rename to Skilliton (migration 0003 on a project the earlier release prepared, earlier state reported)
+        run: node --test scripts/rename.test.mjs
 
       - name: Trusted delivery gate
         run: node scripts/delivery.test.mjs
@@ -113,4 +122,4 @@ jobs:
       - name: Scrub check can fail
         run: |
           printf 'examplenamealpha\n' > "$RUNNER_TEMP/denylist"
-          SKILLGATE_DENYLIST="$RUNNER_TEMP/denylist" bash scripts/scrub-check.sh --self-test
+          SKILLITON_DENYLIST="$RUNNER_TEMP/denylist" bash scripts/scrub-check.sh --self-test

@@ -1,4 +1,4 @@
-// commands/trust.mjs: `skillgate trust add | show | remove`, the release signers this machine trusts.
+// commands/trust.mjs: `skilliton trust add | show | remove`, the release signers this machine trusts.
 // The engine is lib/trust.mjs; the contract is docs/CONTRACTS.md section 13.
 
 import { lstatSync, readFileSync, unlinkSync } from "node:fs";
@@ -15,15 +15,15 @@ export const help = `trust: record, show, or remove the release signers this mac
   trust remove --company <name> [--apply]
 
 A company's trust is an SSH allowed_signers file (one signer per line: <principal> namespaces="git" <key type> <key>;
-see ssh-keygen(1), ALLOWED SIGNERS) copied to $SKILLGATE_TRUST_DIR/<name>.allowed_signers, by default
-~/.config/skillgate/trust/. That folder must be outside every Git repository, so pulling a repository can never
+see ssh-keygen(1), ALLOWED SIGNERS) copied to $SKILLITON_TRUST_DIR/<name>.allowed_signers, by default
+~/.config/skilliton/trust/. That folder must be outside every Git repository, so pulling a repository can never
 change whom this machine trusts. release list and verify check release tags against it with git verify-tag; a tag
 signed any other way is never approved.
 
 add     checks every line (key type, key data, fingerprint) and refuses a private key, an invalid line, or a
         different file already trusted for that company (remove it first; changing trust is deliberate).
 show    prints each trusted company's signers and fingerprints. Writes nothing.
-remove  backs the file up under $SKILLGATE_BACKUPS/trust/ (default ~/.claude/backups/skillgate/trust/), then deletes it.
+remove  backs the file up under $SKILLITON_BACKUPS/trust/ (default ~/.claude/backups/skilliton/trust/), then deletes it.
 
 add and remove preview by default and write only with --apply.
 Exit codes: 0 complete; 1 (show) no company is trusted; 2 refused or invalid; 3 an operation failed.`;
@@ -35,7 +35,7 @@ function add(argv) {
   if (o.signers === undefined) refuse("trust add needs --signers <allowed_signers file>");
   const plan = planTrustAdd(o.company, o.signers);
 
-  say(`skillgate trust add${o.apply ? "" : " (preview; nothing written)"}`);
+  say(`skilliton trust add${o.apply ? "" : " (preview; nothing written)"}`);
   say(`company: ${o.company}`);
   say(`signers file: ${tilde(plan.source)} (sha256 ${plan.sha256.slice(0, 12)}), ${plan.parsed.signers.length} signer(s):`);
   for (const s of plan.parsed.signers) say(`  ${describeSigner(s)}`);
@@ -61,8 +61,8 @@ function show(argv) {
     validateCompany(o.company);
     entries = [{ company: o.company, path: trustFilePath(o.company) }];
   } else entries = listTrusted();
-  say("skillgate trust show (writes nothing)");
-  say(`trust folder: ${tilde(dir)}${process.env.SKILLGATE_TRUST_DIR ? " (from SKILLGATE_TRUST_DIR)" : ""}`);
+  say("skilliton trust show (writes nothing)");
+  say(`trust folder: ${tilde(dir)}${process.env.SKILLITON_TRUST_DIR ? " (from SKILLITON_TRUST_DIR)" : ""}`);
   if (!entries.length) {
     say("no company is trusted on this machine, so release list and verify cannot approve anything");
     say(`Next: ${selfCommand()} trust add --company <name> --signers <allowed_signers file> --apply`);
@@ -94,7 +94,7 @@ function remove(argv) {
   let st;
   try { st = lstatSync(path); } catch { refuse(`company "${o.company}" is not trusted on this machine (${tilde(path)} does not exist); nothing to remove`); }
   if (st.isSymbolicLink() || !st.isFile()) refuse(`${tilde(path)} is not a regular file; remove it by hand`);
-  say(`skillgate trust remove${o.apply ? "" : " (preview; nothing written)"}`);
+  say(`skilliton trust remove${o.apply ? "" : " (preview; nothing written)"}`);
   say(`company: ${o.company} (${tilde(path)})`);
   const parsed = parseAllowedSigners(readFileSync(path, "utf8"));
   for (const s of parsed.signers) say(`  ${describeSigner(s)}`);

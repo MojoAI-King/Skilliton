@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-// release.test.mjs: skillgate release, verify, trust and propose (docs/CONTRACTS.md section 13, releases/SCHEMA.md).
+// release.test.mjs: skilliton release, verify, trust and propose (docs/CONTRACTS.md section 13, releases/SCHEMA.md).
 //
 //   node scripts/release.test.mjs
 //
 // Every test works in its own temporary folder under the system temp folder and deletes it afterwards. Each command
-// runs with HOME, XDG_CONFIG_HOME, SKILLGATE_TRUST_DIR, SKILLGATE_BACKUPS, SKILLGATE_DENYLIST, CLAUDE_CONFIG_DIR and
+// runs with HOME, XDG_CONFIG_HOME, SKILLITON_TRUST_DIR, SKILLITON_BACKUPS, SKILLITON_DENYLIST, CLAUDE_CONFIG_DIR and
 // CODEX_HOME pointed into that folder, git's global and system configuration switched off, and no SSH agent, so no
 // real key, trust file, git setting or plugin record is read or written. Signing keys are generated there at runtime
 // and never leave it. Git identity and signing are configured only inside the temporary repositories.
-// The command line is run the way people run it: node scripts/skillgate.mjs, and through bin/skillgate of an
+// The command line is run the way people run it: node scripts/skilliton.mjs, and through bin/skilliton of an
 // installed copy. The last tests run deliberately broken copies of the runtime to prove key assertions can fail.
 //
 // Needs git 2.34 or later (SSH signing) and ssh-keygen. When either is missing the suite fails; it does not skip.
@@ -27,7 +27,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(here, "..");
-const CLI = join(REPO, "scripts", "skillgate.mjs");
+const CLI = join(REPO, "scripts", "skilliton.mjs");
 const PLUGINS = join(REPO, "packs", "base", "plugins");
 // The migrations a release records come from the workflow runtime's registry when this build has one.
 const MIGRATIONS_MODULE = join(PLUGINS, "workflow", "runtime", "lib", "migrations.mjs");
@@ -55,11 +55,11 @@ function prerequisites() {
 // ---------------------------------------------------------------- sandbox
 
 function sandbox(label) {
-  const root = mkdtempSync(join(tmpdir(), `skillgate-release-${label.replace(/[^a-z0-9]+/gi, "-").slice(0, 30)}-`));
+  const root = mkdtempSync(join(tmpdir(), `skilliton-release-${label.replace(/[^a-z0-9]+/gi, "-").slice(0, 30)}-`));
   const home = join(root, "home");
   mkdirSync(home, { recursive: true });
   const env = { ...process.env };
-  for (const key of Object.keys(env)) if (/^(GIT_|SKILLGATE_)/.test(key)) delete env[key];
+  for (const key of Object.keys(env)) if (/^(GIT_|SKILLITON_)/.test(key)) delete env[key];
   for (const key of ["SSH_AUTH_SOCK", "CLAUDE_CONFIG_DIR", "CODEX_HOME", "GNUPGHOME", "XDG_CONFIG_HOME"]) delete env[key];
   Object.assign(env, {
     HOME: home,
@@ -67,13 +67,13 @@ function sandbox(label) {
     GIT_CONFIG_NOSYSTEM: "1",
     GIT_CONFIG_GLOBAL: join(home, ".gitconfig"),
     GNUPGHOME: join(home, ".gnupg"),
-    SKILLGATE_TRUST_DIR: join(root, "trust"),
-    SKILLGATE_BACKUPS: join(root, "backups"),
-    SKILLGATE_DENYLIST: join(root, "denylist"),
+    SKILLITON_TRUST_DIR: join(root, "trust"),
+    SKILLITON_BACKUPS: join(root, "backups"),
+    SKILLITON_DENYLIST: join(root, "denylist"),
     CLAUDE_CONFIG_DIR: join(root, "claude"),
     CODEX_HOME: join(root, "codex"),
   });
-  writeFileSync(env.SKILLGATE_DENYLIST, `# test denylist\n${DENIED}\n`);
+  writeFileSync(env.SKILLITON_DENYLIST, `# test denylist\n${DENIED}\n`);
   return { root, home, env };
 }
 
@@ -302,12 +302,12 @@ boxed("release create: preview writes nothing; --apply writes a manifest with ev
   const bytes = readFileSync(join(repo, "releases", "1.0.0.json"));
   assert.match(applied.out, new RegExp(sha256(bytes)), "the printed manifest-sha256 must be the file's sha256");
   const m = JSON.parse(bytes.toString("utf8"));
-  assert.equal(m.schema, "skillgate.release/1");
+  assert.equal(m.schema, "skilliton.release/1");
   assert.equal(m.release, "1.0.0");
   assert.equal(m.sourceCommit, head);
   assert.ok(!Number.isNaN(Date.parse(m.createdAt)));
   assert.equal(m.marketplace, MARKETPLACE);
-  assert.equal(m.projectLayout, 2);
+  assert.equal(m.projectLayout, 3);
   assert.deepEqual(m.migrations, EXPECTED_MIGRATIONS);
   if (!EXPECTED_MIGRATIONS.length) assert.ok(m.notes.some((n) => /not available in this build/.test(n)), JSON.stringify(m.notes));
   assert.deepEqual(m.components.map((c) => c.name), PLUGIN_NAMES);
@@ -388,9 +388,9 @@ boxed("release create refuses a duplicate version: a manifest file, a committed 
   r = expectCode(cli(box, ["release", "create", "--version", "1.0.0", "--repo", repo]), 2, "manifest committed, file deleted");
   assert.match(r.all, /already has a manifest/);
   git(box, repo, ["checkout", "--", "releases/1.0.0.json"]);
-  git(box, repo, ["tag", "-a", "skillgate-release/2.0.0", "-m", "skillgate release 2.0.0"]);
+  git(box, repo, ["tag", "-a", "skilliton-release/2.0.0", "-m", "skilliton release 2.0.0"]);
   r = expectCode(cli(box, ["release", "create", "--version", "2.0.0", "--repo", repo]), 2, "tag present");
-  assert.match(r.all, /already has the tag skillgate-release\/2\.0\.0/);
+  assert.match(r.all, /already has the tag skilliton-release\/2\.0\.0/);
   r = expectCode(cli(box, ["release", "create", "--version", "v2", "--repo", repo]), 2, "bad version");
   assert.match(r.all, /MAJOR\.MINOR\.PATCH/);
 });
@@ -439,8 +439,8 @@ boxed("release create refuses escaping, linked and external plugin paths, and a 
 
 boxed("a signed release is approved by release list and VERIFIED by verify, including from the installed runtime itself", (box) => {
   const { repo } = signedRelease(box);
-  const tagMessage = git(box, repo, ["for-each-ref", "--format=%(contents)", "refs/tags/skillgate-release/1.0.0"]).stdout;
-  assert.match(tagMessage, /^skillgate release 1\.0\.0\n/);
+  const tagMessage = git(box, repo, ["for-each-ref", "--format=%(contents)", "refs/tags/skilliton-release/1.0.0"]).stdout;
+  assert.match(tagMessage, /^skilliton release 1\.0\.0\n/);
   assert.match(tagMessage, new RegExp(`^manifest-sha256: ${sha256(readFileSync(join(repo, "releases", "1.0.0.json")))}$`, "m"));
 
   const list = expectCode(cli(box, ["release", "list", "--company", "acme", "--repo", repo]), 0, "release list");
@@ -463,13 +463,13 @@ boxed("a signed release is approved by release list and VERIFIED by verify, incl
 
   const json = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme", "--json"]), 0, "verify --json");
   const parsed = JSON.parse(json.out);
-  assert.equal(parsed.schema, "skillgate.result/1");
+  assert.equal(parsed.schema, "skilliton.result/1");
   assert.equal(parsed.command, "verify");
   assert.equal(parsed.result, "complete");
   assert.equal(parsed.details.counts.VERIFIED, PLUGIN_NAMES.length);
 
-  const installedBin = join(paths.workflow, "bin", "skillgate");
-  const self = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"], { via: installedBin }), 0, "verify through the installed bin/skillgate");
+  const installedBin = join(paths.workflow, "bin", "skilliton");
+  const self = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"], { via: installedBin }), 0, "verify through the installed bin/skilliton");
   assert.equal(verifyLine(self.out, "workflow").state, "VERIFIED", self.out);
 });
 
@@ -484,7 +484,7 @@ boxed("release sign previews without tagging and refuses an uncommitted manifest
   assert.match(r.all, /not set up to sign with an SSH key/);
   useSigningKey(box, repo, key);
   r = expectCode(cli(box, ["release", "sign", "1.0.0", "--repo", repo]), 0, "preview");
-  assert.match(r.out, /command: git tag -s skillgate-release\/1\.0\.0 -m 'skillgate release 1\.0\.0' -m 'manifest-sha256: [0-9a-f]{64}' [0-9a-f]{40}/);
+  assert.match(r.out, /command: git tag -s skilliton-release\/1\.0\.0 -m 'skilliton release 1\.0\.0' -m 'manifest-sha256: [0-9a-f]{64}' [0-9a-f]{40}/);
   assert.equal(git(box, repo, ["tag", "-l"]).stdout, "", "a preview must not create a tag");
   appendFileSync(join(repo, "packs", "base", "plugins", "workflow", "skills", "review", "SKILL.md"), "\nchanged after the manifest\n");
   commitAll(box, repo, "change after create");
@@ -502,7 +502,7 @@ boxed("an unsigned tag, a lightweight tag, a tag signed another way and a tag si
   commitAll(box, repo, "manifest");
   installClaude(box, repo);
   const hash = sha256(readFileSync(join(repo, "releases", "1.0.0.json")));
-  const tag = "skillgate-release/1.0.0";
+  const tag = "skilliton-release/1.0.0";
   const check = (label, reason) => {
     const list = expectCode(cli(box, ["release", "list", "--company", "acme", "--repo", repo]), 2, `${label}: release list`);
     assert.doesNotMatch(list.out, /^approved +1\.0\.0/m, `${label} must never be listed as approved`);
@@ -515,23 +515,23 @@ boxed("an unsigned tag, a lightweight tag, a tag signed another way and a tag si
     git(box, repo, ["tag", "-d", tag]);
   };
 
-  git(box, repo, ["tag", "-a", tag, "-m", "skillgate release 1.0.0", "-m", `manifest-sha256: ${hash}`]);
+  git(box, repo, ["tag", "-a", tag, "-m", "skilliton release 1.0.0", "-m", `manifest-sha256: ${hash}`]);
   check("an unsigned annotated tag", /has no signature/);
   git(box, repo, ["tag", tag]);
   check("a lightweight tag", /lightweight tag/);
-  mktag(box, repo, tag, `skillgate release 1.0.0\n\nmanifest-sha256: ${hash}\n${"-----BEGIN " + "PGP SIGNATURE-----"}\n\nnot a real signature\n-----END PGP SIGNATURE-----\n`);
+  mktag(box, repo, tag, `skilliton release 1.0.0\n\nmanifest-sha256: ${hash}\n${"-----BEGIN " + "PGP SIGNATURE-----"}\n\nnot a real signature\n-----END PGP SIGNATURE-----\n`);
   check("a tag signed another way", /signed some other way than with an SSH key/);
-  git(box, repo, ["-c", "gpg.format=ssh", "-c", `user.signingkey=${maintainer.path}`, "tag", "-s", tag, "-m", "skillgate release 1.0.0", "-m", `manifest-sha256: ${"0".repeat(64)}`]);
+  git(box, repo, ["-c", "gpg.format=ssh", "-c", `user.signingkey=${maintainer.path}`, "tag", "-s", tag, "-m", "skilliton release 1.0.0", "-m", `manifest-sha256: ${"0".repeat(64)}`]);
   const raw = git(box, repo, ["cat-file", "tag", tag]).stdout;
   const copied = raw.slice(raw.indexOf("-----BEGIN SSH SIGNATURE-----"));
   assert.ok(copied.startsWith("-----BEGIN SSH SIGNATURE-----"), "the fixture needs a real SSH signature to copy");
   git(box, repo, ["tag", "-d", tag]);
-  mktag(box, repo, tag, `skillgate release 1.0.0\n\nmanifest-sha256: ${hash}\n${copied}`);
+  mktag(box, repo, tag, `skilliton release 1.0.0\n\nmanifest-sha256: ${hash}\n${copied}`);
   check("a trusted signature copied onto another message", /git verify-tag did not accept it/);
-  git(box, repo, ["-c", "gpg.format=ssh", "-c", `user.signingkey=${stranger.path}`, "tag", "-s", tag, "-m", "skillgate release 1.0.0", "-m", `manifest-sha256: ${hash}`]);
+  git(box, repo, ["-c", "gpg.format=ssh", "-c", `user.signingkey=${stranger.path}`, "tag", "-s", tag, "-m", "skilliton release 1.0.0", "-m", `manifest-sha256: ${hash}`]);
   check("a tag signed by an untrusted key", /signed by a key the trust file does not list/);
 
-  git(box, repo, ["-c", "gpg.format=ssh", "-c", `user.signingkey=${maintainer.path}`, "tag", "-s", tag, "-m", "skillgate release 1.0.0", "-m", `manifest-sha256: ${"0".repeat(64)}`]);
+  git(box, repo, ["-c", "gpg.format=ssh", "-c", `user.signingkey=${maintainer.path}`, "tag", "-s", tag, "-m", "skilliton release 1.0.0", "-m", `manifest-sha256: ${"0".repeat(64)}`]);
   const wrongHash = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"]), 2, "a trusted tag approving other manifest bytes");
   assert.match(wrongHash.out, /the signed tag approves 000000000000/);
   assert.doesNotMatch(wrongHash.out, /^VERIFIED/m);
@@ -600,8 +600,8 @@ boxed("release withdraw previews, then a signed withdrawal makes release list sa
   const { repo } = signedRelease(box);
   installClaude(box, repo);
   const preview = expectCode(cli(box, ["release", "withdraw", "1.0.0", "--reason", "the review hook blocks valid pushes", "--repo", repo]), 0, "preview");
-  assert.match(preview.out, /command: git tag -s skillgate-withdrawn\/1\.0\.0 -m 'skillgate withdrawn 1\.0\.0' -m 'reason: the review hook blocks valid pushes'/);
-  assert.equal(git(box, repo, ["tag", "-l", "skillgate-withdrawn/*"]).stdout, "", "a preview must not tag");
+  assert.match(preview.out, /command: git tag -s skilliton-withdrawn\/1\.0\.0 -m 'skilliton withdrawn 1\.0\.0' -m 'reason: the review hook blocks valid pushes'/);
+  assert.equal(git(box, repo, ["tag", "-l", "skilliton-withdrawn/*"]).stdout, "", "a preview must not tag");
   expectCode(cli(box, ["release", "withdraw", "1.0.0", "--repo", repo, "--apply"]), 2, "no reason");
   expectCode(cli(box, ["release", "withdraw", "1.0.0", "--reason", "the review hook blocks valid pushes", "--repo", repo, "--apply"]), 0, "withdraw");
 
@@ -611,11 +611,11 @@ boxed("release withdraw previews, then a signed withdrawal makes release list sa
   for (const name of PLUGIN_NAMES) assert.equal(verifyLine(v.out, name).state, "WITHDRAWN", v.out);
   assert.match(verifyLine(v.out, "workflow").line, /the review hook blocks valid pushes/);
 
-  git(box, repo, ["tag", "-d", "skillgate-withdrawn/1.0.0"]);
-  git(box, repo, ["tag", "-a", "skillgate-withdrawn/1.0.0", "-m", "skillgate withdrawn 1.0.0", "-m", "reason: forged"]);
+  git(box, repo, ["tag", "-d", "skilliton-withdrawn/1.0.0"]);
+  git(box, repo, ["tag", "-a", "skilliton-withdrawn/1.0.0", "-m", "skilliton withdrawn 1.0.0", "-m", "reason: forged"]);
   expectCode(cli(box, ["release", "list", "--company", "acme", "--repo", repo]), 2, "unsigned withdrawal: list");
   const forged = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"]), 2, "unsigned withdrawal: verify");
-  assert.match(forged.out, /skillgate-withdrawn\/1\.0\.0 does not verify: it has no signature/);
+  assert.match(forged.out, /skilliton-withdrawn\/1\.0\.0 does not verify: it has no signature/);
 });
 
 boxed("ref drift: the marketplace branch moves to an unsigned commit with a bumped version, and verify says UNKNOWN VERSION", (box) => {
@@ -637,12 +637,12 @@ boxed("ref drift: the marketplace branch moves to an unsigned commit with a bump
   assert.match(verifyLine(v.out, "guardrails").line, new RegExp(`no approved release has guardrails ${bumped.replace(/\./g, "\\.")}`));
   assert.equal(verifyLine(v.out, "workflow").state, "VERIFIED", "unchanged plugins still match release 1.0.0");
   const list = expectCode(cli(box, ["release", "list", "--company", "acme", "--repo", repo]), 0, "list");
-  assert.match(list.out, /^unapproved +1\.0\.1 +releases\/1\.0\.1\.json exists, but there is no skillgate-release\/1\.0\.1 tag/m);
+  assert.match(list.out, /^unapproved +1\.0\.1 +releases\/1\.0\.1\.json exists, but there is no skilliton-release\/1\.0\.1 tag/m);
 
-  const oid = git(box, repo, ["rev-parse", "refs/tags/skillgate-release/1.0.0"]).stdout.trim();
-  git(box, repo, ["update-ref", "refs/tags/skillgate-release/1.0.1", oid]);
+  const oid = git(box, repo, ["rev-parse", "refs/tags/skilliton-release/1.0.0"]).stdout.trim();
+  git(box, repo, ["update-ref", "refs/tags/skilliton-release/1.0.1", oid]);
   const renamed = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"]), 2, "an approved tag object under another version's name");
-  assert.match(renamed.out, /calls itself "skillgate-release\/1\.0\.0", not "skillgate-release\/1\.0\.1"/);
+  assert.match(renamed.out, /calls itself "skilliton-release\/1\.0\.0", not "skilliton-release\/1\.0\.1"/);
   assert.equal(verifyLine(renamed.out, "guardrails").state, "UNKNOWN VERSION");
 });
 
@@ -660,7 +660,7 @@ boxed("a manifest component path with .. is refused by release sign and, once si
   const sign = expectCode(cli(box, ["release", "sign", "1.0.0", "--repo", repo, "--apply"]), 2, "sign");
   assert.match(sign.all, /components\[0\]\.path is a path with a \.\. part/);
   const hash = sha256(readFileSync(path));
-  git(box, repo, ["tag", "-s", "skillgate-release/1.0.0", "-m", "skillgate release 1.0.0", "-m", `manifest-sha256: ${hash}`]);
+  git(box, repo, ["tag", "-s", "skilliton-release/1.0.0", "-m", "skilliton release 1.0.0", "-m", `manifest-sha256: ${hash}`]);
   installClaude(box, repo);
   const v = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"]), 2, "verify");
   assert.match(v.out, /release 1\.0\.0 has an invalid manifest: releases\/1\.0\.0\.json: components\[0\]\.path is a path with a \.\. part/);
@@ -713,10 +713,10 @@ boxed("verify refuses corrupted client records, missing or corrupted trust, and 
 
   r = expectCode(cli(box, ["verify", "--source", repo, "--company", "other"]), 2, "company not trusted");
   assert.match(r.all, /trust is not configured for company "other"/);
-  writeFileSync(join(box.env.SKILLGATE_TRUST_DIR, "acme.allowed_signers"), "release-maintainer namespaces=\"git\" ssh-ed25519 not-base64!\n");
+  writeFileSync(join(box.env.SKILLITON_TRUST_DIR, "acme.allowed_signers"), "release-maintainer namespaces=\"git\" ssh-ed25519 not-base64!\n");
   r = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"]), 2, "corrupted trust file");
   assert.match(r.all, /is invalid: line 1: the key is missing or is not base64/);
-  rmSync(box.env.SKILLGATE_TRUST_DIR, { recursive: true });
+  rmSync(box.env.SKILLITON_TRUST_DIR, { recursive: true });
   r = expectCode(cli(box, ["verify", "--source", repo]), 2, "no trust at all");
   assert.match(r.all, /trust is not configured/);
 });
@@ -727,7 +727,7 @@ boxed("trust add previews and writes only with --apply; refuses a private key, a
   const key = makeKey(box, "maintainer");
   const other = makeKey(box, "other");
   const signers = signersFile(box, "company", [["release-maintainer", key]]);
-  const dest = join(box.env.SKILLGATE_TRUST_DIR, "acme.allowed_signers");
+  const dest = join(box.env.SKILLITON_TRUST_DIR, "acme.allowed_signers");
 
   const preview = expectCode(cli(box, ["trust", "add", "--company", "acme", "--signers", signers]), 0, "preview");
   assert.match(preview.out, /would copy it to/);
@@ -751,10 +751,10 @@ boxed("trust add previews and writes only with --apply; refuses a private key, a
   r = expectCode(cli(box, ["trust", "add", "--company", "beta", "--signers", garbage, "--apply"]), 2, "an invalid key");
   assert.match(r.all, /line 1/);
   r = expectCode(cli(box, ["trust", "add", "--company", "Bad Name", "--signers", signers]), 2, "a bad company name");
-  assert.equal(existsSync(join(box.env.SKILLGATE_TRUST_DIR, "beta.allowed_signers")), false);
+  assert.equal(existsSync(join(box.env.SKILLITON_TRUST_DIR, "beta.allowed_signers")), false);
 
   const repo = skillsRepo(box);
-  r = expectCode(cli(box, ["trust", "add", "--company", "beta", "--signers", signers, "--apply"], { env: { SKILLGATE_TRUST_DIR: join(repo, "trust") } }), 2, "a trust folder inside a repository");
+  r = expectCode(cli(box, ["trust", "add", "--company", "beta", "--signers", signers, "--apply"], { env: { SKILLITON_TRUST_DIR: join(repo, "trust") } }), 2, "a trust folder inside a repository");
   assert.match(r.all, /inside a Git repository/);
   assert.equal(existsSync(join(repo, "trust")), false);
 
@@ -766,7 +766,7 @@ boxed("trust add previews and writes only with --apply; refuses a private key, a
   assert.equal(existsSync(dest), true, "a preview must not remove the trust file");
   r = expectCode(cli(box, ["trust", "remove", "--company", "acme", "--apply"]), 0, "remove");
   assert.equal(existsSync(dest), false);
-  const backups = join(box.env.SKILLGATE_BACKUPS, "trust");
+  const backups = join(box.env.SKILLITON_BACKUPS, "trust");
   const stamps = readdirSync(backups);
   assert.equal(stamps.length, 1);
   assert.deepEqual(readFileSync(join(backups, stamps[0], "acme.allowed_signers")), readFileSync(signers), "the backup must hold the removed bytes");
@@ -811,7 +811,7 @@ boxed("propose writes a scrubbed proposal only with --apply, and refuses a denyl
     ["a runtime-built fake private key", ` ${"-----BEGIN " + "OPENSSH PRIVATE" + " KEY-----"}`, {}, /secret-shaped or home-path line/],
     ["a runtime-built fake access key id", ` ${"AKIA" + "QZXV".repeat(4)}`, {}, /secret-shaped or home-path line/],
     ["an em dash", ` one ${String.fromCharCode(0x2014)} two`, {}, /scrub check found lines to fix/],
-    ["a missing denylist", "", { SKILLGATE_DENYLIST: join(box.root, "no-denylist") }, /did not complete, so names were not scanned/],
+    ["a missing denylist", "", { SKILLITON_DENYLIST: join(box.root, "no-denylist") }, /did not complete, so names were not scanned/],
   ];
   for (const [label, extra, env, reason] of refusals) {
     writeFileSync(file, lesson(extra));
@@ -837,7 +837,7 @@ function mutantRuntime(box, file, from, to) {
   const source = readFileSync(target, "utf8");
   assert.ok(source.includes(from), `mutation target not found in ${file}; update this mutation test with the current code: ${from}`);
   writeFileSync(target, source.replace(from, to));
-  return join(dir, "bin", "skillgate");
+  return join(dir, "bin", "skilliton");
 }
 
 boxed("mutation: a verify that ignores file contents would pass a tampered install, and the TAMPERED assertion catches it", (box) => {

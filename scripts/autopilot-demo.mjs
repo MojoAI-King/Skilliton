@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// autopilot-demo.mjs: a two-minute walkthrough of the integrated Skillgate runtime on a disposable project.
+// autopilot-demo.mjs: a two-minute walkthrough of the integrated Skilliton runtime on a disposable project.
 //
 //   node scripts/autopilot-demo.mjs [--keep]
 //
@@ -23,12 +23,12 @@ import { fileURLToPath } from "node:url";
 
 const KEEP = process.argv.includes("--keep");
 const scripts = dirname(fileURLToPath(import.meta.url));
-const CLI = join(scripts, "skillgate.mjs");
-const BIN = join(scripts, "..", "packs", "base", "plugins", "workflow", "bin", "skillgate");
-const ws = realpathSync(mkdtempSync(join(tmpdir(), "skillgate-demo-")));
+const CLI = join(scripts, "skilliton.mjs");
+const BIN = join(scripts, "..", "packs", "base", "plugins", "workflow", "bin", "skilliton");
+const ws = realpathSync(mkdtempSync(join(tmpdir(), "skilliton-demo-")));
 const home = join(ws, "home");
 mkdirSync(home);
-const env = { PATH: process.env.PATH, LANG: process.env.LANG ?? "C.UTF-8", HOME: home, GIT_CONFIG_NOSYSTEM: "1", SKILLGATE_BACKUPS: join(ws, "backups") };
+const env = { PATH: process.env.PATH, LANG: process.env.LANG ?? "C.UTF-8", HOME: home, GIT_CONFIG_NOSYSTEM: "1", SKILLITON_BACKUPS: join(ws, "backups") };
 
 function run(file, args, { cwd = ws, input, expect = 0 } = {}) {
   const r = spawnSync(file, args, { cwd, env, input, encoding: "utf8", timeout: 120000 });
@@ -57,7 +57,7 @@ repo(app, "builder");
 writeFileSync(join(app, "package.json"), JSON.stringify({ name: "shop", type: "module", scripts: { test: "node --test" } }, null, 2) + "\n");
 writeFileSync(join(app, "price.js"), "export const unitPrice = 3;\nexport const price = (qty) => qty * unitPrice;\n");
 writeFileSync(join(app, "price.test.js"), "import test from 'node:test';\nimport assert from 'node:assert';\nimport { price } from './price.js';\ntest('price', () => assert.equal(price(2), 6));\n");
-writeFileSync(join(app, "CLAUDE.md"), "# Shop\n\nNotes the team wrote before Skillgate.\n");
+writeFileSync(join(app, "CLAUDE.md"), "# Shop\n\nNotes the team wrote before Skilliton.\n");
 commitAll(app, "shop");
 const before = snapshot(app);
 sg(["prepare", "--dir", app]);
@@ -68,8 +68,8 @@ sg(["prepare", "--dir", app, "--check"]);
 const prepared = snapshot(app);
 sg(["prepare", "--dir", app, "--apply"]);
 assert.equal(snapshot(app), prepared);
-assert.ok(readFileSync(join(app, "CLAUDE.md"), "utf8").startsWith("# Shop\n\nNotes the team wrote before Skillgate.\n"));
-commitAll(app, "Prepare with Skillgate");
+assert.ok(readFileSync(join(app, "CLAUDE.md"), "utf8").startsWith("# Shop\n\nNotes the team wrote before Skilliton.\n"));
+commitAll(app, "Prepare with Skilliton");
 pass("prepare created the records, config, instructions and security register, kept the team's notes, and a repeat changed nothing");
 
 // ---------- 2. task and checkpoint ----------
@@ -84,10 +84,10 @@ commitAll(app, "Discount for returning customers");
 pass("the request became a task record, the checkpoint was recorded, and task show reads it back");
 
 // ---------- 3. security evidence ----------
-mkdirSync(join(app, ".skillgate", "private-evidence"), { recursive: true });
+mkdirSync(join(app, ".skilliton", "private-evidence"), { recursive: true });
 const tests = run(process.execPath, ["--test"], { cwd: app });
-writeFileSync(join(app, ".skillgate", "private-evidence", "tests.txt"), tests.out);
-sg(["security", "record", "--dir", app, "--control", "SG-SECURITY-TESTS", "--assessment", "observed", "--source", "price.js", "--source", "discount.js", "--artifact", ".skillgate/private-evidence/tests.txt", "--note", "Unit tests for price and discount passed.", "--reviewer", "demo", "--apply"]);
+writeFileSync(join(app, ".skilliton", "private-evidence", "tests.txt"), tests.out);
+sg(["security", "record", "--dir", app, "--control", "SG-SECURITY-TESTS", "--assessment", "observed", "--source", "price.js", "--source", "discount.js", "--artifact", ".skilliton/private-evidence/tests.txt", "--note", "Unit tests for price and discount passed.", "--reviewer", "demo", "--apply"]);
 const current = sg(["security", "status", "--dir", app], { expect: 1 });
 assert.match(current.out, /SG-SECURITY-TESTS[^\n]*current/);
 writeFileSync(join(app, "price.js"), "export const unitPrice = 4;\nexport const price = (qty) => qty * unitPrice;\n");
@@ -119,8 +119,8 @@ repo(seed, "approver");
 git(seed, ["config", "gpg.format", "ssh"]);
 git(seed, ["config", "user.signingkey", join(keys, "approver")]);
 for (const f of ["package.json", "price.js", "price.test.js"]) writeFileSync(join(seed, f), readFileSync(join(app, f)));
-mkdirSync(join(seed, ".skillgate"));
-writeFileSync(join(seed, ".skillgate", "delivery.json"), JSON.stringify({ schema: "skillgate.delivery/1", protectedBranches: ["main"], checks: [{ name: "tests", command: ["node", "--test"], timeoutSeconds: 120 }], policyPaths: [".skillgate/delivery.json", ".github/workflows/"] }, null, 2) + "\n");
+mkdirSync(join(seed, ".skilliton"));
+writeFileSync(join(seed, ".skilliton", "delivery.json"), JSON.stringify({ schema: "skilliton.delivery/1", protectedBranches: ["main"], checks: [{ name: "tests", command: ["node", "--test"], timeoutSeconds: 120 }], policyPaths: [".skilliton/delivery.json", ".github/workflows/"] }, null, 2) + "\n");
 commitAll(seed, "Shop with a delivery policy", ["-S"]);
 git(seed, ["push", "-q", shared, "main"]);
 
@@ -145,7 +145,7 @@ const rejected = git(sam, ["push", shared, "main"], { expect: 1 });
 assert.match(rejected.out, /rejected refs\/heads\/main: check "tests" failed/);
 pass("sam's change passed on its own, but the combined result failed the tests, and the shared repository rejected the push");
 console.log("");
-console.log(rejected.out.split("\n").filter((l) => /skillgate delivery|not ok|failing|rejected/.test(l)).slice(0, 8).join("\n"));
+console.log(rejected.out.split("\n").filter((l) => /skilliton delivery|not ok|failing|rejected/.test(l)).slice(0, 8).join("\n"));
 console.log("");
 console.log("The demo ends with a stale security observation and a rejected push on purpose. Neither local guardrails nor evidence records decide what merges; the shared repository's checks do.");
 if (KEEP) console.log(`Kept for inspection: ${ws}`);

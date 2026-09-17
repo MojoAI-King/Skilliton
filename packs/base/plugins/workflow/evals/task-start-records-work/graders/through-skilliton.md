@@ -4,4 +4,4 @@ pattern: "task start: created docs/tasks/\\d{4}-\\d{2}-\\d{2}-[a-z0-9-]+-[0-9a-f
 target: trace
 arm: both
 ---
-PASS: skillgate itself created the record (its output names the new file), so the record follows the project's format.
+PASS: skilliton itself created the record (its output names the new file), so the record follows the project's format.

@@ -8,7 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const run = (...args) => JSON.parse(execFileSync("node", [join(here, "token-cost.mjs"), "--json", ...args], {
-  env: { ...process.env, SKILLGATE_PROJECTS: join(here, "fixtures", "transcripts"), SKILLGATE_TZ: "America/New_York" },
+  env: { ...process.env, SKILLITON_PROJECTS: join(here, "fixtures", "transcripts"), SKILLITON_TZ: "America/New_York" },
 }).toString().trim().split("\n").pop());
 
 let fail = 0;

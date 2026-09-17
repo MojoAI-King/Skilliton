@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// records.test.mjs: entry IDs, `skillgate record` and `skillgate index` (packs/base/plugins/workflow/runtime/lib/records.mjs).
+// records.test.mjs: entry IDs, `skilliton record` and `skilliton index` (packs/base/plugins/workflow/runtime/lib/records.mjs).
 //
-// Commands run the way a person runs them (node scripts/skillgate.mjs ...) in a temporary Git repository under the
+// Commands run the way a person runs them (node scripts/skilliton.mjs ...) in a temporary Git repository under the
 // system temp folder, with HOME and Git's global configuration pointed away from the real ones; each test removes its
 // folder. Expected index text is written out here by hand rather than produced by the renderer under test. The
 // mutation check edits a temporary copy of the plugin, never the shipped code.
@@ -17,7 +17,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const CLI = join(here, "skillgate.mjs");
+const CLI = join(here, "skilliton.mjs");
 const PLUGIN = join(here, "..", "packs", "base", "plugins", "workflow");
 const records = await import(pathToFileURL(join(PLUGIN, "runtime", "lib", "records.mjs")).href);
 const ids = await import(pathToFileURL(join(PLUGIN, "runtime", "lib", "ids.mjs")).href);
@@ -25,10 +25,10 @@ const ID_RE = /^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9a-f]{4}$/;
 
 const BASE_ENV = (() => {
   const env = {
-    ...process.env, SKILLGATE_SELF: "skillgate", GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1",
-    GIT_AUTHOR_NAME: "Skillgate Test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "Skillgate Test", GIT_COMMITTER_EMAIL: "test@example.invalid",
+    ...process.env, SKILLITON_SELF: "skilliton", GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1",
+    GIT_AUTHOR_NAME: "Skilliton Test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "Skilliton Test", GIT_COMMITTER_EMAIL: "test@example.invalid",
   };
-  delete env.SKILLGATE_DEBUG;
+  delete env.SKILLITON_DEBUG;
   return env;
 })();
 
@@ -37,7 +37,7 @@ const gitStatus = (ctx, ...args) => spawnSync("git", ["-C", ctx.dir, ...args], {
 const commit = (ctx, message) => { git(ctx, "add", "-A"); git(ctx, "commit", "-q", "-m", message); };
 
 function fixture(t) {
-  const base = mkdtempSync(join(realpathSync(tmpdir()), "skillgate-records-"));
+  const base = mkdtempSync(join(realpathSync(tmpdir()), "skilliton-records-"));
   t.after(() => rmSync(base, { recursive: true, force: true }));
   const ctx = { base, dir: join(base, "repo"), home: join(base, "home"), outside: join(base, "outside") };
   for (const d of [ctx.dir, ctx.home, ctx.outside]) mkdirSync(d);
@@ -86,10 +86,10 @@ function taskFile(id, title, fields) {
   return `# Task: ${title}\n\nKind: Living. Task record.\n\n${Object.entries({ ID: id, ...fields }).map(([k, v]) => `- **${k}:** ${v}`).join("\n")}\n\n## Request\n\nA request.\n`;
 }
 
-const DECISIONS_INTRO = "Decision entries in `docs/decisions/`, sorted by ID. `skillgate index` writes this list from the entries; edit the entries, not the list.";
-const LESSONS_INTRO = "Lesson entries in `docs/lessons/`, sorted by ID. `skillgate index` writes this list from the entries; edit the entries, not the list.";
-const TASKS_INTRO = "Open tasks in `docs/tasks/` (every state except done-local, merged, released, verified and abandoned), sorted by ID. `skillgate index` writes this list from the task records; edit the task records, not the list.";
-const section = (kind, lines) => [`<!-- skillgate:index:${kind}:start -->`, ...lines, `<!-- skillgate:index:${kind}:end -->`].join("\n") + "\n";
+const DECISIONS_INTRO = "Decision entries in `docs/decisions/`, sorted by ID. `skilliton index` writes this list from the entries; edit the entries, not the list.";
+const LESSONS_INTRO = "Lesson entries in `docs/lessons/`, sorted by ID. `skilliton index` writes this list from the entries; edit the entries, not the list.";
+const TASKS_INTRO = "Open tasks in `docs/tasks/` (every state except done-local, merged, released, verified and abandoned), sorted by ID. `skilliton index` writes this list from the task records; edit the task records, not the list.";
+const section = (kind, lines) => [`<!-- skilliton:index:${kind}:start -->`, ...lines, `<!-- skilliton:index:${kind}:end -->`].join("\n") + "\n";
 
 // ---------------------------------------------------------------- IDs
 
@@ -172,9 +172,9 @@ test("record previews by default, writes with --apply, and sets the status from 
   assert.match(detached.out, /with the status proposed \(HEAD is detached, so this is not an integration branch\)/);
 
   git(ctx, "checkout", "-q", "-b", "trunk");
-  const config = JSON.parse(read(ctx, ".skillgate/config.json"));
+  const config = JSON.parse(read(ctx, ".skilliton/config.json"));
   config.prepare.integrationBranches = ["trunk"];
-  write(ctx, ".skillgate/config.json", `${JSON.stringify(config, null, 2)}\n`);
+  write(ctx, ".skilliton/config.json", `${JSON.stringify(config, null, 2)}\n`);
   const trunk = record(ctx, "decision", "Release weekly", "--apply");
   assert.equal(trunk.code, 0, trunk.all);
   assert.match(trunk.out, /with the status accepted \(trunk is an integration branch\)/);
@@ -226,7 +226,7 @@ test("a PATH folder that cannot be searched is skipped when finding git, not rep
 
 test("index leaves an adopted record without markers alone until there is an entry to list, then appends the section", (t) => {
   const ctx = prepared(t);
-  const adopted = "# Decisions\n\nEarlier decisions, written by people before Skillgate.\n";
+  const adopted = "# Decisions\n\nEarlier decisions, written by people before Skilliton.\n";
   write(ctx, "DECISIONS.md", adopted);
   const before = snapshot(ctx.dir);
   const preview = index(ctx);
@@ -241,7 +241,7 @@ test("index leaves an adopted record without markers alone until there is an ent
   const withEntry = index(ctx, "--apply");
   assert.equal(withEntry.code, 0, withEntry.all);
   assert.match(withEntry.out, /DECISIONS\.md\s+decisions index: 1 decision entry in docs\/decisions\/; section appended after a blank line \(the record had no markers\)/);
-  assert.ok(read(ctx, "DECISIONS.md").startsWith(`${adopted}\n<!-- skillgate:index:decisions:start -->`), "the section follows the adopted text after one blank line");
+  assert.ok(read(ctx, "DECISIONS.md").startsWith(`${adopted}\n<!-- skilliton:index:decisions:start -->`), "the section follows the adopted text after one blank line");
 });
 
 test("index regenerates the three managed sections, lists open tasks only, and never changes text outside the markers", (t) => {
@@ -306,11 +306,11 @@ test("index regenerates the three managed sections, lists open tasks only, and n
 test("index refuses malformed markers, a missing record, and writing on a branch that is not an integration branch", (t) => {
   const ctx = prepared(t);
   const original = read(ctx, "DECISIONS.md");
-  const start = "<!-- skillgate:index:decisions:start -->", end = "<!-- skillgate:index:decisions:end -->";
+  const start = "<!-- skilliton:index:decisions:start -->", end = "<!-- skilliton:index:decisions:end -->";
   const cases = [
     [`${original}\n${start}\n${end}\n`, /more than one decisions index start marker/],
     [original.replace(`${start}\n`, ""), /decisions index end marker \(line \d+\) without its partner/],
-    [original.replace(start, "<!-- skillgate:index:decisions:begin -->"), /starts like a decisions index marker but is not exactly/],
+    [original.replace(start, "<!-- skilliton:index:decisions:begin -->"), /starts like a decisions index marker but is not exactly/],
   ];
   for (const [text, message] of cases) {
     write(ctx, "DECISIONS.md", text);
@@ -415,7 +415,7 @@ test("mutation: without the closed-state filter, the open-tasks assertion fails"
   assert.ok(source.includes(target), "the mutation target is no longer in lib/records.mjs; update this mutation check");
   writeFileSync(engine, source.replace(target, ""));
   write(ctx, "docs/tasks/2026-09-03-merged-work-cc33.md", taskFile("2026-09-03-merged-work-cc33", "Merged work", { State: "merged" }));
-  const r = sg(ctx, ["index", "--dir", ctx.dir, "--apply"], { cli: join(copy, "runtime", "skillgate.mjs") });
+  const r = sg(ctx, ["index", "--dir", ctx.dir, "--apply"], { cli: join(copy, "runtime", "skilliton.mjs") });
   assert.equal(r.code, 0, r.all);
   assert.match(read(ctx, "docs/STATUS.md"), /merged-work/, "the mutant lists a merged task as open, so the unmutated test's assertion can fail");
   assert.equal(existsSync(join(ctx.dir, "docs/tasks/2026-09-03-merged-work-cc33.md")), true);

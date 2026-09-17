@@ -6,8 +6,8 @@ Kind: Living. Where Skilliton has and has not actually been run: platforms, vers
 
 | Area | Exercised | Not exercised | Next step |
 |---|---|---|---|
-| Operating system | macOS 26 (Darwin 25.6): every suite, the live sessions and the rehearsals. Linux in CI (ubuntu-latest): every offline suite, with bash 5.2.21, git 2.55.0, GNU tar and dash as `/bin/sh` | Windows. `bin/skillgate` and every hook are bash scripts | Say "macOS and Linux" wherever support is stated, until Windows is decided |
-| Node.js | 25.8.1 locally and 22.23.2 in CI (every suite); 20.19.4 locally for the lifecycle tests only | 18, the floor that docs/ONBOARDING.md and `bin/skillgate` state | Run the suite on Node 18 in CI, or raise the stated floor to a version CI runs (docs/BACKLOG.md B11) |
+| Operating system | macOS 26 (Darwin 25.6): every suite, the live sessions and the rehearsals. Linux in CI (ubuntu-latest): every offline suite, with bash 5.2.21, git 2.55.0, GNU tar and dash as `/bin/sh` | Windows. `bin/skilliton` and every hook are bash scripts | Say "macOS and Linux" wherever support is stated, until Windows is decided |
+| Node.js | 25.8.1 locally and 22.23.2 in CI (every suite); 20.19.4 locally for the lifecycle tests only | 18, the floor that docs/ONBOARDING.md and `bin/skilliton` state | Run the suite on Node 18 in CI, or raise the stated floor to a version CI runs (docs/BACKLOG.md B11) |
 | Bash | 3.2.57 locally, 5.2.21 in CI | other shells | none planned |
 | Git | 2.51.1 locally, 2.55.0 in CI | older than 2.34, which release signing needs (releases/SCHEMA.md) | none planned |
 | Claude Code | 2.1.273: installs, updates, headless live sessions, evals | interactive sessions (O6, O7); other versions | docs/BACKLOG.md B5 |
@@ -34,6 +34,11 @@ Kind: Living. Where Skilliton has and has not actually been run: platforms, vers
 - Not exercised: the launcher from a real shell session with `~/.local/bin` on PATH (the rehearsal runs it by path); shells other than `/bin/sh` starting it; a person's existing Claude Code or Codex configuration; several companies joined on one real machine; Windows.
 - Not exercised: passphrase-protected keys, ssh-agent, third-party signing programs; a present `.agents/plugins/marketplace.json` (the Codex catalog path, its path-mismatch refusal and `clients.codex` recording); `release create` with evidence of kind `skill-evaluation` or `other`; which cached version Codex loads when several are cached; whether a client's marketplace clone holds release tags.
 
+## Renaming from the earlier names (M9)
+
+- Exercised: migration `0003-skilliton-names` on a project prepared by the real earlier release (commit e5900d5, run from Git history), with a decision entry, its index, team settings and ignored private evidence: other commands refuse, preview writes nothing, apply moves everything, prepare then finds nothing missing, rollback restores every file exactly (scripts/rename.test.mjs); its refusals (a non-empty `.skilliton/`, a link, a lock, a file over 1 MB, reformatting team settings, a hand-edited block); a prototype project through 0002 and 0003 (migrate test, project rehearsal G1); this repository's own migration; a shared branch whose policy is at the earlier path, with real pushes (delivery test); the reports for an earlier join receipt, signers file, installs, release tags, delivery hook, variables, denylist and status line backups; guardrails honouring an unmigrated project's settings. Fork, machine (J1 to J7) and company release rehearsals rerun under the new names on Claude Code 2.1.273 and Codex 0.154.0-alpha.6.2.
+- Not exercised: a machine actually joined with the earlier release and then undone with it (the refusal is tested with a receipt file); a real shared repository whose gate was installed by the earlier release and reinstalled; a project whose observations name files under the earlier folder; Windows paths for any of it.
+
 ## Security evidence
 
 - Not exercised: interrupting a running collector check (SIGINT), and checks whose child processes leave their process group; the secrets collector on a real application repository (O22).
@@ -44,10 +49,10 @@ Kind: Living. Where Skilliton has and has not actually been run: platforms, vers
 | Case | Where it is exercised |
 |---|---|
 | Ref drift versus exact approved content | `scripts/release.test.mjs` (ref drift gives UNKNOWN VERSION); company release rehearsal A1 and T1 |
-| Escaping import or manifest paths | `scripts/release.test.mjs` (escaping, linked and external plugin paths; a manifest path with `..`); `scripts/skillgate.test.mjs` (import refuses a symbolic link) |
+| Escaping import or manifest paths | `scripts/release.test.mjs` (escaping, linked and external plugin paths; a manifest path with `..`); `scripts/skilliton.test.mjs` (import refuses a symbolic link) |
 | Unauthorized release attempt | `scripts/release.test.mjs` (unsigned, lightweight, other-format and untrusted tags); company release rehearsal A1 |
 | Withdrawn but installed code | `scripts/release.test.mjs`; company release rehearsal W1 |
 | A bad update reaching another environment | company release rehearsal A1 (the environment installs it; verify refuses it) |
-| Private material in a skill import or proposal | `scripts/skillgate.test.mjs` (import refuses a secret-shaped key, a denylisted name, a dash, a home path, and runs no name scan without a denylist); `scripts/release.test.mjs` (propose refuses names, keys, dashes) |
+| Private material in a skill import or proposal | `scripts/skilliton.test.mjs` (import refuses a secret-shaped key, a denylisted name, a dash, a home path, and runs no name scan without a denylist); `scripts/release.test.mjs` (propose refuses names, keys, dashes) |
 | A malicious hook hidden behind passing evals | not exercised as a test. Verification proves installed bytes equal an approved release; it cannot judge a hook an approver reviewed and signed, so hooks, `bin/` and the runtime get the closest review (docs/RELEASING.md section 2) |
 | Local guardrail bypass limits | stated, not tested as a bypass suite: guardrails see only the shell commands the assistant runs, not other terminals or indirect commands (the instruction template) |

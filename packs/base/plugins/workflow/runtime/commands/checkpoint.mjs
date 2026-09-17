@@ -8,7 +8,7 @@ import { appendCheckpoint, checkText, currentTask } from "../lib/tasks.mjs";
 
 export const help = `checkpoint: add a checkpoint to a task record: the state of the work, the evidence for it, the next step, and the
 mechanical Git state (branch, short commit, number of uncommitted paths). With --apply it also records a checkpoint
-event in the local journal (<git dir>/skillgate/journal.jsonl), which the Stop reminder measures from.
+event in the local journal (<git dir>/skilliton/journal.jsonl), which the Stop reminder measures from.
 
   checkpoint [--task <id>] --state "<text>" [--evidence "<text>"] --next "<text>" [--dir <project>] [--apply]
 
@@ -60,7 +60,7 @@ export async function run(argv) {
       const { record } = appendEvent(root, { event: "checkpoint", session: null, task: id, at }, { state: after });
       say(`journal: checkpoint event recorded (working tree fingerprint ${record.fingerprint ? record.fingerprint.slice(0, 12) : "unavailable"})`);
     } catch (e) {
-      console.error(`skillgate checkpoint: operation failed: the checkpoint was written to ${plan.rel}, but the journal event was not recorded (${e.message}); the Stop reminder cannot see this checkpoint`);
+      console.error(`skilliton checkpoint: operation failed: the checkpoint was written to ${plan.rel}, but the journal event was not recorded (${e.message}); the Stop reminder cannot see this checkpoint`);
       return 3;
     }
     return 0;

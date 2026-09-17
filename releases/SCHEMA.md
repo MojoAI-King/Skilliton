@@ -10,11 +10,11 @@ Upstream publishing proposes a version to company maintainers. Company review an
 
 ## The manifest: `releases/<version>.json`
 
-Written by `skillgate release create --version <x.y.z> [--repo <skills repo>] [--evidence <file>]... [--apply]` in the company skills repository, then committed by the maintainer.
+Written by `skilliton release create --version <x.y.z> [--repo <skills repo>] [--evidence <file>]... [--apply]` in the company skills repository, then committed by the maintainer.
 
 ```json
 {
-  "schema": "skillgate.release/1",
+  "schema": "skilliton.release/1",
   "release": "1.2.0",
   "sourceCommit": "<full commit id the plugin folders were hashed from>",
   "createdAt": "2026-09-16T12:00:00.000Z",
@@ -22,7 +22,7 @@ Written by `skillgate release create --version <x.y.z> [--repo <skills repo>] [-
   "components": [
     { "kind": "plugin", "name": "workflow", "version": "0.2.4", "path": "packs/base/plugins/workflow",
       "treeSha256": "<hex>",
-      "files": [ { "path": "bin/skillgate", "sha256": "<hex>", "executable": true } ] }
+      "files": [ { "path": "bin/skilliton", "sha256": "<hex>", "executable": true } ] }
   ],
   "projectLayout": 2,
   "migrations": ["0002-integrated-layout"],
@@ -37,7 +37,7 @@ Written by `skillgate release create --version <x.y.z> [--repo <skills repo>] [-
 
 | Field | Meaning |
 |---|---|
-| `schema` | always `skillgate.release/1` |
+| `schema` | always `skilliton.release/1` |
 | `release` | `MAJOR.MINOR.PATCH`; equals the file name and the tag |
 | `sourceCommit` | HEAD when the manifest was built; every plugin folder matched it byte for byte |
 | `components` | one entry per plugin listed in `.claude-plugin/marketplace.json`, in catalog order; `version` from the plugin's `.claude-plugin/plugin.json`; `path` relative to the repository; `files` sorted by path with each file's sha256 and executable bit |
@@ -65,7 +65,7 @@ Symbolic links, other non-regular files, file names that are not valid UTF-8 or 
 `release create` previews by default and writes `releases/<version>.json` only with `--apply`. It refuses, writing nothing (exit 2), when:
 
 - a plugin folder differs from HEAD in any way: a changed, deleted, untracked or ignored file, a changed executable bit, or a change hidden from `git status` (assume-unchanged, skip-worktree). The check compares Git blob ids of the files on disk with `git ls-tree HEAD`, not `git status`;
-- the version already has a manifest (in the working tree or at HEAD) or a `skillgate-release/` or `skillgate-withdrawn/` tag;
+- the version already has a manifest (in the working tree or at HEAD) or a `skilliton-release/` or `skilliton-withdrawn/` tag;
 - a plugin source is not a path inside the repository: an object source (GitHub, URL), an absolute path, a path with `..`, a path through a symbolic link, or a folder whose real location is outside the repository; `metadata.pluginRoot` is not supported;
 - a plugin's `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` versions (or names) disagree, or the catalog entry names another version;
 - the Codex catalog points a plugin at a different folder than the Claude Code catalog;
@@ -74,8 +74,8 @@ Symbolic links, other non-regular files, file names that are not valid UTF-8 or 
 
 ## Approval and withdrawal
 
-- **Approval:** `release sign <version> [--apply]` checks the manifest is committed at HEAD and unchanged, valid, unsigned, built from an ancestor of HEAD, and that every plugin folder still has its recorded tree hash; it requires `gpg.format ssh` and a configured signing key, then runs, with the maintainer's own configuration, `git tag -s skillgate-release/<version> -m "skillgate release <version>" -m "manifest-sha256: <sha256 of the committed manifest bytes>" <HEAD>`. Skilliton never passes a key. After tagging it confirms the tag carries an SSH signature.
-- **Withdrawal:** `release withdraw <version> --reason "<one line>" [--apply]` runs `git tag -s skillgate-withdrawn/<version> -m "skillgate withdrawn <version>" -m "reason: <text>" <the approved commit>`. It requires the release tag to exist. The tagger date is the withdrawal time. Withdrawal changes what verify reports; it does not disable, remove or roll back installed copies.
+- **Approval:** `release sign <version> [--apply]` checks the manifest is committed at HEAD and unchanged, valid, unsigned, built from an ancestor of HEAD, and that every plugin folder still has its recorded tree hash; it requires `gpg.format ssh` and a configured signing key, then runs, with the maintainer's own configuration, `git tag -s skilliton-release/<version> -m "skilliton release <version>" -m "manifest-sha256: <sha256 of the committed manifest bytes>" <HEAD>`. Skilliton never passes a key. After tagging it confirms the tag carries an SSH signature.
+- **Withdrawal:** `release withdraw <version> --reason "<one line>" [--apply]` runs `git tag -s skilliton-withdrawn/<version> -m "skilliton withdrawn <version>" -m "reason: <text>" <the approved commit>`. It requires the release tag to exist. The tagger date is the withdrawal time. Withdrawal changes what verify reports; it does not disable, remove or roll back installed copies.
 - **Listing:** `release list [--repo] [--company]` shows every version found in `releases/*.json` and in tags as `approved`, `unapproved` (with the reason) or `withdrawn`. Exit 2 when trust is not configured or any tag or approved manifest does not check out.
 
 A tag counts only when every one of these holds; anything else is "does not verify" and never approved:
@@ -83,14 +83,14 @@ A tag counts only when every one of these holds; anything else is "does not veri
 1. it is an annotated tag object whose `tag` header equals its ref name and whose `type` is `commit` (a signed tag copied under another version's name is refused);
 2. its signature, found the way Git finds it (the last line starting with a signature marker), is a single, complete SSH signature; a PGP, X.509 or malformed signature is not verifiable here even if some keyring would accept it;
 3. `git -c gpg.ssh.allowedSignersFile=<trust file> -c gpg.ssh.program=ssh-keygen verify-tag <tag object id>` exits 0 and prints `Good "git" signature for <principal> ...`. Measured with git 2.51 and OpenSSH: a key missing from the file still prints `Good "git" signature with ...` and exits 1, so the word "Good" alone is not accepted;
-4. its signed message starts with `skillgate release <version>` and has exactly one `manifest-sha256: <64 hex>` line (withdrawal: `skillgate withdrawn <version>` and one `reason: <text>` line);
+4. its signed message starts with `skilliton release <version>` and has exactly one `manifest-sha256: <64 hex>` line (withdrawal: `skilliton withdrawn <version>` and one `reason: <text>` line);
 5. for approval, `releases/<version>.json` at the tagged commit has exactly that sha256 and passes validation.
 
 Git reads run with `GIT_NO_REPLACE_OBJECTS=1`, so a `refs/replace` object cannot stand in for a tag or manifest.
 
 ## Trust
 
-`trust add --company <name> --signers <allowed_signers file> [--apply]` copies an SSH allowed_signers file (ssh-keygen(1), ALLOWED SIGNERS) to `$SKILLGATE_TRUST_DIR/<name>.allowed_signers`, default `~/.config/skillgate/trust/`. It checks every line (principals, options, key type, key data structure, fingerprint) and refuses a private key, an invalid line, a trust folder inside a Git work tree, and a different file already trusted for that company (remove it first). A line without `namespaces="git"` is accepted with a note. `trust show [--company]` prints signers and SHA256 fingerprints; `trust remove --company <name> [--apply]` backs the file up under `$SKILLGATE_BACKUPS/trust/` and deletes it. `release list` and `verify` use the named company's file, or the only one configured; several without `--company`, none, a symbolic link or an invalid file is exit 2.
+`trust add --company <name> --signers <allowed_signers file> [--apply]` copies an SSH allowed_signers file (ssh-keygen(1), ALLOWED SIGNERS) to `$SKILLITON_TRUST_DIR/<name>.allowed_signers`, default `~/.config/skilliton/trust/`. It checks every line (principals, options, key type, key data structure, fingerprint) and refuses a private key, an invalid line, a trust folder inside a Git work tree, and a different file already trusted for that company (remove it first). A line without `namespaces="git"` is accepted with a note. `trust show [--company]` prints signers and SHA256 fingerprints; `trust remove --company <name> [--apply]` backs the file up under `$SKILLITON_BACKUPS/trust/` and deletes it. `release list` and `verify` use the named company's file, or the only one configured; several without `--company`, none, a symbolic link or an invalid file is exit 2.
 
 ## Verifying installed plugins
 
@@ -111,7 +111,7 @@ Installed locations come from each client's own records, whose formats are not d
 
 Company plugins are those whose marketplace name appears in an approved or withdrawn manifest (`clients.codex.marketplace` for Codex, falling back to `marketplace`) or in the source's own catalog. Others are listed in a note, not checked.
 
-Exit codes: `0` every company plugin install is VERIFIED (and there is at least one) and every file its release marks executable is executable; `1` any other state, including nothing to verify or a lost executable bit; `2` trust not configured, any release or withdrawal tag that does not verify, an invalid approved manifest, an invalid client record, or a bad invocation; `3` the check itself failed. With `--json`, stdout is exactly one `skillgate.result/1` object, also on a refusal or failure; `details` holds the client, records path and format label, source, trust file, every release with its approval and withdrawal, every plugin line with its files, counts, problems and notes.
+Exit codes: `0` every company plugin install is VERIFIED (and there is at least one) and every file its release marks executable is executable; `1` any other state, including nothing to verify or a lost executable bit; `2` trust not configured, any release or withdrawal tag that does not verify, an invalid approved manifest, an invalid client record, or a bad invocation; `3` the check itself failed. With `--json`, stdout is exactly one `skilliton.result/1` object, also on a refusal or failure; `details` holds the client, records path and format label, source, trust file, every release with its approval and withdrawal, every plugin line with its files, counts, problems and notes.
 
 ## Proposals: `proposals/<id>.md`
 

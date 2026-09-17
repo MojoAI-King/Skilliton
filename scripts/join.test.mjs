@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// join.test.mjs: `skillgate join` and `join --undo` (packs/base/plugins/workflow/runtime/lib/join.mjs), and verify's
+// join.test.mjs: `skilliton join` and `join --undo` (packs/base/plugins/workflow/runtime/lib/join.mjs), and verify's
 // default source from a join receipt.
 //
 // Each test builds a company skills repository clone in a temporary folder (the real workflow and guardrails plugins,
@@ -24,7 +24,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..");
 const STANDIN = join(here, "fixtures", "clients", "standin.mjs");
 const MARKET = "acme-skills";
-const GIT_ENV = { GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "Skillgate Test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "Skillgate Test", GIT_COMMITTER_EMAIL: "test@example.invalid" };
+const GIT_ENV = { GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "Skilliton Test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "Skilliton Test", GIT_COMMITTER_EMAIL: "test@example.invalid" };
 
 const toolPath = (name) => {
   const r = spawnSync("sh", ["-c", `command -v ${name}`], { encoding: "utf8" });
@@ -34,7 +34,7 @@ const toolPath = (name) => {
 const TOOLS = { node: process.execPath, git: toolPath("git"), "ssh-keygen": toolPath("ssh-keygen") };
 
 function fixture(t, { clients = ["claude", "codex"] } = {}) {
-  const base = realpathSync(mkdtempSync(join(tmpdir(), "skillgate-join-")));
+  const base = realpathSync(mkdtempSync(join(tmpdir(), "skilliton-join-")));
   t.after(() => rmSync(base, { recursive: true, force: true }));
   const ctx = {
     base, repo: join(base, "company-skills"), tools: join(base, "tools"), keys: join(base, "keys"),
@@ -50,7 +50,7 @@ function fixture(t, { clients = ["claude", "codex"] } = {}) {
 
   for (const plugin of ["workflow", "guardrails"]) cpSync(join(ROOT, "packs", "base", "plugins", plugin), join(ctx.repo, "packs", "base", "plugins", plugin), { recursive: true });
   mkdirSync(join(ctx.repo, "scripts"), { recursive: true });
-  cpSync(join(ROOT, "scripts", "skillgate.mjs"), join(ctx.repo, "scripts", "skillgate.mjs"));
+  cpSync(join(ROOT, "scripts", "skilliton.mjs"), join(ctx.repo, "scripts", "skilliton.mjs"));
   writeJson(join(ctx.repo, ".claude-plugin", "marketplace.json"), {
     name: MARKET, owner: { name: "acme" },
     plugins: ["workflow", "guardrails"].map((name) => ({ name, source: `./packs/base/plugins/${name}`, description: name, license: "MIT" })),
@@ -77,15 +77,15 @@ function writeJson(path, value) {
 
 function envOf(ctx, extra = {}) {
   return {
-    ...GIT_ENV, PATH: ctx.tools, HOME: ctx.home, LANG: "C.UTF-8", SKILLGATE_SELF: "skillgate",
-    CLAUDE_CONFIG_DIR: ctx.claude, CODEX_HOME: ctx.codex, SKILLGATE_TRUST_DIR: ctx.trust, SKILLGATE_JOIN_DIR: ctx.joined,
-    SKILLGATE_BACKUPS: ctx.backups, STANDIN_LOG: ctx.log, ...extra,
+    ...GIT_ENV, PATH: ctx.tools, HOME: ctx.home, LANG: "C.UTF-8", SKILLITON_SELF: "skilliton",
+    CLAUDE_CONFIG_DIR: ctx.claude, CODEX_HOME: ctx.codex, SKILLITON_TRUST_DIR: ctx.trust, SKILLITON_JOIN_DIR: ctx.joined,
+    SKILLITON_BACKUPS: ctx.backups, STANDIN_LOG: ctx.log, ...extra,
   };
 }
 
 const gitIn = (ctx, dir, ...args) => execFileSync(TOOLS.git, ["-C", dir, ...args], { env: { ...GIT_ENV, PATH: dirname(TOOLS.git), HOME: ctx.home }, encoding: "utf8" });
 
-function sg(ctx, args, { cli = join(ctx.repo, "scripts", "skillgate.mjs"), env = {} } = {}) {
+function sg(ctx, args, { cli = join(ctx.repo, "scripts", "skilliton.mjs"), env = {} } = {}) {
   const r = spawnSync(process.execPath, [cli, ...args], { cwd: ctx.base, env: envOf(ctx, env), encoding: "utf8" });
   return { code: r.status, out: r.stdout, all: `${r.stdout}${r.stderr}` };
 }
@@ -117,11 +117,11 @@ test("the preview names every change and writes nothing", (t) => {
   const ctx = fixture(t);
   const r = sg(ctx, joinArgs(ctx));
   assert.equal(r.code, 0, r.all);
-  assert.match(r.out, /skillgate join \(preview; nothing written\)/);
+  assert.match(r.out, /skilliton join \(preview; nothing written\)/);
   assert.match(r.out, /will add\s+marketplace acme-skills/);
   assert.match(r.out, /will add\s+plugin workflow@acme-skills/);
   assert.match(r.out, /will add\s+the home folder .*codex-home, which Codex needs to exist/);
-  assert.match(r.out, /is not on PATH\. To use skillgate in new terminals/);
+  assert.match(r.out, /is not on PATH\. To use skilliton in new terminals/);
   assert.match(r.out, /has no release tags yet/);
   assert.deepEqual(calls(ctx), [], "a preview runs no client at all");
   assert.equal(snapshot(ctx), "", "nothing exists under the machine folders");
@@ -142,19 +142,19 @@ test("apply sets up both clients, the signers and the launcher, records each ste
   assert.match(r.out, /verify, Codex: .*\n {2}UNKNOWN VERSION/);
 
   const rec = receipt(ctx);
-  assert.equal(rec.schema, "skillgate.join/1");
+  assert.equal(rec.schema, "skilliton.join/1");
   assert.equal(rec.source, ctx.repo);
   assert.deepEqual(rec.marketplace, { name: MARKET, kind: "directory", location: ctx.repo });
   assert.deepEqual(rec.clients["claude-code"], { home: ctx.claude, marketplaceAdded: true, installed: ["workflow", "guardrails"] });
   assert.deepEqual(rec.clients.codex, { home: ctx.codex, marketplaceAdded: true, installed: ["workflow", "guardrails"], createdHome: true }, "Codex needs its home to exist, so join created it");
   assert.equal(rec.trust.path, join(ctx.trust, "acme.allowed_signers"));
-  assert.equal(rec.launcher.path, join(ctx.bin, "skillgate"));
+  assert.equal(rec.launcher.path, join(ctx.bin, "skilliton"));
   assert.equal(rec.launcher.createdFolder, true);
   assert.equal(statSync(join(ctx.base, "joined", "acme.json")).mode & 0o777, 0o600, "the receipt is private to the user");
 
-  const launcher = spawnSync(join(ctx.bin, "skillgate"), ["--version"], { env: envOf(ctx), encoding: "utf8" });
+  const launcher = spawnSync(join(ctx.bin, "skilliton"), ["--version"], { env: envOf(ctx), encoding: "utf8" });
   assert.equal(launcher.status, 0, launcher.stderr);
-  assert.match(launcher.stdout, /^skillgate runtime \d+\.\d+\.\d+/);
+  assert.match(launcher.stdout, /^skilliton runtime \d+\.\d+\.\d+/);
 });
 
 test("a repeat changes nothing, and verify still runs", (t) => {
@@ -215,23 +215,23 @@ test("undo previews, then removes everything join added, keeping backups of the 
 test("undo keeps a launcher or signers file changed after join, and says so", (t) => {
   const ctx = fixture(t);
   assert.equal(sg(ctx, [...joinArgs(ctx), "--apply"]).code, 1);
-  writeFileSync(join(ctx.bin, "skillgate"), "#!/bin/sh\necho mine\n");
+  writeFileSync(join(ctx.bin, "skilliton"), "#!/bin/sh\necho mine\n");
   writeFileSync(join(ctx.trust, "acme.allowed_signers"), readFileSync(ctx.signers, "utf8").replace("approver@", "changed@"));
   const r = sg(ctx, ["join", "--undo", "--company", "acme", "--apply"]);
   assert.equal(r.code, 1, r.all);
   assert.match(r.out, /Kept:\n.*acme\.allowed_signers, because it changed after join/);
-  assert.match(r.out, /launcher-bin\/skillgate, because it changed after join/);
-  assert.equal(readFileSync(join(ctx.bin, "skillgate"), "utf8"), "#!/bin/sh\necho mine\n");
+  assert.match(r.out, /launcher-bin\/skilliton, because it changed after join/);
+  assert.equal(readFileSync(join(ctx.bin, "skilliton"), "utf8"), "#!/bin/sh\necho mine\n");
 });
 
 test("a launcher that is not this company's is never overwritten", (t) => {
   const ctx = fixture(t);
   mkdirSync(ctx.bin, { recursive: true });
-  writeFileSync(join(ctx.bin, "skillgate"), "#!/bin/sh\necho someone else\n");
+  writeFileSync(join(ctx.bin, "skilliton"), "#!/bin/sh\necho someone else\n");
   const r = sg(ctx, [...joinArgs(ctx), "--apply"]);
   assert.equal(r.code, 1, r.all);
-  assert.match(r.out, /not written: .*skillgate already exists and is not this company's launcher/);
-  assert.equal(readFileSync(join(ctx.bin, "skillgate"), "utf8"), "#!/bin/sh\necho someone else\n");
+  assert.match(r.out, /not written: .*skilliton already exists and is not this company's launcher/);
+  assert.equal(readFileSync(join(ctx.bin, "skilliton"), "utf8"), "#!/bin/sh\necho someone else\n");
   assert.equal(receipt(ctx).launcher, null);
 });
 
@@ -254,7 +254,7 @@ test("verify from an installed copy finds its source in the join receipt", (t) =
   const ctx = fixture(t);
   assert.equal(sg(ctx, [...joinArgs(ctx), "--apply"]).code, 1);
   const installed = JSON.parse(readFileSync(join(ctx.claude, "plugins", "installed_plugins.json"), "utf8")).plugins[`workflow@${MARKET}`][0].installPath;
-  const cli = join(installed, "runtime", "skillgate.mjs");
+  const cli = join(installed, "runtime", "skilliton.mjs");
   const r = sg(ctx, ["verify", "--client", "codex", "--json"], { cli });
   const report = JSON.parse(r.out);
   assert.equal(report.details.source, ctx.repo, r.all);
@@ -334,9 +334,9 @@ test("undo treats the receipt as untrusted and deletes nothing it does not own",
     assert.equal(readFileSync(victim, "utf8"), "keep me\n");
   });
 
-  await t.test("a launcher path to a different file named skillgate is kept, because its text is not join's", (tt) => {
+  await t.test("a launcher path to a different file named skilliton is kept, because its text is not join's", (tt) => {
     const ctx = joined(tt);
-    const other = join(ctx.base, "elsewhere", "skillgate");
+    const other = join(ctx.base, "elsewhere", "skilliton");
     mkdirSync(dirname(other), { recursive: true });
     writeFileSync(other, "#!/bin/sh\necho mine\n");
     rewrite(ctx, (rec) => { rec.launcher.path = other; });
@@ -432,14 +432,14 @@ test("joining again with other folders, or from a moved clone, is refused with t
   assert.equal(sg(ctx, [...joinArgs(ctx), "--apply"]).code, 1);
   const otherBin = sg(ctx, ["join", "--company", "acme", "--signers", ctx.signers, "--marketplace", ctx.repo, "--bin-dir", join(ctx.base, "other-bin"), "--apply"]);
   assert.equal(otherBin.code, 2, otherBin.all);
-  assert.match(otherBin.all, /wrote its terminal command at .*launcher-bin\/skillgate/);
-  const otherTrust = sg(ctx, [...joinArgs(ctx), "--apply"], { env: { SKILLGATE_TRUST_DIR: join(ctx.base, "other-trust") } });
+  assert.match(otherBin.all, /wrote its terminal command at .*launcher-bin\/skilliton/);
+  const otherTrust = sg(ctx, [...joinArgs(ctx), "--apply"], { env: { SKILLITON_TRUST_DIR: join(ctx.base, "other-trust") } });
   assert.equal(otherTrust.code, 2, otherTrust.all);
-  assert.match(otherTrust.all, /set SKILLGATE_TRUST_DIR as it was/);
+  assert.match(otherTrust.all, /set SKILLITON_TRUST_DIR as it was/);
 
   const moved = join(ctx.base, "moved-clone");
   execFileSync("mv", [ctx.repo, moved]);
-  const r = sg(ctx, ["join", "--company", "acme", "--signers", ctx.signers, "--marketplace", moved, "--bin-dir", ctx.bin], { cli: join(moved, "scripts", "skillgate.mjs") });
+  const r = sg(ctx, ["join", "--company", "acme", "--signers", ctx.signers, "--marketplace", moved, "--bin-dir", ctx.bin], { cli: join(moved, "scripts", "skilliton.mjs") });
   assert.equal(r.code, 2, r.all);
   assert.match(r.all, /already joined this machine from .*company-skills/);
 });
@@ -449,7 +449,7 @@ test("verify validates the company name before reading a receipt", (t) => {
   writeFileSync(join(ctx.base, "notes.json"), '"private text"');
   const installedCopy = join(ctx.base, "installed-workflow");
   cpSync(join(ctx.repo, "packs", "base", "plugins", "workflow"), installedCopy, { recursive: true });
-  const r = sg(ctx, ["verify", "--company", "../notes"], { cli: join(installedCopy, "runtime", "skillgate.mjs") });
+  const r = sg(ctx, ["verify", "--company", "../notes"], { cli: join(installedCopy, "runtime", "skilliton.mjs") });
   assert.equal(r.code, 2, r.all);
   assert.match(r.all, /--company "\.\.\/notes" is not allowed/);
   assert.doesNotMatch(r.all, /private text/);

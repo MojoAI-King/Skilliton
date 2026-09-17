@@ -1,13 +1,13 @@
 // core.mjs: shared helpers and the original five commands (doctor, harness, project-settings, new-skill, import) of
-// the Skilliton command line (company and new-plugin are modules in ../commands/, with their engine in fork.mjs). Node only, no dependencies. The entry point is ../skillgate.mjs; scripts/skillgate.mjs in
-// a company skills repo and bin/skillgate in an installed plugin both run it.
+// the Skilliton command line (company and new-plugin are modules in ../commands/, with their engine in fork.mjs). Node only, no dependencies. The entry point is ../skilliton.mjs; scripts/skilliton.mjs in
+// a company skills repo and bin/skilliton in an installed plugin both run it.
 //
 // This file lives inside the workflow plugin so that an installed copy of the plugin carries the exact runtime its
 // version was released with. Nothing here may import from outside the plugin folder.
 //
 // The contract is docs/CONTRACTS.md (the "CLI" table). Every writing command prints its change first, writes only
 // with --apply or its own explicit verb (harness --undo, new-skill, import), and backs up any file it overwrites to
-// $SKILLGATE_BACKUPS/<command>/<timestamp>/ (default root ~/.claude/backups/skillgate, the same root setup.mjs uses).
+// $SKILLITON_BACKUPS/<command>/<timestamp>/ (default root ~/.claude/backups/skilliton, the same root setup.mjs uses).
 //
 // Exit codes (every command): 0 complete; 1 attention (an evaluated state needs action, for example a required doctor
 // check is not OK); 2 invalid or refused, with the reason printed (a refusal happens before anything is written);
@@ -27,6 +27,7 @@ import { homedir } from "node:os";
 import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ConfigError, KNOWN_SECTIONS, LAYOUT_VERSION, configProblems, readProjectConfig, resolveProject, templateVars } from "./config.mjs";
+import { LEGACY_CONFIG_REL, LEGACY_HARNESS_PREFIX, LEGACY_NAME } from "./legacy-names.mjs";
 
 const RUNTIME_LIB = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(RUNTIME_LIB, "..", "..");
@@ -39,10 +40,10 @@ const SKILLS_REPO = (() => {
 })();
 const HARNESS_TEMPLATE = join(PLUGIN_ROOT, "templates", "harness.md");
 const HOME = homedir();
-const BACKUPS = process.env.SKILLGATE_BACKUPS || join(HOME, ".claude", "backups", "skillgate");
+const BACKUPS = process.env.SKILLITON_BACKUPS || join(HOME, ".claude", "backups", "skilliton");
 
-const START_LINE = "<!-- skillgate:harness:start v1 -->";
-const END_LINE = "<!-- skillgate:harness:end -->";
+const START_LINE = "<!-- skilliton:harness:start v1 -->";
+const END_LINE = "<!-- skilliton:harness:end -->";
 const HARNESS_FILES = ["CLAUDE.md", "AGENTS.md"];
 
 // ---------- refusals and small helpers ----------
@@ -79,8 +80,8 @@ function tilde(p) {
 
 // The command a person should type to run this script again, from where they are now.
 function selfCommand() {
-  if (process.env.SKILLGATE_SELF) return process.env.SKILLGATE_SELF;
-  const entry = process.argv[1] ? resolve(process.argv[1]) : join(PLUGIN_ROOT, "runtime", "skillgate.mjs");
+  if (process.env.SKILLITON_SELF) return process.env.SKILLITON_SELF;
+  const entry = process.argv[1] ? resolve(process.argv[1]) : join(PLUGIN_ROOT, "runtime", "skilliton.mjs");
   const rel = relative(process.cwd(), entry);
   return `node ${rel.startsWith(".." + sep + ".." + sep) || rel === "" ? tilde(entry) : rel}`;
 }
@@ -274,7 +275,7 @@ function lineSpans(text) {
   return spans;
 }
 
-const START_EXACT = /^<!-- skillgate:harness:start v(\d+) -->$/;
+const START_EXACT = /^<!-- skilliton:harness:start v(\d+) -->$/;
 
 // Returns null when the file has no block, the block's offsets when it has exactly one, and refuses otherwise.
 function findBlock(text, label) {
@@ -282,10 +283,10 @@ function findBlock(text, label) {
   const starts = [], ends = [];
   spans.forEach((s, i) => {
     const t = s.body.trim();
-    if (t.startsWith("<!-- skillgate:harness:start")) {
+    if (t.startsWith("<!-- skilliton:harness:start")) {
       if (!START_EXACT.test(t)) refuse(`${label} line ${i + 1} starts like a harness start marker but is not exactly "${START_LINE}". Fix that line by hand, then run again.`);
       starts.push(i);
-    } else if (t.startsWith("<!-- skillgate:harness:end")) {
+    } else if (t.startsWith("<!-- skilliton:harness:end")) {
       if (t !== END_LINE) refuse(`${label} line ${i + 1} starts like a harness end marker but is not exactly "${END_LINE}". Fix that line by hand, then run again.`);
       ends.push(i);
     }
@@ -336,7 +337,7 @@ function readHarnessTemplate(path) {
   const text = readBytes(path);
   if (!text.trim()) refuse(`harness template ${tilde(path)} is empty`);
   lineSpans(text).forEach((s, i) => {
-    if (s.body.trim().startsWith("<!-- skillgate:harness:")) refuse(`harness template ${tilde(path)} line ${i + 1} holds a harness marker; the template must hold only the block's contents`);
+    if (s.body.trim().startsWith("<!-- skilliton:harness:")) refuse(`harness template ${tilde(path)} line ${i + 1} holds a harness marker; the template must hold only the block's contents`);
   });
   return text;
 }
@@ -350,12 +351,22 @@ function removeBlockAt(text, found) {
   return before + after;
 }
 
+// The first line of text that starts a harness marker written under the earlier names, as a 1-based number, or 0.
+function legacyBlockLine(text) {
+  const index = lineSpans(text).findIndex((s) => s.body.trim().startsWith(LEGACY_HARNESS_PREFIX));
+  return index + 1;
+}
+
 function planHarnessFile(dir, name, template, undo, vars = null) {
   const path = join(dir, name);
   const st = statOrNull(path);
   if (st && !st.isFile()) refuse(`${tilde(path)} exists but is not a regular file`);
   const exists = !!st;
   const text = exists ? readBytes(path) : "";
+  // A block written under the earlier names is neither current nor absent: adding a second block would leave the old
+  // one telling the assistant to run the earlier commands, and removing it is the migration's job.
+  const legacyLine = legacyBlockLine(text);
+  if (legacyLine) refuse(`${name} line ${legacyLine} holds a harness block written under the earlier ${LEGACY_NAME} names. Nothing was written. In a project with ${LEGACY_CONFIG_REL}, run migrate, which replaces it; otherwise delete that block's marker lines and everything between them, then run again`);
   const plan = { name, path, exists, text, next: text, changed: false, summary: "" };
   if (undo) {
     const found = exists ? findBlock(text, name) : null;
@@ -516,6 +527,11 @@ function cmdProjectSettings(argv) {
   if (o.help) { say(SETTINGS_HELP); return 0; }
   if (o._.length) refuse(`project-settings takes no plain arguments (got "${o._[0]}"); see: ${selfCommand()} project-settings --help`);
   const dir = resolveExistingDir(o.dir, "--dir");
+  // A project under the earlier names has marketplace keys that its migration renames; merging the current template
+  // first would leave two entries for the migration to choose between.
+  let config;
+  try { config = readProjectConfig(dir); } catch (e) { if (e instanceof ConfigError) refuse(e.message); throw e; }
+  if (config.legacy) refuse(`this project still uses the earlier ${LEGACY_NAME} names (${config.rel}). Nothing was written. Move it first: ${selfCommand()} migrate --dir ${argPath(dir)}, then run project-settings again`);
   const templatePath = resolve(o.template ?? join(requireSkillsRepo("pass --template <file>"), "templates", "project-settings.json"));
   const template = readJsonObject(templatePath, "settings template");
   const { settings: team, marketplace, original } = buildTeamSettings(template, o["marketplace-repo"], o["marketplace-name"]);
@@ -571,7 +587,7 @@ const listDirNames = (d) => (isDir(d) ? readdirSync(d).filter((n) => isDir(join(
 
 // Commands that work on a company skills repository use this one, or refuse with the option to pass.
 function requireSkillsRepo(hint) {
-  if (!SKILLS_REPO) refuse(`this copy of skillgate is not inside a company skills repository, so there is no default to use; ${hint}`);
+  if (!SKILLS_REPO) refuse(`this copy of skilliton is not inside a company skills repository, so there is no default to use; ${hint}`);
   return SKILLS_REPO;
 }
 
@@ -632,12 +648,12 @@ const NEW_SKILL_HELP = `new-skill: create a skill inside a plugin, and bump the 
 Creates packs/<pack>/plugins/<plugin>/skills/<skill>/SKILL.md with frontmatter (name, description) and a short body
 to fill in (When to use, Steps, What done looks like), then bumps the patch number of "version" in the plugin's
 .claude-plugin/plugin.json: installed copies only update when that version changes (docs/CONTRACTS.md).
-Names use lowercase letters, digits, and hyphens. Without --description the description is a TODO(skillgate)
+Names use lowercase letters, digits, and hyphens. Without --description the description is a TODO(skilliton)
 placeholder; replace it, because Claude reads that line to decide when to use the skill.
 --pack picks between plugins with the same name in different packs. --repo defaults to the repo this script is in.
 Refuses (exit 2), changing nothing, if the skill already exists or a name is not allowed.`;
 
-const DESCRIPTION_PLACEHOLDER = "TODO(skillgate) Replace this line. Say what this skill does and exactly when Claude should use it; Claude reads this line to decide whether to load the skill.";
+const DESCRIPTION_PLACEHOLDER = "TODO(skilliton) Replace this line. Say what this skill does and exactly when Claude should use it; Claude reads this line to decide whether to load the skill.";
 
 // One-line YAML value: plain when that is unambiguous, otherwise double-quoted (JSON string syntax is valid YAML).
 // Words YAML reads as booleans or null, and anything numeric, are quoted so they stay text.
@@ -664,16 +680,16 @@ function skillSkeleton(name, description) {
     "",
     "## When to use",
     "",
-    "TODO(skillgate) The situations where this skill applies, and the ones where it does not.",
+    "TODO(skilliton) The situations where this skill applies, and the ones where it does not.",
     "",
     "## Steps",
     "",
-    "1. TODO(skillgate) The first thing to do.",
-    "2. TODO(skillgate) The next thing to do.",
+    "1. TODO(skilliton) The first thing to do.",
+    "2. TODO(skilliton) The next thing to do.",
     "",
     "## What done looks like",
     "",
-    "TODO(skillgate) The result that shows the work is finished, and how to check it.",
+    "TODO(skilliton) The result that shows the work is finished, and how to check it.",
     "",
   ].join("\n");
 }
@@ -702,8 +718,8 @@ function cmdNewSkill(argv) {
   writeVersionBump("new-skill", plugin, bump);
   say("");
   say(o.description === undefined
-    ? "Next: replace every TODO(skillgate) line in the new SKILL.md, starting with the description in its frontmatter."
-    : "Next: replace the TODO(skillgate) lines in the body of the new SKILL.md.");
+    ? "Next: replace every TODO(skilliton) line in the new SKILL.md, starting with the description in its frontmatter."
+    : "Next: replace the TODO(skilliton) lines in the body of the new SKILL.md.");
   return 0;
 }
 
@@ -715,7 +731,7 @@ const IMPORT_HELP = `import: copy an existing skill folder into a plugin, after 
 
 Before anything is copied, every file in <skill-dir> is scanned twice:
   1. scripts/scrub-check.sh --path <skill-dir>: denylisted names, em or en dashes, home-directory paths.
-     The name scan needs a denylist (SKILLGATE_DENYLIST, default ~/.config/skillgate/denylist). Without one the
+     The name scan needs a denylist (SKILLITON_DENYLIST, default ~/.config/skilliton/denylist). Without one the
      import is refused, because a scan that did not run is not a pass. A denylist holding only comments is
      allowed and means "no names to block".
   2. secret-shaped text (AWS access key ids; Anthropic, GitHub, Slack, and Stripe live keys; private key blocks)
@@ -850,7 +866,7 @@ function cmdImport(argv) {
 
   const reasons = [];
   if (scrub.status === 1) reasons.push("the scrub check found lines to fix (listed above)");
-  else if (scrub.status === 2) reasons.push("the scrub check did not complete, so names were not scanned. Set SKILLGATE_DENYLIST to a denylist file with one name pattern per line (a file holding only comments means no names to block)");
+  else if (scrub.status === 2) reasons.push("the scrub check did not complete, so names were not scanned. Set SKILLITON_DENYLIST to a denylist file with one name pattern per line (a file holding only comments means no names to block)");
   else if (scrub.status !== 0) reasons.push(`the scrub check failed to run (exit ${scrub.status ?? "by signal"})`);
   else if (scrub.scanned !== files.length) reasons.push(`the scrub check scanned ${scrub.scanned ?? "an unknown number of"} file(s) but import would copy ${files.length}, so a file would be copied unscanned`);
   if (secrets.hits.length) reasons.push(`${secrets.hits.length} secret-shaped or home-path line(s) (listed above)`);
@@ -882,7 +898,7 @@ const DOCTOR_HELP = `doctor: check this machine and one project for Skilliton, o
 Checks: Claude Code on PATH and its version, plus any copy inside a VS Code, Cursor, or Windsurf extension (the
 two can differ); whether the marketplace named in this repo's .claude-plugin/marketplace.json is added, and which
 base plugins are installed and enabled; whether auto-update is on for it; whether CLAUDE.md and AGENTS.md hold
-the current harness block; whether .skillgate/config.json parses; whether .claude/settings.json declares the
+the current harness block; whether .skilliton/config.json parses; whether .claude/settings.json declares the
 marketplace and plugins; and the tools the hooks call (jq, node, python3, git).
 
 Each line starts with OK, MISSING, WARN, or UNVERIFIED. A line ending in [required] is a required check that is
@@ -991,7 +1007,7 @@ function gatherPluginRecords(cli, dir) {
 }
 
 function readCatalog() {
-  if (!SKILLS_REPO) return { name: null, plugins: [], error: "this copy of skillgate is not inside a company skills repository, so there is no marketplace catalog to read" };
+  if (!SKILLS_REPO) return { name: null, plugins: [], error: "this copy of skilliton is not inside a company skills repository, so there is no marketplace catalog to read" };
   const path = join(SKILLS_REPO, ".claude-plugin", "marketplace.json");
   const problems = [];
   const c = readJsonMaybe(path, problems);
@@ -1069,12 +1085,12 @@ function cmdDoctor(argv) {
   // A check that throws is reported as a check that could not run, never skipped.
   const guarded = (label, required, fn) => {
     try { fn(); } catch (e) {
-      report("UNVERIFIED", label, `this check could not run (${e.message})`, { required, next: `rerun doctor with SKILLGATE_DEBUG=1 and report the "${label}" failure` });
-      if (process.env.SKILLGATE_DEBUG) console.error(e.stack);
+      report("UNVERIFIED", label, `this check could not run (${e.message})`, { required, next: `rerun doctor with SKILLITON_DEBUG=1 and report the "${label}" failure` });
+      if (process.env.SKILLITON_DEBUG) console.error(e.stack);
     }
   };
 
-  say("skillgate doctor (writes nothing)");
+  say("skilliton doctor (writes nothing)");
   say(`project: ${tilde(dir)}`);
   say(`skills repo: ${SKILLS_REPO ? tilde(SKILLS_REPO) : "none (this is an installed copy of the runtime)"}`);
   say(`runtime: workflow ${readPluginVersion(PLUGIN_ROOT) ?? "(version unreadable)"} at ${tilde(PLUGIN_ROOT)}`);
@@ -1111,7 +1127,7 @@ function cmdDoctor(argv) {
 
   // Marketplace, base plugins, auto-update.
   const catalog = readCatalog();
-  const market = catalog.name ?? "skillgate";
+  const market = catalog.name ?? "skilliton";
   const template = readTeamTemplate();
   const templateRepo = template ? Object.values(template.extraKnownMarketplaces ?? {}).map((m) => m?.source?.repo).find((r) => typeof r === "string") : null;
   let records = null;
@@ -1120,7 +1136,7 @@ function cmdDoctor(argv) {
     report(records.status, "plugin records", records.detail);
   });
   guarded(`marketplace ${market}`, true, () => {
-    if (catalog.error) report("WARN", "marketplace catalog", `${catalog.error}; assuming the marketplace is named "skillgate"`);
+    if (catalog.error) report("WARN", "marketplace catalog", `${catalog.error}; assuming the marketplace is named "skilliton"`);
     if (!records) { report("UNVERIFIED", `marketplace ${market}`, "not checked: plugin records could not be read", { required: true, next: "fix the plugin records problem above" }); return; }
     const m = records.marketplaces.find((x) => x.name === market);
     const source = m && (m.repo ? `github ${m.repo}` : m.path ? `folder ${tilde(m.path)}` : `source ${m.source ?? "not reported"}`);
@@ -1176,15 +1192,17 @@ function cmdDoctor(argv) {
   // The harness block in this project.
   let harnessTemplate = null, harnessVars = null, varsProblem = null;
   guarded("harness template", true, () => { harnessTemplate = readHarnessTemplate(HARNESS_TEMPLATE); });
-  try { harnessVars = templateVars(resolveProject(dir)); } catch (e) { if (!(e instanceof ConfigError)) throw e; varsProblem = e.message; }
+  try { harnessVars = templateVars(resolveProject(dir, { allowLegacy: true })); } catch (e) { if (!(e instanceof ConfigError)) throw e; varsProblem = e.message; }
   const writeHarness = `write the harness block: ${selfCommand()} harness --apply${dirArg}`;
   for (const name of HARNESS_FILES) {
     guarded(name, true, () => {
       if (!harnessTemplate) { report("UNVERIFIED", name, "not compared: the harness template could not be read", { required: true, next: "reinstall the workflow plugin, or restore packs/base/plugins/workflow/templates/harness.md in the skills repo" }); return; }
-      if (!harnessVars) { report("UNVERIFIED", name, `not compared: the block names this project's record files, and the project configuration cannot be used (${varsProblem})`, { required: true, next: "fix .skillgate/config.json as described, then run doctor again" }); return; }
+      if (!harnessVars) { report("UNVERIFIED", name, `not compared: the block names this project's record files, and the project configuration cannot be used (${varsProblem})`, { required: true, next: "fix .skilliton/config.json as described, then run doctor again" }); return; }
       const path = join(dir, name);
       if (!isFile(path)) { report("MISSING", name, "does not exist, so it has no harness block", { required: true, next: writeHarness }); return; }
       const text = readBytes(path);
+      const legacyLine = legacyBlockLine(text);
+      if (legacyLine) { report("WARN", name, `line ${legacyLine} holds a harness block written under the earlier ${LEGACY_NAME} names`, { required: true, next: `move the project to the Skilliton names: ${selfCommand()} migrate${dirArg}` }); return; }
       let found;
       try { found = findBlock(text, name); } catch (e) {
         if (!(e instanceof Refused)) throw e;
@@ -1199,30 +1217,32 @@ function cmdDoctor(argv) {
   }
 
   // Project configuration.
-  guarded(".skillgate/config.json", true, () => {
-    const label = ".skillgate/config.json";
+  guarded(".skilliton/config.json", true, () => {
+    const label = ".skilliton/config.json";
     let read;
     try { read = readProjectConfig(dir); } catch (e) {
       if (!(e instanceof ConfigError)) throw e;
-      report(e.kind === "failed" ? "UNVERIFIED" : "WARN", label, e.message, { required: true, next: "fix .skillgate/config.json as described" });
+      report(e.kind === "failed" ? "UNVERIFIED" : "WARN", label, e.message, { required: true, next: "fix .skilliton/config.json as described" });
       return;
     }
+    if (read.legacy) { report("WARN", label, `not present: this project keeps its configuration in the earlier ${read.rel} until it is migrated`, { required: true, next: `move it to the Skilliton names: ${selfCommand()} migrate --apply${dirArg}` }); return; }
     if (!read.exists) { report("OK", label, "not present; every key has a default (a prepared project has one; see the project layout line)"); return; }
     const problems = configProblems(read.config);
     const sections = Object.keys(read.config);
-    if (problems.length) report("WARN", label, `parses, but: ${problems.join("; ")}`, { required: true, next: "fix .skillgate/config.json as described" });
+    if (problems.length) report("WARN", label, `parses, but: ${problems.join("; ")}`, { required: true, next: "fix .skilliton/config.json as described" });
     else {
-      try { resolveProject(dir); report("OK", label, `parses and every record path is usable; sections: ${sections.length ? sections.join(", ") : "none"}`); }
-      catch (e) { if (!(e instanceof ConfigError)) throw e; report("WARN", label, e.message, { required: true, next: "fix .skillgate/config.json as described" }); }
+      try { resolveProject(dir, { allowLegacy: true }); report("OK", label, `parses and every record path is usable; sections: ${sections.length ? sections.join(", ") : "none"}`); }
+      catch (e) { if (!(e instanceof ConfigError)) throw e; report("WARN", label, e.message, { required: true, next: "fix .skilliton/config.json as described" }); }
     }
     const unknown = sections.filter((x) => !KNOWN_SECTIONS.includes(x));
     if (unknown.length) report("WARN", label, `unknown section(s) ${unknown.join(", ")} (known: ${KNOWN_SECTIONS.join(", ")}); a misspelled section is ignored silently by the components`);
   });
   guarded("project layout", false, () => {
     let project;
-    try { project = resolveProject(dir); } catch (e) { if (!(e instanceof ConfigError)) throw e; report("UNVERIFIED", "project layout", "not checked: the project configuration cannot be used (see above)"); return; }
+    try { project = resolveProject(dir, { allowLegacy: true }); } catch (e) { if (!(e instanceof ConfigError)) throw e; report("UNVERIFIED", "project layout", "not checked: the project configuration cannot be used (see above)"); return; }
     const installed = readPluginVersion(PLUGIN_ROOT);
-    if (project.layoutVersion === null) report("WARN", "project layout", `not prepared by Skilliton (no prepare.version). To adopt this project's records and add the missing ones: ${selfCommand()} prepare${dirArg}`);
+    if (project.legacyNames) report("WARN", "project layout", `layout ${project.layoutVersion ?? "unknown"} under the earlier ${LEGACY_NAME} names (${project.configRel}); until it is migrated, only migrate, status and doctor work in this project`, { required: true, next: `move it to the Skilliton names: ${selfCommand()} migrate --apply${dirArg}` });
+    else if (project.layoutVersion === null) report("WARN", "project layout", `not prepared by Skilliton (no prepare.version). To adopt this project's records and add the missing ones: ${selfCommand()} prepare${dirArg}`);
     else if (project.layoutVersion < LAYOUT_VERSION) report("WARN", "project layout", `layout ${project.layoutVersion}, and this runtime writes layout ${LAYOUT_VERSION}; preview the migration: ${selfCommand()} migrate${dirArg}`, { required: true, next: `migrate the project layout: ${selfCommand()} migrate --apply${dirArg}` });
     else report("OK", "project layout", `layout ${project.layoutVersion} (current for this runtime)`);
     for (const [plugin, minimum] of Object.entries(project.requires)) {

@@ -9,7 +9,7 @@
 #
 # Project dir:  $CLAUDE_PROJECT_DIR, else "cwd" from the hook's stdin JSON (read with jq, node,
 #               or python3, whichever is found first), else $PWD.
-# Config:       .skillgate/config.json, keys handoff.file (default docs/HANDOFF.md, a path
+# Config:       .skilliton/config.json, keys handoff.file (default docs/HANDOFF.md, a path
 #               inside the repo) and handoff.maxBytes (default 6000). Read only when one of
 #               those parsers is installed; a config that cannot be used is reported in a notice.
 # Output:       every outcome prints at least one line; a missing file, a missing or empty
@@ -110,12 +110,12 @@ fi
 # 2. Config.
 file=$DEFAULT_FILE
 max=$DEFAULT_MAX
-config="$project_dir/.skillgate/config.json"
+config="$project_dir/.skilliton/config.json"
 if [ -f "$config" ]; then
   if [ -z "$parser" ]; then
     config_text=$(<"$config")
     case "$config_text" in
-      *'"handoff"'*) note ".skillgate/config.json has handoff settings but was not read (no jq, node, or python3 found); using $DEFAULT_FILE and $DEFAULT_MAX bytes." ;;
+      *'"handoff"'*) note ".skilliton/config.json has handoff settings but was not read (no jq, node, or python3 found); using $DEFAULT_FILE and $DEFAULT_MAX bytes." ;;
     esac
   elif values=$(config_values "$config"); then
     file_tag=${values%%"$nl"*}
@@ -123,22 +123,22 @@ if [ -f "$config" ]; then
     case "$file_tag" in
       absent:) ;;
       string:/*|string:..|string:../*|string:*/..|string:*/../*)
-        note "handoff.file in .skillgate/config.json must be a path inside the repo; using $DEFAULT_FILE." ;;
+        note "handoff.file in .skilliton/config.json must be a path inside the repo; using $DEFAULT_FILE." ;;
       string:?*) file=${file_tag#string:} ;;
-      *) note "handoff.file in .skillgate/config.json is not a usable path; using $DEFAULT_FILE." ;;
+      *) note "handoff.file in .skilliton/config.json is not a usable path; using $DEFAULT_FILE." ;;
     esac
     case "$max_tag" in
       absent:) ;;
       number:[1-9]|number:[1-9]*[0-9]) max=${max_tag#number:} ;;
-      *) note "handoff.maxBytes in .skillgate/config.json is not a positive whole number; using $DEFAULT_MAX." ;;
+      *) note "handoff.maxBytes in .skilliton/config.json is not a positive whole number; using $DEFAULT_MAX." ;;
     esac
     case "$max" in
       *[!0-9]*|??????????*)   # not digits only, or ten digits or more: too large to compare safely
         max=$DEFAULT_MAX
-        note "handoff.maxBytes in .skillgate/config.json is not a positive whole number; using $DEFAULT_MAX." ;;
+        note "handoff.maxBytes in .skilliton/config.json is not a positive whole number; using $DEFAULT_MAX." ;;
     esac
   else
-    note ".skillgate/config.json could not be read as JSON with a handoff object ($parser); using $DEFAULT_FILE and $DEFAULT_MAX bytes."
+    note ".skilliton/config.json could not be read as JSON with a handoff object ($parser); using $DEFAULT_FILE and $DEFAULT_MAX bytes."
   fi
 fi
 

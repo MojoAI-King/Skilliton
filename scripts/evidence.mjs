@@ -49,7 +49,7 @@ const summarizeRun = (caseName, r) => ({
 });
 
 const summary = {
-  kind: "skillgate eval evidence",
+  kind: "skilliton eval evidence",
   schema: 1,
   commit: sha,
   rawResultSha256: createHash("sha256").update(rawBytes).digest("hex"),

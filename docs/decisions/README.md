@@ -2,7 +2,7 @@
 
 Kind: Living.
 
-One file per decision, named `<id>.md` with an ID shaped `YYYY-MM-DD-<slug>-<four hex digits>` (the local date, up to 40 lowercase letters, digits and hyphens from the title, and a random suffix). Create one with `skillgate record decision "<title>"`; it shows the entry first and writes it with `--apply`. The status is `proposed` on a branch that is not an integration branch (main), otherwise `accepted`.
+One file per decision, named `<id>.md` with an ID shaped `YYYY-MM-DD-<slug>-<four hex digits>` (the local date, up to 40 lowercase letters, digits and hyphens from the title, and a random suffix). Create one with `skilliton record decision "<title>"`; it shows the entry first and writes it with `--apply`. The status is `proposed` on a branch that is not an integration branch (main), otherwise `accepted`.
 
 An entry has this shape:
 
@@ -21,4 +21,4 @@ An entry has this shape:
     ## Reversibility
     ## Evidence
 
-Write each section in plain language. `skillgate index` lists every entry in `DECISIONS.md`, sorted by ID; edit the entries, not the generated list.
+Write each section in plain language. `skilliton index` lists every entry in `DECISIONS.md`, sorted by ID; edit the entries, not the generated list.

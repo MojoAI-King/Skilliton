@@ -42,7 +42,7 @@ flowchart LR
 
 | What changes | How it reaches people | What protects it |
 |---|---|---|
-| Skills, hooks and the `skillgate` runtime | A signed company release, installed through the client's plugin marketplace | `skillgate verify` compares the installed files with the approved release |
+| Skills, hooks and the `skilliton` runtime | A signed company release, installed through the client's plugin marketplace | `skilliton verify` compares the installed files with the approved release |
 | A project's instructions, settings and record layout | A versioned migration that each project previews, then applies | Backups, a receipt per migration, and rollback while the files are unchanged |
 | The application's own code | Ordinary branches and review | The project's delivery gate tests the combined result before it reaches the shared branch |
 
@@ -57,7 +57,7 @@ your-skills-repository/
   packs/<company>/plugins/          your own plugins and skills
   templates/project-settings.json   the settings every project of yours receives
   releases/                         release manifests; approval is a signed tag
-  scripts/skillgate.mjs             the command line, run from this checkout
+  scripts/skilliton.mjs             the command line, run from this checkout
 ```
 
 Leave `packs/base/` as it is, so upstream improvements merge cleanly. The one base file meant for editing is `packs/base/plugins/workflow/templates/harness.md`: the instructions every project's `CLAUDE.md` and `AGENTS.md` receive.
@@ -65,21 +65,21 @@ Leave `packs/base/` as it is, so upstream improvements merge cleanly. The one ba
 ## Step 2: Make it yours
 
 ```bash
-node scripts/skillgate.mjs company init --name <company> --marketplace-repo <owner>/<repo> --apply
-node scripts/skillgate.mjs new-plugin <plugin> --pack <company> --apply
-node scripts/skillgate.mjs new-skill <plugin> <skill> --pack <company> --description "<what it does and when to use it>"
+node scripts/skilliton.mjs company init --name <company> --marketplace-repo <owner>/<repo> --apply
+node scripts/skilliton.mjs new-plugin <plugin> --pack <company> --apply
+node scripts/skilliton.mjs new-skill <plugin> <skill> --pack <company> --description "<what it does and when to use it>"
 ```
 
 - **`company init`** names your marketplace, sets its owner, and points the team settings template at your fork. Without it, projects would keep installing the upstream plugins instead of yours.
 - **`new-plugin`** creates a plugin in your pack, lists it in the catalog so people can install it, and turns it on in the team settings.
-- **`new-skill`** writes a skill skeleton for you to fill in. To bring in a skill you already have, use `node scripts/skillgate.mjs import <folder> --into <plugin> --pack <company>`, which first scans it for names, secrets and home paths.
+- **`new-skill`** writes a skill skeleton for you to fill in. To bring in a skill you already have, use `node scripts/skilliton.mjs import <folder> --into <plugin> --pack <company>`, which first scans it for names, secrets and home paths.
 - `company init` and `new-plugin` show their change and write nothing until you add `--apply`. `new-skill` creates the skill straight away.
 
 Then keep, or leave out, what comes prepackaged:
 
 | Plugin | What it gives every project | How it runs |
 |---|---|---|
-| **workflow** (required: it carries the `skillgate` runtime) | `task`: a plain request becomes a task record with acceptance criteria and checkpoints. `review`: what changed, what could break, what was tested, and a READY TO COMMIT, NEEDS ATTENTION or STOP verdict. `handoff` and `maintain`: a note for the next session, and records reconciled with git. `dispatch`: many items split into checked parallel lanes. `security`: evidence that goes stale when its sources change | Skills are **instructed**: the assistant follows them. The session-start summary and the reminder to record a checkpoint are hooks, **enforced** on Claude Code |
+| **workflow** (required: it carries the `skilliton` runtime) | `task`: a plain request becomes a task record with acceptance criteria and checkpoints. `review`: what changed, what could break, what was tested, and a READY TO COMMIT, NEEDS ATTENTION or STOP verdict. `handoff` and `maintain`: a note for the next session, and records reconciled with git. `dispatch`: many items split into checked parallel lanes. `security`: evidence that goes stale when its sources change | Skills are **instructed**: the assistant follows them. The session-start summary and the reminder to record a checkpoint are hooks, **enforced** on Claude Code |
 | **guardrails** | Blocks force-pushes to protected branches, skipped git hooks and commits that look like they hold a secret; asks before commands that throw away uncommitted work | A hook, **enforced** on Claude Code for the commands the assistant runs |
 | **context-hygiene** (optional) | A session-start checklist and rules for keeping the assistant's context small | A hook and a skill |
 
@@ -103,10 +103,10 @@ sequenceDiagram
 ```
 
 ```bash
-node scripts/skillgate.mjs release create --version 1.0.0 --apply
+node scripts/skilliton.mjs release create --version 1.0.0 --apply
 git add releases/1.0.0.json && git commit -m "Release 1.0.0"
-node scripts/skillgate.mjs release sign 1.0.0 --apply
-git push origin skillgate-release/1.0.0
+node scripts/skilliton.mjs release sign 1.0.0 --apply
+git push origin skilliton-release/1.0.0
 ```
 
 Approval is the signed tag and nothing else. Each approver adds a line to an SSH `allowed_signers` file, which developers receive through a channel an attacker cannot also edit, not from the repository itself. A bad release is withdrawn with `release withdraw` and replaced by a new, signed one. [RELEASING.md](RELEASING.md) walks through each of these.
@@ -117,27 +117,27 @@ Once per computer, from a clone of the company's repository:
 
 ```bash
 git clone https://github.com/<owner>/<repo> ~/company-skills
-node ~/company-skills/scripts/skillgate.mjs join --company <company> --signers <file from your company>           # preview
-node ~/company-skills/scripts/skillgate.mjs join --company <company> --signers <file from your company> --apply   # set up
+node ~/company-skills/scripts/skilliton.mjs join --company <company> --signers <file from your company>           # preview
+node ~/company-skills/scripts/skilliton.mjs join --company <company> --signers <file from your company> --apply   # set up
 ```
 
 `join` sets up every coding tool it finds, Claude Code and Codex:
 
 - it adds the company marketplace and installs the plugins the company's settings turn on;
 - it trusts the company's release signers, from a file the company gives you separately, never from the repository;
-- it puts a `skillgate` command in `~/.local/bin` for the terminal, and tells you when that folder is not on your PATH (it never edits your shell profile);
-- it ends by running `skillgate verify` for each tool.
+- it puts a `skilliton` command in `~/.local/bin` for the terminal, and tells you when that folder is not on your PATH (it never edits your shell profile);
+- it ends by running `skilliton verify` for each tool.
 
-It shows everything first and writes nothing until `--apply`. What it adds is recorded, so `skillgate join --undo --company <company> --apply` takes exactly that back out and keeps whatever you had before. Each project then declares the company tools with `skillgate project-settings --dir <project> --apply`, which writes `.claude/settings.json` from your template; commit it.
+It shows everything first and writes nothing until `--apply`. What it adds is recorded, so `skilliton join --undo --company <company> --apply` takes exactly that back out and keeps whatever you had before. Each project then declares the company tools with `skilliton project-settings --dir <project> --apply`, which writes `.claude/settings.json` from your template; commit it.
 
 ```mermaid
 flowchart TD
-  C["Clone the company repository"] --> J["skillgate join: preview"]
-  J --> A["skillgate join --apply"]
+  C["Clone the company repository"] --> J["skilliton join: preview"]
+  J --> A["skilliton join --apply"]
   A --> M["Each tool: company marketplace and plugins"]
   A --> S["Trusted release signers"]
-  A --> L["A terminal command named skillgate"]
-  M --> V["skillgate verify"]
+  A --> L["A terminal command named skilliton"]
+  M --> V["skilliton verify"]
   S --> V
   V --> Q{"Do the installed files match an approved release?"}
   Q -- "yes" --> OK["VERIFIED"]
@@ -152,13 +152,13 @@ flowchart TD
 **The first time in a repository**, preparation adopts what the project already has and adds only what is missing:
 
 ```bash
-skillgate prepare --dir <project>          # preview
-skillgate prepare --dir <project> --apply  # write
+skilliton prepare --dir <project>          # preview
+skilliton prepare --dir <project> --apply  # write
 ```
 
 - It keeps existing status, backlog, decision, lesson and handoff files, and creates the missing ones marked "not yet assessed".
 - It writes the team's instructions into `CLAUDE.md` and `AGENTS.md` between markers, leaving your own text alone, and sets up the security register.
-- Running it again changes nothing, and `skillgate remove` takes Skilliton out again while keeping every record.
+- Running it again changes nothing, and `skilliton remove` takes Skilliton out again while keeping every record.
 - Today a person or the assistant starts it; having the first session offer it is milestone M8.
 
 **Every day after that:**
@@ -185,13 +185,13 @@ flowchart TD
 | The task record, checkpoints, review and handoff | **instructed**: the assistant follows the instructions and skills | Claude Code and Codex |
 | The delivery gate | **checked at merge** | The shared repository, whichever tool each person uses |
 
-The commands underneath are ordinary and can be run by hand: `skillgate task start "<title>" --criteria "<done when>" --apply`, `skillgate checkpoint --state "<what is true>" --next "<next step>" --apply`, `skillgate record decision "<title>" --apply` and `skillgate status`. The delivery gate is installed once per shared repository with `skillgate delivery install` ([DELIVERY.md](DELIVERY.md)).
+The commands underneath are ordinary and can be run by hand: `skilliton task start "<title>" --criteria "<done when>" --apply`, `skilliton checkpoint --state "<what is true>" --next "<next step>" --apply`, `skilliton record decision "<title>" --apply` and `skilliton status`. The delivery gate is installed once per shared repository with `skilliton delivery install` ([DELIVERY.md](DELIVERY.md)).
 
 ## Step 6: Improve and update
 
 ```mermaid
 flowchart LR
-  L["A lesson recorded<br/>in a project"] --> PP["skillgate propose:<br/>a scrubbed copy in the fork"]
+  L["A lesson recorded<br/>in a project"] --> PP["skilliton propose:<br/>a scrubbed copy in the fork"]
   PP --> CH["Change the skill or check,<br/>with a test or eval case"]
   CH --> RV["Review in the fork"]
   RV --> RL["Signed release"]
@@ -200,7 +200,7 @@ flowchart LR
   MG --> L
 ```
 
-A proposal is not policy: it changes nothing until the company reviews it, tests it and releases it. A plugin update never edits a project. When a release changes the instructions or the record layout, each project previews `skillgate migrate` and applies it, with a backup and a receipt.
+A proposal is not policy: it changes nothing until the company reviews it, tests it and releases it. A plugin update never edits a project. When a release changes the instructions or the record layout, each project previews `skilliton migrate` and applies it, with a backup and a receipt.
 
 ## What is proven and what is not
 

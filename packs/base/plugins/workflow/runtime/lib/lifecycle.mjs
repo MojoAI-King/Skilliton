@@ -1,4 +1,4 @@
-// lifecycle.mjs: where a project stands, for `skillgate status` and the lifecycle hooks; the Stop reminder rule;
+// lifecycle.mjs: where a project stands, for `skilliton status` and the lifecycle hooks; the Stop reminder rule;
 // handoff freshness; session history. docs/CONTRACTS.md sections 9, 10 and 11.
 //
 // Every piece of project state is a check { name, status, summary, data }. status is one of:
@@ -19,8 +19,9 @@ import { ConfigError, DEFAULTS, LAYOUT_VERSION, ROLES, resolveProject } from "./
 import { PLUGIN_ROOT, Refused, cmpVersion, readPluginVersion, selfCommand, tilde } from "./core.mjs";
 import { GitError, changedPaths, gitTopLevel, readGitState, readJournal, runGit } from "./journal.mjs";
 import { TaskChangedError, TaskRecordError, gitLine, listTasks, pickCurrent } from "./tasks.mjs";
+import { LEGACY_NAME, LEGACY_PROJECT_DIR, legacyEnvironment } from "./legacy-names.mjs";
 
-export const RESULT_SCHEMA = "skillgate.result/1";
+export const RESULT_SCHEMA = "skilliton.result/1";
 export const RESULTS = { 0: "complete", 1: "attention", 2: "invalid", 3: "operation-failed" };
 
 // A Git or file system operation failed (exit 3), as opposed to invalid input (Refused, exit 2).
@@ -37,7 +38,7 @@ export const clip = (text, max = 200) => {
 
 // { root, project } for a command run in dirOption (or the current folder). Refused when the folder is missing, not
 // inside a Git work tree, or the configuration is invalid; OperationFailed when the configuration cannot be read.
-export function openProject(dirOption) {
+export function openProject(dirOption, { allowLegacy = false } = {}) {
   const dir = resolve(dirOption ?? process.cwd());
   let isDirectory = false;
   try { isDirectory = statSync(dir).isDirectory(); } catch { isDirectory = false; }
@@ -45,18 +46,18 @@ export function openProject(dirOption) {
   const root = gitTopLevel(dir);
   if (!root) throw new Refused(`${tilde(dir)} is not inside a Git repository; tasks, checkpoints and status read the branch, the commit and the working tree from Git`);
   try {
-    return { root, project: resolveProject(root) };
+    return { root, project: resolveProject(root, { allowLegacy }) };
   } catch (e) {
     if (e instanceof ConfigError) {
       if (e.kind === "failed") throw new OperationFailed(e.message);
-      throw new Refused(e.message);
+      throw new Refused(e.legacy ? `${e.message} Preview the move: ${selfCommand()} migrate` : e.message);
     }
     throw e;
   }
 }
 
 // Runs a command body and maps the engines' failure types onto the exit contract: invalid data and refused writes
-// become Refused (exit 2, printed by skillgate.mjs); Git and file system failures print one "operation failed" line
+// become Refused (exit 2, printed by skilliton.mjs); Git and file system failures print one "operation failed" line
 // and return 3. Anything else is a bug and propagates.
 export async function guardCommand(command, body) {
   try {
@@ -64,12 +65,12 @@ export async function guardCommand(command, body) {
   } catch (e) {
     if (e instanceof ConfigError) {
       if (e.kind !== "failed") throw new Refused(e.message);
-      console.error(`skillgate ${command}: operation failed: ${flat(e.message)}`);
+      console.error(`skilliton ${command}: operation failed: ${flat(e.message)}`);
       return 3;
     }
     if (e instanceof TaskRecordError || e instanceof TaskChangedError) throw new Refused(e.message);
     if (e instanceof GitError || e instanceof OperationFailed || (typeof e?.code === "string" && /^E[A-Z]+$/.test(e.code))) {
-      console.error(`skillgate ${command}: operation failed: ${flat(e.message)}`);
+      console.error(`skilliton ${command}: operation failed: ${flat(e.message)}`);
       return 3;
     }
     throw e;
@@ -251,7 +252,8 @@ export function parseHookInput(raw) {
 function layoutCheck(project) {
   const version = project.layoutVersion;
   const data = { version, runtimeLayout: LAYOUT_VERSION };
-  if (version === null) return { status: "attention", summary: `not prepared by Skilliton (no prepare.version in .skillgate/config.json); to see what prepare would change: ${selfCommand()} prepare`, data };
+  if (version === null) return { status: "attention", summary: `not prepared by Skilliton (no prepare.version in ${project.configRel}); to see what prepare would change: ${selfCommand()} prepare`, data };
+  if (project.legacyNames) return { status: "attention", summary: `layout ${version}${version === 2 ? ` under the earlier ${LEGACY_NAME} names (${LEGACY_PROJECT_DIR}/)` : ""}, and this runtime uses layout ${LAYOUT_VERSION} under the Skilliton names; until it is migrated, only migrate, status and doctor work in this project. To preview the migration: ${selfCommand()} migrate`, data };
   if (version < LAYOUT_VERSION) return { status: "attention", summary: `layout ${version}, and this runtime uses layout ${LAYOUT_VERSION}; to preview the migration: ${selfCommand()} migrate`, data };
   return { status: "ok", summary: `layout ${version} (current for this runtime)`, data };
 }
@@ -444,7 +446,7 @@ export async function gatherProjectState(root, { state = null, project = undefin
   const git = state ?? readGitState(root, { shortHead: true });
   report.git = { branch: git.branch, head: git.head, shortHead: git.shortHead, dirty: git.dirty, fingerprint: git.fingerprint };
   if (project === undefined) {
-    try { project = resolveProject(root); } catch (e) {
+    try { project = resolveProject(root, { allowLegacy: true }); } catch (e) {
       if (!(e instanceof ConfigError)) throw e;
       project = null;
       report.configProblem = e.message;
@@ -465,12 +467,13 @@ export async function gatherProjectState(root, { state = null, project = undefin
     tasks: () => tasksCheck(project, git, report),
     handoff: () => handoffCheck(project, git),
     sessions: () => sessionsCheck(root, git, currentSession),
-    security: () => securityCheck(root),
+    // A project under the earlier names keeps its evidence in the earlier project folder, which this runtime does not read.
+    security: () => (project?.legacyNames ? { status: "not-run", summary: `not evaluated: the evidence is under the earlier ${LEGACY_NAME} names until the project is migrated (${selfCommand()} migrate)`, data: { available: false } } : securityCheck(root)),
   };
   const needsProject = new Set(["layout", "migrations", "versions", "records", "tasks", "handoff"]);
   for (const name of CHECK_ORDER) {
     if (!project && needsProject.has(name)) {
-      add(name, { status: "not-run", summary: "not evaluated, because .skillgate/config.json cannot be used (see the configuration problem)", data: {} });
+      add(name, { status: "not-run", summary: "not evaluated, because .skilliton/config.json cannot be used (see the configuration problem)", data: {} });
       continue;
     }
     await run(name, bodies[name]);
@@ -498,7 +501,7 @@ export function reportSummary(report) {
 const LABELS = { ok: "OK", attention: "ATTENTION", note: "NOTE", "not-run": "NOT RUN", failed: "FAILED" };
 
 export function statusLines(report) {
-  const lines = ["skillgate status (writes nothing)", `project: ${tilde(report.root)}`, `git: ${gitLine(report.git)}`];
+  const lines = ["skilliton status (writes nothing)", `project: ${tilde(report.root)}`, `git: ${gitLine(report.git)}`];
   for (const c of report.checks) lines.push(`${LABELS[c.status].padEnd(10)} ${c.name}: ${c.summary}`);
   lines.push(`Summary: ${reportSummary(report)}`);
   return lines;
@@ -552,8 +555,10 @@ function taskLines(report, check) {
 const BLOCK_ORDER = ["tasks", "sessions", "handoff", "layout", "migrations", "versions", "records", "security"];
 
 export function sessionStartBlock(report, { maxBytes, notes = [] }) {
-  const lines = ["[workflow] Project state (skillgate hook session-start):", `- Branch: ${gitLine(report.git)}`];
+  const lines = ["[workflow] Project state (skilliton hook session-start):", `- Branch: ${gitLine(report.git)}`];
   if (report.configProblem) lines.push(`- Configuration (needs attention): ${clip(report.configProblem, 300)}`);
+  const renamed = legacyEnvironment();
+  if (renamed.length) lines.push(`- Environment (needs attention): ${renamed.map((v) => `${v.name} is set but no longer read; the variable is now ${v.replacement}`).join("; ")}`);
   for (const note of notes) lines.push(`- ${clip(note, 300)}`);
   for (const name of BLOCK_ORDER) {
     const check = report.checks.find((c) => c.name === name);

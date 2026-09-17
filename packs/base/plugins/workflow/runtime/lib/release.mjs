@@ -2,8 +2,8 @@
 //
 // A manifest, releases/<version>.json in the company skills repository, names every plugin in the repository's
 // .claude-plugin/marketplace.json with its version and the hash of every file. Approval is an annotated tag
-// skillgate-release/<version>, signed with SSH, on the commit that holds the manifest, whose message carries
-// "manifest-sha256: <hex>". Withdrawal is a signed tag skillgate-withdrawn/<version> carrying "reason: <text>".
+// skilliton-release/<version>, signed with SSH, on the commit that holds the manifest, whose message carries
+// "manifest-sha256: <hex>". Withdrawal is a signed tag skilliton-withdrawn/<version> carrying "reason: <text>".
 // This module builds and checks manifests and reads tags; the commands print and write.
 //
 // Node built-ins only; shells out to git only (through trust.mjs), with argument arrays. Nothing here imports from
@@ -17,9 +17,9 @@ import { NAME_RE, PLUGIN_ROOT, cmpVersion, isPlainObject, refuse, tilde } from "
 import { TreeError, filePathProblem, scanTree, sha256Hex, treeSha256Of } from "./treehash.mjs";
 import { requireGitAvailable, runGit, verifyTagSignature } from "./trust.mjs";
 
-export const MANIFEST_SCHEMA = "skillgate.release/1";
-export const RELEASE_TAG = "skillgate-release/";
-export const WITHDRAWN_TAG = "skillgate-withdrawn/";
+export const MANIFEST_SCHEMA = "skilliton.release/1";
+export const RELEASE_TAG = "skilliton-release/";
+export const WITHDRAWN_TAG = "skilliton-withdrawn/";
 export const VERSION_RE = /^(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})$/;
 export const MIGRATION_ID_RE = /^\d{4}-[a-z0-9][a-z0-9-]*$/;
 const HEX64 = /^[0-9a-f]{64}$/;
@@ -239,7 +239,7 @@ export async function releaseMigrations(repo, components) {
     const running = scanTree(PLUGIN_ROOT);
     same = running.problems.length === 0 && treeSha256Of(running.files) === workflow.treeSha256;
   }
-  if (!same) refuse(`the release's workflow plugin has a migrations module, and only the runtime inside that plugin may read it, but this command is running from ${tilde(PLUGIN_ROOT)}, which differs. Run it from the release's own checkout: node ${tilde(join(repo, "scripts", "skillgate.mjs"))} release create ... Nothing was written.`);
+  if (!same) refuse(`the release's workflow plugin has a migrations module, and only the runtime inside that plugin may read it, but this command is running from ${tilde(PLUGIN_ROOT)}, which differs. Run it from the release's own checkout: node ${tilde(join(repo, "scripts", "skilliton.mjs"))} release create ... Nothing was written.`);
   const mod = await import(new URL("./migrations.mjs", import.meta.url).href);
   const list = Array.isArray(mod.MIGRATIONS) ? mod.MIGRATIONS : typeof mod.listMigrations === "function" ? await mod.listMigrations() : null;
   if (!Array.isArray(list)) return { ids: [], note: "migrations: the migrations module is not available in this build (it exports neither MIGRATIONS nor listMigrations()), so none are recorded" };
@@ -462,7 +462,7 @@ export function inspectTag(repo, ref, kind, version, trust) {
   if (!sig.verified) { out.reason = sig.reason; return out; }
   out.signer = { principal: sig.principal, keyType: sig.keyType, fingerprint: sig.fingerprint };
   const lines = t.message.split("\n").map((l) => l.replace(/\r$/, ""));
-  const first = kind === "release" ? `skillgate release ${version}` : `skillgate withdrawn ${version}`;
+  const first = kind === "release" ? `skilliton release ${version}` : `skilliton withdrawn ${version}`;
   if (lines[0] !== first) { out.reason = `its signed message does not start with "${first}"`; return out; }
   if (kind === "release") {
     const found = lines.filter((l) => l.startsWith("manifest-sha256:"));
@@ -583,7 +583,7 @@ export function planSign(repoInput, version) {
   requireSshSigning(repo);
   const manifestSha256 = sha256Hex(committed.stdout);
   const tag = `${RELEASE_TAG}${version}`;
-  return { repo, head, tag, manifestSha256, args: ["tag", "-s", tag, "-m", `skillgate release ${version}`, "-m", `manifest-sha256: ${manifestSha256}`, head] };
+  return { repo, head, tag, manifestSha256, args: ["tag", "-s", tag, "-m", `skilliton release ${version}`, "-m", `manifest-sha256: ${manifestSha256}`, head] };
 }
 
 export function validateReason(reason) {
@@ -605,7 +605,7 @@ export function planWithdraw(repoInput, version, reasonInput) {
   if (!commit.ok) refuse(`${tag} does not point at a commit. Nothing was tagged.`);
   requireSshSigning(repo);
   const target = commit.stdout.trim();
-  return { repo, tag: withdrawn, target, reason, args: ["tag", "-s", withdrawn, "-m", `skillgate withdrawn ${version}`, "-m", `reason: ${reason}`, target] };
+  return { repo, tag: withdrawn, target, reason, args: ["tag", "-s", withdrawn, "-m", `skilliton withdrawn ${version}`, "-m", `reason: ${reason}`, target] };
 }
 
 // A command as a person could paste it into a POSIX shell.

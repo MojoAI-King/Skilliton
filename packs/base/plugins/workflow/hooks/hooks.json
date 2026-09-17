@@ -10,7 +10,7 @@
           },
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/bin/skillgate hook session-start",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/bin/skilliton hook session-start",
             "timeout": 15
           }
         ]
@@ -21,7 +21,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/bin/skillgate hook stop",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/bin/skilliton hook stop",
             "timeout": 15
           }
         ]
@@ -32,7 +32,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/bin/skillgate hook pre-compact",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/bin/skilliton hook pre-compact",
             "timeout": 15
           }
         ]
@@ -43,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/bin/skillgate hook session-end",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/bin/skilliton hook session-end",
             "timeout": 15
           }
         ]

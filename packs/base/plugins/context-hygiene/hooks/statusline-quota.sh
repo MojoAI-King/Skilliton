@@ -13,8 +13,8 @@
 set -u
 # Default logs live in their own directory: another status-line logger may already write a
 # different record shape to ~/.claude/usage-log.jsonl, and two schemas in one log is a collision.
-LOG="${SKILLGATE_USAGE_LOG:-$HOME/.claude/skillgate/usage-log.jsonl}"
-KEYS_LOG="${SKILLGATE_KEYS_LOG:-$HOME/.claude/skillgate/statusline-keys-seen.log}"
+LOG="${SKILLITON_USAGE_LOG:-$HOME/.claude/skilliton/usage-log.jsonl}"
+KEYS_LOG="${SKILLITON_KEYS_LOG:-$HOME/.claude/skilliton/statusline-keys-seen.log}"
 mkdir -p "$(dirname "$LOG")" "$(dirname "$KEYS_LOG")"
 
 PAYLOAD=$(cat)

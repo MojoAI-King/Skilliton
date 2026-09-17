@@ -1,6 +1,6 @@
 // journal.mjs: the local lifecycle journal and the mechanical Git state it records. docs/CONTRACTS.md sections 9 and 11.
 //
-// The journal is <git rev-parse --absolute-git-dir>/skillgate/journal.jsonl: one JSON object per line, append-only,
+// The journal is <git rev-parse --absolute-git-dir>/skilliton/journal.jsonl: one JSON object per line, append-only,
 // never tracked. Each Git worktree has its own git dir, so each worktree has its own journal.
 //
 // Events: { "at": ISO, "event": one of JOURNAL_EVENTS, "session": id | null, "branch", "head", "dirty": n,
@@ -77,8 +77,8 @@ export function readBranch(root) {
   throw new GitError(`git symbolic-ref failed in ${root}: ${firstLine(r.stderr) || `exit ${r.status}`}`);
 }
 
-export const journalPath = (root) => join(gitDir(root), "skillgate", "journal.jsonl");
-export const backupRoot = (root) => join(gitDir(root), "skillgate-backups");
+export const journalPath = (root) => join(gitDir(root), "skilliton", "journal.jsonl");
+export const backupRoot = (root) => join(gitDir(root), "skilliton-backups");
 
 export const fingerprintOf = (head, porcelain) => createHash("sha256").update(`${head ?? ""}\n${porcelain}`, "utf8").digest("hex");
 

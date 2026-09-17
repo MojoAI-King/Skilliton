@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Tests scripts/skillgate.mjs and scripts/scrub-check.sh --path. Everything happens in a temp folder: every child
-// process gets HOME, SKILLGATE_BACKUPS, and SKILLGATE_DENYLIST pointing into it, so the real home directory is never
+// Tests scripts/skilliton.mjs and scripts/scrub-check.sh --path. Everything happens in a temp folder: every child
+// process gets HOME, SKILLITON_BACKUPS, and SKILLITON_DENYLIST pointing into it, so the real home directory is never
 // touched by the code under test. The harness and settings templates are read from the repo, never copied.
 //
-//   node scripts/skillgate.test.mjs
+//   node scripts/skilliton.test.mjs
 //
 // Prints ok or FAIL for each check. Exit 0: all ok. Exit 1: at least one FAIL (temp files are kept for inspection).
 
@@ -15,13 +15,13 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, "..");
-const CLI = join(here, "skillgate.mjs");
+const CLI = join(here, "skilliton.mjs");
 const SCRUB = join(here, "scrub-check.sh");
-const START = "<!-- skillgate:harness:start v1 -->";
-const END = "<!-- skillgate:harness:end -->";
+const START = "<!-- skilliton:harness:start v1 -->";
+const END = "<!-- skilliton:harness:end -->";
 const TEMPLATE = readFileSync(join(repo, "packs", "base", "plugins", "workflow", "templates", "harness.md"), "utf8");
 // The template names project record files as {{key}}. These are the contract defaults (docs/CONTRACTS.md sections 2
-// and 4) for a project with no .skillgate/config.json and no existing records, written out here rather than imported,
+// and 4) for a project with no .skilliton/config.json and no existing records, written out here rather than imported,
 // so a change to the defaults in config.mjs has to be made on purpose in both places.
 const DEFAULT_VARS = {
   status: "docs/STATUS.md", backlog: "docs/BACKLOG.md", backlogArchive: "docs/BACKLOG_ARCHIVE.md", roadmap: "docs/ROADMAP.md",
@@ -36,15 +36,15 @@ const BLOCK = `${START}\n${RENDERED.endsWith("\n") ? RENDERED : RENDERED + "\n"}
 const SETTINGS_TEMPLATE = JSON.parse(readFileSync(join(repo, "templates", "project-settings.json"), "utf8"));
 const CATALOG = JSON.parse(readFileSync(join(repo, ".claude-plugin", "marketplace.json"), "utf8"));
 
-const tmp = mkdtempSync(join(tmpdir(), "skillgate-test-"));
+const tmp = mkdtempSync(join(tmpdir(), "skilliton-test-"));
 const HOME = join(tmp, "home");
 mkdirSync(HOME);
 const DENY = join(tmp, "denylist");
 const DENIED = "qzxvexamplename"; // a made-up token standing in for a name that must never ship
 writeFileSync(DENY, `# test denylist\n${DENIED}\n`);
 
-const baseEnv = { ...process.env, HOME, SKILLGATE_BACKUPS: join(tmp, "backups-unused"), SKILLGATE_DENYLIST: DENY };
-delete baseEnv.SKILLGATE_DEBUG;
+const baseEnv = { ...process.env, HOME, SKILLITON_BACKUPS: join(tmp, "backups-unused"), SKILLITON_DENYLIST: DENY };
+delete baseEnv.SKILLITON_DEBUG;
 delete baseEnv.CLAUDE_CONFIG_DIR;
 
 function cli(args, env = {}) {
@@ -101,7 +101,7 @@ section("harness: show writes nothing");
   const backups = join(tmp, "b-show");
   const original = Buffer.from("# My project\n\nKeep this line.\n");
   writeFileSync(join(p, "CLAUDE.md"), original);
-  const r = cli(["harness", "--dir", p], { SKILLGATE_BACKUPS: backups });
+  const r = cli(["harness", "--dir", p], { SKILLITON_BACKUPS: backups });
   check("show exits 0", r.code === 0, r.all);
   check("show prints the unified change, with the markers being added", r.out.includes(`+${START}`) && r.out.includes(`+${END}`) && r.out.includes("--- a/CLAUDE.md"), r.out);
   check("show leaves CLAUDE.md byte-identical", sameBytes(bytes(join(p, "CLAUDE.md")), original));
@@ -114,7 +114,7 @@ section("harness: apply creates a missing file containing only the block");
 {
   const p = folder("h-new");
   const backups = join(tmp, "b-new");
-  const r = cli(["harness", "--apply", "--file", "AGENTS.md", "--dir", p], { SKILLGATE_BACKUPS: backups });
+  const r = cli(["harness", "--apply", "--file", "AGENTS.md", "--dir", p], { SKILLITON_BACKUPS: backups });
   check("apply exits 0", r.code === 0, r.all);
   check("AGENTS.md holds exactly start marker + template + end marker", existsSync(join(p, "AGENTS.md")) && readFileSync(join(p, "AGENTS.md"), "utf8") === BLOCK);
   check("--file AGENTS.md leaves CLAUDE.md uncreated", !existsSync(join(p, "CLAUDE.md")));
@@ -136,7 +136,7 @@ const keep = {};
   const after = Buffer.from("\nText after the block.\nlast line has no newline");
   const original = Buffer.concat([before, oldBlock, after]);
   writeFileSync(join(p, "CLAUDE.md"), original);
-  const r = cli(["harness", "--apply", "--file", "CLAUDE.md", "--dir", p], { SKILLGATE_BACKUPS: backups });
+  const r = cli(["harness", "--apply", "--file", "CLAUDE.md", "--dir", p], { SKILLITON_BACKUPS: backups });
   const got = bytes(join(p, "CLAUDE.md"));
   check("replace exits 0", r.code === 0, r.all);
   check("bytes before the start marker are identical", sameBytes(got.subarray(0, before.length), before));
@@ -148,7 +148,7 @@ const keep = {};
   const p2 = folder("h-append");
   const original2 = Buffer.from("# Notes\n\nUser text stays exactly as written.\n");
   writeFileSync(join(p2, "CLAUDE.md"), original2);
-  const r2 = cli(["harness", "--apply", "--file", "CLAUDE.md", "--dir", p2], { SKILLGATE_BACKUPS: backups });
+  const r2 = cli(["harness", "--apply", "--file", "CLAUDE.md", "--dir", p2], { SKILLITON_BACKUPS: backups });
   check("append exits 0", r2.code === 0, r2.all);
   check("append result is the original bytes, one blank line, then the block", sameBytes(bytes(join(p2, "CLAUDE.md")), Buffer.concat([original2, Buffer.from("\n" + BLOCK)])));
   Object.assign(keep, { p, p2, before, after, original2, backups, firstApply: got, firstApply2: bytes(join(p2, "CLAUDE.md")) });
@@ -157,8 +157,8 @@ const keep = {};
 section("harness: a second apply is byte-identical");
 {
   const stampsBefore = backupsOf(keep.backups, "harness").length;
-  const r = cli(["harness", "--apply", "--file", "CLAUDE.md", "--dir", keep.p], { SKILLGATE_BACKUPS: keep.backups });
-  const r2 = cli(["harness", "--apply", "--file", "CLAUDE.md", "--dir", keep.p2], { SKILLGATE_BACKUPS: keep.backups });
+  const r = cli(["harness", "--apply", "--file", "CLAUDE.md", "--dir", keep.p], { SKILLITON_BACKUPS: keep.backups });
+  const r2 = cli(["harness", "--apply", "--file", "CLAUDE.md", "--dir", keep.p2], { SKILLITON_BACKUPS: keep.backups });
   check("second apply exits 0 for both files", r.code === 0 && r2.code === 0, r.all + r2.all);
   check("replaced file is byte-identical after the second apply", sameBytes(bytes(join(keep.p, "CLAUDE.md")), keep.firstApply));
   check("appended file is byte-identical after the second apply", sameBytes(bytes(join(keep.p2, "CLAUDE.md")), keep.firstApply2));
@@ -170,22 +170,22 @@ section("harness: undo removes exactly the block");
 {
   const backups = join(tmp, "b-undo");
   const beforeUndo = bytes(join(keep.p2, "CLAUDE.md"));
-  const r = cli(["harness", "--undo", "--file", "CLAUDE.md", "--dir", keep.p2], { SKILLGATE_BACKUPS: backups });
+  const r = cli(["harness", "--undo", "--file", "CLAUDE.md", "--dir", keep.p2], { SKILLITON_BACKUPS: backups });
   check("undo exits 0", r.code === 0, r.all);
   check("undo after an append restores the original file byte for byte", sameBytes(bytes(join(keep.p2, "CLAUDE.md")), keep.original2), bytes(join(keep.p2, "CLAUDE.md")).toString("utf8"));
   const stamps = backupsOf(backups, "harness");
   check("undo backed up the file as it was just before the undo", stamps.length === 1 && sameBytes(bytes(join(backups, "harness", stamps[0], "CLAUDE.md")), beforeUndo));
 
-  const r2 = cli(["harness", "--undo", "--file", "CLAUDE.md", "--dir", keep.p], { SKILLGATE_BACKUPS: backups });
+  const r2 = cli(["harness", "--undo", "--file", "CLAUDE.md", "--dir", keep.p], { SKILLITON_BACKUPS: backups });
   const expected = Buffer.concat([keep.before.subarray(0, keep.before.length - 1), keep.after]);
   check("undo in the middle of a file removes the block and one blank line, and nothing else", r2.code === 0 && sameBytes(bytes(join(keep.p, "CLAUDE.md")), expected), r2.all);
 
-  const r3 = cli(["harness", "--undo", "--file", "CLAUDE.md", "--dir", keep.p], { SKILLGATE_BACKUPS: backups });
+  const r3 = cli(["harness", "--undo", "--file", "CLAUDE.md", "--dir", keep.p], { SKILLITON_BACKUPS: backups });
   check("a second undo finds nothing to remove and changes nothing", r3.code === 0 && r3.out.includes("nothing to remove") && sameBytes(bytes(join(keep.p, "CLAUDE.md")), expected), r3.all);
 
   const p3 = folder("h-top");
   writeFileSync(join(p3, "CLAUDE.md"), `${BLOCK}\nMy own notes\n`);
-  const r4 = cli(["harness", "--undo", "--file", "CLAUDE.md", "--dir", p3], { SKILLGATE_BACKUPS: backups });
+  const r4 = cli(["harness", "--undo", "--file", "CLAUDE.md", "--dir", p3], { SKILLITON_BACKUPS: backups });
   check("undo of a block at the top also removes the blank line after it", r4.code === 0 && readFileSync(join(p3, "CLAUDE.md"), "utf8") === "My own notes\n", r4.all);
 }
 
@@ -193,35 +193,35 @@ section("harness: the block names this project's own record files");
 {
   const backups = join(tmp, "b-vars");
   const p = folder("h-vars-config");
-  mkdirSync(join(p, ".skillgate"));
-  writeFileSync(join(p, ".skillgate", "config.json"), JSON.stringify({ prepare: { artifacts: { handoff: "notes/HANDOFF.md" } }, handoff: { file: "notes/HANDOFF.md" } }));
-  const r = cli(["harness", "--apply", "--file", "CLAUDE.md", "--dir", p], { SKILLGATE_BACKUPS: backups });
+  mkdirSync(join(p, ".skilliton"));
+  writeFileSync(join(p, ".skilliton", "config.json"), JSON.stringify({ prepare: { artifacts: { handoff: "notes/HANDOFF.md" } }, handoff: { file: "notes/HANDOFF.md" } }));
+  const r = cli(["harness", "--apply", "--file", "CLAUDE.md", "--dir", p], { SKILLITON_BACKUPS: backups });
   const got = existsSync(join(p, "CLAUDE.md")) ? readFileSync(join(p, "CLAUDE.md"), "utf8") : "";
   check("a configured handoff path is rendered into the block", r.code === 0 && got.includes("`notes/HANDOFF.md`") && !got.includes("docs/HANDOFF.md"), r.all);
   check("positive control: the default rendering names docs/HANDOFF.md", BLOCK.includes("`docs/HANDOFF.md`"));
 
-  const d = cli(["doctor", "--dir", p], { SKILLGATE_BACKUPS: backups });
+  const d = cli(["doctor", "--dir", p], { SKILLITON_BACKUPS: backups });
   check("doctor calls the configured rendering current", /^OK +CLAUDE\.md: harness block present and matches the current template/m.test(d.out), d.out);
   writeFileSync(join(p, "CLAUDE.md"), BLOCK);
-  const d2 = cli(["doctor", "--dir", p], { SKILLGATE_BACKUPS: backups });
+  const d2 = cli(["doctor", "--dir", p], { SKILLITON_BACKUPS: backups });
   check("doctor flags a default rendering in a project whose handoff lives elsewhere", /^WARN +CLAUDE\.md: harness block differs from the current template/m.test(d2.out), d2.out);
 
   const q = folder("h-vars-adopt");
   writeFileSync(join(q, "HANDOFF.md"), "# Handoff\n");
-  const r2 = cli(["harness", "--apply", "--file", "AGENTS.md", "--dir", q], { SKILLGATE_BACKUPS: backups });
+  const r2 = cli(["harness", "--apply", "--file", "AGENTS.md", "--dir", q], { SKILLITON_BACKUPS: backups });
   const got2 = existsSync(join(q, "AGENTS.md")) ? readFileSync(join(q, "AGENTS.md"), "utf8") : "";
   check("an existing root HANDOFF.md is adopted by the rendering", r2.code === 0 && got2.includes("handoff `HANDOFF.md`"), r2.all);
 
   const bad = folder("h-vars-badconfig");
-  mkdirSync(join(bad, ".skillgate"));
-  writeFileSync(join(bad, ".skillgate", "config.json"), JSON.stringify({ prepare: { artifacts: { handoff: "../outside.md" } } }));
-  const r3 = cli(["harness", "--apply", "--dir", bad], { SKILLGATE_BACKUPS: backups });
+  mkdirSync(join(bad, ".skilliton"));
+  writeFileSync(join(bad, ".skilliton", "config.json"), JSON.stringify({ prepare: { artifacts: { handoff: "../outside.md" } } }));
+  const r3 = cli(["harness", "--apply", "--dir", bad], { SKILLITON_BACKUPS: backups });
   check("an unusable project configuration refuses with exit 2 and writes nothing", r3.code === 2 && /configuration cannot be used/.test(r3.all) && !existsSync(join(bad, "CLAUDE.md")) && !existsSync(join(bad, "AGENTS.md")), r3.all);
 
   const custom = join(tmp, "custom-template.md");
   writeFileSync(custom, "## Rules\n\nRead {{nope}} first.\n");
   const e = folder("h-vars-unknown");
-  const r4 = cli(["harness", "--apply", "--dir", e, "--template", custom], { SKILLGATE_BACKUPS: backups });
+  const r4 = cli(["harness", "--apply", "--dir", e, "--template", custom], { SKILLITON_BACKUPS: backups });
   check("a template naming an unknown value refuses with exit 2 and writes nothing", r4.code === 2 && r4.all.includes("{{nope}}") && !existsSync(join(e, "CLAUDE.md")), r4.all);
 }
 
@@ -239,7 +239,7 @@ section("harness: malformed markers are refused with exit 2, and nothing is writ
     const backups = join(tmp, "b-bad");
     writeFileSync(join(p, "CLAUDE.md"), content);
     for (const mode of ["--apply", "--undo"]) {
-      const r = cli(["harness", mode, "--dir", p], { SKILLGATE_BACKUPS: backups });
+      const r = cli(["harness", mode, "--dir", p], { SKILLITON_BACKUPS: backups });
       check(`${label}: ${mode} exits 2 and names the reason`, r.code === 2 && reason.test(r.all), r.all);
     }
     check(`${label}: CLAUDE.md unchanged`, readFileSync(join(p, "CLAUDE.md"), "utf8") === content);
@@ -259,16 +259,16 @@ section("project-settings: merge into an existing file");
     permissions: { allow: ["Bash(ls:*)"] },
     model: "some-model",
     extraKnownMarketplaces: { other: { source: { source: "github", repo: "someone/other-skills" } } },
-    enabledPlugins: { "tool@other": true, "workflow@skillgate": false },
+    enabledPlugins: { "tool@other": true, "workflow@skilliton": false },
   };
   const original = Buffer.from(JSON.stringify(existing, null, 4) + "\n");
   writeFileSync(file, original);
 
-  const show = cli(["project-settings", "--dir", dir], { SKILLGATE_BACKUPS: backups });
+  const show = cli(["project-settings", "--dir", dir], { SKILLITON_BACKUPS: backups });
   check("show exits 0 and prints the resulting file", show.code === 0 && show.out.includes("Resulting .claude/settings.json:"), show.all);
   check("show leaves the file byte-identical and makes no backup", sameBytes(bytes(file), original) && !existsSync(backups));
 
-  const r = cli(["project-settings", "--apply", "--dir", dir], { SKILLGATE_BACKUPS: backups });
+  const r = cli(["project-settings", "--apply", "--dir", dir], { SKILLITON_BACKUPS: backups });
   const got = JSON.parse(readFileSync(file, "utf8"));
   check("apply exits 0", r.code === 0, r.all);
   check("other top-level keys are kept", JSON.stringify(got.permissions) === JSON.stringify(existing.permissions) && got.model === "some-model");
@@ -278,12 +278,12 @@ section("project-settings: merge into an existing file");
     check(`template marketplace ${name} is added as the template declares it`, JSON.stringify(got.extraKnownMarketplaces[name]) === JSON.stringify(entry));
   }
   for (const [id, on] of Object.entries(SETTINGS_TEMPLATE.enabledPlugins)) check(`template plugin ${id} is set to ${on}`, got.enabledPlugins[id] === on);
-  check("a value the template overrides is listed before it is written", r.out.includes('change enabledPlugins["workflow@skillgate"]: false -> true'), r.out);
+  check("a value the template overrides is listed before it is written", r.out.includes('change enabledPlugins["workflow@skilliton"]: false -> true'), r.out);
   const stamps = backupsOf(backups, "project-settings");
   check("the original file was backed up byte for byte", stamps.length === 1 && sameBytes(bytes(join(backups, "project-settings", stamps[0], "settings.json")), original));
 
   const afterFirst = bytes(file);
-  const again = cli(["project-settings", "--apply", "--dir", dir], { SKILLGATE_BACKUPS: backups });
+  const again = cli(["project-settings", "--apply", "--dir", dir], { SKILLITON_BACKUPS: backups });
   check("a second apply changes nothing and says so", again.code === 0 && again.out.includes("nothing to change") && sameBytes(bytes(file), afterFirst), again.all);
 }
 
@@ -291,7 +291,7 @@ section("project-settings: a fork's marketplace name and repo");
 {
   const dir = folder("ps-fork");
   const [originalName] = Object.keys(SETTINGS_TEMPLATE.extraKnownMarketplaces);
-  const r = cli(["project-settings", "--apply", "--dir", dir, "--marketplace-name", "acme-skills", "--marketplace-repo", "acme/skills"], { SKILLGATE_BACKUPS: join(tmp, "b-fork") });
+  const r = cli(["project-settings", "--apply", "--dir", dir, "--marketplace-name", "acme-skills", "--marketplace-repo", "acme/skills"], { SKILLITON_BACKUPS: join(tmp, "b-fork") });
   check("apply with a new name and repo exits 0", r.code === 0, r.all);
   const got = JSON.parse(readFileSync(join(dir, ".claude", "settings.json"), "utf8"));
   const wantIds = Object.keys(SETTINGS_TEMPLATE.enabledPlugins).map((id) => id.replace(new RegExp(`@${originalName}$`), "@acme-skills")).sort();
@@ -309,7 +309,7 @@ section("project-settings: a marketplace source is replaced whole, never mixed")
   const [name] = Object.keys(SETTINGS_TEMPLATE.extraKnownMarketplaces);
   const p = folder("ps-source", ".claude");
   writeFileSync(join(p, "settings.json"), JSON.stringify({ extraKnownMarketplaces: { [name]: { source: { source: "directory", path: "/tmp/local-checkout" } } } }));
-  const r = cli(["project-settings", "--apply", "--dir", dirname(p)], { SKILLGATE_BACKUPS: join(tmp, "b-source") });
+  const r = cli(["project-settings", "--apply", "--dir", dirname(p)], { SKILLITON_BACKUPS: join(tmp, "b-source") });
   const got = JSON.parse(readFileSync(join(p, "settings.json"), "utf8"));
   check("the old source's extra keys do not survive into the new source", r.code === 0 && JSON.stringify(got.extraKnownMarketplaces[name].source) === JSON.stringify(SETTINGS_TEMPLATE.extraKnownMarketplaces[name].source), JSON.stringify(got));
 }
@@ -320,7 +320,7 @@ section("project-settings: invalid JSON is refused");
   const backups = join(tmp, "b-invalid");
   const content = '{ "model": "x", }\n';
   writeFileSync(join(p, "settings.json"), content);
-  const r = cli(["project-settings", "--apply", "--dir", dirname(p)], { SKILLGATE_BACKUPS: backups });
+  const r = cli(["project-settings", "--apply", "--dir", dirname(p)], { SKILLITON_BACKUPS: backups });
   check("exit 2 with the reason", r.code === 2 && /is not valid JSON, so it was left untouched/.test(r.all), r.all);
   check("the file is untouched and nothing was backed up", readFileSync(join(p, "settings.json"), "utf8") === content && !existsSync(backups));
 }
@@ -341,7 +341,7 @@ section("new-skill");
   const backups = join(tmp, "b-new-skill");
   const skill = join(root, "packs", "base", "plugins", "workflow", "skills", "release-notes", "SKILL.md");
   const description = "Write release notes from merged work. Use when someone asks for release notes.";
-  const r = cli(["new-skill", "workflow", "release-notes", "--repo", root, "--description", description], { SKILLGATE_BACKUPS: backups });
+  const r = cli(["new-skill", "workflow", "release-notes", "--repo", root, "--description", description], { SKILLITON_BACKUPS: backups });
   check("new-skill exits 0", r.code === 0, r.all);
   const text = existsSync(skill) ? readFileSync(skill, "utf8") : "";
   check("SKILL.md starts with frontmatter holding name and description", text.startsWith(`---\nname: release-notes\ndescription: ${description}\n---\n`), text);
@@ -351,22 +351,22 @@ section("new-skill");
   const stamps = backupsOf(backups, "new-skill");
   check("plugin.json was backed up before the bump", stamps.length === 1 && readFileSync(join(backups, "new-skill", stamps[0], "plugin.json"), "utf8") === PLUGIN_JSON);
 
-  const dup = cli(["new-skill", "workflow", "release-notes", "--repo", root], { SKILLGATE_BACKUPS: backups });
+  const dup = cli(["new-skill", "workflow", "release-notes", "--repo", root], { SKILLITON_BACKUPS: backups });
   check("a duplicate skill is refused with exit 2", dup.code === 2 && /release-notes already exists; nothing was changed/.test(dup.all), dup.all);
   check("the refused duplicate did not bump the version again", versionIn(root) === "0.1.1");
 
-  const badName = cli(["new-skill", "workflow", "Release_Notes", "--repo", root], { SKILLGATE_BACKUPS: backups });
+  const badName = cli(["new-skill", "workflow", "Release_Notes", "--repo", root], { SKILLITON_BACKUPS: backups });
   check("a bad skill name is refused with exit 2 and the naming rule", badName.code === 2 && /lowercase letters, digits, and hyphens/.test(badName.all), badName.all);
   check("the bad name created nothing and bumped nothing", !existsSync(join(root, "packs", "base", "plugins", "workflow", "skills", "Release_Notes")) && versionIn(root) === "0.1.1");
 
-  const todo = cli(["new-skill", "workflow", "draft-skill", "--repo", root], { SKILLGATE_BACKUPS: backups });
+  const todo = cli(["new-skill", "workflow", "draft-skill", "--repo", root], { SKILLITON_BACKUPS: backups });
   const todoText = readFileSync(join(root, "packs", "base", "plugins", "workflow", "skills", "draft-skill", "SKILL.md"), "utf8");
-  check("without --description the description is a marked TODO placeholder", todo.code === 0 && /^description: TODO\(skillgate\) /m.test(todoText), todo.all + todoText);
+  check("without --description the description is a marked TODO placeholder", todo.code === 0 && /^description: TODO\(skilliton\) /m.test(todoText), todo.all + todoText);
 
-  const quoted = cli(["new-skill", "workflow", "quoted-skill", "--repo", root, "--description", "Use when: the text has a colon"], { SKILLGATE_BACKUPS: backups });
+  const quoted = cli(["new-skill", "workflow", "quoted-skill", "--repo", root, "--description", "Use when: the text has a colon"], { SKILLITON_BACKUPS: backups });
   const quotedText = readFileSync(join(root, "packs", "base", "plugins", "workflow", "skills", "quoted-skill", "SKILL.md"), "utf8");
   check("a description that YAML would misread is quoted", quoted.code === 0 && quotedText.includes('description: "Use when: the text has a colon"'), quotedText);
-  const boolish = cli(["new-skill", "workflow", "boolish-skill", "--repo", root, "--description", "true"], { SKILLGATE_BACKUPS: backups });
+  const boolish = cli(["new-skill", "workflow", "boolish-skill", "--repo", root, "--description", "true"], { SKILLITON_BACKUPS: backups });
   const boolishText = readFileSync(join(root, "packs", "base", "plugins", "workflow", "skills", "boolish-skill", "SKILL.md"), "utf8");
   check("a description YAML would read as a boolean stays text (regression)", boolish.code === 0 && boolishText.includes('description: "true"'), boolishText);
   check("each created skill bumped the version once (0.1.4 after four)", versionIn(root) === "0.1.4");
@@ -378,7 +378,7 @@ section("new-skill");
   writeFileSync(join(root, "packs", "acme", "plugins", "workflow", ".claude-plugin", "plugin.json"), PLUGIN_JSON);
   const ambiguous = cli(["new-skill", "workflow", "other-skill", "--repo", root]);
   check("a plugin name in two packs is refused, asking for --pack", ambiguous.code === 2 && /more than one pack \(acme, base\); add --pack/.test(ambiguous.all), ambiguous.all);
-  const chosen = cli(["new-skill", "workflow", "other-skill", "--repo", root, "--pack", "acme"], { SKILLGATE_BACKUPS: backups });
+  const chosen = cli(["new-skill", "workflow", "other-skill", "--repo", root, "--pack", "acme"], { SKILLITON_BACKUPS: backups });
   check("--pack picks the plugin", chosen.code === 0 && versionIn(root, "acme") === "0.1.1" && versionIn(root) === "0.1.4", chosen.all);
 }
 
@@ -400,24 +400,24 @@ section("company init: preview, apply, repeat");
   const catalogPath = join(root, ".claude-plugin", "marketplace.json");
   const templatePath = join(root, "templates", "project-settings.json");
   const catalogBytes = bytes(catalogPath), templateBytes = bytes(templatePath);
-  const preview = cli([...INIT, "--repo", root], { SKILLGATE_BACKUPS: backups });
+  const preview = cli([...INIT, "--repo", root], { SKILLITON_BACKUPS: backups });
   check("preview exits 0 and shows both files changing", preview.code === 0 && preview.out.includes("+  \"name\": \"acme-skills\",") && preview.out.includes("+        \"repo\": \"acme/skills\""), preview.all);
   check("preview writes nothing and makes no backup", snapshot(root) === before && !existsSync(backups));
 
-  const r = cli([...INIT, "--repo", root, "--apply"], { SKILLGATE_BACKUPS: backups });
+  const r = cli([...INIT, "--repo", root, "--apply"], { SKILLITON_BACKUPS: backups });
   check("apply exits 0", r.code === 0, r.all);
   const catalog = readJson(catalogPath), template = readJson(templatePath);
   check("the catalog is named acme-skills and owned by acme", catalog.name === "acme-skills" && catalog.owner?.name === "acme" && catalog.owner?.url === "https://github.com/acme");
   check("the catalog's plugin entries are unchanged", JSON.stringify(catalog.plugins) === JSON.stringify(CATALOG.plugins));
   check("the template names acme-skills at acme/skills and enables every base plugin under it",
     Object.keys(template.extraKnownMarketplaces).join() === "acme-skills" && template.extraKnownMarketplaces["acme-skills"].source.repo === "acme/skills"
-    && Object.keys(template.enabledPlugins).sort().join() === Object.keys(SETTINGS_TEMPLATE.enabledPlugins).map((id) => id.replace(/@skillgate$/, "@acme-skills")).sort().join(), JSON.stringify(template));
+    && Object.keys(template.enabledPlugins).sort().join() === Object.keys(SETTINGS_TEMPLATE.enabledPlugins).map((id) => id.replace(/@skilliton$/, "@acme-skills")).sort().join(), JSON.stringify(template));
   const stamps = backupsOf(backups, "company-init");
   check("both files were backed up byte for byte", stamps.length === 1 && sameBytes(bytes(join(backups, "company-init", stamps[0], "marketplace.json")), catalogBytes) && sameBytes(bytes(join(backups, "company-init", stamps[0], "project-settings.json")), templateBytes));
   check("apply names the next commands and the trust command developers run", /new-plugin <plugin> --pack acme --apply/.test(r.out) && /trust add --company acme/.test(r.out), r.out);
 
   const after = snapshot(root);
-  const again = cli([...INIT, "--repo", root, "--apply"], { SKILLGATE_BACKUPS: backups });
+  const again = cli([...INIT, "--repo", root, "--apply"], { SKILLITON_BACKUPS: backups });
   check("repeating it changes nothing and says so", again.code === 0 && /nothing to change, nothing written/.test(again.out) && snapshot(root) === after && backupsOf(backups, "company-init").length === 1, again.all);
 }
 
@@ -445,16 +445,16 @@ section("new-plugin: a company plugin a fresh fork can add skills to");
 {
   const root = forkRepo("fork-plugin");
   const backups = join(tmp, "b-new-plugin");
-  check("a fork set up with company init", cli([...INIT, "--repo", root, "--apply"], { SKILLGATE_BACKUPS: backups }).code === 0);
+  check("a fork set up with company init", cli([...INIT, "--repo", root, "--apply"], { SKILLITON_BACKUPS: backups }).code === 0);
   const missing = cli(["new-skill", "acme-review", "billing-check", "--pack", "acme", "--repo", root]);
   check("new-skill into a plugin that does not exist yet names new-plugin", missing.code === 2 && /To create it: .* new-plugin acme-review --pack acme --apply/.test(missing.all), missing.all);
 
   const before = snapshot(root);
-  const preview = cli(["new-plugin", "acme-review", "--pack", "acme", "--description", "Company review rules.", "--repo", root], { SKILLGATE_BACKUPS: backups });
+  const preview = cli(["new-plugin", "acme-review", "--pack", "acme", "--description", "Company review rules.", "--repo", root], { SKILLITON_BACKUPS: backups });
   check("preview exits 0, shows the manifest and notes the private license", preview.code === 0 && preview.out.includes('"name": "acme-review"') && /UNLICENSED, which marks a private plugin/.test(preview.out), preview.all);
   check("preview writes nothing", snapshot(root) === before);
 
-  const r = cli(["new-plugin", "acme-review", "--pack", "acme", "--description", "Company review rules.", "--repo", root, "--apply"], { SKILLGATE_BACKUPS: backups });
+  const r = cli(["new-plugin", "acme-review", "--pack", "acme", "--description", "Company review rules.", "--repo", root, "--apply"], { SKILLITON_BACKUPS: backups });
   check("apply exits 0", r.code === 0, r.all);
   const manifest = readJson(join(root, "packs", "acme", "plugins", "acme-review", ".claude-plugin", "plugin.json"));
   check("plugin.json has name, description, version 0.1.0, the catalog owner, the fork's repository and a license",
@@ -465,7 +465,7 @@ section("new-plugin: a company plugin a fresh fork can add skills to");
   check("the team template enables acme-review@acme-skills", readJson(join(root, "templates", "project-settings.json")).enabledPlugins["acme-review@acme-skills"] === true);
   check("the catalog and template were backed up", backupsOf(backups, "new-plugin").length === 1);
 
-  const skill = cli(["new-skill", "acme-review", "billing-check", "--pack", "acme", "--repo", root, "--description", "Use when a change touches billing."], { SKILLGATE_BACKUPS: backups });
+  const skill = cli(["new-skill", "acme-review", "billing-check", "--pack", "acme", "--repo", root, "--description", "Use when a change touches billing."], { SKILLITON_BACKUPS: backups });
   check("new-skill --pack acme now works and bumps the new plugin to 0.1.1", skill.code === 0 && readJson(join(root, "packs", "acme", "plugins", "acme-review", ".claude-plugin", "plugin.json")).version === "0.1.1", skill.all);
   const packs = spawnSync(process.execPath, [join(here, "packs.test.mjs"), "--root", root], { encoding: "utf8" });
   check("the packaging checks pass on the fork the two commands made", packs.status === 0, `${packs.stdout}${packs.stderr}`);
@@ -487,7 +487,7 @@ section("new-plugin: the catalog and template must name the same marketplace");
   writeFileSync(catalogPath, JSON.stringify({ ...readJson(catalogPath), name: "acme-skills" }, null, 2) + "\n");
   const before = snapshot(root);
   const r = cli(["new-plugin", "acme-review", "--pack", "acme", "--repo", root, "--apply"]);
-  check("a catalog renamed by hand without the template is refused, pointing at company init", r.code === 2 && /names the marketplace "acme-skills", but templates\/project-settings.json names "skillgate"/.test(r.all) && /company init/.test(r.all), r.all);
+  check("a catalog renamed by hand without the template is refused, pointing at company init", r.code === 2 && /names the marketplace "acme-skills", but templates\/project-settings.json names "skilliton"/.test(r.all) && /company init/.test(r.all), r.all);
   check("nothing was written", snapshot(root) === before);
 }
 
@@ -500,7 +500,7 @@ const importRoot = skillsRepo("repo-import");
   const skillText = "---\ndescription: Helps with a task. Use when asked for help with it.\n---\n\n# Helper\n\nDo the thing.\n";
   writeFileSync(join(src, "SKILL.md"), skillText);
   writeFileSync(join(src, "notes", "extra.md"), "More detail.\n");
-  const r = cli(["import", src, "--into", "workflow", "--repo", importRoot], { SKILLGATE_BACKUPS: join(tmp, "b-import") });
+  const r = cli(["import", src, "--into", "workflow", "--repo", importRoot], { SKILLITON_BACKUPS: join(tmp, "b-import") });
   const dest = join(importRoot, "packs", "base", "plugins", "workflow", "skills", "helper-skill");
   check("import exits 0", r.code === 0, r.all);
   check("the scan ran on both files and passed", r.out.includes("scanned files: 2") && r.out.includes("scrub-check: PASS") && r.out.includes("0 hits in 2 text file(s)"), r.out);
@@ -519,7 +519,7 @@ section("import: a fake AWS key refuses the import without printing the key");
   const src = folder("src", "leaky-skill");
   writeFileSync(join(src, "SKILL.md"), "---\nname: leaky-skill\ndescription: A skill. Use when testing.\n---\n\nBody.\n");
   writeFileSync(join(src, "config.md"), `first line\naws_access_key_id = ${fakeKey}\n`);
-  const r = cli(["import", src, "--into", "workflow", "--repo", importRoot], { SKILLGATE_BACKUPS: join(tmp, "b-leak") });
+  const r = cli(["import", src, "--into", "workflow", "--repo", importRoot], { SKILLITON_BACKUPS: join(tmp, "b-leak") });
   check("exit 2", r.code === 2, r.all);
   check("the hit is listed as file:line and rule", r.all.includes("config.md:2  aws-access-key-id"), r.all);
   check("the key itself is not printed anywhere", !r.all.includes(fakeKey) && !r.all.includes("TESTFAKEKEY"), r.all);
@@ -549,11 +549,11 @@ section("import: scrub-check findings, a missing denylist, links, and home paths
   check("a Windows home path is caught by the secret and path scan", windowsPath.code === 2 && windowsPath.all.includes("SKILL.md:6  home-directory-path"), windowsPath.all);
 
   const clean = make("clean-skill", "Nothing to find here.");
-  const noDeny = cli(["import", clean, "--into", "workflow", "--repo", importRoot], { SKILLGATE_DENYLIST: join(tmp, "no-such-denylist") });
+  const noDeny = cli(["import", clean, "--into", "workflow", "--repo", importRoot], { SKILLITON_DENYLIST: join(tmp, "no-such-denylist") });
   check("without a denylist the import is refused, because names were not scanned", noDeny.code === 2 && noDeny.all.includes("NAME SCAN NOT RUN") && /names were not scanned/.test(noDeny.all) && !existsSync(join(skillsDir, "clean-skill")), noDeny.all);
   const commentsOnly = join(tmp, "denylist-comments-only");
   writeFileSync(commentsOnly, "# no names to block\n");
-  const optedOut = cli(["import", clean, "--into", "workflow", "--repo", importRoot], { SKILLGATE_DENYLIST: commentsOnly, SKILLGATE_BACKUPS: join(tmp, "b-optout") });
+  const optedOut = cli(["import", clean, "--into", "workflow", "--repo", importRoot], { SKILLITON_DENYLIST: commentsOnly, SKILLITON_BACKUPS: join(tmp, "b-optout") });
   check("a denylist holding only comments is an explicit opt-out: import proceeds and shows 0 patterns", optedOut.code === 0 && optedOut.all.includes("0 patterns") && existsSync(join(skillsDir, "clean-skill", "SKILL.md")), optedOut.all);
 
   const linked = make("linked-skill", "Body.");
@@ -571,7 +571,7 @@ section("scrub-check --path");
   writeFileSync(join(d, "b.md"), "clean\n");
   const withDeny = scrub(["--path", d]);
   check("with a denylist configured, a denylisted name fails (exit 1) at file:line", withDeny.code === 1 && withDeny.all.includes("FAIL names: 1 line(s)") && withDeny.all.includes("a.md:1") && withDeny.all.includes("scanned files: 2"), withDeny.all);
-  const withoutDeny = scrub(["--path", d], { SKILLGATE_DENYLIST: join(tmp, "no-such-denylist") });
+  const withoutDeny = scrub(["--path", d], { SKILLITON_DENYLIST: join(tmp, "no-such-denylist") });
   check("without a denylist the same folder does not fail on names: exit 2, NAME SCAN NOT RUN, INCOMPLETE", withoutDeny.code === 2 && withoutDeny.all.includes("NAME SCAN NOT RUN") && withoutDeny.all.includes("scrub-check: INCOMPLETE") && !withoutDeny.all.includes("FAIL names"), withoutDeny.all);
 
   const one = folder("scrub-one-file");
@@ -639,7 +639,7 @@ section("doctor: a complete setup exits 0, and one disabled plugin exits 1");
     "",
   ].join("\n"));
   chmodSync(join(fake, "claude"), 0o755);
-  const env = { HOME: home, PATH: `${fake}${delimiter}${process.env.PATH}`, SKILLGATE_BACKUPS: join(tmp, "b-doctor") };
+  const env = { HOME: home, PATH: `${fake}${delimiter}${process.env.PATH}`, SKILLITON_BACKUPS: join(tmp, "b-doctor") };
 
   const dir = folder("doctor-complete");
   const setup = [cli(["harness", "--apply", "--dir", dir], env), cli(["project-settings", "--apply", "--dir", dir], env)];

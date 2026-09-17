@@ -11,7 +11,7 @@
 //
 // Claude Code (2.1.273 measured):
 //   L1 session start: the handoff and the Project state reach the model (it quotes a nonce and the current task)
-//   L2 stop reminder: after a change, the Stop hook blocks once and the assistant records a checkpoint with skillgate
+//   L2 stop reminder: after a change, the Stop hook blocks once and the assistant records a checkpoint with skilliton
 //   L3 guardrails: a command that discards uncommitted work is asked about, nobody can answer in headless mode, so it
 //      is denied and the change survives; the control run without guardrails loses the change
 //   L4 interruption: a session killed mid-task leaves no session end; the next session is told it was interrupted
@@ -27,19 +27,19 @@ import { join } from "node:path";
 import { CLI, REPO, Rehearsal, findClient, git, parseFlags, run, workspace } from "./lib.mjs";
 
 const flags = parseFlags(process.argv.slice(2), { claude: "value", codex: "value", "codex-home": "value", keep: "flag", "no-evidence": "flag" });
-const claude = findClient(flags.claude, "SKILLGATE_CLAUDE", "claude");
-const codex = findClient(flags.codex, "SKILLGATE_CODEX", "codex");
+const claude = findClient(flags.claude, "SKILLITON_CLAUDE", "claude");
+const codex = findClient(flags.codex, "SKILLITON_CODEX", "codex");
 if (!claude) { console.log("NOT RUN: Claude Code was not found (pass --claude <path>)."); process.exit(2); }
 
 const ws = workspace("live-clients");
 const R = new Rehearsal("live-clients", "Live client lifecycle rehearsal (M2)");
 const WORKFLOW = join(REPO, "packs", "base", "plugins", "workflow");
 const GUARDRAILS = join(REPO, "packs", "base", "plugins", "guardrails");
-const BIN = join(WORKFLOW, "bin", "skillgate");
+const BIN = join(WORKFLOW, "bin", "skilliton");
 const GUARD = join(GUARDRAILS, "hooks", "guard-bash.sh");
 const NONCE = `HANDOFF-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
 // Sessions use the real home for login; git identity comes from the repository config set below.
-const env = { ...process.env, SKILLGATE_BACKUPS: join(ws, "backups"), GIT_CONFIG_NOSYSTEM: "1" };
+const env = { ...process.env, SKILLITON_BACKUPS: join(ws, "backups"), GIT_CONFIG_NOSYSTEM: "1" };
 delete env.CLAUDE_CONFIG_DIR;
 const sg = (args, opts = {}) => run(process.execPath, [CLI, ...args], { env, ...opts });
 
@@ -52,7 +52,7 @@ function project(name) {
   git(dir, ["add", "-A"], { env }); git(dir, ["commit", "-q", "-m", "shop"], { env });
   const prep = sg(["prepare", "--dir", dir, "--apply"]);
   if (prep.code !== 0) throw new Error(`prepare failed: ${prep.all.slice(-400)}`);
-  const cfgPath = join(dir, ".skillgate", "config.json");
+  const cfgPath = join(dir, ".skilliton", "config.json");
   const cfg = JSON.parse(readFileSync(cfgPath, "utf8"));
   cfg.checkpoints = { stopReminder: true, minMinutes: 0 };
   writeFileSync(cfgPath, JSON.stringify(cfg, null, 2) + "\n");
@@ -67,7 +67,7 @@ function project(name) {
 
 function events(dir) {
   const gitDir = git(dir, ["rev-parse", "--absolute-git-dir"], { env }).out.trim();
-  const file = join(gitDir, "skillgate", "journal.jsonl");
+  const file = join(gitDir, "skilliton", "journal.jsonl");
   if (!existsSync(file)) return [];
   return readFileSync(file, "utf8").split("\n").filter(Boolean).flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } });
 }
@@ -121,11 +121,11 @@ await R.step("L2", "Claude Code: after a change, the Stop hook blocks once and t
   const before = checkpointsIn(taskFile());
   const s = await claudeSession(a, "Automated check in a disposable project. Use the shell to create notes.txt containing the single line rounded. Then finish. If a hook asks you to record a checkpoint, run exactly the command it gives, filling in short truthful values, and then finish.", { allow: ["Bash"] });
   const blocks = s.hooks.filter((h) => h.subtype === "hook_response" && h.hook_event === "Stop" && /"decision"\s*:\s*"block"/.test(h.output ?? h.stdout ?? ""));
-  const ranCheckpoint = s.toolUses.some((t) => t.name === "Bash" && /skillgate[^\n]*checkpoint/.test(t.input?.command ?? ""));
+  const ranCheckpoint = s.toolUses.some((t) => t.name === "Bash" && /skilliton[^\n]*checkpoint/.test(t.input?.command ?? ""));
   const after = checkpointsIn(taskFile());
   const recorded = events(a).some((e) => e.event === "checkpoint");
   const reminded = events(a).filter((e) => e.event === "stop-reminded").length;
-  return { ok: s.code === 0 && blocks.length === 1 && ranCheckpoint && after === before + 1 && recorded && reminded === 1, detail: `session exit ${s.code}; Stop blocks ${blocks.length}; assistant ran skillgate checkpoint: ${ranCheckpoint}; task record checkpoints ${before} before, ${after} after; journal checkpoint event: ${recorded}; stop-reminded events ${reminded}` };
+  return { ok: s.code === 0 && blocks.length === 1 && ranCheckpoint && after === before + 1 && recorded && reminded === 1, detail: `session exit ${s.code}; Stop blocks ${blocks.length}; assistant ran skilliton checkpoint: ${ranCheckpoint}; task record checkpoints ${before} before, ${after} after; journal checkpoint event: ${recorded}; stop-reminded events ${reminded}` };
 }, { requires: ["L1"] });
 
 async function discardCheck(dir, plugins) {

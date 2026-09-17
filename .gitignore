@@ -36,3 +36,7 @@ PLAN.private*
 # Skillgate setup lock and private evidence
 /.skillgate/prepare.lock
 /.skillgate/private-evidence/
+
+# Skilliton setup lock and private evidence
+/.skilliton/prepare.lock
+/.skilliton/private-evidence/

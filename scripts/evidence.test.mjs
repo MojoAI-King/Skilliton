@@ -14,7 +14,7 @@ writeFileSync(deny, "# test denylist\nexamplenamealpha\n");
 let fails = 0, oks = 0;
 const ok = (c, l) => { if (c) { oks++; console.log(`ok   ${l}`); } else { fails++; console.log(`FAIL ${l}`); } };
 const run = (...args) => {
-  try { return { code: 0, out: execFileSync("node", [join(here, "evidence.mjs"), ...args], { env: { ...process.env, SKILLGATE_DENYLIST: deny }, stdio: ["ignore", "pipe", "pipe"] }).toString() }; }
+  try { return { code: 0, out: execFileSync("node", [join(here, "evidence.mjs"), ...args], { env: { ...process.env, SKILLITON_DENYLIST: deny }, stdio: ["ignore", "pipe", "pipe"] }).toString() }; }
   catch (e) { return { code: e.status ?? 1, out: `${e.stdout ?? ""}${e.stderr ?? ""}` }; }
 };
 

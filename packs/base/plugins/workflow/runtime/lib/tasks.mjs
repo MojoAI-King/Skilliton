@@ -337,7 +337,7 @@ function replaceTaskFile(project, rel, before, after, { backupDir = null, comman
     copyFileSync(target, backup, fsConstants.COPYFILE_EXCL);
   }
   const mode = statSync(target).mode & 0o777;
-  const temp = join(dirname(target), `.${basename(target)}.skillgate-${randomBytes(3).toString("hex")}.tmp`);
+  const temp = join(dirname(target), `.${basename(target)}.skilliton-${randomBytes(3).toString("hex")}.tmp`);
   writeFileSync(temp, Buffer.from(after, "latin1"), { flag: "wx", mode });
   try {
     chmodSync(temp, mode);

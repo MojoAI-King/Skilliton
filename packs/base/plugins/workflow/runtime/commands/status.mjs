@@ -21,7 +21,7 @@ Checks, in order:
   security    security evidence counts (from lib/security.mjs, when this build has it)
 
 Each line starts with OK, ATTENTION, NOTE, NOT RUN or FAILED. NOT RUN names a check this build or setup cannot make;
-it is never counted as OK. --json prints exactly one JSON object (schema skillgate.result/1) and nothing else.
+it is never counted as OK. --json prints exactly one JSON object (schema skilliton.result/1) and nothing else.
 
 Exit codes: 0 nothing needs attention among the checks that ran; 1 something needs attention (a pending migration,
 a required version not met, missing records, a stale handoff on an integration branch, an interrupted session with
@@ -31,7 +31,7 @@ uncommitted changes, unreadable or ambiguous task records, or security evidence 
 async function evaluate(argv) {
   const o = parseArgs(argv, { flags: ["json"], options: ["dir"] }, "status");
   if (o._.length) refuse(`status takes no plain arguments (got "${o._[0]}")`);
-  const { root, project } = openProject(o.dir);
+  const { root, project } = openProject(o.dir, { allowLegacy: true });
   const report = await gatherProjectState(root, { project });
   return { report, code: reportExitCode(report) };
 }
@@ -60,6 +60,6 @@ export async function run(argv) {
     if (e instanceof GitError || e instanceof OperationFailed || e instanceof ConfigError || (typeof e?.code === "string" && /^E[A-Z]+$/.test(e.code))) {
       return emit(3, `operation failed: ${clip(e.message, 500)}`, { error: e.message });
     }
-    return emit(3, `unexpected internal error: ${clip(e?.message ?? e, 500)}. This is a bug in skillgate.`, { error: String(e?.message ?? e) });
+    return emit(3, `unexpected internal error: ${clip(e?.message ?? e, 500)}. This is a bug in skilliton.`, { error: String(e?.message ?? e) });
   }
 }

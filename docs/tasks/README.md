@@ -2,7 +2,7 @@
 
 Kind: Living.
 
-One file per task, named `<id>.md` with an ID shaped `YYYY-MM-DD-<slug>-<four hex digits>` (the local date, up to 40 lowercase letters, digits and hyphens from the title, and a random suffix). Contributors on different branches never allocate the same sequential number, so they do not overwrite each other's records. Start one with `skillgate task start "<title>"`.
+One file per task, named `<id>.md` with an ID shaped `YYYY-MM-DD-<slug>-<four hex digits>` (the local date, up to 40 lowercase letters, digits and hyphens from the title, and a random suffix). Contributors on different branches never allocate the same sequential number, so they do not overwrite each other's records. Start one with `skilliton task start "<title>"`.
 
 A task record has this shape:
 
@@ -29,4 +29,4 @@ A task record has this shape:
     - **Blocked:** ...
     - **Watch out:** ...
 
-Keep local completion (done-local) separate from merged, released and verified. On a branch that is not an integration branch (main), a task's handoff goes in its own `## Handoff` section, not in `docs/HANDOFF.md`. `skillgate index` lists open tasks in `docs/STATUS.md`.
+Keep local completion (done-local) separate from merged, released and verified. On a branch that is not an integration branch (main), a task's handoff goes in its own `## Handoff` section, not in `docs/HANDOFF.md`. `skilliton index` lists open tasks in `docs/STATUS.md`.

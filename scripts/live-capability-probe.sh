@@ -28,7 +28,7 @@ done
 command -v "$CLAUDE" >/dev/null 2>&1 || [ -x "$CLAUDE" ] || { echo "NOT RUN: claude not found ($CLAUDE)"; exit 2; }
 command -v node >/dev/null 2>&1 || { echo "NOT RUN: node is needed to read the session output"; exit 2; }
 
-W="$(mktemp -d "${TMPDIR:-/tmp}/skillgate-capability-probe.XXXXXX")"
+W="$(mktemp -d "${TMPDIR:-/tmp}/skilliton-capability-probe.XXXXXX")"
 [ "$KEEP" = 1 ] || trap 'rm -rf "$W"' EXIT
 P="$W/plugin"; L="$W/log"; R="$W/repo"
 mkdir -p "$P/.claude-plugin" "$P/bin" "$P/hooks" "$P/skills/probe-paths" "$L" "$R"

@@ -23,11 +23,11 @@
 #   substitution inside double quotes, or git aliases. It stops ordinary and accidental
 #   commands, not a command someone has deliberately hidden.
 #
-# Settings: the "guardrails" section of .skillgate/config.json in the project directory
+# Settings: the "guardrails" section of .skilliton/config.json in the project directory
 # ($CLAUDE_PROJECT_DIR, else "cwd" from the hook input, else $PWD). Keys and defaults are in
 # docs/CONTRACTS.md. Only a JSON false turns a rule off. A config that cannot be read leaves
-# every default on and says so. SKILLGATE_GUARDRAILS=off allows everything for the session.
-# SKILLGATE_GUARDRAILS_CLIENT=claude-code or codex names the client instead of detecting it.
+# every default on and says so. SKILLITON_GUARDRAILS=off allows everything for the session.
+# SKILLITON_GUARDRAILS_CLIENT=claude-code or codex names the client instead of detecting it.
 #
 # Needs: bash 3.2 or later, git, awk, grep, find, and one of jq, node, or python3.
 #   guard-bash.sh                  PreToolUse mode (stdin: the PreToolUse JSON)
@@ -42,15 +42,15 @@ GUARD_MODE=pretooluse
 SEP=$'\036'
 GUARD_RAW=""; GUARD_EMITTED=0; GUARD_PARSER=""; GUARD_CLIENT=""; CLIENT_NOTE=""
 IN_KEYS=""; IN_CWD=""; IN_CMD=""; PROJECT_DIR=""
-CFG_FP=true; CFG_NV=true; CFG_SF=true; CFG_PB=$'main\nmaster'; CFG_STATE=default
+CFG_FP=true; CFG_NV=true; CFG_SF=true; CFG_PB=$'main\nmaster'; CFG_STATE=default; CFG_FILE=.skilliton/config.json
 DENY_REASON=""; ASK_REASON=""
 TOKS=(); SEGW=(); ARGS=(); GARGS=(); PA=(); FILES=()
 EFF_DIR=""; GDIR=""; RESOLVED=""; CUR_BRANCH=""; SC_LETTERS=""; SC_NEXT=0
 SN_RULE=""; HIT_FILE=""; HIT_RULE=""; REASON=""; ESCAPED=""
 
-CONFIG_NOTE="Note: .skillgate/config.json could not be read, so the default guardrails settings were used."
+CONFIG_NOTE="Note: .skilliton/config.json could not be read, so the default guardrails settings were used."
 CODEX_ASK_LEAD="Blocked: this command would normally need your confirmation. Codex cannot ask for confirmation from a hook, so it was blocked. If you meant it, run it yourself in your terminal. The confirmation would have said:"
-CLIENT_OVERRIDE_NOTE="Note: SKILLGATE_GUARDRAILS_CLIENT is set, but not to claude-code or codex, so it was ignored and the client was worked out from the hook input."
+CLIENT_OVERRIDE_NOTE="Note: SKILLITON_GUARDRAILS_CLIENT is set, but not to claude-code or codex, so it was ignored and the client was worked out from the hook input."
 CODEX_KEY_RE='"(turn_id|model)"[[:space:]]*:'
 
 # A word "git" as a command would appear, case-insensitively. "github", ".git", "digit", and a
@@ -81,10 +81,10 @@ json_escape() { # sets ESCAPED to $1 as the inside of a JSON string
 # turn_id; plugin hooks run with PLUGIN_ROOT and PLUGIN_DATA set, as well as CLAUDE_PLUGIN_ROOT. The
 # PreToolUse input measured from Claude Code 2.1.273 has no model and no turn_id key.
 # UNVERIFIED in a live Codex session: no Codex session has run this hook yet.
-# SKILLGATE_GUARDRAILS_CLIENT=claude-code or codex (any letter case) wins over the detection.
+# SKILLITON_GUARDRAILS_CLIENT=claude-code or codex (any letter case) wins over the detection.
 detect_client() {
   CLIENT_NOTE=""
-  case "${SKILLGATE_GUARDRAILS_CLIENT:-}" in
+  case "${SKILLITON_GUARDRAILS_CLIENT:-}" in
     [Cc][Oo][Dd][Ee][Xx]) GUARD_CLIENT=codex; return 0 ;;
     [Cc][Ll][Aa][Uu][Dd][Ee]-[Cc][Oo][Dd][Ee]) GUARD_CLIENT=claude-code; return 0 ;;
     '') ;;
@@ -222,8 +222,14 @@ set_project_dir() {
   [ -n "$PROJECT_DIR" ] || PROJECT_DIR=$PWD
 }
 
-load_config() { # reads $PROJECT_DIR/.skillgate/config.json into CFG_*; defaults stay on when it cannot be read
-  local f="$PROJECT_DIR/.skillgate/config.json" out rc line pbset=0 pb=""
+load_config() { # reads $PROJECT_DIR/.skilliton/config.json into CFG_*; defaults stay on when it cannot be read
+  local f="$PROJECT_DIR/.skilliton/config.json" out rc line pbset=0 pb=""
+  # A project not yet migrated from the earlier Skillgate names keeps its settings in .skillgate/config.json. They are
+  # still honoured, so its protected branches do not silently fall back to the defaults before the migration.
+  if [ ! -f "$f" ] && [ -f "$PROJECT_DIR/.skillgate/config.json" ]; then
+    f="$PROJECT_DIR/.skillgate/config.json"
+    CFG_FILE=".skillgate/config.json"
+  fi
   [ -f "$f" ] || return 0
   case "$GUARD_PARSER" in
     jq) out=$(jq -r "$JQ_CONFIG" "$f" 2>/dev/null); rc=$? ;;
@@ -1031,7 +1037,7 @@ check_branch() {
 main_pretooluse() {
   local t note=""
   GUARD_RAW=$(cat)
-  case "${SKILLGATE_GUARDRAILS:-}" in [Oo][Ff][Ff]) exit 0 ;; esac
+  case "${SKILLITON_GUARDRAILS:-}" in [Oo][Ff][Ff]) exit 0 ;; esac
   mentions_git "$GUARD_RAW" || exit 0
   if ! pick_parser; then
     emit_decision ask "guardrails cannot inspect this git command because jq, node, and python3 are all missing; confirm it yourself"
@@ -1081,9 +1087,9 @@ join_list() { # join_list <item>...: sets REASON to "a", "a and b", or "a, b, an
 main_session_start() {
   local t on_list="" off_list="" line
   GUARD_RAW=$(cat 2>/dev/null)
-  case "${SKILLGATE_GUARDRAILS:-}" in
+  case "${SKILLITON_GUARDRAILS:-}" in
     [Oo][Ff][Ff])
-      status_line "[guardrails] OFF for this session (SKILLGATE_GUARDRAILS=off). Force-push, --no-verify, and secret-file checks are not running."
+      status_line "[guardrails] OFF for this session (SKILLITON_GUARDRAILS=off). Force-push, --no-verify, and secret-file checks are not running."
       exit 0 ;;
   esac
   if ! pick_parser; then
@@ -1112,11 +1118,17 @@ main_session_start() {
   if [ -z "$off_list" ]; then
     line="[guardrails] on: $on_list are blocked."
   elif [ -z "$on_list" ]; then
-    line="[guardrails] on, but .skillgate/config.json turns off blocking for $off_list; only the confirm-before-losing-work prompts are active."
+    line="[guardrails] on, but $CFG_FILE turns off blocking for $off_list; only the confirm-before-losing-work prompts are active."
   else
-    line="[guardrails] on. Blocked: $on_list. Turned off in .skillgate/config.json: $off_list."
+    line="[guardrails] on. Blocked: $on_list. Turned off in $CFG_FILE: $off_list."
   fi
   status_line "$line"
+  if [ "$CFG_FILE" = ".skillgate/config.json" ]; then
+    status_line "[guardrails] Note: this project still uses the earlier Skillgate folder, so these settings come from .skillgate/config.json until the project is migrated (skilliton migrate)."
+  fi
+  if [ -n "${SKILLGATE_GUARDRAILS+x}" ]; then
+    status_line "[guardrails] Note: SKILLGATE_GUARDRAILS is set but no longer read; the variable is now SKILLITON_GUARDRAILS."
+  fi
   if [ "$CFG_STATE" = unreadable ]; then
     status_line "[guardrails] $CONFIG_NOTE"
   fi

@@ -28,7 +28,7 @@ check() {
 }
 contains() { case "$2" in *"$3"*) ok "$1";; *) bad "$1";; esac; }
 lacks()    { case "$2" in *"$3"*) bad "$1";; *) ok "$1";; esac; }
-run_sl()   { printf "%s" "$1" | SKILLGATE_USAGE_LOG="$USAGE" SKILLGATE_KEYS_LOG="$KEYS" bash "$SL" 2>&1; }
+run_sl()   { printf "%s" "$1" | SKILLITON_USAGE_LOG="$USAGE" SKILLITON_KEYS_LOG="$KEYS" bash "$SL" 2>&1; }
 
 echo "== (a) payload WITH rate_limits, context 70"
 A='{"model":{"display_name":"TestModel"},"context_window":{"used_percentage":70},"rate_limits":{"five_hour":{"used_percentage":42,"resets_at":1789000000},"seven_day":{"used_percentage":17,"resets_at":1789500000}}}'
@@ -72,20 +72,20 @@ klines=$(wc -l < "$KEYS" 2>/dev/null | tr -d ' '); [ "${klines:-0}" = "2" ] && o
 
 echo "== (d) default log paths with no overrides (HOME pointed at a temp dir)"
 mkdir -p "$tmp/fakehome"
-printf "%s" "$B" | env -u SKILLGATE_USAGE_LOG -u SKILLGATE_KEYS_LOG HOME="$tmp/fakehome" bash "$SL" >/dev/null 2>&1
-[ -s "$tmp/fakehome/.claude/skillgate/usage-log.jsonl" ] && ok "(d) default usage log is ~/.claude/skillgate/usage-log.jsonl" || bad "(d) default usage log not at ~/.claude/skillgate/usage-log.jsonl"
-[ -s "$tmp/fakehome/.claude/skillgate/statusline-keys-seen.log" ] && ok "(d) default keys log is ~/.claude/skillgate/statusline-keys-seen.log" || bad "(d) default keys log not at ~/.claude/skillgate/statusline-keys-seen.log"
+printf "%s" "$B" | env -u SKILLITON_USAGE_LOG -u SKILLITON_KEYS_LOG HOME="$tmp/fakehome" bash "$SL" >/dev/null 2>&1
+[ -s "$tmp/fakehome/.claude/skilliton/usage-log.jsonl" ] && ok "(d) default usage log is ~/.claude/skilliton/usage-log.jsonl" || bad "(d) default usage log not at ~/.claude/skilliton/usage-log.jsonl"
+[ -s "$tmp/fakehome/.claude/skilliton/statusline-keys-seen.log" ] && ok "(d) default keys log is ~/.claude/skilliton/statusline-keys-seen.log" || bad "(d) default keys log not at ~/.claude/skilliton/statusline-keys-seen.log"
 [ ! -e "$tmp/fakehome/.claude/usage-log.jsonl" ] && ok "(d) nothing written to ~/.claude/usage-log.jsonl" || bad "(d) wrote to ~/.claude/usage-log.jsonl (schema collision)"
 
 echo "== (g) invoked by path, the way setup.mjs configures the status line"
 if [ -x "$SL" ]; then ok "(g) status line script is executable"; else bad "(g) status line script is not executable; Claude Code runs it by path and would show nothing"; fi
-disp=$(printf "%s" "$A" | SKILLGATE_USAGE_LOG="$tmp/g/usage.jsonl" SKILLGATE_KEYS_LOG="$tmp/g/keys.log" "$SL" 2>&1); rc=$?
+disp=$(printf "%s" "$A" | SKILLITON_USAGE_LOG="$tmp/g/usage.jsonl" SKILLITON_KEYS_LOG="$tmp/g/keys.log" "$SL" 2>&1); rc=$?
 [ "$rc" -eq 0 ] && contains "(g) direct invocation prints the quota line" "$disp" "5h 42%" || bad "(g) direct invocation failed (exit $rc): $disp"
 
 echo "== (e) jq missing: says so, never claims the payload lacked quota"
 mkdir -p "$tmp/nojq"
 for t in bash cat date mkdir dirname grep printf tr; do p=$(command -v "$t" 2>/dev/null); [ -n "$p" ] && [ -x "$p" ] && ln -sf "$p" "$tmp/nojq/$t"; done
-disp=$(printf "%s" "$A" | PATH="$tmp/nojq" SKILLGATE_USAGE_LOG="$tmp/e/usage.jsonl" SKILLGATE_KEYS_LOG="$tmp/e/keys.log" "$tmp/nojq/bash" "$SL" 2>&1); rc=$?
+disp=$(printf "%s" "$A" | PATH="$tmp/nojq" SKILLITON_USAGE_LOG="$tmp/e/usage.jsonl" SKILLITON_KEYS_LOG="$tmp/e/keys.log" "$tmp/nojq/bash" "$SL" 2>&1); rc=$?
 echo "   display: $disp"
 [ "$rc" -eq 0 ] && ok "(e) exit 0 (a status line must not crash the UI)" || bad "(e) exit $rc"
 contains "(e) display names the missing dependency" "$disp" "jq not installed"
@@ -93,7 +93,7 @@ lacks "(e) display does not claim quota was absent from the payload" "$disp" "no
 
 echo "== (f) log not writable: the display says the write failed"
 mkdir -p "$tmp/ro" && chmod 500 "$tmp/ro"
-disp=$(printf "%s" "$A" | SKILLGATE_USAGE_LOG="$tmp/ro/usage.jsonl" SKILLGATE_KEYS_LOG="$tmp/f-keys.log" bash "$SL" 2>&1); rc=$?
+disp=$(printf "%s" "$A" | SKILLITON_USAGE_LOG="$tmp/ro/usage.jsonl" SKILLITON_KEYS_LOG="$tmp/f-keys.log" bash "$SL" 2>&1); rc=$?
 chmod 700 "$tmp/ro"
 echo "   display: $disp"
 [ "$rc" -eq 0 ] && ok "(f) exit 0" || bad "(f) exit $rc"

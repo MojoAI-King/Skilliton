@@ -26,7 +26,7 @@ while [ $# -gt 0 ]; do
 done
 command -v "$CODEX" >/dev/null 2>&1 || [ -x "$CODEX" ] || { echo "NOT RUN: codex not found ($CODEX)"; exit 2; }
 command -v node >/dev/null 2>&1 || { echo "NOT RUN: node is needed"; exit 2; }
-W="$(mktemp -d "${TMPDIR:-/tmp}/skillgate-codex-probe.XXXXXX")"
+W="$(mktemp -d "${TMPDIR:-/tmp}/skilliton-codex-probe.XXXXXX")"
 [ "$KEEP" = 1 ] || trap 'rm -rf "$W"' EXIT
 mkdir -p "$W/home" "$W/codexhome" "$W/project"
 export HOME="$W/home" CODEX_HOME="$W/codexhome"

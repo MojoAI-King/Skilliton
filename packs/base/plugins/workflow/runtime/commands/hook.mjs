@@ -97,7 +97,8 @@ async function stop(input) {
   if (!root) return 0;
   if (input.stopHookActive) return 0;
   let project;
-  try { project = resolveProject(root); } catch (e) {
+  // A project not yet migrated from the earlier names still gets the checkpoint reminder; its records are unchanged.
+  try { project = resolveProject(root, { allowLegacy: true }); } catch (e) {
     if (!(e instanceof ConfigError)) throw e;
     console.error(`[workflow] Skilliton checkpoint reminder was not evaluated: ${clip(e.message, 300)}`);
     return 0;
@@ -139,7 +140,7 @@ export async function run(argv) {
   const event = argv[0];
   try {
     if (argv.length !== 1 || !EVENTS.includes(event)) {
-      console.error(`[workflow] skillgate hook expects exactly one of ${EVENTS.join(", ")} (got ${argv.length ? JSON.stringify(argv.join(" ")) : "nothing"}); nothing was done and nothing was blocked.`);
+      console.error(`[workflow] skilliton hook expects exactly one of ${EVENTS.join(", ")} (got ${argv.length ? JSON.stringify(argv.join(" ")) : "nothing"}); nothing was done and nothing was blocked.`);
       return 0;
     }
     const input = parseHookInput(await readStdin());

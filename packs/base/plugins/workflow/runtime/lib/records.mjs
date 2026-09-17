@@ -126,7 +126,7 @@ export function readEntries(project, kind) {
 
 // The managed section of one kind in text, or null. Marker lines that are not exactly one section are refused.
 export function findIndexSection(text, kind, label) {
-  const start = indexStartMarker(kind), end = indexEndMarker(kind), prefix = `<!-- skillgate:index:${kind}:`;
+  const start = indexStartMarker(kind), end = indexEndMarker(kind), prefix = `<!-- skilliton:index:${kind}:`;
   const spans = lineSpans(text);
   const starts = [], ends = [];
   spans.forEach((s, i) => {
@@ -158,7 +158,7 @@ export function regenerateIndexes(project, { apply = false, gitDir = null, branc
     const { dir, entries, total, problems: found } = readEntries(project, kind);
     problems.push(...found);
     const bytes = readPath(project.root, record, `the ${ROLE_LABELS[role]} ${project.artifacts[role]}`);
-    if (bytes === null) refuse(`the ${ROLE_LABELS[role]} ${record} does not exist, so the ${kind} index has nowhere to go. Run skillgate prepare --apply first. Nothing was written`);
+    if (bytes === null) refuse(`the ${ROLE_LABELS[role]} ${record} does not exist, so the ${kind} index has nowhere to go. Run skilliton prepare --apply first. Nothing was written`);
     const text = bytes.toString("latin1");
     const eol = detectEol(text);
     const rendered = Buffer.from(renderIndexSection(kind, { dir, recordPath: record, entries }), "utf8").toString("latin1").replace(/\n/g, eol);

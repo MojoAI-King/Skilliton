@@ -1,4 +1,4 @@
-// commands/index.mjs: `skillgate index` (docs/CONTRACTS.md section 11). The engine is lib/records.mjs
+// commands/index.mjs: `skilliton index` (docs/CONTRACTS.md section 11). The engine is lib/records.mjs
 // regenerateIndexes; this file parses arguments, shows each section's change, and writes only with --apply.
 
 import { argPath, forDisplay, parseArgs, refuse, resolveExistingDir, say, selfCommand, tilde, unifiedDiff } from "../lib/core.mjs";
@@ -11,9 +11,9 @@ export const help = `index: regenerate the decision, lesson and open-task indexe
   index --apply [--dir <repo root>]   write the indexes (on an integration branch only)
 
 Each index is a managed section between two marker lines:
-  <!-- skillgate:index:decisions:start --> ... <!-- skillgate:index:decisions:end -->   in the decisions record
-  <!-- skillgate:index:lessons:start --> ... <!-- skillgate:index:lessons:end -->       in the lessons record
-  <!-- skillgate:index:tasks:start --> ... <!-- skillgate:index:tasks:end -->           in the status record (open tasks)
+  <!-- skilliton:index:decisions:start --> ... <!-- skilliton:index:decisions:end -->   in the decisions record
+  <!-- skilliton:index:lessons:start --> ... <!-- skilliton:index:lessons:end -->       in the lessons record
+  <!-- skilliton:index:tasks:start --> ... <!-- skilliton:index:tasks:end -->           in the status record (open tasks)
 A record without the markers gets its section appended after a blank line once there is something to list; with
 no entries it is left as it is. Text outside the markers is never changed. Each list is sorted by ID and built from the entry files alone, so every clone with the same entries writes
 the same bytes, and running index again after a merge resolves a conflict inside a section.
@@ -42,7 +42,7 @@ export async function run(argv) {
       return failure.exit;
     }
     const written = plan.result !== null;
-    say(`skillgate index (${mode}): ${tilde(root)} (${plan.branch === null ? "detached HEAD" : `branch ${plan.branch}`}${plan.integration ? ", an integration branch" : ", not an integration branch"})`);
+    say(`skilliton index (${mode}): ${tilde(root)} (${plan.branch === null ? "detached HEAD" : `branch ${plan.branch}`}${plan.integration ? ", an integration branch" : ", not an integration branch"})`);
     say("");
     const width = Math.max(...plan.sections.map((s) => s.record.length));
     for (const s of plan.sections) {
@@ -68,7 +68,7 @@ export async function run(argv) {
     else say(`Summary: ${pending} index section(s) would change; nothing written. To write them: ${selfCommand()} index --apply${dirArg}${problems}`);
     return plan.problems.length ? 1 : 0;
   } catch (e) {
-    if (e instanceof OperationFailed) { console.error(`skillgate: index could not run: ${e.message}`); return 3; }
-    throw e; // Refused (exit 2) and unexpected errors (exit 3) are reported by skillgate.mjs
+    if (e instanceof OperationFailed) { console.error(`skilliton: index could not run: ${e.message}`); return 3; }
+    throw e; // Refused (exit 2) and unexpected errors (exit 3) are reported by skilliton.mjs
   }
 }

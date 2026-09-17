@@ -97,15 +97,16 @@ Size tags follow the planning rule used here: TRIVIAL, STANDARD, or FRONTIER (ne
 
 **What changes.** Every current technical name becomes Skilliton (the security control IDs are the one owner decision, below): the `skilliton` command and its files, the default marketplace, the `.skilliton/` project folder, `SKILLITON_*` environment variables, the managed instruction markers, the machine setup receipt schema, the release tag prefix, the machine folders for trust, receipts, backups and the name denylist, and the GitHub delivery template. This supersedes the compatibility list in [BRANDING.md](BRANDING.md), on the owner's instruction of 2026-09-16.
 
-**How existing setups move.**
-- A prepared project moves with a numbered migration (preview, backup, rollback): the folder, the instruction markers, `.gitignore` entries and the team settings' marketplace keys. It refuses when both the old and the new folder exist.
-- A machine set up with the old names moves when setup runs again: the receipt and trust files move, the old marketplace and plugins are replaced, and the old launcher is removed only when its text is exactly the old launcher (the rule from the join security review).
-- Only the migration reads old names. If an old `SKILLGATE_*` variable is set, the command prints one line naming its replacement, because silently ignoring, for example, the trust folder variable would point verification at a different folder.
+**How existing setups move** (as built; the plan changed in two places, recorded in the M9 decision entry).
+- A prepared project moves with migration `0003-skilliton-names` (preview, backup, rollback): the folder with its receipts, evidence and ignored private evidence, the instruction markers, generated marker lines, `.gitignore` lines, the team settings' marketplace keys, and generated READMEs that are exactly what setup wrote. Until it runs, every other command refuses the project and names the migration.
+- A machine set up with the old names is **not** moved automatically, as first planned: `join` refuses while the old receipt exists and names the undo to run with the release that wrote it. Moving trust and launcher files on the strength of an old receipt would be new deletion code driven by untrusted input, for setups that exist only in rehearsals.
+- Old state is never silently ignored: old `SKILLGATE_*` variables, signers file, installs, release tags, delivery hook, denylist and status line backups are each named with the step that resolves them (docs/CONTRACTS.md section 16).
+- Protection does not lapse before a project moves: the guardrails hook still honours an unmigrated project's settings, and the delivery gate still enforces a policy at the old path, so the migration commit that moves it needs an approver's signature.
 - Recorded evidence, signed manifests, completed task records and archived plans keep the names they were recorded with, because they describe what actually ran.
 
 **Security control IDs stay as they are** (owner decision, 2026-09-16, O23). They start with `SG-` and stored observations refer to them; renaming them would mean rewriting evidence records, which must never look like a renewed assessment.
 
-**Acceptance.** A test fails when an old name appears outside an allowlist of historical paths and the migration's table. Every offline suite passes. The fork, machine and company release rehearsals pass again on Claude Code and Codex under the new names. A project prepared with workflow 0.5.1 migrates and rolls back. A machine joined under the old names migrates, and its undo removes exactly what was added. An independent review pass runs before publishing, because trust and undo paths change.
+**Acceptance.** A test fails when an old name appears outside an allowlist of historical paths, explanatory sections and the one legacy-names module. Every offline suite passes. The fork, machine and company release rehearsals pass again on Claude Code and Codex under the new names. A project prepared with workflow 0.5.1 migrates and rolls back. A machine joined under the old names migrates, and its undo removes exactly what was added. An independent review pass runs before publishing, because trust and undo paths change.
 
 **Size:** STANDARD. Roughly 1,700 occurrences in 179 tracked files, mostly mechanical, with trust, undo and migration code that needs care.
 

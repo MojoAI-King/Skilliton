@@ -1,6 +1,6 @@
 # Supported clients: what each one actually does
 
-Kind: Living. Each row says how it is known: **measured** (a command or session run here, with the evidence file), **documented** (the client's official documentation or published source, not yet run here), or **unverified**. Versions matter: a row holds for the version named until it is measured again. Updated 2026-09-16.
+Kind: Living. Each row says how it is known: **measured** (a command or session run here, with the evidence file), **documented** (the client's official documentation or published source, not yet run here), or **unverified**. Versions matter: a row holds for the version named until it is measured again. Updated 2026-09-16. Rows measured before milestone M9 (the rename, 2026-09-17) ran the same files under the earlier Skillgate names; the fork, machine and company release rehearsals were run again under the current names on the same client versions.
 
 | Behavior Skilliton relies on | Claude Code 2.1.273 | Codex CLI 0.154.0-alpha.6.2 |
 |---|---|---|
@@ -19,12 +19,12 @@ Kind: Living. Each row says how it is known: **measured** (a command or session 
 | Plugin `bin/` on the shell PATH | **measured** (probe C2) | not documented; skills are told their SKILL.md path and resolve relative paths from it (documented) |
 | PreToolUse `ask` | **measured**: with no one to answer, denied and not run (probe C3); the real guardrails plugin kept uncommitted work from `git reset --hard`, which the control run without it lost (live rehearsal L3); the interactive prompt is unverified | documented as parsed but not supported yet: the tool call continues. Guardrails 0.2.0 denies instead (fixture tests); unverified live |
 | PreToolUse `deny` | **measured** live (`evidence/live/2026-09-16-guardrails-force-push.md`) | documented, same JSON shape; unverified here |
-| Stop `block` makes the model continue; `stop_hook_active` | **measured** (probe C4); with the real workflow plugin the Stop hook blocked once and the assistant ran `skillgate checkpoint` (live rehearsal L2) | documented, same shape; unverified here |
+| Stop `block` makes the model continue; `stop_hook_active` | **measured** (probe C4); with the real workflow plugin the Stop hook blocked once and the assistant ran `skilliton checkpoint` (live rehearsal L2) | documented, same shape; unverified here |
 | Skill path variables `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_SKILL_DIR}` | **measured** (probe C5) | none documented; the model is given the SKILL.md path |
 | Hooks need approval before they run | plugin hooks run when the plugin is enabled (measured with `--plugin-dir`; marketplace install unverified) | documented: every non-managed hook must be trusted by its hash (`/hooks`), or a run passes `--dangerously-bypass-hook-trust` |
 | Hooks shipped inside a plugin | **measured** with `--plugin-dir` (all rows above) | **measured**: `codex features list` reports `plugin_hooks` as "removed" on 0.154.0-alpha.6.2, so a plugin's `hooks/hooks.json` is not a delivery route; hooks must come from a user, project or managed configuration layer |
 | A session killed mid-task | **measured**: no SessionEnd is recorded, and the next session's Project state names the interruption, which the model reported (live rehearsal L4) | unverified |
-| Plugin `bin/` on the shell path under `claude plugin eval` | **measured** (2.1.273): not on the path; `skillgate` is "command not found" in eval runs, and the model reaches the plugin's `bin/skillgate` by its path (evidence/06880a6.../task-start-records-work) | not applicable |
+| Plugin `bin/` on the shell path under `claude plugin eval` | **measured** (2.1.273): not on the path; `skilliton` is "command not found" in eval runs, and the model reaches the plugin's `bin/skilliton` by its path (evidence/06880a6.../task-start-records-work) | not applicable |
 | Plugins in the IDE extension | this build session runs in the VS Code extension; plugin behavior there is unverified | documented: the IDE extension does not support plugins |
 | Separate clean configuration on one machine | **measured**: a fresh `CLAUDE_CONFIG_DIR` starts logged out (`claude auth status`) | documented: `CODEX_HOME` isolates config, plugins, hook trust and login; **measured**: plugin install and prompt rendering work in a fresh one |
 | Observe hooks without a person | **measured**: `--output-format stream-json --verbose --include-hook-events` | `codex exec --json`; hooks under exec need trust or the bypass flag (documented) |
@@ -35,4 +35,4 @@ Evidence: `evidence/live/2026-09-16-client-capability-probes.md`; `evidence/rehe
 
 - **Claude Code** is the client whose lifecycle hooks Skilliton currently proves: the session-start project state, the stop reminder to record a checkpoint, and the guardrails block.
 - **Codex CLI** receives the same skills (from the plugin) and instructions (`AGENTS.md`), and its hooks use the same shapes, but hooks cannot ship inside a Codex plugin in the measured version: a team configures them in a Codex configuration layer, and every hook needs a person to trust it once. The guardrails confirmation becomes a refusal. Codex lifecycle hooks stay unverified until a run from a logged-in, isolated Codex home records them (`scripts/rehearsals/live-clients.mjs --codex-home`).
-- **Codex in the IDE** gets `AGENTS.md` and repository skills (`.agents/skills`) but no plugins, so no hooks and no `skillgate` launcher from a plugin.
+- **Codex in the IDE** gets `AGENTS.md` and repository skills (`.agents/skills`) but no plugins, so no hooks and no `skilliton` launcher from a plugin.

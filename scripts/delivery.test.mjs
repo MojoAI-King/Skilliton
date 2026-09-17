@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-// delivery.test.mjs: tests `skillgate delivery` (install, gate, check) the way git drives it.
+// delivery.test.mjs: tests `skilliton delivery` (install, gate, check) the way git drives it.
 //
 //   node scripts/delivery.test.mjs
 //
 // Each test builds its own folder under the system temp directory, with HOME, the global git config and the backup
 // root pointed into it, ssh keys generated at runtime, a bare "shared" repository whose pre-receive hook is written by
-// `node scripts/skillgate.mjs delivery install ... --apply`, and contributor clones that push with a real `git push`.
+// `node scripts/skilliton.mjs delivery install ... --apply`, and contributor clones that push with a real `git push`.
 // The application under test is tiny, and its check is `node --test`. Git identity and signing are configured only
 // inside the temporary repositories. Nothing outside the temporary folders is written; they are removed at the end
-// (set SKILLGATE_KEEP_TEMP=1 to keep them for inspection). Needs git, ssh-keygen and tar on PATH.
+// (set SKILLITON_KEEP_TEMP=1 to keep them for inspection). Needs git, ssh-keygen and tar on PATH.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -22,9 +22,9 @@ import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const CLI = join(here, "skillgate.mjs");
+const CLI = join(here, "skilliton.mjs");
 const PLUGIN = join(here, "..", "packs", "base", "plugins", "workflow");
-const POLICY_FILE = ".skillgate/delivery.json";
+const POLICY_FILE = ".skilliton/delivery.json";
 
 // ---------------------------------------------------------------- the tiny application
 
@@ -57,28 +57,28 @@ const WELCOME_TEST = [
   "",
 ].join("\n");
 const POLICY = {
-  schema: "skillgate.delivery/1",
+  schema: "skilliton.delivery/1",
   protectedBranches: ["main"],
   checks: [{ name: "tests", command: ["node", "--test"], timeoutSeconds: 120 }],
-  policyPaths: [".skillgate/delivery.json", ".github/workflows/", ".github/CODEOWNERS", "CODEOWNERS"],
+  policyPaths: [".skilliton/delivery.json", ".github/workflows/", ".github/CODEOWNERS", "CODEOWNERS"],
 };
 
 // ---------------------------------------------------------------- sandbox and process helpers
 
 function sandbox(label) {
-  const root = mkdtempSync(join(tmpdir(), `skillgate-delivery-test-${label}-`));
+  const root = mkdtempSync(join(tmpdir(), `skilliton-delivery-test-${label}-`));
   const home = join(root, "home");
   mkdirSync(join(home, ".config"), { recursive: true });
   writeFileSync(join(home, ".gitconfig"), "");
   const env = { ...process.env };
-  for (const key of Object.keys(env)) if (/^(GIT_|SKILLGATE_|SSH_AUTH_SOCK$|SSH_AGENT_PID$)/.test(key)) delete env[key];
+  for (const key of Object.keys(env)) if (/^(GIT_|SKILLITON_|SSH_AUTH_SOCK$|SSH_AGENT_PID$)/.test(key)) delete env[key];
   Object.assign(env, {
     HOME: home,
     XDG_CONFIG_HOME: join(home, ".config"),
     GIT_CONFIG_NOSYSTEM: "1",
     GIT_CONFIG_GLOBAL: join(home, ".gitconfig"),
     GIT_TERMINAL_PROMPT: "0",
-    SKILLGATE_BACKUPS: join(root, "backups"),
+    SKILLITON_BACKUPS: join(root, "backups"),
     // The check `node --test` must find the same node that runs these tests.
     PATH: [dirname(process.execPath), process.env.PATH].filter(Boolean).join(delimiter),
   });
@@ -90,7 +90,7 @@ async function withSandbox(label, fn) {
   try {
     await fn(sb);
   } finally {
-    if (process.env.SKILLGATE_KEEP_TEMP === "1") console.log(`# kept ${sb.root}`);
+    if (process.env.SKILLITON_KEEP_TEMP === "1") console.log(`# kept ${sb.root}`);
     else rmSync(sb.root, { recursive: true, force: true });
   }
 }
@@ -189,7 +189,7 @@ function sharedRepo(sb, { runtime } = {}) {
   const seed = commit(sb, admin, "Seed the application and its delivery policy", { sign: approver });
   const pushed = push(sb, admin, "origin", "main");
   assert.equal(pushed.code, 0, `the seeding push failed:\n${pushed.all}`);
-  assert.match(pushed.all, /skillgate delivery: accepted refs\/heads\/main: 1 check\(s\) passed \(tests\)/);
+  assert.match(pushed.all, /skilliton delivery: accepted refs\/heads\/main: 1 check\(s\) passed \(tests\)/);
   assert.equal(tip(sb, bare, "main"), seed);
   return { bare, approver, outsider, approvers, seed };
 }
@@ -221,9 +221,9 @@ test("a passing change is accepted; a combination that fails is rejected naming 
     const aHead = commit(sb, a, "Greet with Hi");
     const aPush = push(sb, a, "origin", "main");
     assert.equal(aPush.code, 0, aPush.all);
-    assert.match(aPush.all, /skillgate delivery: checking refs\/heads\/main at [0-9a-f]{12} with the policy at the current tip [0-9a-f]{12}: 1 check\(s\)/);
-    assert.match(aPush.all, /skillgate delivery: check "tests" passed in/);
-    assert.match(aPush.all, /skillgate delivery: accepted refs\/heads\/main: 1 check\(s\) passed \(tests\)/);
+    assert.match(aPush.all, /skilliton delivery: checking refs\/heads\/main at [0-9a-f]{12} with the policy at the current tip [0-9a-f]{12}: 1 check\(s\)/);
+    assert.match(aPush.all, /skilliton delivery: check "tests" passed in/);
+    assert.match(aPush.all, /skilliton delivery: accepted refs\/heads\/main: 1 check\(s\) passed \(tests\)/);
     assert.equal(tip(sb, s.bare, "main"), aHead);
 
     // Contributor B, still on the old base, adds a welcome built on the old greeting. On its own it passes.
@@ -231,12 +231,12 @@ test("a passing change is accepted; a combination that fails is rejected naming 
     const bHead = commit(sb, b, "Add a welcome message");
     const alone = cli(sb, ["delivery", "check", "--repo", b]);
     assert.equal(alone.code, 0, alone.all);
-    assert.match(alone.all, /skillgate delivery check: would be accepted: 1 check\(s\) passed \(tests\)/);
+    assert.match(alone.all, /skilliton delivery check: would be accepted: 1 check\(s\) passed \(tests\)/);
 
     // Forcing B over A is a non-fast-forward update, which the gate rejects before running anything.
     const forced = push(sb, b, "--force", "origin", "main");
     assert.notEqual(forced.code, 0, forced.all);
-    assert.match(forced.all, /skillgate delivery: rejected refs\/heads\/main: non-fast-forward update/);
+    assert.match(forced.all, /skilliton delivery: rejected refs\/heads\/main: non-fast-forward update/);
     assert.doesNotMatch(forced.all, /check "tests"/);
     assert.equal(tip(sb, s.bare, "main"), aHead);
 
@@ -245,10 +245,10 @@ test("a passing change is accepted; a combination that fails is rejected naming 
     gitOk(sb, b, "merge", "-q", "--no-edit", "--no-gpg-sign", "origin/main");
     const predicted = cli(sb, ["delivery", "check", "--repo", b]);
     assert.equal(predicted.code, 1, predicted.all);
-    assert.match(predicted.all, /skillgate delivery check: would be rejected: check "tests" failed \(exit 1\)/);
+    assert.match(predicted.all, /skilliton delivery check: would be rejected: check "tests" failed \(exit 1\)/);
     const combined = push(sb, b, "origin", "main");
     assert.notEqual(combined.code, 0, combined.all);
-    assert.match(combined.all, /skillgate delivery: rejected refs\/heads\/main: check "tests" failed \(exit 1\)/);
+    assert.match(combined.all, /skilliton delivery: rejected refs\/heads\/main: check "tests" failed \(exit 1\)/);
     // The last output lines show the failing assertion (spec reporter) or the failure summary (TAP reporter).
     assert.match(combined.all, /remote: +\| .*(Hi, world!|fail 1)/, "the rejection carries the last lines of the check's output");
     assert.match(combined.all, /pre-receive hook declined/);
@@ -257,7 +257,7 @@ test("a passing change is accepted; a combination that fails is rejected naming 
     // A branch the policy does not protect accepts the same failing combination without running checks.
     const feature = push(sb, b, "origin", "HEAD:refs/heads/feature/welcome");
     assert.equal(feature.code, 0, feature.all);
-    assert.match(feature.all, /skillgate delivery: accepted refs\/heads\/feature\/welcome without checks: not a protected branch/);
+    assert.match(feature.all, /skilliton delivery: accepted refs\/heads\/feature\/welcome without checks: not a protected branch/);
     assert.doesNotMatch(feature.all, /check "tests"/);
     assert.equal(tip(sb, s.bare, "feature/welcome"), gitOk(sb, b, "rev-parse", "HEAD"));
     const unprotectedCheck = cli(sb, ["delivery", "check", "--repo", b, "--ref", "feature/other"]);
@@ -281,7 +281,7 @@ test("policy changes: unsigned is rejected; the current policy still runs its ch
     const unsignedHead = commit(sb, c, "Drop the check and break greet");
     const unsigned = push(sb, c, "origin", "main");
     assert.notEqual(unsigned.code, 0, unsigned.all);
-    assert.match(unsigned.all, new RegExp(`rejected refs/heads/main: commit ${unsignedHead.slice(0, 12)} changes the policy path \\.skillgate/delivery\\.json without an approver signature: the commit is not signed`));
+    assert.match(unsigned.all, new RegExp(`rejected refs/heads/main: commit ${unsignedHead.slice(0, 12)} changes the policy path \\.skilliton/delivery\\.json without an approver signature: the commit is not signed`));
     assert.equal(tip(sb, s.bare, "main"), s.seed);
 
     // A folder entry in policyPaths covers the files below it.
@@ -347,6 +347,91 @@ test("policy changes: unsigned is rejected; the current policy still runs its ch
 
 // ---------------------------------------------------------------- creating a branch; missing and invalid policies
 
+test("a branch whose policy is still at the earlier .skillgate/delivery.json stays protected, and moving the policy needs an approver signature", async () => {
+  await withSandbox("earlier-policy", async (sb) => {
+    const approver = makeKey(sb, "approver");
+    const approvers = writeApprovers(sb.path("approvers"), [approver]);
+    const bare = initBare(sb, "shared.git");
+    assert.equal(install(sb, bare, approvers, ["--apply"]).code, 0);
+    const earlierFile = ".skillgate/delivery.json";
+    const earlierPolicy = { ...POLICY, schema: "skillgate.delivery/1", policyPaths: [earlierFile] };
+    const admin = clone(sb, bare, "admin");
+    writeFiles(admin, { ...APP, [earlierFile]: earlierPolicy });
+    const seed = commit(sb, admin, "Seed with the policy at the earlier path", { sign: approver });
+    const seeded = push(sb, admin, "origin", "main");
+    assert.equal(seeded.code, 0, seeded.all);
+    assert.match(seeded.all, /accepted refs\/heads\/main: 1 check\(s\) passed \(tests\)/);
+
+    const c = clone(sb, bare, "c");
+    const reset = () => gitOk(sb, c, "reset", "-q", "--hard", "origin/main");
+    writeFiles(c, { "lib/greet.mjs": GREET_BROKEN });
+    commit(sb, c, "Break greet");
+    const broken = push(sb, c, "origin", "main");
+    assert.notEqual(broken.code, 0, broken.all);
+    assert.match(broken.all, /check "tests" failed/, "the earlier policy's check still runs");
+    assert.equal(tip(sb, bare, "main"), seed);
+
+    reset();
+    writeFiles(c, { [POLICY_FILE]: { ...POLICY, checks: [] }, "lib/greet.mjs": GREET_BROKEN });
+    const weaker = commit(sb, c, "Add a policy without checks under the current name, unsigned");
+    const sideways = push(sb, c, "origin", "main");
+    assert.notEqual(sideways.code, 0, sideways.all);
+    assert.match(sideways.all, new RegExp(`commit ${weaker.slice(0, 12)} changes the policy path \\.skilliton/delivery\\.json without an approver signature`));
+    assert.equal(tip(sb, bare, "main"), seed);
+
+    reset();
+    gitOk(sb, c, "rm", "-q", earlierFile);
+    writeFiles(c, { [POLICY_FILE]: POLICY });
+    commit(sb, c, "Move the delivery policy to the Skilliton name, unsigned");
+    const unsigned = push(sb, c, "origin", "main");
+    assert.notEqual(unsigned.code, 0, unsigned.all);
+    assert.match(unsigned.all, /changes the policy path \.skil(lgate|liton)\/delivery\.json .*without an approver signature/);
+    const migrated = amendSigned(sb, c, approver);
+    const signed = push(sb, c, "origin", "main");
+    assert.equal(signed.code, 0, signed.all);
+    assert.equal(tip(sb, bare, "main"), migrated);
+
+    writeFiles(c, { "lib/greet.mjs": GREET_BROKEN });
+    commit(sb, c, "Break greet after the move");
+    const after = push(sb, c, "origin", "main");
+    assert.notEqual(after.code, 0, after.all);
+    assert.match(after.all, /check "tests" failed/, "the moved policy governs the branch");
+    assert.equal(tip(sb, bare, "main"), migrated);
+  });
+});
+
+test("a merge cannot bring back an earlier policy without an approver: the combined result is checked, for the current and the earlier policy path", async () => {
+  await withSandbox("merge-policy", async (sb) => {
+    for (const earlierPath of [false, true]) {
+      const approver = makeKey(sb, `approver-${earlierPath}`);
+      const approvers = writeApprovers(sb.path(`approvers-${earlierPath}`), [approver]);
+      const bare = initBare(sb, `shared-${earlierPath}.git`);
+      assert.equal(install(sb, bare, approvers, ["--apply"]).code, 0);
+      const firstFile = earlierPath ? ".skillgate/delivery.json" : POLICY_FILE;
+      const firstPolicy = earlierPath ? { ...POLICY, schema: "skillgate.delivery/1", checks: [], policyPaths: [firstFile] } : { ...POLICY, checks: [] };
+      const admin = clone(sb, bare, `admin-${earlierPath}`);
+      writeFiles(admin, { ...APP, [firstFile]: firstPolicy });
+      const weak = commit(sb, admin, "A policy without checks", { sign: approver });
+      assert.equal(push(sb, admin, "origin", "main").code, 0);
+      if (earlierPath) gitOk(sb, admin, "rm", "-q", firstFile);
+      writeFiles(admin, { [POLICY_FILE]: POLICY });
+      const strong = commit(sb, admin, "Add the tests check", { sign: approver });
+      const strengthened = push(sb, admin, "origin", "main");
+      assert.equal(strengthened.code, 0, strengthened.all);
+
+      const c = clone(sb, bare, `attacker-${earlierPath}`);
+      gitOk(sb, c, "checkout", "-q", "-b", "side", weak);
+      writeFiles(c, { "lib/greet.mjs": GREET_HI, "test/greet.test.mjs": greetTest("Hi, world") });
+      commit(sb, c, "A change on top of the weak policy");
+      gitOk(sb, c, "merge", "-q", "--no-gpg-sign", "-s", "ours", "-m", "Merge main, keeping this side's files", strong);
+      const merged = push(sb, c, "origin", "side:main");
+      assert.notEqual(merged.code, 0, merged.all);
+      assert.match(merged.all, /the pushed result changes the policy path \.skil(liton|lgate)\/delivery\.json to content that no approver-signed commit in this push gave it/, earlierPath ? "earlier path" : "current path");
+      assert.equal(tip(sb, bare, "main"), strong, "the strong policy still governs main");
+    }
+  });
+});
+
 test("creating a protected branch needs a policy and an approver signature; a missing or invalid policy on the protected tip rejects pushes", async () => {
   await withSandbox("bootstrap", async (sb) => {
     const approver = makeKey(sb, "approver");
@@ -360,7 +445,7 @@ test("creating a protected branch needs a policy and an approver signature; a mi
     assert.match(preview.all, /preview: nothing written; add --apply to write/);
     assert.match(preview.all, /the default branch main does not exist yet/);
     assert.equal(existsSync(join(fresh, "hooks", "pre-receive")), false);
-    assert.notEqual(git(sb, sb.root, "--git-dir", fresh, "config", "--get", "skillgate.approvers").code, 0);
+    assert.notEqual(git(sb, sb.root, "--git-dir", fresh, "config", "--get", "skilliton.approvers").code, 0);
     assert.equal(install(sb, fresh, approvers, ["--apply"]).code, 0);
 
     const x = clone(sb, fresh, "x");
@@ -368,7 +453,7 @@ test("creating a protected branch needs a policy and an approver signature; a mi
     commit(sb, x, "The app without a policy", { sign: approver });
     const noPolicy = push(sb, x, "origin", "main");
     assert.notEqual(noPolicy.code, 0, noPolicy.all);
-    assert.match(noPolicy.all, /rejected refs\/heads\/main: creating the protected branch main needs a delivery policy \(\.skillgate\/delivery\.json\)/);
+    assert.match(noPolicy.all, /rejected refs\/heads\/main: creating the protected branch main needs a delivery policy \(\.skilliton\/delivery\.json\)/);
     assert.equal(tip(sb, fresh, "main"), null);
 
     writeFiles(x, { [POLICY_FILE]: POLICY });
@@ -398,12 +483,12 @@ test("creating a protected branch needs a policy and an approver signature; a mi
     assert.equal(push(sb, y, "origin", "main").code, 0);
     const legacyInstall = install(sb, legacy, approvers, ["--apply"]);
     assert.equal(legacyInstall.code, 0, legacyInstall.all);
-    assert.match(legacyInstall.all, /attention: the default branch main has no \.skillgate\/delivery\.json/);
+    assert.match(legacyInstall.all, /attention: the default branch main has no \.skilliton\/delivery\.json/);
     writeFiles(y, { "notes.txt": "notes\n" });
     const legacyHead = commit(sb, y, "A change after the gate");
     const legacyPush = push(sb, y, "origin", "main");
     assert.notEqual(legacyPush.code, 0, legacyPush.all);
-    assert.match(legacyPush.all, /skillgate delivery: rejected refs\/heads\/main: no delivery policy on the protected branch/);
+    assert.match(legacyPush.all, /skilliton delivery: rejected refs\/heads\/main: no delivery policy on the protected branch/);
     assert.notEqual(tip(sb, legacy, "main"), legacyHead);
     const legacyFeature = push(sb, y, "origin", "HEAD:refs/heads/topic");
     assert.equal(legacyFeature.code, 0, legacyFeature.all);
@@ -423,7 +508,7 @@ test("creating a protected branch needs a policy and an approver signature; a mi
     commit(sb, z, "Release notes");
     const releasePush = push(sb, z, "origin", "HEAD:refs/heads/release");
     assert.notEqual(releasePush.code, 0, releasePush.all);
-    assert.match(releasePush.all, /rejected refs\/heads\/release: the delivery policy on the protected branch \(\.skillgate\/delivery\.json at [0-9a-f]{12}\) is invalid: "checks" must be an array/);
+    assert.match(releasePush.all, /rejected refs\/heads\/release: the delivery policy on the protected branch \(\.skilliton\/delivery\.json at [0-9a-f]{12}\) is invalid: "checks" must be an array/);
 
     // An invalid policy on the default branch: the protected branches cannot be determined, so every push is rejected.
     const garbled = initBare(sb, "garbled.git");
@@ -452,7 +537,7 @@ test("install refuses a foreign hook, a non-bare folder, core.hooksPath, bad app
     const approvers = writeApprovers(sb.path("approvers"), [approver]);
     const bare = initBare(sb, "shared.git");
     const hook = join(bare, "hooks", "pre-receive");
-    const configured = () => git(sb, sb.root, "--git-dir", bare, "config", "--get-regexp", "^skillgate\\.").stdout.trim();
+    const configured = () => git(sb, sb.root, "--git-dir", bare, "config", "--get-regexp", "^skilliton\\.").stdout.trim();
 
     // A pre-receive hook someone else wrote is never overwritten.
     const foreign = "#!/bin/sh\necho custom checks\nexit 0\n";
@@ -460,7 +545,7 @@ test("install refuses a foreign hook, a non-bare folder, core.hooksPath, bad app
     chmodSync(hook, 0o755);
     const refusedForeign = install(sb, bare, approvers, ["--apply"]);
     assert.equal(refusedForeign.code, 2, refusedForeign.all);
-    assert.match(refusedForeign.all, /already exists and was not written by skillgate delivery install/);
+    assert.match(refusedForeign.all, /already exists and was not written by skilliton delivery install/);
     assert.equal(readFileSync(hook, "utf8"), foreign);
     assert.equal(configured(), "", "a refused install writes no git config");
     rmSync(hook);
@@ -508,10 +593,10 @@ test("install refuses a foreign hook, a non-bare folder, core.hooksPath, bad app
     assert.equal(ok.code, 0, ok.all);
     assert.ok(statSync(hook).mode & 0o100, "the hook is executable");
     const written = readFileSync(hook, "utf8");
-    assert.match(written, /^# skillgate:delivery-hook v1$/m);
-    assert.match(configured(), /^skillgate\.approvers .*approvers$/m);
-    assert.match(configured(), /^skillgate\.runtime .*bin\/skillgate$/m);
-    accessSync(git(sb, sb.root, "--git-dir", bare, "config", "--get", "skillgate.runtime").stdout.trim(), fsConstants.X_OK);
+    assert.match(written, /^# skilliton:delivery-hook v1$/m);
+    assert.match(configured(), /^skilliton\.approvers .*approvers$/m);
+    assert.match(configured(), /^skilliton\.runtime .*bin\/skilliton$/m);
+    accessSync(git(sb, sb.root, "--git-dir", bare, "config", "--get", "skilliton.runtime").stdout.trim(), fsConstants.X_OK);
 
     const again = install(sb, bare, approvers, ["--apply"]);
     assert.equal(again.code, 0, again.all);
@@ -554,17 +639,17 @@ test("the hook fails closed: a broken runtime path, no node, a missing or change
     commit(sb, d, "Add notes");
 
     // The runtime path in the repository's config no longer exists.
-    gitOk(sb, sb.root, "--git-dir", s.bare, "config", "skillgate.runtime", sb.path("moved", "bin", "skillgate"));
+    gitOk(sb, sb.root, "--git-dir", s.bare, "config", "skilliton.runtime", sb.path("moved", "bin", "skilliton"));
     const broken = push(sb, d, "origin", "main");
     assert.notEqual(broken.code, 0, broken.all);
-    assert.match(broken.all, /skillgate delivery: rejected: the delivery runtime .*moved\/bin\/skillgate is missing or not executable/);
+    assert.match(broken.all, /skilliton delivery: rejected: the delivery runtime .*moved\/bin\/skilliton is missing or not executable/);
     assert.match(broken.all, /pre-receive hook declined/);
     assert.equal(tip(sb, s.bare, "main"), s.seed);
 
-    gitOk(sb, sb.root, "--git-dir", s.bare, "config", "--unset", "skillgate.runtime");
+    gitOk(sb, sb.root, "--git-dir", s.bare, "config", "--unset", "skilliton.runtime");
     const unset = push(sb, d, "origin", "main");
     assert.notEqual(unset.code, 0, unset.all);
-    assert.match(unset.all, /skillgate\.runtime is not set/);
+    assert.match(unset.all, /skilliton\.runtime is not set/);
     assert.equal(tip(sb, s.bare, "main"), s.seed);
     assert.equal(install(sb, s.bare, s.approvers, ["--apply"]).code, 0);
 
@@ -579,7 +664,7 @@ test("the hook fails closed: a broken runtime path, no node, a missing or change
     } else {
       const nodeless = run(sb, join(onlyGit, "git"), ["push", "origin", "main"], { cwd: d, env: { PATH: restricted } });
       assert.notEqual(nodeless.code, 0, nodeless.all);
-      assert.match(nodeless.all, /skillgate delivery: rejected: node was not found on PATH/);
+      assert.match(nodeless.all, /skilliton delivery: rejected: node was not found on PATH/);
       assert.equal(tip(sb, s.bare, "main"), s.seed);
     }
 
@@ -667,7 +752,7 @@ test("a check that cannot start or that times out rejects the push, and a timed-
     commit(sb, t, "A check that never finishes");
     const hung = push(sb, t, "origin", "main");
     assert.notEqual(hung.code, 0, hung.all);
-    assert.match(hung.all, /skillgate delivery: check "runs" passed/);
+    assert.match(hung.all, /skilliton delivery: check "runs" passed/);
     assert.match(hung.all, /rejected refs\/heads\/main: check "finishes" failed \(timed out after 2s\)/);
     const pid = Number(readFileSync(pidFile, "utf8"));
     assert.ok(pid > 0, "the hanging check started its child process");
@@ -706,12 +791,12 @@ test("a .gitattributes export rule cannot hide files from the checks", async () 
 
 // ---------------------------------------------------------------- the GitHub template, simulated locally
 
-// The Node script inside templates/github/skillgate-delivery.yml, with the block's indentation removed, as bash's
+// The Node script inside templates/github/skilliton-delivery.yml, with the block's indentation removed, as bash's
 // quoted heredoc hands it to node. Running it here is a local simulation, not a hosted rehearsal.
 function templateScript() {
-  const lines = readFileSync(join(here, "..", "templates", "github", "skillgate-delivery.yml"), "utf8").split("\n");
-  const start = lines.findIndex((l) => l.trim() === "node --input-type=module - <<'SKILLGATE_DELIVERY'");
-  const end = lines.findIndex((l, i) => i > start && l.trim() === "SKILLGATE_DELIVERY");
+  const lines = readFileSync(join(here, "..", "templates", "github", "skilliton-delivery.yml"), "utf8").split("\n");
+  const start = lines.findIndex((l) => l.trim() === "node --input-type=module - <<'SKILLITON_DELIVERY'");
+  const end = lines.findIndex((l, i) => i > start && l.trim() === "SKILLITON_DELIVERY");
   assert.ok(start >= 0 && end > start, "the template holds its script between the heredoc markers");
   const indent = lines[start].match(/^ */)[0].length;
   return lines.slice(start + 1, end).map((l) => l.slice(Math.min(indent, l.match(/^ */)[0].length))).join("\n");
@@ -740,15 +825,15 @@ test("the GitHub template's script, run locally on simulated merge results (not 
 
     const passing = simulate("passing", { "lib/greet.mjs": GREET_HI, "test/greet.test.mjs": greetTest("Hi, world") }).result;
     assert.equal(passing.code, 0, passing.all);
-    assert.match(passing.all, /skillgate delivery: accepted: 1 check\(s\) passed \(tests\)/);
+    assert.match(passing.all, /skilliton delivery: accepted: 1 check\(s\) passed \(tests\)/);
 
     const failing = simulate("failing", { "lib/greet.mjs": GREET_BROKEN }).result;
     assert.equal(failing.code, 1, failing.all);
-    assert.match(failing.all, /skillgate delivery: rejected: check "tests" failed \(exit 1\)/);
+    assert.match(failing.all, /skilliton delivery: rejected: check "tests" failed \(exit 1\)/);
 
     const policyChange = simulate("policy", { [POLICY_FILE]: { ...POLICY, checks: [] } }).result;
     assert.equal(policyChange.code, 1, policyChange.all);
-    assert.match(policyChange.all, /touches policy paths \(\.skillgate\/delivery\.json\)\. This workflow cannot prove who approved a policy change/);
+    assert.match(policyChange.all, /touches policy paths \(\.skilliton\/delivery\.json\)\. This workflow cannot prove who approved a policy change/);
     assert.doesNotMatch(policyChange.all, /check "tests"/);
 
     // A checkout that is not the merge result (the pull request head alone) is refused.
@@ -776,7 +861,7 @@ function mutantRuntime(sb, label, target, replacement) {
   const source = readFileSync(lib, "utf8");
   assert.equal(source.split(target).length - 1, 1, `mutation "${label}": the target statement must appear exactly once in delivery.mjs`);
   writeFileSync(lib, source.replace(target, replacement));
-  return join(copy, "bin", "skillgate");
+  return join(copy, "bin", "skilliton");
 }
 
 test("mutation checks: the assertions above fail when the gate ignores a failing check or a missing approver signature", async () => {

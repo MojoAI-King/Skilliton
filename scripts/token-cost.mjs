@@ -21,7 +21,7 @@
 //
 // Usage:
 //   node scripts/token-cost.mjs [FROM_DAY TO_DAY] [--project <substring>]... [--until <ISO time>] [--by-project] [--json]
-//   FROM_DAY/TO_DAY are YYYY-MM-DD in SKILLGATE_TZ, inclusive. --project matches the project
+//   FROM_DAY/TO_DAY are YYYY-MM-DD in SKILLITON_TZ, inclusive. --project matches the project
 //   directory name, case-insensitive; repeat it for a union. Project names are passed on the
 //   command line only and never committed.
 
@@ -30,8 +30,8 @@ import { createInterface } from "node:readline";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-const ROOT = process.env.SKILLGATE_PROJECTS ?? join(homedir(), ".claude", "projects");
-const TZ = process.env.SKILLGATE_TZ ?? "America/New_York";
+const ROOT = process.env.SKILLITON_PROJECTS ?? join(homedir(), ".claude", "projects");
+const TZ = process.env.SKILLITON_TZ ?? "America/New_York";
 const argv = process.argv.slice(2);
 const flag = (k) => argv.includes(k);
 const values = (k) => argv.flatMap((a, i) => (a === k && argv[i + 1] ? [argv[i + 1]] : []));

@@ -9,18 +9,18 @@
 #             then injected an empty line, silently.
 # Fix 2:      match the heading as a line PREFIX, and report a missing or empty checklist.
 #
-# Set SKILLGATE_LESSONS to the file and SKILLGATE_CHECKLIST_HEADING to the heading text
+# Set SKILLITON_LESSONS to the file and SKILLITON_CHECKLIST_HEADING to the heading text
 # (the start of the heading line, without the leading "## ").
 # Verified behavior of the awk itself: 102,941 bytes down to 19,233 on the originating file.
 # UNVERIFIED and must be tested on your Claude Code version: how SessionStart stdout is
 # surfaced to the model. Confirm with a fresh session before relying on it.
 
 set -u
-LESSONS="${SKILLGATE_LESSONS:-}"
-HEADING="${SKILLGATE_CHECKLIST_HEADING:-The new-app wiring checklist}"
+LESSONS="${SKILLITON_LESSONS:-}"
+HEADING="${SKILLITON_CHECKLIST_HEADING:-The new-app wiring checklist}"
 
 if [ -z "$LESSONS" ] || [ ! -f "$LESSONS" ]; then
-  echo "[context-hygiene] SKILLGATE_LESSONS not set or file missing; injecting nothing. (Reported, not silent.)"
+  echo "[context-hygiene] SKILLITON_LESSONS not set or file missing; injecting nothing. (Reported, not silent.)"
   exit 0
 fi
 
@@ -32,14 +32,14 @@ CHECKLIST=$(awk -v h="## $HEADING" '
 AWK_STATUS=$?
 
 if [ "$AWK_STATUS" -ne 0 ]; then
-  echo "[context-hygiene] awk exited ${AWK_STATUS} reading SKILLGATE_LESSONS; injecting nothing. (Reported, not silent.)"
+  echo "[context-hygiene] awk exited ${AWK_STATUS} reading SKILLITON_LESSONS; injecting nothing. (Reported, not silent.)"
   exit 0
 fi
 
 # Empty means: no heading line matched, or the heading matched but nothing non-blank follows it.
 BODY=$(printf "%s\n" "$CHECKLIST" | sed '1d' | tr -d '[:space:]')
 if [ -z "$CHECKLIST" ] || [ -z "$BODY" ]; then
-  echo "[context-hygiene] checklist heading not found in SKILLGATE_LESSONS; injecting nothing. (Reported, not silent.)"
+  echo "[context-hygiene] checklist heading not found in SKILLITON_LESSONS; injecting nothing. (Reported, not silent.)"
   exit 0
 fi
 

@@ -12,7 +12,7 @@ Output: `LANES.md` at the repo root (gitignored; add the entry to `.gitignore` o
 
 ## Project config
 
-Read the `dispatch` section of `.skillgate/config.json` at the repo root. If the file or the section is missing, propose one built from what the repo shows (its test script, its docs folder) and write it only after the user agrees. Every field is optional; the defaults are shown.
+Read the `dispatch` section of `.skilliton/config.json` at the repo root. If the file or the section is missing, propose one built from what the repo shows (its test script, its docs folder) and write it only after the user agrees. Every field is optional; the defaults are shown.
 
 ```json
 { "dispatch": {
@@ -113,7 +113,7 @@ Then open <laneRoot>/<name> in a new window, start a fresh session, and paste th
 ### Brief
 Run `git branch --show-current`. It must print lane/<name>-<mmdd>; otherwise stop and say so.
 Run `git merge-base --is-ancestor <base commit> HEAD`. It must exit 0; otherwise stop and say the lane is missing the base commit.
-You are in an isolated worktree. Do not edit anything under: <mainOnlyPaths>, except these new files: your task record (`skillgate task start "<lane name>" --branch lane/<name>-<mmdd> --apply`, then `skillgate checkpoint ... --apply` as items finish) and proposed decision or lesson entries (`skillgate record decision "<title>" --apply`). Never edit the shared handoff, status, backlog or indexes.
+You are in an isolated worktree. Do not edit anything under: <mainOnlyPaths>, except these new files: your task record (`skilliton task start "<lane name>" --branch lane/<name>-<mmdd> --apply`, then `skilliton checkpoint ... --apply` as items finish) and proposed decision or lesson entries (`skilliton record decision "<title>" --apply`). Never edit the shared handoff, status, backlog or indexes.
 Do not touch files outside this lane's list without flagging it in the commit message.
 Test command, exactly: <laneTestCommand or the repo default, with the interference warning>.
 Never run: <mainOnlyChecks>. Main runs them at merge.
@@ -143,7 +143,7 @@ When the user says a lane is done:
 2. Run the full gate on the rebased lane tree. Read the exit status on its own line; never judge a gate through a pipe into `tail` or `grep`, and in zsh do not rely on `PIPESTATUS`. Only when it is green: in main, `git merge --ff-only lane/<name>-<mmdd>` (fall back to a plain merge and say so).
 3. Run `mainOnlyChecks` in main. A red that appears only here is undone with `git reset --keep <main-before-merge>` before reporting, since nothing was pushed.
 4. The next lane rebases on the new main. Repeat.
-5. After the last lane: confirm every lane branch is contained in main and no lane folder holds uncommitted work, then run `skillgate index --apply` (the decision, lesson and task indexes regenerate from the entry files the lanes added) and `maintain` once to write the decisions and status from the task records and commit messages.
+5. After the last lane: confirm every lane branch is contained in main and no lane folder holds uncommitted work, then run `skilliton index --apply` (the decision, lesson and task indexes regenerate from the entry files the lanes added) and `maintain` once to write the decisions and status from the task records and commit messages.
 6. Close the batch: detach each lane folder to main (`git -C <folder> checkout --detach main`), delete the lane branches, keep the folders.
 
 A lane's green is not the merge's green: the lane proves it is internally sound, not that it is sound on top of the other lanes.

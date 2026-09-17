@@ -12,7 +12,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
-export const CLI = join(REPO, "scripts", "skillgate.mjs");
+export const CLI = join(REPO, "scripts", "skilliton.mjs");
 
 export function parseFlags(argv, known) {
   const out = { _: [] };
@@ -28,7 +28,7 @@ export function parseFlags(argv, known) {
 }
 
 export function workspace(name) {
-  return realpathSync(mkdtempSync(join(tmpdir(), `skillgate-rehearsal-${name}-`)));
+  return realpathSync(mkdtempSync(join(tmpdir(), `skilliton-rehearsal-${name}-`)));
 }
 
 // Run a program with an argument array (never a shell string). Returns { code, out, err, all }.
@@ -38,7 +38,7 @@ export function run(file, args = [], { cwd, env, input, timeoutMs = 300000 } = {
   return { code: r.status ?? (r.error ? 127 : 1), out: r.stdout ?? "", err, all: `${r.stdout ?? ""}${err}` };
 }
 
-export const skillgate = (args, opts = {}) => run(process.execPath, [CLI, ...args], opts);
+export const skilliton = (args, opts = {}) => run(process.execPath, [CLI, ...args], opts);
 
 export function git(cwd, args, opts = {}) { return run("git", args, { cwd, ...opts }); }
 
@@ -47,7 +47,7 @@ export function git(cwd, args, opts = {}) { return run("git", args, { cwd, ...op
 export function isolatedEnv(ws, extra = {}) {
   const home = join(ws, "home");
   mkdirSync(home, { recursive: true });
-  const env = { PATH: process.env.PATH, LANG: process.env.LANG ?? "C.UTF-8", HOME: home, TMPDIR: process.env.TMPDIR ?? tmpdir(), GIT_CONFIG_NOSYSTEM: "1", SKILLGATE_TRUST_DIR: join(ws, "trust"), SKILLGATE_BACKUPS: join(ws, "backups") };
+  const env = { PATH: process.env.PATH, LANG: process.env.LANG ?? "C.UTF-8", HOME: home, TMPDIR: process.env.TMPDIR ?? tmpdir(), GIT_CONFIG_NOSYSTEM: "1", SKILLITON_TRUST_DIR: join(ws, "trust"), SKILLITON_BACKUPS: join(ws, "backups") };
   return { ...env, ...extra };
 }
 
@@ -136,9 +136,12 @@ export class Rehearsal {
     return lines.join("\n");
   }
   // Writes the summary into the repository only when the scrub check passes on it; otherwise deletes it and says so.
+  // A run never replaces recorded evidence: a second run on the same day gets the next free -run-<n> folder.
   writeEvidence(ws, meta) {
     const clean = sanitizer(ws);
-    const dir = join(REPO, "evidence", "rehearsals", `${new Date().toISOString().slice(0, 10)}-${this.name}`);
+    const base = join(REPO, "evidence", "rehearsals", `${new Date().toISOString().slice(0, 10)}-${this.name}`);
+    let dir = base;
+    for (let n = 2; existsSync(dir); n++) dir = `${base}-run-${n}`;
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "SUMMARY.md"), clean(this.summary(meta)));
     writeFileSync(join(dir, "steps.json"), clean(JSON.stringify({ rehearsal: this.name, steps: this.steps, notes: this.notes, meta }, null, 2)) + "\n");

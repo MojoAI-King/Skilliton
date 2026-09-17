@@ -16,7 +16,7 @@ Run these and keep the output short:
 - `git status --short` (more than about 20 lines: summarize by folder)
 - `git rev-parse --abbrev-ref '@{u}'`. If it prints a branch, run `git log --oneline '@{u}..'` for the commits not yet pushed (more than 10: give the count and the newest few). If it fails, the branch has no upstream, so nothing on it is pushed.
 - `date "+%Y-%m-%d %H:%M %Z"`
-- `skillgate status` if it is available. It names the handoff file, the integration branches, and the current task. If `skillgate` is not found, the handoff file is `handoff.file` from `.skillgate/config.json`, else `docs/HANDOFF.md`, and the integration branches are `main` and `master`.
+- `skilliton status` if it is available. It names the handoff file, the integration branches, and the current task. If `skilliton` is not found, the handoff file is `handoff.file` from `.skilliton/config.json`, else `docs/HANDOFF.md`, and the integration branches are `main` and `master`.
 
 Then this conversation: what got finished, what was checked and how, what is half done, what is waiting on someone.
 
@@ -25,8 +25,8 @@ Then this conversation: what got finished, what was checked and how, what is hal
 ## 2. Choose where the note goes
 
 - **On an integration branch** (or when the repository has no task records): the shared handoff file. Follow section 3.
-- **On any other branch, with a current task record** (`skillgate task show` prints its path): the `## Handoff` section of that task record. Replace that section's four bullets (**State**, **Next**, **Blocked**, **Watch out**) and leave the rest of the file alone. First record a checkpoint if progress since the last one is not written down: `skillgate checkpoint --state "..." --evidence "..." --next "..." --apply`. Then go to section 4. Never edit the shared handoff from a task branch: two people writing it at once is how one note overwrites the other.
-- **On another branch with no task record:** say so, offer `skillgate task start "<title>" --apply`, and write the shared handoff only if the user agrees.
+- **On any other branch, with a current task record** (`skilliton task show` prints its path): the `## Handoff` section of that task record. Replace that section's four bullets (**State**, **Next**, **Blocked**, **Watch out**) and leave the rest of the file alone. First record a checkpoint if progress since the last one is not written down: `skilliton checkpoint --state "..." --evidence "..." --next "..." --apply`. Then go to section 4. Never edit the shared handoff from a task branch: two people writing it at once is how one note overwrites the other.
+- **On another branch with no task record:** say so, offer `skilliton task start "<title>" --apply`, and write the shared handoff only if the user agrees.
 
 ## 3. Write the shared note
 

@@ -1,6 +1,6 @@
 ---
 name: task-start-records-work
-description: The task skill turns a plain-language request into a task record with checkable acceptance criteria, created through skillgate, without building anything yet.
+description: The task skill turns a plain-language request into a task record with checkable acceptance criteria, created through skilliton, without building anything yet.
 tags: [task, core]
 runs: 3
 max_turns: 30

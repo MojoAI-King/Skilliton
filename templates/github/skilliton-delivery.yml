@@ -1,12 +1,12 @@
 # Skilliton trusted delivery checks: the GitHub adapter. See docs/DELIVERY.md in the Skilliton skills repository.
 #
-# Copy this file to .github/workflows/skillgate-delivery.yml in an application repository whose protected branches
-# carry a .skillgate/delivery.json policy. NOT VERIFIED ON GITHUB: until a hosted rehearsal runs, this adapter is
+# Copy this file to .github/workflows/skilliton-delivery.yml in an application repository whose protected branches
+# carry a .skilliton/delivery.json policy. NOT VERIFIED ON GITHUB: until a hosted rehearsal runs, this adapter is
 # documented, not proved.
 #
 # What it does, on every pull request and every merge queue group:
 #   1. checks out the merge result GitHub built (never the pull request branch on its own);
-#   2. reads .skillgate/delivery.json from the base side of that merge, never from the pull request;
+#   2. reads .skilliton/delivery.json from the base side of that merge, never from the pull request;
 #   3. fails when the change touches a policy path: this workflow cannot prove who approved a policy change, so such
 #      changes need code-owner review enforced by branch protection, and a repository administrator decides how they
 #      merge;
@@ -14,13 +14,13 @@
 #      LANG), and fails with the check's name and the last 20 lines of its output.
 #
 # What it needs from branch protection on each protected branch (not verified until a hosted rehearsal runs):
-#   - this job, "skillgate-delivery", as a required status check;
+#   - this job, "skilliton-delivery", as a required status check;
 #   - "Require branches to be up to date before merging", or a merge queue, so the checks ran on the combined result;
 #   - "Require review from Code Owners", with CODEOWNERS covering every policy path, including .github/workflows/.
 # A pull request runs its own copy of this file, so that code-owner review is what keeps a pull request from
 # weakening the workflow itself. This workflow is not an approval record and does not replace review.
 
-name: skillgate-delivery
+name: skilliton-delivery
 
 on:
   pull_request:
@@ -30,8 +30,8 @@ permissions:
   contents: read
 
 jobs:
-  skillgate-delivery:
-    name: skillgate-delivery
+  skilliton-delivery:
+    name: skilliton-delivery
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -55,18 +55,18 @@ jobs:
           MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
           MERGE_GROUP_BASE_REF: ${{ github.event.merge_group.base_ref }}
         run: |
-          node --input-type=module - <<'SKILLGATE_DELIVERY'
+          node --input-type=module - <<'SKILLITON_DELIVERY'
           import { spawn, spawnSync } from "node:child_process";
           import { mkdtempSync, rmSync } from "node:fs";
           import { tmpdir } from "node:os";
           import { join } from "node:path";
 
-          const POLICY_FILE = ".skillgate/delivery.json";
+          const POLICY_FILE = ".skilliton/delivery.json";
           const TAIL_LINES = 20;
-          const say = (line) => console.log(`skillgate delivery: ${line}`);
+          const say = (line) => console.log(`skilliton delivery: ${line}`);
           function stop(line) {
             say(`rejected: ${line}`);
-            console.log(`::error title=skillgate delivery::${line.replace(/\r?\n/g, " ")}`);
+            console.log(`::error title=skilliton delivery::${line.replace(/\r?\n/g, " ")}`);
             process.exit(1);
           }
           function git(args) {
@@ -107,7 +107,7 @@ jobs:
           if (!isObject(policy)) problems.push("the file must hold a JSON object");
           else {
             for (const k of Object.keys(policy)) if (!["schema", "protectedBranches", "checks", "policyPaths"].includes(k)) problems.push(`unknown key "${k}"`);
-            if (policy.schema !== "skillgate.delivery/1") problems.push(`"schema" must be "skillgate.delivery/1"`);
+            if (policy.schema !== "skilliton.delivery/1") problems.push(`"schema" must be "skilliton.delivery/1"`);
             if (!Array.isArray(policy.protectedBranches) || !policy.protectedBranches.every(branchName) || new Set(policy.protectedBranches).size !== policy.protectedBranches.length) problems.push(`"protectedBranches" must be an array of distinct plain branch names`);
             if (!Array.isArray(policy.checks)) problems.push(`"checks" must be an array`);
             else {
@@ -137,7 +137,7 @@ jobs:
           }
 
           // Every check, in order, on the merge result.
-          const home = mkdtempSync(join(tmpdir(), "skillgate-delivery-home-"));
+          const home = mkdtempSync(join(tmpdir(), "skilliton-delivery-home-"));
           const env = { PATH: process.env.PATH, HOME: home, LANG: process.env.LANG || "C.UTF-8" };
           say(`checking ${head} (merge result into ${baseBranch}) with the policy at ${base}: ${policy.checks.length} check(s)`);
           for (const check of policy.checks) {
@@ -168,7 +168,7 @@ jobs:
             if (!outcome.ok) {
               say(`rejected: check "${check.name}" failed (${outcome.how})`);
               for (const line of outcome.tail) console.log(`  | ${line}`);
-              console.log(`::error title=skillgate delivery::check "${check.name}" failed (${outcome.how})`);
+              console.log(`::error title=skilliton delivery::check "${check.name}" failed (${outcome.how})`);
               rmSync(home, { recursive: true, force: true });
               process.exit(1);
             }
@@ -176,4 +176,4 @@ jobs:
           }
           rmSync(home, { recursive: true, force: true });
           say(`accepted: ${policy.checks.length ? `${policy.checks.length} check(s) passed (${policy.checks.map((c) => c.name).join(", ")})` : "the policy lists no checks"}`);
-          SKILLGATE_DELIVERY
+          SKILLITON_DELIVERY

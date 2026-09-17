@@ -12,7 +12,7 @@ The open acceptance items after the 2026-09-16 integration. Details and history 
 | B4 (O15) | The GitHub delivery adapter rehearsed on a hosted repository with branch protection | blocked on approval to create a throwaway repository | docs/DELIVERY.md |
 | B5 (O6, O7) | The session start and the guardrails confirmation prompt seen in an interactive session | needs a person at the keyboard | headless behavior measured (evidence/rehearsals/2026-09-16-live-clients) |
 | B6 (O17) | A signed release of this repository | needs the owner's signing key and version choice | docs/RELEASING.md |
-| B7 | Applicability decisions for this repository's own security register | needs the owner | `skillgate security status`, then `skillgate security applicability ... --decided-by <owner> --apply` |
+| B7 | Applicability decisions for this repository's own security register | needs the owner | `skilliton security status`, then `skilliton security applicability ... --decided-by <owner> --apply` |
 | B8 (O10, O19, O21, O22) | Smaller follow-ups: guardrails allowlist for env files, verify's tag policy, guardrails client detection, secrets tiering review | open; O21 needs the Codex run in B2 and O22 a real application | DECISIONS.md open items (O18 and O20 closed; docs/BACKLOG_ARCHIVE.md) |
 | B9 (O2, O3) | Usage reproduction before any savings claim | blocked on the owner's original scope and cutoff | DECISIONS.md O2 |
 | B13 (M8) | A never-prepared repository is offered preparation at session start, and a delivery policy is drafted from its detected test commands | open; the live session needs the B3 login | PLAN.md section 7 M8 |
