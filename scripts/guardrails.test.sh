@@ -242,8 +242,8 @@ section "packaging: hooks.json and executable bits (Claude Code runs the scripts
 HJ="$SHIPPED_DIR/hooks.json"
 jq_true() { if jq -e "$2" "$HJ" >/dev/null 2>&1; then ok "$1"; else bad "$1"; fi; }
 jq_true "PreToolUse has one entry, matcher Bash" '(.hooks.PreToolUse | length) == 1 and .hooks.PreToolUse[0].matcher == "Bash"'
-jq_true "PreToolUse runs guard-bash.sh by path with timeout 10" '.hooks.PreToolUse[0].hooks == [{"type":"command","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/guard-bash.sh","timeout":10}]'
-jq_true "SessionStart runs session-start-guardrails.sh by path" '.hooks.SessionStart == [{"hooks":[{"type":"command","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-start-guardrails.sh"}]}]'
+jq_true "PreToolUse runs guard-bash.sh by path, in bash, with timeout 10" '.hooks.PreToolUse[0].hooks == [{"type":"command","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/guard-bash.sh","shell":"bash","timeout":10}]'
+jq_true "SessionStart runs session-start-guardrails.sh by path, in bash" '.hooks.SessionStart == [{"hooks":[{"type":"command","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-start-guardrails.sh","shell":"bash"}]}]'
 jq_true "no if filter anywhere (compound commands must reach the hook)" '[.. | objects | has("if")] | any | not'
 if [ -x "$HOOK" ]; then ok "guard-bash.sh is executable"; else bad "guard-bash.sh is not executable"; fi
 if [ -x "$SS" ]; then ok "session-start-guardrails.sh is executable"; else bad "session-start-guardrails.sh is not executable"; fi

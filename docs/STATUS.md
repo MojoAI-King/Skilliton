@@ -13,5 +13,8 @@ Read `docs/HANDOFF.md` for the next step and `docs/BACKLOG.md` for outstanding w
 <!-- skilliton:index:tasks:start -->
 Open tasks in `docs/tasks/` (every state except done-local, merged, released, verified and abandoned), sorted by ID. `skilliton index` writes this list from the task records; edit the task records, not the list.
 
-No open tasks.
+| ID | Title | State | Branch | Owner | Updated |
+|---|---|---|---|---|---|
+| [2026-09-17-b28-a-test-enforces-the-small-footprint-55b9](tasks/2026-09-17-b28-a-test-enforces-the-small-footprint-55b9.md) | B28: a test enforces the small footprint | in-progress | main | unassigned | 2026-09-17T18:35:33.453Z |
+| [2026-09-17-b30-windows-support-through-git-for-wind-9af7](tasks/2026-09-17-b30-windows-support-through-git-for-wind-9af7.md) | B30: Windows support through Git for Windows | in-progress | main | unassigned | 2026-09-17T19:38:59.914Z |
 <!-- skilliton:index:tasks:end -->

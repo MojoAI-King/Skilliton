@@ -6,7 +6,7 @@ Kind: Living. Where Skilliton has and has not actually been run: platforms, vers
 
 | Area | Exercised | Not exercised | Next step |
 |---|---|---|---|
-| Operating system | macOS 26 (Darwin 25.6): every suite, the live sessions and the rehearsals. Linux in CI (ubuntu-latest): every offline suite, with bash 5.2.21, git 2.55.0, GNU tar and dash as `/bin/sh` | Windows. `bin/skilliton` and every hook are bash scripts | Say "macOS and Linux" wherever support is stated, until Windows is decided |
+| Operating system | macOS 26 (Darwin 25.6): every suite, the live sessions and the rehearsals. Linux in CI (ubuntu-latest): every offline suite, with bash 5.2.21, git 2.55.0, GNU tar and dash as `/bin/sh` | **Windows: nothing at all.** The approach is decided (Git for Windows, so the bash hooks and launcher stay as they are) and every hook pins `"shell": "bash"`, but no Windows machine has run a command, a hook or a session | The owner runs docs/WINDOWS.md on a Windows machine and reports what happens (B30); until then, say "macOS and Linux, measured; Windows through Git for Windows, unmeasured" |
 | Node.js | 25.8.1 locally and 22.23.2 in CI (every suite); 20.19.4 locally for the lifecycle tests only | 18, the floor that docs/ONBOARDING.md and `bin/skilliton` state | Run the suite on Node 18 in CI, or raise the stated floor to a version CI runs (docs/BACKLOG.md B11) |
 | Bash | 3.2.57 locally, 5.2.21 in CI | other shells | none planned |
 | Git | 2.51.1 locally, 2.55.0 in CI | older than 2.34, which release signing needs (releases/SCHEMA.md) | none planned |

@@ -62,6 +62,7 @@ export const DYNAMIC_CALLS = [
   { file: `${WORKFLOW}/runtime/lib/delivery.mjs`, callee: "spawn", arg: "check.command[0]", count: 1, programs: [], policy: true, why: "a command from the shared repository's delivery policy, run by the gate" },
   { file: `${WORKFLOW}/runtime/lib/delivery.mjs`, callee: "runProgram", arg: "runtimePath", count: 1, programs: ["bash", "node"], why: "delivery install probes the workflow plugin's bin/skilliton launcher, a bash script that runs node" },
   { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "spawnSync", arg: "file", count: 1, programs: [], why: "inside startOnce, the wrapper that waits for one program in its own process group; every caller of it is read below" },
+  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "startOnce", arg: "bash.path", count: 1, programs: ["bash"], why: "on Windows the probe script is run by Git Bash, which is how Claude Code runs a hook there" },
   { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "startOnce", arg: "probe", count: 1, programs: ["env", "bash"], why: "preflight runs the plugin's own probe script by its path, so its first line starts env and bash, the way Claude Code runs a hook" },
   { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "startOnce", arg: "path", count: 1, programs: [], table: "PROGRAMS", why: "preflight starts each program from the PROGRAMS table in the same file once, with --version; the table is checked against section 1 below" },
 ];
