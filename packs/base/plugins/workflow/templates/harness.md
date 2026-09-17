@@ -1,6 +1,6 @@
-## How we work here (Skillgate)
+## How we work here (Skilliton)
 
-This block is managed by Skillgate. The company edits it in its skills repository (`packs/base/plugins/workflow/templates/harness.md`), and it reaches this project when `skillgate harness --apply` or a project migration runs. Text outside this block belongs to the project.
+This block is managed by Skilliton. The company edits it in its skills repository (`packs/base/plugins/workflow/templates/harness.md`), and it reaches this project when `skillgate harness --apply` or a project migration runs. Text outside this block belongs to the project.
 
 Each behavior is marked **enforced** (a hook of an installed, enabled plugin does it on a supported client event), **instructed** (you, the assistant, are asked to do it), or **checked at merge** (the shared repository's trusted delivery checks decide). Hooks are proved on Claude Code. Codex does not run hooks shipped inside plugins, asks a person to trust each hook a team configures, and has no plugins in its IDE extension, so in Codex treat every enforced line as instructed unless your company has set up and verified its Codex hooks.
 

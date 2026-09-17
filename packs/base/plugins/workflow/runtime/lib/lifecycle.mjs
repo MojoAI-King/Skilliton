@@ -120,7 +120,7 @@ export function parseWritten(raw) {
   } else if (Object.prototype.hasOwnProperty.call(ZONES, zone.toUpperCase())) {
     ms = Date.UTC(Y, M - 1, D, H, MI, S, MS) - ZONES[zone.toUpperCase()] * 60000;
   } else {
-    return { ok: false, reason: `the time zone "${zone}" is not one Skillgate reads (use UTC, an offset such as +02:00, or one of ${Object.keys(ZONES).filter((z) => z !== "Z").join(", ")})` };
+    return { ok: false, reason: `the time zone "${zone}" is not one Skilliton reads (use UTC, an offset such as +02:00, or one of ${Object.keys(ZONES).filter((z) => z !== "Z").join(", ")})` };
   }
   return { ok: true, at: new Date(ms), end: new Date(ms + resolutionMs - 1), resolutionMs };
 }
@@ -211,7 +211,7 @@ export function stopReason({ decision, state, current, command = selfCommand() }
     ? `the last checkpoint (${decision.elapsedMinutes} minutes ago)`
     : `this session started (${decision.elapsedMinutes} minutes ago), and no checkpoint has been recorded`;
   const values = `--state "<what is done and what is not>" --evidence "<checks or tests you ran, with their results>" --next "<the next concrete step>" --apply`;
-  const parts = [`Skillgate checkpoint reminder: the working tree has changed since ${since}.`];
+  const parts = [`Skilliton checkpoint reminder: the working tree has changed since ${since}.`];
   if (current.unreadable?.length) parts.push(`${current.unreadable.length} task record(s) could not be read: ${current.unreadable.map((u) => u.file).join(", ")}.`);
   parts.push("This reminder is given once for this working tree state; if this work should not be recorded, tell the user why and stop.");
   // The command comes last, so no punctuation follows it.
@@ -251,7 +251,7 @@ export function parseHookInput(raw) {
 function layoutCheck(project) {
   const version = project.layoutVersion;
   const data = { version, runtimeLayout: LAYOUT_VERSION };
-  if (version === null) return { status: "attention", summary: `not prepared by Skillgate (no prepare.version in .skillgate/config.json); to see what prepare would change: ${selfCommand()} prepare`, data };
+  if (version === null) return { status: "attention", summary: `not prepared by Skilliton (no prepare.version in .skillgate/config.json); to see what prepare would change: ${selfCommand()} prepare`, data };
   if (version < LAYOUT_VERSION) return { status: "attention", summary: `layout ${version}, and this runtime uses layout ${LAYOUT_VERSION}; to preview the migration: ${selfCommand()} migrate`, data };
   return { status: "ok", summary: `layout ${version} (current for this runtime)`, data };
 }

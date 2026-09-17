@@ -1,5 +1,5 @@
 // core.mjs: shared helpers and the original five commands (doctor, harness, project-settings, new-skill, import) of
-// the Skillgate command line (company and new-plugin are modules in ../commands/, with their engine in fork.mjs). Node only, no dependencies. The entry point is ../skillgate.mjs; scripts/skillgate.mjs in
+// the Skilliton command line (company and new-plugin are modules in ../commands/, with their engine in fork.mjs). Node only, no dependencies. The entry point is ../skillgate.mjs; scripts/skillgate.mjs in
 // a company skills repo and bin/skillgate in an installed plugin both run it.
 //
 // This file lives inside the workflow plugin so that an installed copy of the plugin carries the exact runtime its
@@ -242,7 +242,7 @@ function argPath(p) {
 
 // ---------- harness ----------
 
-const HARNESS_HELP = `harness: show, write, or remove the Skillgate harness block in CLAUDE.md and AGENTS.md.
+const HARNESS_HELP = `harness: show, write, or remove the Skilliton harness block in CLAUDE.md and AGENTS.md.
 
   harness              show the change for both files; writes nothing
   harness --apply      back up each existing file, then insert or replace the block (creates a missing file)
@@ -577,7 +577,7 @@ function requireSkillsRepo(hint) {
 
 function resolveSkillsRepo(value) {
   const repo = resolveExistingDir(value ?? requireSkillsRepo("pass --repo <skills repo>"), "--repo");
-  if (!isDir(join(repo, "packs"))) refuse(`${tilde(repo)} has no packs/ folder, so it is not a Skillgate skills repository (point --repo at one)`);
+  if (!isDir(join(repo, "packs"))) refuse(`${tilde(repo)} has no packs/ folder, so it is not a Skilliton skills repository (point --repo at one)`);
   return repo;
 }
 
@@ -875,7 +875,7 @@ function cmdImport(argv) {
 
 // ---------- doctor: helpers ----------
 
-const DOCTOR_HELP = `doctor: check this machine and one project for Skillgate, one line per check. Writes nothing.
+const DOCTOR_HELP = `doctor: check this machine and one project for Skilliton, one line per check. Writes nothing.
 
   doctor [--dir <project folder>]
 
@@ -1222,7 +1222,7 @@ function cmdDoctor(argv) {
     let project;
     try { project = resolveProject(dir); } catch (e) { if (!(e instanceof ConfigError)) throw e; report("UNVERIFIED", "project layout", "not checked: the project configuration cannot be used (see above)"); return; }
     const installed = readPluginVersion(PLUGIN_ROOT);
-    if (project.layoutVersion === null) report("WARN", "project layout", `not prepared by Skillgate (no prepare.version). To adopt this project's records and add the missing ones: ${selfCommand()} prepare${dirArg}`);
+    if (project.layoutVersion === null) report("WARN", "project layout", `not prepared by Skilliton (no prepare.version). To adopt this project's records and add the missing ones: ${selfCommand()} prepare${dirArg}`);
     else if (project.layoutVersion < LAYOUT_VERSION) report("WARN", "project layout", `layout ${project.layoutVersion}, and this runtime writes layout ${LAYOUT_VERSION}; preview the migration: ${selfCommand()} migrate${dirArg}`, { required: true, next: `migrate the project layout: ${selfCommand()} migrate --apply${dirArg}` });
     else report("OK", "project layout", `layout ${project.layoutVersion} (current for this runtime)`);
     for (const [plugin, minimum] of Object.entries(project.requires)) {

@@ -1,14 +1,16 @@
 # Skilliton
 
-This repository is Skilliton. The product inside it is **Skillgate**.
+**Skilliton** is the evolved product formerly called Skillgate.
 
 Kind: Living.
 
-**Skillgate is a forkable development autopilot for teams using AI coding tools.** A company decides once how it builds software: its records, habits, reviews, security evidence and checks. Every contributor, technical or not, then works inside that arrangement. They describe what they need, the assistant carries the work through the team's workflow, progress survives interruptions, and company-approved improvements arrive without anyone copying skills by hand.
+**Skilliton is a forkable development autopilot for teams using AI coding tools.** A company decides once how it builds software: its records, habits, reviews, security evidence and checks. Every contributor, technical or not, then works inside that arrangement. They describe what they need, the assistant carries the work through the team's workflow, progress survives interruptions, and company-approved improvements arrive without anyone copying skills by hand.
 
 **New here? [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) walks through the whole path with diagrams:** fork it, make it yours, release it, install it on every machine, work in any codebase, and feed lessons back.
 
 [PLAN.md](PLAN.md) is the direction and the milestone status. [docs/CONTRACTS.md](docs/CONTRACTS.md) defines every shared format and command. [docs/HANDOFF.md](docs/HANDOFF.md) says where the work stands. [docs/CLIENTS.md](docs/CLIENTS.md) says what Claude Code and Codex actually do, measured or documented.
+
+The command remains `skillgate` for compatibility with existing installations. Marketplace names, `.skillgate/` paths and other machine identifiers also retain that spelling; they refer to Skilliton. See [naming and compatibility](docs/BRANDING.md).
 
 ## Try it in two minutes
 
@@ -22,7 +24,7 @@ It prepares a disposable project, turns a request into a task with a checkpoint,
 
 | Capability | How it works | Proof in this repository |
 |---|---|---|
-| **Prepare a project** | `skillgate prepare` adopts the records a project already has (status, backlog, roadmap, decisions, lessons, handoff), adds only what is missing, marked "not yet assessed", writes the team's instructions into `CLAUDE.md` and `AGENTS.md`, and sets up the security register. Repeat runs change nothing. `migrate` applies versioned changes with receipts and rollback; `remove` takes Skillgate out and keeps every record. | 41 tests; [project rehearsal](evidence/rehearsals/2026-09-16-projects/SUMMARY.md) including adoption of a clone of this repository |
+| **Prepare a project** | `skillgate prepare` adopts the records a project already has (status, backlog, roadmap, decisions, lessons, handoff), adds only what is missing, marked "not yet assessed", writes the team's instructions into `CLAUDE.md` and `AGENTS.md`, and sets up the security register. Repeat runs change nothing. `migrate` applies versioned changes with receipts and rollback; `remove` takes Skilliton out and keeps every record. | 41 tests; [project rehearsal](evidence/rehearsals/2026-09-16-projects/SUMMARY.md) including adoption of a clone of this repository |
 | **Everyday continuity** | Task records with acceptance criteria and checkpoints; decision and lesson entries, one file each, so parallel contributors never collide; `status`. Hooks show the handoff and a project-state summary when a session starts, remind the assistant to record a checkpoint before it stops with unrecorded changes, and keep a local journal so an interrupted session is recognised. | 32 tests; [live Claude Code sessions](evidence/rehearsals/2026-09-16-live-clients/SUMMARY.md) (session start, stop reminder, interruption) |
 | **Workflow skills** | `task`, `dispatch`, `review` (plain-English review with a READY TO COMMIT, NEEDS ATTENTION or STOP verdict), `handoff`, `maintain`, `security`. Skills are instructions the assistant follows; the instruction block labels each behavior as enforced, instructed or checked at merge. | [skill evaluations](evidence/) |
 | **Guardrails** | A hook reads each shell command the assistant runs: blocks force-pushes to protected branches, skipped git hooks and secret-shaped commits; asks before commands that discard uncommitted work (Codex cannot ask from a hook, so it refuses them). It does not cover other terminals or deliberately hidden commands. | 487 checks; live denials of a force-push and of `git reset --hard` |

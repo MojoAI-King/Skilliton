@@ -1,4 +1,4 @@
-# Joining a team that uses Skillgate
+# Joining a team that uses Skilliton
 
 Kind: Living. For anyone who will build in a company's prepared repository with Claude Code or Codex, whether or not they write code for a living. Your company's version of this page may name its own marketplace; the steps are the same.
 
@@ -44,10 +44,10 @@ By hand instead: `claude plugin marketplace add <company>/<skills-repo>`, `claud
 
 ## 5. Receiving updates
 
-- Run `claude plugin marketplace update <marketplace>` and `claude plugin update <plugin>@<marketplace>`, then start a new session (measured: this follows the marketplace up to a new version and back down after a rollback). With auto-update on in the team settings, Claude Code documents checking at session start; that has not been observed in Skillgate's rehearsals yet.
+- Run `claude plugin marketplace update <marketplace>` and `claude plugin update <plugin>@<marketplace>`, then start a new session (measured: this follows the marketplace up to a new version and back down after a rollback). With auto-update on in the team settings, Claude Code documents checking at session start; that has not been observed in Skilliton's rehearsals yet.
 - After updating, run `skillgate verify`. VERIFIED means your installed files are exactly an approved release. TAMPERED, UNKNOWN VERSION or WITHDRAWN means stop and tell your maintainer; reinstalling the plugin usually fixes TAMPERED. If verify says a file is not executable, its hook or command cannot run: reinstall the plugin.
 - If the session start says the project needs a migration, preview it with `skillgate migrate` and apply it with `skillgate migrate --apply` on the shared branch (or ask your maintainer). A migration never rewrites your records or text outside the managed blocks; `skillgate migrate --rollback <id> --apply` undoes it while the migrated files are unchanged.
 
-## 6. Leaving or removing Skillgate
+## 6. Leaving or removing Skilliton
 
 `skillgate remove --dir <project> --apply` removes the managed instruction blocks and generated reports and keeps every record, task, decision, lesson, evidence record and the Git history. Uninstall the plugins with `claude plugin uninstall <plugin>@<marketplace>`.

@@ -75,10 +75,10 @@ export function checkRecordPath(root, rel, what = "a record path") {
       if (e.code === "ENOENT") return target;
       throw new ConfigError(`${what} "${rel}" could not be inspected (${e.code ?? "error"})`, "failed");
     }
-    if (st.isSymbolicLink()) throw new ConfigError(`${what} "${rel}" goes through a symbolic link, which Skillgate does not follow`);
+    if (st.isSymbolicLink()) throw new ConfigError(`${what} "${rel}" goes through a symbolic link, which Skilliton does not follow`);
     const last = i === parts.length - 1;
     if (!last && !st.isDirectory()) throw new ConfigError(`${what} "${rel}" has a part that is not a folder`);
-    if (last && st.isFile() && st.nlink !== 1) throw new ConfigError(`${what} "${rel}" is a hard-linked file, which Skillgate does not write through`);
+    if (last && st.isFile() && st.nlink !== 1) throw new ConfigError(`${what} "${rel}" is a hard-linked file, which Skilliton does not write through`);
   }
   return target;
 }
@@ -108,7 +108,7 @@ export function configProblems(config) {
   const problems = [];
   for (const key of KNOWN_SECTIONS) if (config[key] !== undefined && !isObject(config[key])) problems.push(`section "${key}" must be an object`);
   const prepare = isObject(config.prepare) ? config.prepare : {};
-  if (prepare.version !== undefined && !SUPPORTED_LAYOUTS.includes(prepare.version)) problems.push(`prepare.version ${JSON.stringify(prepare.version)} is not a layout this runtime knows (${SUPPORTED_LAYOUTS.join(", ")}); a newer Skillgate prepared this project, or the value was edited`);
+  if (prepare.version !== undefined && !SUPPORTED_LAYOUTS.includes(prepare.version)) problems.push(`prepare.version ${JSON.stringify(prepare.version)} is not a layout this runtime knows (${SUPPORTED_LAYOUTS.join(", ")}); a newer Skilliton prepared this project, or the value was edited`);
   if (prepare.artifacts !== undefined && !isObject(prepare.artifacts)) problems.push("prepare.artifacts must be an object mapping record roles to files");
   if (isObject(prepare.artifacts)) {
     for (const [role, path] of Object.entries(prepare.artifacts)) {
@@ -155,7 +155,7 @@ export function resolveProject(rootInput) {
     const configured = overrides[role] ?? (role === "handoff" ? handoffSection.file : undefined);
     if (configured !== undefined) {
       checkRecordPath(root, configured, `the ${role} record`);
-      if (configured.toLowerCase().startsWith(".skillgate/") || reserved.has(configured.toLowerCase())) throw new ConfigError(`the ${role} record cannot be ${configured}: that path belongs to Skillgate or to the instruction files`);
+      if (configured.toLowerCase().startsWith(".skillgate/") || reserved.has(configured.toLowerCase())) throw new ConfigError(`the ${role} record cannot be ${configured}: that path belongs to Skilliton or to the instruction files`);
       artifacts[role] = configured;
       source[role] = "config";
     } else {

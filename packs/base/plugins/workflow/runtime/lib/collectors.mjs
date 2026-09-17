@@ -232,7 +232,7 @@ export async function collectTests(root, { sources = [], control, reviewer, appl
   let closed = false;
   try {
     appendEvidence(out.fd, [
-      'Skillgate collector output: tests',
+      'Skilliton collector output: tests',
       collectorLine('tests', versions),
       `Started: ${startedAt.toISOString()}`,
       `Policy: ${DELIVERY_REL} (sha256 ${policy.fingerprint.sha256})`,
@@ -349,7 +349,7 @@ export function collectSecrets(root, { control, reviewer, apply = false } = {}) 
   keepOutputs([report.rel], () => {
     try {
       appendEvidence(report.fd, [
-        'Skillgate collector report: secrets',
+        'Skilliton collector report: secrets',
         collectorLine('secrets', versions),
         `Scanned: ${startedAt.toISOString()}. Repository HEAD: ${headText}.`,
         'Scope: the files git ls-files lists, read from the working tree (uncommitted edits included; untracked files are not scanned).',
@@ -411,7 +411,7 @@ export function collectDeliveryPolicy(root, { control, reviewer, apply = false }
   keepOutputs([out.rel], () => {
     try {
       appendEvidence(out.fd, [
-        'Skillgate collector report: delivery-policy',
+        'Skilliton collector report: delivery-policy',
         collectorLine('delivery-policy', versions),
         `Checked: ${at.toISOString()}`,
         `Policy: ${DELIVERY_REL} ${policy.exists ? `(sha256 ${policy.fingerprint.sha256})` : '(missing)'}`,

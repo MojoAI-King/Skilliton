@@ -1,4 +1,4 @@
-// join.mjs: set up one machine for a company's Skillgate, and take that setup back out (docs/CONTRACTS.md section 13).
+// join.mjs: set up one machine for a company's Skilliton, and take that setup back out (docs/CONTRACTS.md section 13).
 //
 // `skillgate join` runs from a full clone of the company skills repository. For each coding client found it adds the
 // company marketplace and installs the plugins the team settings template enables; it records the release signers

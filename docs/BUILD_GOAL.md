@@ -6,7 +6,7 @@ Use the [paste-ready goal command](GOAL_COMMAND.md) from this repository's root;
 
 ## Objective
 
-Build Skillgate into the working development autopilot defined by PLAN.md v4. Complete milestones M1-M5, including implementation, integration, testing and the stated acceptance rehearsals. A plan, scaffold, isolated prototype, source import or passing unit suite alone does not complete this goal.
+Build Skilliton into the working development autopilot defined by PLAN.md v4. Complete milestones M1-M5, including implementation, integration, testing and the stated acceptance rehearsals. A plan, scaffold, isolated prototype, source import or passing unit suite alone does not complete this goal.
 
 ## Read first
 

@@ -2,7 +2,7 @@
 
 Kind: Reference. The framework sources behind `packs/base/plugins/workflow/catalogs/skillgate-baseline-2.json`, how each reference was verified, and the terms they come with. Checked 2026-09-16.
 
-The catalog relates Skillgate's own practice summaries to published requirements. Every mapping is `related`: a pointer for review, not a claim of equivalence, coverage or compliance. Control titles and expected evidence are original wording; no requirement text from either framework is copied into the catalog.
+The catalog relates Skilliton's own practice summaries to published requirements. Every mapping is `related`: a pointer for review, not a claim of equivalence, coverage or compliance. Control titles and expected evidence are original wording; no requirement text from either framework is copied into the catalog.
 
 ## Sources
 
@@ -38,7 +38,7 @@ To repeat the check, download the same files, confirm their SHA-256 values, and 
 
 The first seven controls are `skillgate-starter-1`'s, unchanged in id, title, mappings and expected evidence. The last eight are new in `skillgate-baseline-2`.
 
-| Control | Summary (Skillgate's words) | NIST SSDF 1.1 | OWASP ASVS 5.0.0 (section, level) |
+| Control | Summary (Skilliton's words) | NIST SSDF 1.1 | OWASP ASVS 5.0.0 (section, level) |
 |---|---|---|---|
 | SG-CHECK-CRITERIA | Define the security checks a change needs | `PO.4.1` | |
 | SG-CHECK-EVIDENCE | Retain evidence for security decisions | `PO.4.2` | |

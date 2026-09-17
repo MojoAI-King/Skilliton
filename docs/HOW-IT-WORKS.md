@@ -1,15 +1,15 @@
-# How Skillgate works
+# How Skilliton works
 
-Kind: Living. For anyone meeting Skillgate for the first time: a company lead deciding whether to use it, a reviewer, or a new builder. Updated 2026-09-16. Each step links to the run that proved it; the milestones are in [PLAN.md](../PLAN.md) section 7.
+Kind: Living. For anyone meeting Skilliton for the first time: a company lead deciding whether to use it, a reviewer, or a new builder. Updated 2026-09-16. Each step links to the run that proved it; the milestones are in [PLAN.md](../PLAN.md) section 7.
 
-**Skillgate is a skeleton your company forks.** Your copy holds how your company builds software: its skills, checks, record keeping and security evidence. You release versions of it, every person's Claude Code or Codex installs that version, and the assistant then works the company's way in any repository they open. Lessons learned in projects come back to your copy as proposals, and nothing changes for developers until you release it.
+**Skilliton is a skeleton your company forks.** Your copy holds how your company builds software: its skills, checks, record keeping and security evidence. You release versions of it, every person's Claude Code or Codex installs that version, and the assistant then works the company's way in any repository they open. Lessons learned in projects come back to your copy as proposals, and nothing changes for developers until you release it.
 
 ## In one picture
 
 ```mermaid
 flowchart LR
   subgraph UP["Upstream on GitHub"]
-    U["Skillgate<br/>base plugins and runtime"]
+    U["Skilliton<br/>base plugins and runtime"]
   end
   subgraph CO["Your company's skills repository, a fork"]
     B["packs/base<br/>prepackaged skills"]
@@ -158,7 +158,7 @@ skillgate prepare --dir <project> --apply  # write
 
 - It keeps existing status, backlog, decision, lesson and handoff files, and creates the missing ones marked "not yet assessed".
 - It writes the team's instructions into `CLAUDE.md` and `AGENTS.md` between markers, leaving your own text alone, and sets up the security register.
-- Running it again changes nothing, and `skillgate remove` takes Skillgate out again while keeping every record.
+- Running it again changes nothing, and `skillgate remove` takes Skilliton out again while keeping every record.
 - Today a person or the assistant starts it; having the first session offer it is milestone M8.
 
 **Every day after that:**

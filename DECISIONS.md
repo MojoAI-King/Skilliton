@@ -120,7 +120,7 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 | O13 | CLOSED 2026-09-16. `scrub-check.sh --history` scans the commits the checked-out branch reaches (what pushing it publishes); `--history-all` scans every ref and is what CI runs, because a public repository publishes every pushed branch. | CLOSED | `scrub-check.sh --self-test` proves both scopes on a two-branch fixture and fails when the branch scope is widened |
 | O14 | CLOSED 2026-09-16: the dispatch lane brief now checks `git merge-base --is-ancestor <base> HEAD`; the six lanes this session each verified their base before writing. | CLOSED | none |
 | O15 | The GitHub delivery adapter (`templates/github/skillgate-delivery.yml` with branch protection) is documented but not rehearsed on a hosted repository. | OPEN | Owner approves creating a private throwaway repository for the rehearsal |
-| O16 | M5 needs a real person who has never used Skillgate. | OPEN | Owner schedules a participant; docs/rehearsals/NEW_BUILDER.md |
+| O16 | M5 needs a real person who has never used Skilliton. | OPEN | Owner schedules a participant; docs/rehearsals/NEW_BUILDER.md |
 | O17 | This repository has no signed release; signing needs the owner's key and a chosen version. | OPEN | Owner runs `release create` and `release sign` (docs/RELEASING.md) |
 | O18 | CLOSED 2026-09-16. A file the release marks executable that is not executable keeps VERIFIED (the bytes match) but is named in `notRunnable` and makes `verify` exit 1; a bit the release does not have stays a note. Clean installs on Claude Code 2.1.273 and Codex 0.154.0-alpha.6.2 kept all 11 executable bits. | CLOSED | `scripts/release.test.mjs` (the lost-bit case fails when the new branch is disabled) |
 | O19 | `verify` exits 2 when any release tag in the source does not verify, even a tag for another version. | OPEN (accepted for now) | Revisit if one bad tag blocks developers in practice |
@@ -143,6 +143,8 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 **Reversibility:** MODERATE (relicensing later is possible for new versions only).
 
 ## 2026-09-16 Repository name Skilliton, product name Skillgate
+**Superseded:** Skilliton is now the evolved product name. See [the current naming decision](docs/decisions/2026-09-16-skilliton-is-the-evolved-product-name-0be0.md). The original decision below is retained as history.
+
 **Decision:** The GitHub repository is `MojoAI-King/Skilliton`; the product, the marketplace (`skillgate`), and the docs keep the name Skillgate.
 **Why:** The owner named the repo. Renaming the marketplace would change every install command in the plan for no user benefit.
 **Alternatives rejected:** Renaming everything to Skilliton (churn across every doc and command).
@@ -284,4 +286,5 @@ Decision entries in `docs/decisions/`, sorted by ID. `skillgate index` writes th
 | [2026-09-16-machine-setup-runs-from-a-clone-of-the-c-fceb](docs/decisions/2026-09-16-machine-setup-runs-from-a-clone-of-the-c-fceb.md) | Machine setup runs from a clone of the company repository, with a receipt | accepted | 2026-09-16 |
 | [2026-09-16-new-decisions-and-lessons-in-this-reposi-35d6](docs/decisions/2026-09-16-new-decisions-and-lessons-in-this-reposi-35d6.md) | New decisions and lessons in this repository are entry files | accepted | 2026-09-16 |
 | [2026-09-16-roadmap-after-m5-make-it-yours-one-comma-b003](docs/decisions/2026-09-16-roadmap-after-m5-make-it-yours-one-comma-b003.md) | Roadmap after M5: make it yours, one command per machine, autopilot on arrival | accepted | 2026-09-16 |
+| [2026-09-16-skilliton-is-the-evolved-product-name-0be0](docs/decisions/2026-09-16-skilliton-is-the-evolved-product-name-0be0.md) | Skilliton is the evolved product name | accepted | 2026-09-16 |
 <!-- skillgate:index:decisions:end -->

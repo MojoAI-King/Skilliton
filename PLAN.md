@@ -1,4 +1,4 @@
-# Skillgate: development autopilot plan (v4)
+# Skilliton: development autopilot plan (v4)
 
 Kind: Living. Canonical product direction and delivery gates. Updated 2026-09-16 after the owner aligned the parallel build sessions.
 
@@ -6,7 +6,7 @@ This version supersedes v3's product scope and day-by-day ordering. Earlier plan
 
 ## 0. The product
 
-**Skillgate is a forkable development autopilot for individuals and teams using AI coding tools.** It prepares a repository with a shared way of working, helps people build from plain-language requests, preserves project knowledge, keeps security evidence current, and delivers tested improvements through company-approved updates.
+**Skilliton is a forkable development autopilot for individuals and teams using AI coding tools.** It prepares a repository with a shared way of working, helps people build from plain-language requests, preserves project knowledge, keeps security evidence current, and delivers tested improvements through company-approved updates.
 
 The product should let a person concentrate on the requested outcome without remembering which skill to run, which document to update, or how to organize parallel branches. Skills supply judgment and guidance; commands manage durable state; supported client events trigger routine work; trusted repository checks govern shared changes. Each layer must be demonstrated before it is described as automatic.
 
@@ -94,6 +94,8 @@ Withdrawal prevents future approval/distribution according to policy; it must no
 
 ## 6. Current implementation and evidence
 
+Branding update: the product is now Skilliton (formerly Skillgate), with workflow 0.5.1. Existing technical identifiers remain compatible; see docs/BRANDING.md. The earlier rehearsal versions and their evidence below are unchanged.
+
 Updated 2026-09-16 after the M1-M4 integration, the follow-ups the task and security eval cases, and the fork commands and how-it-works guide, and machine setup (workflow 0.5.0, guardrails 0.2.0, context-hygiene 0.1.3). "Local" means committed on this machine's `main`; PUBLISHED, INSTALLED and VERIFIED states are named in docs/HANDOFF.md.
 
 | Capability | Current state | Evidence or remaining proof |
@@ -139,7 +141,7 @@ Use meaningful passing and failing cases, then observe the actual lifecycle on s
 
 Authorized local work proceeds within task scope; repository policy determines human review and approval at merge and release. Reduce routine review effort through better requirements, smaller changes, relevant automated checks and clear evidence packages. Narrower faster paths may follow measured results; do not promise that a lead developer can stop reviewing consequential changes.
 
-Retain the original security-review cases in the release rehearsal: a malicious hook hidden behind passing evals; ref drift versus exact approved content; escaping import/manifest paths; unauthorized release attempt; withdrawn but installed code; a bad update reaching another environment; private material in a skill import; local guardrail bypass limits. Use disposable environments and synthetic data. This is a scoped review of Skillgate and its delivery path, not independent certification or testing of third-party systems. Which of these cases, platforms, versions and setups have actually been exercised is tracked in docs/COVERAGE.md.
+Retain the original security-review cases in the release rehearsal: a malicious hook hidden behind passing evals; ref drift versus exact approved content; escaping import/manifest paths; unauthorized release attempt; withdrawn but installed code; a bad update reaching another environment; private material in a skill import; local guardrail bypass limits. Use disposable environments and synthetic data. This is a scoped review of Skilliton and its delivery path, not independent certification or testing of third-party systems. Which of these cases, platforms, versions and setups have actually been exercised is tracked in docs/COVERAGE.md.
 
 Track outcomes against native-tool workflows: requirement completion, restart accuracy, interventions, integration repairs, reviewer time and repeat mistakes. Cost remains one supporting measure. The unresolved historical meter reproduction does not block repository preparation, updates or security integration; it blocks the associated cost claim.
 

@@ -2,7 +2,7 @@
 //
 // treeSha256 is the sha256 of the lines "<sha256>  <path>\n", one per regular file in the folder, sorted by the
 // UTF-8 bytes of the path (the order of `LC_ALL=C sort`), with "/" between folder names and .DS_Store files left
-// out. That is the output format of `sha256sum`, so the hash can be reproduced without Skillgate:
+// out. That is the output format of `sha256sum`, so the hash can be reproduced without Skilliton:
 //
 //   cd <plugin> && find . -type f ! -name .DS_Store | sed 's|^\./||' | LC_ALL=C sort \
 //     | while IFS= read -r f; do sha256sum "$f"; done | sha256sum        (shasum -a 256 on macOS)

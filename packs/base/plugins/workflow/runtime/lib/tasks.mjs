@@ -256,7 +256,7 @@ export function readTask(file, { label = file } = {}) {
   try { st = lstatSync(file); } catch (e) {
     throw new TaskRecordError(label, e.code === "ENOENT" ? "the file does not exist" : `the file could not be inspected (${e.code ?? e.message})`);
   }
-  if (st.isSymbolicLink()) throw new TaskRecordError(label, "the file is a symbolic link, which Skillgate does not follow");
+  if (st.isSymbolicLink()) throw new TaskRecordError(label, "the file is a symbolic link, which Skilliton does not follow");
   if (!st.isFile()) throw new TaskRecordError(label, "it is not a regular file");
   if (st.size > MAX_TASK_BYTES) throw new TaskRecordError(label, `the file is ${st.size} bytes; a task record over ${MAX_TASK_BYTES} bytes is not read`);
   let text;

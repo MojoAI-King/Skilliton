@@ -47,7 +47,7 @@ const LAYOUT_2_FILES = [
 const BASE_ENV = (() => {
   const env = {
     ...process.env, SKILLGATE_SELF: "skillgate", GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1",
-    GIT_AUTHOR_NAME: "Skillgate Test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "Skillgate Test", GIT_COMMITTER_EMAIL: "test@example.invalid",
+    GIT_AUTHOR_NAME: "Skilliton Test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "Skilliton Test", GIT_COMMITTER_EMAIL: "test@example.invalid",
   };
   delete env.SKILLGATE_DEBUG;
   return env;
@@ -322,7 +322,7 @@ test("reserved and case-alias record paths cannot replace instruction files (pro
     const before = snapshot(ctx.dir);
     const r = prepare(ctx, "--apply");
     assert.equal(r.code, 2, r.all);
-    assert.match(r.err, /belongs to Skillgate|two record roles|repository-relative/);
+    assert.match(r.err, /belongs to Skilliton|two record roles|repository-relative/);
     assert.deepEqual(snapshot(ctx.dir), before);
   }
 });

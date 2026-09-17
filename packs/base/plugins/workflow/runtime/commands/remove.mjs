@@ -1,4 +1,4 @@
-// commands/remove.mjs: `skillgate remove` (docs/CONTRACTS.md section 10). Takes out what Skillgate manages in a
+// commands/remove.mjs: `skillgate remove` (docs/CONTRACTS.md section 10). Takes out what Skilliton manages in a
 // project (the harness blocks, the generated security report, and with --config the configuration) and keeps every
 // record, entry, observation and receipt, saying so. Writes go through lib/prepare.mjs applyChanges.
 
@@ -8,7 +8,7 @@ import { CONFIG_REL, ROLES } from "../lib/config.mjs";
 import { OperationFailed, TransactionFailed, applyChanges, describeFailure, inspectFolder, inspectPath, loadProject, readPath, resolveGitRoot } from "../lib/prepare.mjs";
 import { CATALOG_REL, MIGRATIONS_DIR, REPORT_MARKER, REPORT_REL, ROLE_LABELS } from "../lib/project-files.mjs";
 
-export const help = `remove: take Skillgate's managed content out of a project, keeping its records and history.
+export const help = `remove: take Skilliton's managed content out of a project, keeping its records and history.
 
   remove [--dir <repo root>]                    show what would be removed and what is kept; writes nothing
   remove --apply [--dir <repo root>]            remove it
@@ -92,7 +92,7 @@ export async function run(argv) {
       say("");
       say(`Kept, never touched by remove: ${kept.join("; ")}.`);
       say(changes.length ? `Summary: ${changes.length} file(s) to change; nothing written. To remove: ${selfCommand()} remove --apply${o.config ? " --config" : ""}${dirArg}`
-        : "Summary: nothing Skillgate manages is left to remove; nothing written.");
+        : "Summary: nothing Skilliton manages is left to remove; nothing written.");
       return 0;
     }
     let result;
@@ -108,7 +108,7 @@ export async function run(argv) {
     say("");
     say(`Kept, never touched by remove: ${kept.join("; ")}.`);
     if (result.backupDir) say(`Backups of the files this run changed: ${tilde(result.backupDir)} (inside the Git folder, never committed).`);
-    say(`Summary: removed Skillgate's managed content from ${changes.length} file(s). Records, entries, observations and receipts are unchanged.${o.config ? "" : " The configuration was kept; remove --apply --config deletes it."}`);
+    say(`Summary: removed Skilliton's managed content from ${changes.length} file(s). Records, entries, observations and receipts are unchanged.${o.config ? "" : " The configuration was kept; remove --apply --config deletes it."}`);
     return 0;
   } catch (e) {
     if (e instanceof OperationFailed) { console.error(`skillgate: remove could not run: ${e.message}`); return 3; }
