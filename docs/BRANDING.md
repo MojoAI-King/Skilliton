@@ -15,6 +15,8 @@ The following keep their existing spelling so current installations, scripts and
 
 These names refer to Skilliton. A future change to them needs a migration with upgrade and removal checks; changing the display name does not rename them.
 
+**Planned change (owner decision, 2026-09-16):** milestone M9 renames every name in this list to Skilliton, with a migration for prepared projects and joined machines; see PLAN.md section 7 and [the Phase 3 decision](decisions/2026-09-16-phase-3-is-a-company-wide-autopilot-and-2339.md). Until M9 ships, the names above are still the working names, and the commands in the guides use them.
+
 ## Historical records
 
 Recorded test output, signed manifests, versioned catalogs, completed tasks, earlier decisions and archived plans keep the names recorded at the time. They are historical evidence, not current branding. The former decision to use different repository and product names is superseded by the [current naming decision](decisions/2026-09-16-skilliton-is-the-evolved-product-name-0be0.md).

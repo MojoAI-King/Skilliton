@@ -49,13 +49,8 @@ The framing that holds up under questioning is to **guide on the laptop and enfo
 - **"What can a developer switch off?"** Everything on the laptop; see the layers above. The merge gate is the control that does not depend on the developer.
 - **"Which setups are unproven?"** Codex lifecycle hooks, Windows, a private GitHub repository or another git host as the marketplace, and the GitHub merge-gate adapter on a hosted repository. [COVERAGE.md](COVERAGE.md) lists everything exercised and not.
 
-## Candidate next steps
+## Next steps
 
-The owner chooses the order; none of these is started. Each is a row in [BACKLOG.md](BACKLOG.md).
+The owner set the direction on 2026-09-16: **Phase 3, a company-wide autopilot**. [PHASE-3.md](PHASE-3.md) explains it, and PLAN.md section 7 holds the milestones (M8 to M14). The candidates listed here earlier are now part of it. The two-developer demonstration (B14) shows only what passed, the team view and the measured comparison are M14, installs pinned to release tags become M12's release rings, and the code-quality pack (B17) follows M10's audit pattern.
 
-- **A live "one company, two developers" demonstration.** The company renames its copy, adds a skill and signs a release. Two developers each join in one command and both verify, and a tampered file shows TAMPERED. One developer's session is interrupted and resumes; the two work in parallel without record conflicts. The merge gate rejects a combined break, a force-push is blocked, and a lesson becomes a signed update both laptops receive. It builds on the existing rehearsals and demo.
-- **A read-only team view for the lead**, generated locally from the project records and verify results. It would show who is working on what, what is blocked, which laptops run an unapproved or tampered version, where security evidence is stale, and which proposals wait for review. A hosted dashboard stays deferred (PLAN.md section 9).
-- **A small measured comparison against plain Claude Code**, as described above, so time and cost statements rest on numbers stated for exactly what they cover.
-- **An optional code-quality pack**: cleanup skills, each with eval cases run with and without the skill.
-- **Installs pinned to signed release tags**, so a laptop cannot follow a branch past the approved release.
-- **M8, autopilot on arrival**, already on the roadmap (B13).
+What changes for this page as Phase 3 lands: the claims table gains rows only when a milestone's evidence exists. Time and cost stay "not measured" until M14.

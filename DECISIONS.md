@@ -127,6 +127,8 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 | O20 | CLOSED 2026-09-16. Task, decision and lesson IDs come from `runtime/lib/ids.mjs` alone. Unifying found a third copy in `commands/propose.mjs` with a looser pattern (it accepted trailing and doubled hyphens); it was removed. | CLOSED | `scripts/records.test.mjs`: the rule's cases, and a structural check that fails when any other runtime module defines an ID pattern |
 | O21 | Guardrails treats a top-level `model` key in hook input as Codex; a future Claude Code input with that key would turn confirmations into refusals (visible; `SKILLGATE_GUARDRAILS_CLIENT` overrides). | OPEN | Record real Codex PreToolUse keys in the Codex live run, then decide |
 | O22 | The secrets collector's split between specific shapes (gap) and generic shapes (needs-human) is a judgment. | OPEN | Review after the first real application runs it |
+| O23 | Security control IDs start with `SG-` and are referenced by stored observations; M9 renames every other technical name. | OPEN (recommendation: keep the IDs) | Owner confirms or asks for a new catalog version with a mapping; docs/PHASE-3.md M9 |
+| O24 | The order of AI coding tools after Claude Code and Codex in M13, and which accounts exist for live sessions (GitHub Copilot, Cursor, SuperGrok). | OPEN | Owner ranks the tools and names the accounts; docs/PHASE-3.md Tool support |
 
 ## 2026-09-16 Public repository with no names in it
 **Decision:** The repo is public from its first push, and it contains no client names, no evaluator name, and no personal names, in files, commit messages, or author fields.
@@ -285,6 +287,7 @@ Decision entries in `docs/decisions/`, sorted by ID. `skillgate index` writes th
 |---|---|---|---|
 | [2026-09-16-machine-setup-runs-from-a-clone-of-the-c-fceb](docs/decisions/2026-09-16-machine-setup-runs-from-a-clone-of-the-c-fceb.md) | Machine setup runs from a clone of the company repository, with a receipt | accepted | 2026-09-16 |
 | [2026-09-16-new-decisions-and-lessons-in-this-reposi-35d6](docs/decisions/2026-09-16-new-decisions-and-lessons-in-this-reposi-35d6.md) | New decisions and lessons in this repository are entry files | accepted | 2026-09-16 |
+| [2026-09-16-phase-3-is-a-company-wide-autopilot-and-2339](docs/decisions/2026-09-16-phase-3-is-a-company-wide-autopilot-and-2339.md) | Phase 3 is a company-wide autopilot, and every technical name becomes Skilliton | accepted | 2026-09-16 |
 | [2026-09-16-roadmap-after-m5-make-it-yours-one-comma-b003](docs/decisions/2026-09-16-roadmap-after-m5-make-it-yours-one-comma-b003.md) | Roadmap after M5: make it yours, one command per machine, autopilot on arrival | accepted | 2026-09-16 |
 | [2026-09-16-skilliton-is-the-evolved-product-name-0be0](docs/decisions/2026-09-16-skilliton-is-the-evolved-product-name-0be0.md) | Skilliton is the evolved product name | accepted | 2026-09-16 |
 <!-- skillgate:index:decisions:end -->
