@@ -214,6 +214,7 @@ A proposal is not policy: it changes nothing until the company reviews it, tests
 | One-command machine setup with `join`, and `join --undo`, on Claude Code and Codex, ending VERIFIED | measured, installing from a local folder | [machine rehearsal](../evidence/rehearsals/2026-09-17-machine/SUMMARY.md) |
 | Installing from a GitHub source | measured on this public repository, on both tools; it has no signed release yet, so verify reports UNKNOWN VERSION | same rehearsal, step J8 |
 | Company plugins arriving from device-managed settings, with no developer command | measured on a clean Linux container without a login: active from the third session start, or the first with a first-login install; macOS not yet run | [enrollment rehearsal](../evidence/rehearsals/2026-09-17-enrollment/SUMMARY.md) |
+| Working alongside company endpoint security (application allowlisting, endpoint detection, inspecting proxies) | documented from the code in [IT-ALLOWLIST.md](IT-ALLOWLIST.md); not tested under any product | B29 in [BACKLOG.md](BACKLOG.md) |
 | Lifecycle hooks on Codex | not observed | [CLIENTS.md](CLIENTS.md) |
 | The GitHub delivery adapter on a hosted repository | documented, not proved | [DELIVERY.md](DELIVERY.md) |
 | A real new builder following these docs | not started (M5) | [protocol](rehearsals/NEW_BUILDER.md) |
