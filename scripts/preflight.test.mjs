@@ -19,7 +19,7 @@ import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, re
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PROGRAMS } from "../packs/base/plugins/workflow/runtime/lib/preflight.mjs";
+import { PROGRAMS, redact } from "../packs/base/plugins/workflow/runtime/lib/preflight.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const GIT_ENV = { GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@example.invalid", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@example.invalid" };
@@ -287,19 +287,54 @@ test("a program that never answers is stopped with its children, and the check f
   else assert.equal((left.stdout ?? "").trim(), "", `the check left a program running:\n${left.stdout}`);
 });
 
-test("a token pasted into a marketplace value is never printed back", (t) => {
+// Redaction has two failure modes and both are real. A value that is printed back with a credential in it puts the
+// credential in a terminal, a transcript and whatever the person pastes next. A value that is hidden when it is only
+// a folder name leaves the person reading "<removed>" as the explanation of their own mistake. Each list below is
+// the other one's control: the same function has to answer differently for the two of them.
+const CREDENTIALS = [
+  ["a token in the user field", "https://joe:ghp_colonform@github.com/acme/skills.git", /ghp_colonform/],
+  ["a token as the whole user field", "https://ghp_bareform@github.com/acme/skills.git", /ghp_bareform/],
+  ["a token in a query", "https://github.com/acme/skills.git?token=ghp_queryform", /ghp_queryform/],
+  ["a token in a private_token query", "https://github.com/acme/skills.git?private_token=ghp_queryformtwo", /ghp_queryformtwo/],
+  ["a token in a fragment", "https://github.com/acme/skills.git#token=ghp_fragmentform", /ghp_fragmentform/],
+  ["a GitLab token", "glpat-averylongtokenlikethisone", /averylongtokenlikethisone/],
+  ["an npm token", "npm_abcdefghijklmnopqrstuvwxyz012345", /abcdefghijklmnopqrstuvwxyz012345/],
+  ["an Anthropic key", "sk-ant-api03-abcdefghijklmnopqrstuvwxyz", /abcdefghijklmnopqrstuvwxyz/],
+  ["a Google key", "AIzaSyA1234567890abcdefghijklmnopqrstu", /AIzaSyA1234567890/],
+  ["an AWS key id", "AKIAIOSFODNN7EXAMPLE", /AKIAIOSFODNN7EXAMPLE/],
+  ["a run with no lower-case letters", "ABCD1234EFGH5678IJKL9012MNOP", /ABCD1234EFGH5678IJKL9012MNOP/],
+  ["a base64 secret", "aGVsbG8gd29ybGQgc2VjcmV0+/dmFsdWUxMjM=", /dmFsdWUxMjM/],
+];
+const ORDINARY = [
+  "pat-experiments-2026-09",
+  "sk-inventory-rewrite",
+  "acme/skills",
+  "~/clones/skills-2026-09-17",
+  "./a-very-long-folder-name-with-2026-in-it",
+  "/opt/clones/a-clone-of-the-skills-repository-2026",
+  "C:\\Users\\First Last\\skills",
+  "https://github.com/acme/skills.git",
+];
+
+test("a token pasted into a marketplace value is never printed back", () => {
+  for (const [what, value, secret] of CREDENTIALS) {
+    const shown = redact(value);
+    assert.doesNotMatch(shown, secret, `${what} survived redaction: ${shown}`);
+  }
+});
+
+test("an ordinary name is printed back as it was typed, so the message can be read", () => {
+  for (const value of ORDINARY) {
+    assert.equal(redact(value), value, `redaction changed a value that carries no credential, so the refusal would not name what was typed`);
+  }
+});
+
+test("the refusal a person actually sees carries no token", (t) => {
   const ctx = fixture(t);
-  for (const value of [
-    "https://joe:ghp_colonform@github.com/acme/skills.git",
-    "https://ghp_bareform@github.com/acme/skills.git",
-    "https://github.com/acme/skills.git?token=ghp_queryform",
-    "https://github.com/acme/skills.git?private_token=ghp_queryformtwo",
-    "https://github.com/acme/skills.git#token=ghp_fragmentform",
-    "glpat-averylongtokenlikethisone",
-  ]) {
+  for (const [what, value, secret] of CREDENTIALS.slice(0, 6)) {
     const r = preflight(ctx, ["--client", "claude-code", "--bin-dir", ctx.bin, "--marketplace", value], { network: true });
     assert.equal(r.code, 2, r.out);
-    assert.doesNotMatch(r.out, /ghp_[a-z]+form|averylongtokenlikethisone/, `a token was printed back for ${value}:\n${r.out}`);
+    assert.doesNotMatch(r.out, secret, `${what} was printed back by the command:\n${r.out}`);
   }
 });
 

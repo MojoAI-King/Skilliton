@@ -449,21 +449,32 @@ export function checkFolders(options = {}) {
 
 const GITHUB_REPO = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
 
-// A value to print: never a credential someone pasted into a URL. The rules are about the shape of a secret, not
-// about a list of the ones seen so far: anything before an @, any setting whose name reads like a credential, and any
-// long run of the characters a token is made of.
+// A value to print back in a refusal: never a credential someone pasted into it, and never so cautious that the
+// person cannot read the mistake they made. Both halves matter. A rule that hides anything long and hyphenated hides
+// the folder name they typed, and then the message says nothing; a rule that only knows the shapes seen so far
+// prints the next one.
+//
+// The shapes: anything before an @ in a URL, any setting whose name reads like a credential, a known token prefix,
+// and a long unbroken run that mixes letters and digits (a secret has no word breaks; a name, a branch and a path
+// do). A value that is a path is not put through that last rule, because a path is not a secret and a long folder
+// name has to survive to be read; a known token prefix inside one is still removed.
+const TOKEN_PREFIXES = /\b(gh[pousr]|github_pat|glpat|xox[baprs]|sk-ant|sk-proj|npm|dop_v1|shpat|sbp)[_-][A-Za-z0-9_-]{12,}/g;
+const AWS_KEY_IDS = /\b(AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{12,}\b/g;
+const GOOGLE_KEYS = /\bAIza[A-Za-z0-9_-]{20,}/g;
+// 24 or more of the characters a token is made of, with at least one letter and one digit, and no break in it. The
+// character class carries + / and = so that a base64 secret is one run; an ordinary name breaks at its hyphens.
+const A_LONG_RUN = /(?<![A-Za-z0-9+/=])(?=[A-Za-z0-9+/=]*[0-9])(?=[A-Za-z0-9+/=]*[A-Za-z])[A-Za-z0-9+/=]{24,}(?![A-Za-z0-9+/=])/g;
+const A_PATH = /^(?:[~.]|\/|[A-Za-z]:[\\/])/;
+
 export function redact(value) {
-  return String(value)
+  const text = String(value);
+  const out = text
     .replace(/\/\/[^/@\s]*@/g, "//<credentials removed>@")
     .replace(/([?&#][^=&\s]*(?:token|key|secret|pass|pat|auth|credential)[^=&\s]*=)[^&\s]+/gi, "$1<removed>")
-    // A token: a known prefix, or a long run that mixes letters and digits. An ordinary hyphenated name (a folder, a
-    // branch) is left alone, because the message that names a mistake has to be readable. A secret made only of
-    // letters, digits and slashes, with no prefix and no long unbroken run, reads exactly like a path and is not
-    // redacted; nothing here should carry one, and what is printed is a value the person typed.
-    .replace(/\b(gh[pousr]|github_pat|glpat|xox[baprs]|sk|sk-ant|pat)[_-][A-Za-z0-9_-]{12,}/g, "<removed>")
-    .replace(/\b(AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{12,}\b/g, "<removed>")
-    .replace(/\b(?=[A-Za-z0-9]*[0-9])(?=[A-Za-z0-9]*[a-z])[A-Za-z0-9]{24,}\b/g, "<removed>")
-    .slice(0, 120);
+    .replace(TOKEN_PREFIXES, "<removed>")
+    .replace(AWS_KEY_IDS, "<removed>")
+    .replace(GOOGLE_KEYS, "<removed>");
+  return (A_PATH.test(text) ? out : out.replace(A_LONG_RUN, "<removed>")).slice(0, 120);
 }
 
 // Asks the company's plugin repository for its branches. `marketplace` is <owner>/<repo> or a folder.

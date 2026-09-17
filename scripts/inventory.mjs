@@ -86,7 +86,7 @@ export const SHELL_BUILTINS = new Set([
 ]);
 // Commands whose arguments name another command to run. The value lists the options that take a separate argument.
 const RUNS_NEXT = {
-  exec: ["-a"], command: [], builtin: [], nohup: [], time: [], nice: ["-n"], env: ["-u", "-C", "-S"], xargs: ["-n", "-I", "-L", "-P", "-d", "-s", "-E", "-a"],
+  exec: ["-a"], command: [], builtin: [], nohup: [], time: [], nice: ["-n"], env: ["-u", "-C"], xargs: ["-n", "-I", "-L", "-P", "-d", "-s", "-E", "-a"],
   timeout: ["-s", "-k"], sudo: ["-u", "-g", "-C", "-D", "-h", "-p", "-U"], doas: ["-u", "-C"], stdbuf: ["-i", "-o", "-e"],
 };
 
@@ -196,6 +196,9 @@ function parseScript(src, start, stop, result, lineAt, offset) {
     if ((c === "<" || c === ">") && src[i + 1] === "(" ) { // process substitution
       i = parseScript(src, i + 2, ")", result, lineAt, offset);
       if (expectCommand) { result.dynamic.push({ text: "process substitution", line: line(i) }); expectCommand = false; }
+      // As an argument it is a file name this reader cannot produce: `bash <(cat payload)` hands bash a program. It
+      // is recorded as an unreadable argument, which is what a caller checks for, rather than dropped.
+      else if (current) current.args.push(null);
       continue;
     }
     if ((c === "<" || c === ">") && !doubleBracket) {
@@ -218,7 +221,7 @@ function parseScript(src, start, stop, result, lineAt, offset) {
     i = w.end;
     if (!w.raw) { i++; continue; }
 
-    if (heredocDelimiter) { heredocs.push({ delimiter: w.literal ?? w.raw.replace(/["'\\]/g, ""), quoted: /["'\\]/.test(w.raw), strip: heredocDelimiter.strip }); heredocDelimiter = null; continue; }
+    if (heredocDelimiter) { heredocs.push({ delimiter: w.literal ?? w.raw.replace(/["'\\]/g, ""), quoted: /["'\\]/.test(w.raw), strip: heredocDelimiter.strip, command: current }); heredocDelimiter = null; continue; }
     if (redirectTarget) { redirectTarget = false; continue; }
     if (/^\d+$/.test(w.raw) && (src[i] === "<" || src[i] === ">")) continue; // a file descriptor number
 
@@ -253,6 +256,9 @@ function parseScript(src, start, stop, result, lineAt, offset) {
       argument(w);
       if (r.name === "command" && /^-[vV]+$/.test(w.raw)) { runsNext = null; continue; } // a lookup, not a run
       if (r.skipNext) { r.skipNext = false; continue; }
+      // env -S "node -e ..." runs a command written as one string. Splitting that string is env's own work, with its
+      // own quoting and $-expansion, so this reader says it cannot follow it rather than guessing.
+      if (r.name === "env" && /^--?S/.test(w.raw)) { result.problems.push({ text: "env -S runs a command written as one string, which this reader cannot follow", line: line(at) }); runsNext = null; continue; }
       if (w.raw.startsWith("-") && w.raw !== "-") { if (RUNS_NEXT[r.name].includes(w.raw)) r.skipNext = true; continue; }
       if (r.name === "env" && /^[A-Za-z_][A-Za-z0-9_]*=/.test(w.raw)) continue;
       if (r.needDuration) { r.needDuration = false; continue; }
@@ -408,12 +414,18 @@ function readExpansion(src, i, result, lineAt, offset) {
 // Consumes a here-document body starting at src[i]; an unquoted body is searched for command substitutions.
 function readHeredoc(src, i, h, result, lineAt, offset) {
   const n = src.length;
+  let body = "";
+  // The body is kept on the command that takes it, because `node <<EOF ... EOF` is a program handed to an
+  // interpreter as surely as `node -e "..."` is, and a check that reads only arguments would never see it.
+  const keep = (text) => { if (h.command && body.length < 20000) body += `${text}\n`; };
+  const attach = () => { if (h.command) h.command.heredoc = (h.command.heredoc ?? "") + body; };
   while (i < n) {
     const end = src.indexOf("\n", i);
     const lineEnd = end < 0 ? n : end;
     const text = src.slice(i, lineEnd);
     const compare = h.strip ? text.replace(/^\t+/, "") : text;
-    if (compare === h.delimiter) return lineEnd + 1;
+    if (compare === h.delimiter) { attach(); return lineEnd + 1; }
+    keep(text);
     if (!h.quoted) {
       for (let k = 0; k < text.length; k++) {
         if (text[k] === "\\") { k++; continue; }
@@ -425,6 +437,7 @@ function readHeredoc(src, i, h, result, lineAt, offset) {
     }
     i = lineEnd + 1;
   }
+  attach();
   result.problems.push({ text: `a here-document ending with ${h.delimiter} is not closed`, line: lineAt(n - 1 + offset) });
   return n;
 }
@@ -507,7 +520,7 @@ export function jsProgramCalls(src, wrappers = []) {
     // The options a child is started with are the third argument of a child_process call. A wrapper takes its own
     // arguments, so nothing is read there: the wrapper's own call is in this list too.
     const options = CHILD_PROCESS_FUNCTIONS.includes(names.get(m[1]) ?? "") ? (all[2] ?? null) : null;
-    calls.push({ callee: m[1], arg, options, program: literal ? literal[literal.length - 1] : null, line: lineOf(src, m.index) });
+    calls.push({ callee: m[1], fn: names.get(m[1]) ?? null, arg, options, program: literal ? literal[literal.length - 1] : null, line: lineOf(src, m.index) });
   }
   return { calls, problems };
 }
