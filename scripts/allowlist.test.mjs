@@ -34,7 +34,7 @@
 //   node scripts/allowlist.test.mjs --self-test  proves each check fails on known-bad input
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import {
@@ -74,8 +74,20 @@ const AWK = ["awk", "gawk", "nawk", "mawk"];
 const SED = ["sed", "gsed"];
 // GNU sed's two ways of running a command: `e` as a command of its own, and `e` as a flag on a substitution.
 const SED_RUNS_A_COMMAND = [/(?:^|;|\n)\s*[0-9,~$+]*\s*e(?:\s|;|$)/, /s(.)(?:\\.|(?!\1)[^\\])*\1(?:\\.|(?!\1)[^\\])*\1[a-zA-Z0-9]*e/];
-// Ways an embedded program starts a command of its own, which this reader cannot follow.
+// Ways an embedded program starts a command of its own, which this reader cannot follow. The common list holds the
+// shapes that mean the same thing in every language here; the rest are read per language, because a backtick is a
+// command in Perl and Ruby and an ordinary string in JavaScript, and `exec(` runs a program in Perl while it
+// compiles text in Python.
 const EMBEDDED_COMMANDS = [/\bsystem\s*\(/, /\|\s*&?\s*getline\b/, /\bprint[^;]*\|/, /\bpopen\s*\(/, /\bsubprocess\b/, /\bos\.system\b/, /child_process/];
+const EMBEDDED_BY_LANGUAGE = {
+  perl: [/`/, /\bqx\s*[({\[/|!'"]/, /\bopen\s*\([^)]*["'][|-]/, /\bexec\s*[({"']/, /\bfork\b/],
+  ruby: [/`/, /\bIO\.popen\b/, /\bexec\s*[({"']/, /\bspawn\s*[({"']/, /\bKernel\./],
+  python: [/\bos\.(exec|spawn|posix_spawn|popen|fork)/, /\bpty\.(spawn|fork)/, /\bcommands\.getoutput\b/],
+  python3: [/\bos\.(exec|spawn|posix_spawn|popen|fork)/, /\bpty\.(spawn|fork)/, /\bcommands\.getoutput\b/],
+  osascript: [/\bdo shell script\b/i],
+  node: [/\bprocess\.binding\b/, /\bDeno\.Command\b/],
+};
+const embeddedPatterns = (base) => [...EMBEDDED_COMMANDS, ...(EMBEDDED_BY_LANGUAGE[base] ?? [])];
 
 // Every place a script hands an interpreter something this reader cannot follow: a path built from a variable
 // ("expansion") or a program written into the script itself ("inline"). `target`, when given, is a file this test must
@@ -166,16 +178,23 @@ const GIT_WRAPPERS = { [`${PLUGIN}/guardrails/hooks/guard-bash.sh`]: ["g"] };
 // which records the file and returns nothing rather than throwing out of the middle of a rule. A reader that stops
 // has checked nothing, and the run would end naming one rule when the others never ran at all.
 function makeReader(root, seen) {
-  return (path) => {
-    try { return readFileSync(join(root, path), "utf8"); }
-    catch (e) { seen.set(path, e.code ?? e.message); return ""; }
+  const reader = (path) => {
+    try {
+      // Checked before it is opened: reading a pipe or a device never returns, and a check that hangs is worse than
+      // one that fails, because nothing says what it was waiting for.
+      const st = statSync(join(root, path));
+      if (!st.isFile()) { seen.set(path, "not a plain file"); return ""; }
+      return readFileSync(join(root, path), "utf8");
+    } catch (e) { seen.set(path, e.code ?? e.message); return ""; }
   };
+  reader.unreadable = seen; // so a caller handed this reader can ask what it could not read
+  return reader;
 }
 const unreadable = new Map();
 const read = makeReader(REPO, unreadable);
 
-export function checkUnreadable(seen = unreadable) {
-  return [...seen].map(([path, why]) => `${path} could not be read (${why}), so nothing about what it starts or writes was checked`);
+export function checkUnreadable(seen = unreadable, notRegular = []) {
+  return [...notRegular.map((n) => `${n.path} was not read because ${n.why}`), ...[...seen].map(([path, why]) => `${path} could not be read (${why}), so nothing about what it starts or writes was checked`)];
 }
 
 // Null when the file could not be read, so a check that compares a list against the code can say NOT RUN instead of
@@ -183,7 +202,9 @@ export function checkUnreadable(seen = unreadable) {
 function readOrNull(readFile, path, problems) {
   try {
     const text = readFile(path);
-    return unreadable.has(path) ? null : text;
+    // The reader carries its own record of what it could not read, so a check handed a different reader is not
+    // silently told that an unreadable file was an empty one.
+    return readFile.unreadable?.has(path) ? null : text;
   } catch (e) { problems.push(`${path} could not be read (${e.code ?? e.message}), so nothing about it was checked`); return null; }
 }
 const sorted = (set) => [...set].sort();
@@ -234,7 +255,7 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
       // input. It is read for the one thing that matters here, and has to be named in the table like any other
       // program written into a script.
       if (typeof c.heredoc === "string") {
-        for (const re of EMBEDDED_COMMANDS) {
+        for (const re of embeddedPatterns(base)) {
           if (re.test(c.heredoc)) problems.push(`${path}:${c.line}: the ${base} program in the here-document here starts a command of its own (${c.heredoc.trim().slice(0, 60)}), which this reader cannot follow`);
         }
         const entry = interpreterTargets.find((e) => e.file === path && e.command === base && e.kind === "here-document");
@@ -253,7 +274,10 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
         break;
       }
       // An interpreter with no program of its own runs whatever reaches its input: a pipe, a process substitution,
-      // a here-document (handled above). None of that can be read from this line, so it is said out loud.
+      // a here-document (handled above). None of that can be read from this line, so it is said out loud. A command
+      // that is all options (node --version, bash --help) is not that: it is answering about itself and reads
+      // nothing, so it is left alone.
+      if (first < 0 && c.args.length > 0) continue;
       if (first < 0) { problems.push(`${path}:${c.line}: it runs ${base} with no file or program of its own, so whatever arrives on its input runs; this reader cannot follow that`); continue; }
       const given = c.args[first];
       const optionBefore = first > 0 ? c.args[first - 1] : null;
@@ -261,7 +285,7 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
       const kind = inlineOption || (isAwk && optionBefore !== "-f") ? "inline" : given === null ? "expansion" : "path";
       if (kind === "inline" && given !== null) {
         // An embedded program is read for the one thing this reader cares about: whether it starts a command.
-        for (const re of EMBEDDED_COMMANDS) {
+        for (const re of embeddedPatterns(base)) {
           if (re.test(given)) problems.push(`${path}:${c.line}: the ${base} program written here starts a command of its own (${given.trim().slice(0, 60)}), which this reader cannot follow`);
         }
       }
@@ -455,6 +479,26 @@ function toolPath(name) {
 
 // Runs the machine-level commands and the hooks under an empty home folder and returns every path they left there,
 // relative to it, plus what ran. Returns { notRun } when a program the scenario needs is missing.
+// cpSync ends the whole process, past any try, when a tree holds a link that points in a circle: the error comes
+// from the C++ filesystem library and never becomes a JavaScript exception (measured on Node 22, macOS). The
+// scenario therefore copies the plugins itself, taking files by their bytes and links as links, so that a tree
+// someone hands this repository can make the check fail but cannot make it die.
+function copyTree(from, to, skipped = []) {
+  mkdirSync(to, { recursive: true });
+  for (const name of readdirSync(from)) {
+    const source = join(from, name), target = join(to, name);
+    let st = null;
+    try { st = lstatSync(source); } catch (e) { skipped.push(`${source} (${e.code ?? e.message})`); continue; }
+    try {
+      if (st.isDirectory()) copyTree(source, target, skipped);
+      else if (st.isSymbolicLink()) symlinkSync(readlinkSync(source), target);
+      else if (st.isFile()) copyFileSync(source, target);
+      else skipped.push(`${source} (${"it is not a plain file"})`);
+    } catch (e) { skipped.push(`${source} (${e.code ?? e.message})`); }
+  }
+  return skipped;
+}
+
 export function measureWrites() {
   const git = toolPath("git"), keygen = toolPath("ssh-keygen");
   if (!git || !keygen) return { notRun: `${git ? "ssh-keygen" : "git"} was not found on PATH, and the writes check needs it` };
@@ -472,9 +516,11 @@ export function measureWrites() {
     }
 
     // A company skills repository clone, the way join expects to be run from one.
-    for (const plugin of readdirSync(join(REPO, PLUGIN))) cpSync(join(REPO, PLUGIN, plugin), join(ws.repo, PLUGIN, plugin), { recursive: true });
+    const skipped = [];
+    for (const plugin of readdirSync(join(REPO, PLUGIN))) copyTree(join(REPO, PLUGIN, plugin), join(ws.repo, PLUGIN, plugin), skipped);
+    if (skipped.length) return { notRun: `the plugins could not all be copied into the scenario's company repository: ${skipped.slice(0, 3).join(", ")}` };
     mkdirSync(join(ws.repo, "scripts"), { recursive: true });
-    for (const f of ["skilliton.mjs", "setup.mjs", "scrub-check.sh"]) cpSync(join(REPO, "scripts", f), join(ws.repo, "scripts", f));
+    for (const f of ["skilliton.mjs", "setup.mjs", "scrub-check.sh"]) copyFileSync(join(REPO, "scripts", f), join(ws.repo, "scripts", f));
     const plugins = readdirSync(join(ws.repo, PLUGIN)).sort();
     writeJson(join(ws.repo, ".claude-plugin", "marketplace.json"), {
       name: MARKET, owner: { name: "acme" },
@@ -562,11 +608,15 @@ function writeJson(path, value) {
 }
 
 // Every file and folder under dir, as paths relative to it with forward slashes.
+// lstat, never stat: a link pointing nowhere or in a circle is a path that was written, and asking what it points at
+// would end the whole run with a stack trace instead of a report. A link to a folder is listed and not followed.
 function walkRelative(dir, out = [], root = dir) {
   for (const name of readdirSync(dir).sort()) {
     const path = join(dir, name);
     out.push(relative(root, path).split("\\").join("/"));
-    if (statSync(path).isDirectory()) walkRelative(path, out, root);
+    let st = null;
+    try { st = lstatSync(path); } catch { continue; }
+    if (st.isDirectory()) walkRelative(path, out, root);
   }
   return out;
 }
@@ -588,17 +638,21 @@ function main() {
   const hooks = hookCommands(files);
   report(`every file under the plugins is code this test reads, or data (${files.js.length} JavaScript, ${files.shell.length} script(s), ${(files.data ?? []).length} data)`, checkEveryFileIsRead(files));
   report("programs the code starts are read", [...problems, ...hooks.problems]);
-  if (problems.length || unreadable.size) { console.log("NOT RUN section 1 names every program the code starts: the code could not be read in full (above), so the comparison would have been made against an incomplete list"); notRun++; }
+  if (problems.length || unreadable.size || (files.notRegular ?? []).length) { console.log("NOT RUN section 1 names every program the code starts: the code could not be read in full (above), so the comparison would have been made against an incomplete list"); notRun++; }
   else report("section 1 names every program the code starts", checkPrograms(found, doc));
   report("the preflight check looks for every program section 1 names", checkPreflightTable(doc));
   report("section 2 covers every place the code reaches outside a repository", checkOutsideReach(files));
   report("section 4 matches the code's network use", checkNetwork(files, read, doc));
 
-  report("every file under the plugins could be read", checkUnreadable()); // after the checks above, which fill the list
+  report("every file under the plugins could be read", checkUnreadable(unreadable, files.notRegular ?? [])); // after the checks above, which fill the list
   const locations = allowlistMachineLocations(doc);
   if (!locations?.length) report("section 2 lists locations on the machine", ["section 2 of the allow list has no table of locations in the home folder"]);
   else {
-    const measured = measureWrites();
+    // A filesystem that refuses something (a link in a circle, a name this system will not copy) must end as NOT RUN
+    // with its reason, not as a stack trace half way through a report.
+    let measured;
+    try { measured = measureWrites(); }
+    catch (e) { measured = { notRun: `the scenario could not be run (${e.code ?? e.message})` }; }
     if (measured.notRun) { console.log(`NOT RUN writes in an empty home folder: ${measured.notRun}`); notRun++; }
     else {
       const failedSteps = measured.steps.filter((s) => !s.expected.includes(s.exit));
@@ -627,6 +681,34 @@ function selfTest() {
         return text === "" && seen.get("gone.mjs") === "ENOENT"
           && checkOutsideReach({ js: ["gone.mjs"], shell: [] }, reader, []).length === 0 // the checks still run over it
           && checkUnreadable(seen).some((v) => v.includes("could not be read (ENOENT)"));
+      } finally { rmSync(dir, { recursive: true, force: true }); }
+    }],
+    ["a link to a pipe is reported and never read", () => {
+      if (process.platform === "win32") return true;
+      const dir = mkdtempSync(join(tmpdir(), "allowlist-selftest-"));
+      try {
+        const hooks = join(dir, PLUGIN, "workflow", "hooks");
+        mkdirSync(hooks, { recursive: true });
+        writeFileSync(join(hooks, "real.sh"), "#!/bin/sh\ntrue\n");
+        execFileSync("mkfifo", [join(dir, "a-pipe")]);
+        symlinkSync(join(dir, "a-pipe"), join(hooks, "pipe.sh"));
+        const files = scopeFiles(dir);
+        const skipped = files.notRegular ?? [];
+        return skipped.some((n) => n.path.endsWith("pipe.sh") && n.why.includes("pipe"))
+          && !files.shell.some((f) => f.endsWith("pipe.sh")) // never handed to a reader
+          && checkUnreadable(new Map(), skipped).some((v) => v.includes("was not read because"));
+      } finally { rmSync(dir, { recursive: true, force: true }); }
+    }],
+    ["the writes scenario lists a link that points nowhere instead of stopping on it", () => {
+      const dir = mkdtempSync(join(tmpdir(), "allowlist-selftest-"));
+      try {
+        mkdirSync(join(dir, "inner"), { recursive: true });
+        writeFileSync(join(dir, "inner", "a.txt"), "x\n");
+        symlinkSync(join(dir, "nowhere"), join(dir, "dangling"));
+        symlinkSync("loop-b", join(dir, "loop-a"));
+        symlinkSync("loop-a", join(dir, "loop-b"));
+        const listed = walkRelative(dir);
+        return listed.includes("dangling") && listed.includes("loop-a") && listed.includes("inner/a.txt");
       } finally { rmSync(dir, { recursive: true, force: true }); }
     }],
     ["a file that reads fine is not reported", () => {
@@ -691,6 +773,37 @@ function selfTest() {
     ["an ordinary sed program passes", () => {
       const { files, readFile } = fake({ "hooks/x.sh": "sed -n 's/^name: //p' file\nsed -e 's/a/b/g' -e '/^#/d' file\n" });
       return programsFromCode(files, readFile, [], []).problems.every((p) => !p.includes("can run a command"));
+    }],
+    ["every way an inline program starts a command of its own is caught", () => {
+      const shapes = [
+        ["perl", "my $out = `id`;"],
+        ["perl", "my $out = qx{id};"],
+        ["perl", 'open(my $fh, "-|", "id");'],
+        ["perl", 'exec("id");'],
+        ["python3", 'import os; os.execv("/bin/sh", ["sh", "-c", "id"])'],
+        ["python3", "import pty; pty.spawn(\"/bin/sh\")"],
+        ["python3", 'import os; os.popen("id")'],
+        ["ruby", "out = `id`"],
+        ["ruby", 'IO.popen("id")'],
+        ["osascript", 'do shell script "id"'],
+        ["node", 'require("child_process").execSync("id")'],
+      ];
+      const missed = [];
+      for (const [command, program] of shapes) {
+        // In single quotes, the way such a program is really written: in double quotes the shell would read the
+        // backticks and the $ itself, and the reader would refuse the line for that reason instead.
+        const { files, readFile } = fake({ "hooks/x.sh": `${command} -e '${program.replace(/'/g, "'\\''")}'\n` });
+        const targets = [{ file: "hooks/x.sh", command, kind: "inline", count: 1, target: null, why: "a test" }];
+        const found = programsFromCode(files, readFile, [], targets).problems.some((p) => p.includes("starts a command of its own"));
+        if (!found) missed.push(`${command}: ${program}`);
+      }
+      if (missed.length) console.log(`     not caught: ${missed.join(" | ")}`);
+      return missed.length === 0;
+    }],
+    ["a backtick in a JavaScript program is not read as a command", () => {
+      const { files, readFile } = fake({ "hooks/x.sh": "node -e \"const line = `a ${name} b`; console.log(line)\"\n" });
+      const targets = [{ file: "hooks/x.sh", command: "node", kind: "inline", count: 1, target: null, why: "a test" }];
+      return programsFromCode(files, readFile, [], targets).problems.every((p) => !p.includes("starts a command of its own"));
     }],
     ["a hook command that is not a plugin script fails", () => {
       const listHooks = () => ["packs/base/plugins/x/hooks/hooks.json"];

@@ -1043,17 +1043,31 @@ test("status exits 1 for each attention condition and names it", async () => wit
   commit(movedOn, env, "the handoff preparation writes");
   writeFileSync(join(movedOn, "README.md"), "# worked on for weeks\n");
   commit(movedOn, env, "work after the handoff");
-  const placeholderStale = attentionOnly(movedOn, "handoff", /still carries the line preparation wrote \("not yet assessed"\), and the project has moved on since \(1 commit\(s\) that changed something else since it was written\)/);
+  const placeholderStale = attentionOnly(movedOn, "handoff", /still carries the line preparation wrote \("not yet assessed"\), and the project has moved on since \(1 commit\(s\) that changed something else since it was committed\)/);
   assert.equal(placeholderStale.json.details.handoff.problem, "not written yet");
 
-  // A handoff that was never committed has no commit to measure from, so preparation's own commit is the mark:
-  // everything after it happened after the placeholder was written. Without this the placeholder hid every later
-  // commit for ever, and the project read as one prepared a minute ago.
+  // A handoff that was never committed has no commit to measure from, so its own time on disk is the mark, and the
+  // sentence says which it is. Without this the placeholder hid every later commit for ever, and a project worked on
+  // for weeks read as one prepared a minute ago.
   const neverCommitted = fresh({ written: "not yet assessed", commitHandoff: false });
   writeFileSync(join(neverCommitted, "README.md"), "# weeks of work\n");
-  commitPath(neverCommitted, env, "work after preparation", "README.md");
-  const fromPrepare = attentionOnly(neverCommitted, "handoff", /still carries the line preparation wrote \("not yet assessed"\), and the project has moved on since \(1 commit\(s\)/);
-  assert.equal(fromPrepare.json.details.handoff.measuredFrom, "the commit that added .skilliton/config.json");
+  // Dated two minutes on, so the work is plainly after the time the file was written: everything else in this
+  // fixture happens inside the same second, where no order can be known.
+  const twoMinutesOn = new Date(Date.now() + 120000).toISOString();
+  commitPath(neverCommitted, { ...env, GIT_AUTHOR_DATE: twoMinutesOn, GIT_COMMITTER_DATE: twoMinutesOn }, "work after preparation", "README.md");
+  const fromDisk = attentionOnly(neverCommitted, "handoff", /still carries the line preparation wrote \("not yet assessed"\), and the project has moved on since \(1 commit\(s\) that changed something else since the time this file was last written on this machine \(it has never been committed\)\)/);
+  assert.equal(fromDisk.json.details.handoff.measuredFrom, "the time this file was last written on this machine (it has never been committed)");
+
+  // And the other way round: the work came first and the handoff was written after it. Counting those commits would
+  // be attributing them to a time the file did not exist, so this is "no handoff yet", not "the project moved on".
+  const writtenLast = fresh({ written: "not yet assessed", commitHandoff: false });
+  rmSync(join(writtenLast, "docs", "HANDOFF.md"), { force: true });
+  writeFileSync(join(writtenLast, "README.md"), "# weeks of work\n");
+  commitPath(writtenLast, env, "work before the handoff was written", "README.md");
+  writeHandoff(writtenLast, "not yet assessed");
+  const justWritten = statusJson(writtenLast, env);
+  assert.equal(justWritten.code, 0, `a handoff written after the work is not a handoff the work is behind:\n${justWritten.out}`);
+  assert.match(justWritten.out, /no session has written a handoff yet/);
 
   // A shallow clone (a CI checkout with --depth) may not carry the commit that added the handoff at all, so a count
   // of none means nothing. Saying "no session has written a handoff yet" there would be a guess presented as a fact.

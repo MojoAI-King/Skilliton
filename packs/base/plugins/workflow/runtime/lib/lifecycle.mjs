@@ -344,48 +344,58 @@ const WRITTEN_AHEAD_MS = 5 * 60 * 1000;
 // handoff file, counting only commits that changed something else: a later commit that merely tidies the handoff
 // resets nothing, and preparation's own uncommitted files are not "work" either, because a project is prepared and
 // then looked at before anything is committed.
-// Has the project moved on since the placeholder handoff was written? Measured from the commit that ADDED the
-// handoff, counting later commits that changed anything else. Returns { moved: [reasons], unknown: <why not> }:
-// "no reasons and no unknown" is the only answer that means the project really is still where preparation left it.
+// Has the project moved on since the placeholder handoff was written? Returns { moved: [reasons], unknown: <why not>,
+// }: "no reasons and no unknown" is the only answer that means the project really is still where preparation left it.
 //
-// Two ways the measurement cannot be made, each of which used to read as "nothing has happened here":
-//   - the handoff has never been committed, so there is no commit to measure from. Preparation's own commit is the
-//     next best mark, because everything after it happened after the placeholder was written
+// The mark to measure from is the commit that ADDED the handoff, and later commits that changed anything else are
+// counted. Three ways that measurement cannot be made as written, each of which once read as "nothing has happened
+// here":
+//   - the handoff has never been committed, so there is no commit to measure from. Its own time on disk is then the
+//     mark, and the sentence says so, because that is a weaker thing to know and the reader should know which it is.
+//     Preparation's commit is NOT used for this: a handoff written today would be measured from a commit made before
+//     it existed, and every commit in between would be counted as work the handoff is behind
 //   - the history in this clone is shallow (a CI checkout with --depth), so the commit that added the handoff may
 //     simply not be here, and a count from a truncated history means nothing
+//   - the file's time cannot be read either, so there is no mark at all
 function handoffMovedOn(root, rel, archiveRel, git, data) {
   if (!git.head) return { moved: [], unknown: null };
   const shallow = runGit(root, ["rev-parse", "--is-shallow-repository"]);
   data.shallowHistory = shallow.status === 0 ? shallow.stdout.trim() === "true" : null;
+  const exclude = ["--", ".", `:(exclude)${rel}`, `:(exclude)${archiveRel}`];
 
-  const addedBy = (path) => {
-    const r = runGit(root, ["log", "--diff-filter=A", "--format=%H", "--", path]);
-    return r.status === 0 ? r.stdout.trim().split("\n").filter(Boolean).at(-1) ?? null : null;
-  };
-  const first = addedBy(rel);
-  const from = first ?? addedBy(CONFIG_REL);
-  if (!from) {
+  const added = runGit(root, ["log", "--diff-filter=A", "--format=%H", "--", rel]);
+  const from = added.status === 0 ? added.stdout.trim().split("\n").filter(Boolean).at(-1) ?? null : null;
+  let since;
+  if (from) {
+    data.handoffCommit = from;
+    data.measuredFrom = "it was committed";
+    since = runGit(root, ["rev-list", "--count", `${from}..HEAD`, ...exclude]);
+  } else {
     if (data.shallowHistory) return { moved: [], unknown: "the history in this clone is shallow, so the commit that added it may not be here" };
     if (data.shallowHistory === null) return { moved: [], unknown: "git could not say whether this clone's history is complete" };
-    return { moved: [], unknown: null }; // nothing of the preparation is committed, so there is no mark to measure from
+    let writtenAt = null;
+    try { writtenAt = Math.floor(statSync(join(root, rel)).mtimeMs / 1000); } catch { writtenAt = null; }
+    if (!writtenAt) return { moved: [], unknown: "it has never been committed and the time it was last written could not be read, so there is no point to measure from" };
+    data.measuredFrom = "the time this file was last written on this machine (it has never been committed)";
+    data.handoffWrittenOnDisk = new Date(writtenAt * 1000).toISOString();
+    // One second later: a commit made in the same second as the write cannot be put on either side of it, and
+    // counting it would be claiming to know an order that nothing here can know.
+    since = runGit(root, ["rev-list", "--count", `--since=${writtenAt + 1}`, "HEAD", ...exclude]);
   }
-  data.handoffCommit = from;
-  data.measuredFrom = first ? "the commit that added the handoff" : `the commit that added ${CONFIG_REL}`;
-  const since = runGit(root, ["rev-list", "--count", `${from}..HEAD`, "--", ".", `:(exclude)${rel}`, `:(exclude)${archiveRel}`]);
   const count = since.status === 0 ? Number(since.stdout.trim()) : null;
   data.commitsSinceHandoffCommit = Number.isFinite(count) ? count : null;
   if (!Number.isFinite(count)) return { moved: [], unknown: `git could not count the commits since ${data.measuredFrom} (${clip(since.stderr, 80) || `exit ${since.status}`})` };
-  if (data.shallowHistory) return { moved: count ? [`${count} commit(s) that changed something else since it was written`] : [], unknown: count ? null : "the history in this clone is shallow, so a count of none may only mean the rest is not here" };
-  return { moved: count ? [`${count} commit(s) that changed something else since it was written`] : [], unknown: null };
+  if (count) return { moved: [`${count} commit(s) that changed something else since ${data.measuredFrom}`], unknown: null };
+  if (data.shallowHistory) return { moved: [], unknown: "the history in this clone is shallow, so a count of none may only mean the rest is not here" };
+  return { moved: [], unknown: null };
 }
-
 
 function handoffCheck(project, git) {
   const root = project.root, rel = project.artifacts.handoff;
   const integration = git.branch !== null && project.integrationBranches.includes(git.branch);
   const data = {
     file: rel, integrationBranch: integration, exists: false, section: false, written: null, writtenAt: null, problem: null,
-    stale: null, latestCommitAt: null, handoffCommit: null, commitsSinceHandoffCommit: null, measuredFrom: null, shallowHistory: null,
+    stale: null, latestCommitAt: null, handoffCommit: null, commitsSinceHandoffCommit: null, measuredFrom: null, shallowHistory: null, handoffWrittenOnDisk: null,
     uncommitted: git.dirty, newerChanges: 0, newerExamples: [], unknownTimeChanges: 0,
   };
   const offBranch = `on ${git.branch ? `branch ${git.branch}` : "a detached HEAD"} the shared handoff is written only on integration branches (${project.integrationBranches.join(", ")}), so this does not need attention here`;
