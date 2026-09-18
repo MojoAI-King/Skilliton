@@ -31,19 +31,19 @@ export const MAX_TRUST_BYTES = 64 * 1024;
 // manifest or a tag), and run without prompts and in the C locale, so messages parse the same everywhere. The
 // settings a repository or the environment could otherwise hand git are taken out by gitEnvironment (journal.mjs),
 // except for a call a person drives, where their own configuration is the point.
-export function gitEnv({ userFacing = false } = {}) {
-  const env = gitEnvironment({ keepConfig: userFacing, optionalLocks: true });
+export function gitEnv({ userFacing = false, pinHome = false } = {}) {
+  const env = gitEnvironment({ keepConfig: userFacing, optionalLocks: true, pinHome });
   if (!userFacing) { env.GIT_TERMINAL_PROMPT = "0"; env.LC_ALL = "C"; env.GIT_NO_REPLACE_OBJECTS = "1"; }
   return env;
 }
 
 // Runs git with an argument array, with a repository's own configuration never able to make git start a program
 // (see runtime/lib/journal.mjs). Never throws for git's own failure; `notFound` says git is not installed.
-export function runGit(repo, args, { buffer = false, timeoutMs = 60000, userFacing = false, cwd, extraEnv } = {}) {
+export function runGit(repo, args, { buffer = false, timeoutMs = 60000, userFacing = false, pinHome = false, cwd, extraEnv } = {}) {
   const r = spawnSync("git", repo ? ["-C", repo, ...NO_REPOSITORY_PROGRAMS, ...args] : [...NO_REPOSITORY_PROGRAMS, ...args], {
     cwd,
     encoding: buffer ? "buffer" : "utf8",
-    env: { ...gitEnv({ userFacing }), ...extraEnv },
+    env: { ...gitEnv({ userFacing, pinHome }), ...extraEnv },
     timeout: timeoutMs,
     maxBuffer: 256 * 1024 * 1024,
     stdio: userFacing ? ["inherit", "inherit", "inherit"] : ["ignore", "pipe", "pipe"],
@@ -271,7 +271,16 @@ export function resolveTrust(company) {
 // Checks a tag object's signature against a trust file. objectName should be the tag object id the caller parsed,
 // so the object checked is the object read. Returns { verified, principal, keyType, fingerprint, reason, output }.
 export function verifyTagSignature(repo, objectName, trustPath) {
-  const r = runGit(repo, ["-c", `gpg.ssh.allowedSignersFile=${trustPath}`, "-c", "gpg.ssh.program=ssh-keygen", "verify-tag", objectName], { timeoutMs: 60000 });
+  // git chooses the verifier from the shape of the signature in the object, not from gpg.format: a block that looks
+  // like PGP is handed to gpg.program, which is read from this machine's git configuration. A release is approved by
+  // an SSH signature and by nothing else, so the other verifiers are pointed at a program that does not exist and
+  // fail to start. inspectTag refuses a signature that is not an SSH one before this is reached; this is the second
+  // lock on the same door, because that one check is otherwise the whole of what makes an approval mean anything.
+  const r = runGit(repo, [
+    "-c", `gpg.ssh.allowedSignersFile=${trustPath}`, "-c", "gpg.ssh.program=ssh-keygen",
+    "-c", "gpg.program=skilliton-refuses-any-verifier-but-ssh-keygen", "-c", "gpg.x509.program=skilliton-refuses-any-verifier-but-ssh-keygen",
+    "verify-tag", objectName,
+  ], { timeoutMs: 60000 });
   if (r.notFound) throw new Error("git was not found on PATH");
   const output = `${r.stdout}${r.stderr}`.trim();
   const good = /^Good "git" signature for (.+) with (\S+) key (SHA256:[A-Za-z0-9+/]+)\s*$/m.exec(output);

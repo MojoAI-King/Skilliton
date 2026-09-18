@@ -217,7 +217,10 @@ script("This is what a developer sees when they open the project.");
 const sessionStart = run(join(dirs.company, "packs", "base", "plugins", "workflow", "bin", "skilliton"), ["hook", "session-start"], {
   cwd: dirs.product, input: JSON.stringify({ session_id: "demo", cwd: dirs.product, hook_event_name: "SessionStart" }), expect: [0],
 });
-for (const line of sessionStart.out.split("\n").filter(Boolean).slice(0, 6)) shows(line.trim());
+// The session block is what step 4 shows first, so a run that produced no block has not rehearsed it.
+const sessionLines = sessionStart.out.split("\n").filter(Boolean);
+if (!sessionLines.length) stop("the session-start hook printed nothing, and the project state it prints is what this step shows", `${sessionStart.out}${sessionStart.err ?? ""}`);
+for (const line of sessionLines.slice(0, 6)) shows(line.trim());
 const task = cli(["task", "start", "Add a telephone field to the form", "--criteria", "The field is optional and is checked like the others", "--dir", dirs.product, "--apply"]);
 showsLine(task.out, /created docs\/tasks/, "task start");
 

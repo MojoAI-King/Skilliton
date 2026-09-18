@@ -30,13 +30,28 @@ const toPosix = (p) => p.split(sep).join("/");
 
 // Walks a folder without following links: a link inside the plugins points at something this reader cannot vouch for,
 // so it is returned as a file and classified like any other, rather than being read through.
-function walk(dir, out = []) {
+// Only regular files are listed to be read. A link to a device or to a pipe is a file to readdir and to lstat, and
+// reading one never returns: /dev/zero has no end, and a pipe with no writer blocks for ever. git stores such a link
+// verbatim, so it can arrive in a checkout. Anything that is not a regular file is reported instead of read, and a
+// link this reader cannot follow at all (it points nowhere, or in a circle) is still listed, because the reader that
+// opens it says so in one line rather than stopping.
+const kindOf = (st) => (st.isDirectory() ? "a folder" : st.isFIFO() ? "a pipe" : st.isSocket() ? "a socket" : st.isBlockDevice() || st.isCharacterDevice() ? "a device" : "not a plain file");
+
+function walk(dir, out = [], notRegular = []) {
   for (const name of readdirSync(dir).sort()) {
     const path = join(dir, name);
-    const st = lstatSync(path);
-    if (st.isSymbolicLink()) out.push(path);
-    else if (st.isDirectory()) walk(path, out);
-    else if (st.isFile()) out.push(path);
+    let st;
+    try { st = lstatSync(path); } catch (e) { notRegular.push({ path, why: `it could not be looked at (${e.code ?? e.message})` }); continue; }
+    if (st.isFile()) { out.push(path); continue; }
+    if (st.isDirectory()) { walk(path, out, notRegular); continue; }
+    if (st.isSymbolicLink()) {
+      let target = null;
+      try { target = statSync(path); } catch { out.push(path); continue; } // points nowhere, or in a circle: read and reported
+      if (target.isFile()) { out.push(path); continue; }
+      notRegular.push({ path, why: `it is a link to ${kindOf(target)}, and reading one can never finish` });
+      continue;
+    }
+    notRegular.push({ path, why: `it is ${kindOf(st)}, and reading one can never finish` });
   }
   return out;
 }
@@ -53,7 +68,8 @@ const MANIFEST = /\/(hooks|plugin|marketplace|settings|package)\.json$/;
 // to read (documentation, the clients' manifests, fixtures' data), and `other` is whatever is left, which callers
 // treat as a problem. The eval fixtures are read like any other script; they ship with the plugin.
 export function scopeFiles(root = REPO) {
-  const plugin = walk(join(root, PLUGINS)).map((p) => toPosix(relative(root, p)));
+  const notRegular = [];
+  const plugin = walk(join(root, PLUGINS), [], notRegular).map((p) => toPosix(relative(root, p)));
   const js = ["scripts/skilliton.mjs", "scripts/setup.mjs"];
   const shell = ["scripts/scrub-check.sh"];
   const data = [];
@@ -67,7 +83,7 @@ export function scopeFiles(root = REPO) {
     if (MANIFEST.test(p) || (DATA_FILE.test(p) && !CODE_FOLDER.test(p))) { data.push(p); continue; }
     other.push(p);
   }
-  return { js: js.sort(), shell: shell.sort(), data: data.sort(), other: other.sort() };
+  return { js: js.sort(), shell: shell.sort(), data: data.sort(), other: other.sort(), notRegular: notRegular.map((n) => ({ path: toPosix(relative(root, n.path)), why: n.why })) };
 }
 
 function firstLine(path) {
@@ -196,9 +212,13 @@ function parseScript(src, start, stop, result, lineAt, offset) {
     if ((c === "<" || c === ">") && src[i + 1] === "(" ) { // process substitution
       i = parseScript(src, i + 2, ")", result, lineAt, offset);
       if (expectCommand) { result.dynamic.push({ text: "process substitution", line: line(i) }); expectCommand = false; }
-      // As an argument it is a file name this reader cannot produce: `bash <(cat payload)` hands bash a program. It
-      // is recorded as an unreadable argument, which is what a caller checks for, rather than dropped.
-      else if (current) current.args.push(null);
+      // As an argument it is a file name this reader cannot produce: `bash <(cat payload)` hands bash a program, and
+      // `. <(cat payload)` runs one as part of the script. It is recorded as an unreadable argument, and as an
+      // unreadable source when it is what . or source was given, rather than dropped.
+      else if (current) {
+        current.args.push(null);
+        if (sourcing === current && current.args.length === 1) { result.sourced.push({ path: null, line: current.line }); sourcing = null; }
+      }
       continue;
     }
     if ((c === "<" || c === ">") && !doubleBracket) {
@@ -258,7 +278,7 @@ function parseScript(src, start, stop, result, lineAt, offset) {
       if (r.skipNext) { r.skipNext = false; continue; }
       // env -S "node -e ..." runs a command written as one string. Splitting that string is env's own work, with its
       // own quoting and $-expansion, so this reader says it cannot follow it rather than guessing.
-      if (r.name === "env" && /^--?S/.test(w.raw)) { result.problems.push({ text: "env -S runs a command written as one string, which this reader cannot follow", line: line(at) }); runsNext = null; continue; }
+      if (r.name === "env" && (/^-[A-Za-z]*S$/.test(w.raw) || /^--split-string(=|$)/.test(w.raw))) { result.problems.push({ text: "env -S runs a command written as one string, which this reader cannot follow", line: line(at) }); runsNext = null; continue; }
       if (w.raw.startsWith("-") && w.raw !== "-") { if (RUNS_NEXT[r.name].includes(w.raw)) r.skipNext = true; continue; }
       if (r.name === "env" && /^[A-Za-z_][A-Za-z0-9_]*=/.test(w.raw)) continue;
       if (r.needDuration) { r.needDuration = false; continue; }
@@ -520,7 +540,7 @@ export function jsProgramCalls(src, wrappers = []) {
     // The options a child is started with are the third argument of a child_process call. A wrapper takes its own
     // arguments, so nothing is read there: the wrapper's own call is in this list too.
     const options = CHILD_PROCESS_FUNCTIONS.includes(names.get(m[1]) ?? "") ? (all[2] ?? null) : null;
-    calls.push({ callee: m[1], fn: names.get(m[1]) ?? null, arg, options, program: literal ? literal[literal.length - 1] : null, line: lineOf(src, m.index) });
+    calls.push({ callee: m[1], fn: names.get(m[1]) ?? null, arg, argsText: all[1] ?? null, options, program: literal ? literal[literal.length - 1] : null, line: lineOf(src, m.index) });
   }
   return { calls, problems };
 }

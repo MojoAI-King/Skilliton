@@ -14,11 +14,11 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { PROGRAMS, redact } from "../packs/base/plugins/workflow/runtime/lib/preflight.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -270,6 +270,68 @@ for (const route of [
   });
 }
 
+// The third route into a git call: HOME, which chooses ~/.gitconfig, and GIT_ASKPASS, which names a program git
+// runs to ask for a password (tried before any terminal prompt, so turning prompts off does not cover it). Both are
+// variables a prepared project's settings file can put into a session, so neither may steer a call that reaches a
+// network. The server that answers "who are you" runs in its own process, because the runtime's git calls are
+// synchronous and a server in this process could never answer one. Nothing here leaves this machine.
+async function askingServer(t, base) {
+  const log = join(base, "requests.txt");
+  const child = spawn(process.execPath, ["-e", `
+    const { createServer } = require("node:http");
+    const { appendFileSync } = require("node:fs");
+    const server = createServer((req, res) => {
+      appendFileSync(${JSON.stringify(log)}, req.url + "\\n");
+      res.writeHead(401, { "WWW-Authenticate": 'Basic realm="git"' });
+      res.end("no");
+    });
+    server.listen(0, "127.0.0.1", () => console.log(server.address().port));
+  `], { stdio: ["ignore", "pipe", "pipe"] });
+  t.after(() => child.kill("SIGKILL"));
+  const port = await new Promise((done, fail) => {
+    const timer = setTimeout(() => fail(new Error("the local server did not say which port it is on")), 15000);
+    child.stdout.once("data", (d) => { clearTimeout(timer); done(Number(String(d).trim())); });
+  });
+  return { port, asked: () => (existsSync(log) ? readFileSync(log, "utf8").split("\n").filter(Boolean) : []) };
+}
+
+test("a home folder and an askpass program named in the environment cannot steer a git call", async (t) => {
+  const ctx = fixture(t);
+  const { port, asked } = await askingServer(t, ctx.base);
+  const original = `http://127.0.0.1:${port}/original.git`;
+  const redirected = `http://127.0.0.1:${port}/redirected.git`;
+
+  const fakeHome = join(ctx.base, "planted-home");
+  mkdirSync(fakeHome, { recursive: true });
+  writeFileSync(join(fakeHome, ".gitconfig"), `[url "${redirected}"]\n\tinsteadOf = ${original}\n`);
+  const marker = join(ctx.base, "ASKPASS-RAN");
+  const askpass = join(ctx.base, "askpass.sh");
+  writeFileSync(askpass, `#!/bin/sh\n: > ${JSON.stringify(marker)}\necho x\n`);
+  chmodSync(askpass, 0o755);
+  const planted = { HOME: fakeHome, GIT_ASKPASS: askpass, SSH_ASKPASS: askpass, GIT_TERMINAL_PROMPT: "0" };
+
+  // The positive controls: plain git with those variables follows the planted configuration, and runs the program.
+  const control = spawnSync(toolPath("git"), ["ls-remote", "--heads", "--", original], { cwd: ctx.base, encoding: "utf8", timeout: 30000, env: { PATH: ctx.tools, ...planted } });
+  assert.ok(asked().some((u) => u.startsWith("/redirected.git")), `the planted home did not steer plain git, so this case would prove nothing (git said: ${control.stderr?.trim().slice(0, 200)}; asked ${JSON.stringify(asked())})`);
+  assert.equal(existsSync(marker), true, `the planted askpass program did not run for plain git, so this case would prove nothing (git said: ${control.stderr?.trim().slice(0, 200)})`);
+  const before = asked().length;
+  rmSync(marker, { force: true });
+
+  // The same address through the runtime's own git wrapper, with the same variables in the environment.
+  const { runGit } = await import(pathToFileURL(join(ctx.repo, "packs/base/plugins/workflow/runtime/lib/trust.mjs")).href);
+  const saved = { ...process.env };
+  try {
+    Object.assign(process.env, planted);
+    runGit(null, ["ls-remote", "--heads", "--", original], { timeoutMs: 30000, pinHome: true, cwd: ctx.base });
+  } finally {
+    for (const k of Object.keys(planted)) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; }
+  }
+  const after = asked().slice(before);
+  assert.deepEqual(after.filter((u) => u.startsWith("/redirected.git")), [], `a home folder named in the environment steered the call: it asked for ${JSON.stringify(after)}`);
+  assert.ok(after.some((u) => u.startsWith("/original.git")), `the call did not reach the address it was given (asked ${JSON.stringify(after)})`);
+  assert.equal(existsSync(marker), false, "a program named in the environment as git's way of asking for a password was run");
+});
+
 test("a program that never answers is stopped with its children, and the check finishes", (t) => {
   if (process.platform === "win32") return t.skip("process groups work differently on Windows");
   const ctx = fixture(t);
@@ -304,10 +366,22 @@ const CREDENTIALS = [
   ["an AWS key id", "AKIAIOSFODNN7EXAMPLE", /AKIAIOSFODNN7EXAMPLE/],
   ["a run with no lower-case letters", "ABCD1234EFGH5678IJKL9012MNOP", /ABCD1234EFGH5678IJKL9012MNOP/],
   ["a base64 secret", "aGVsbG8gd29ybGQgc2VjcmV0+/dmFsdWUxMjM=", /dmFsdWUxMjM/],
+  ["a base64 secret inside a path", "./x/aGVsbG8gd29ybGQgc2VjcmV0dmFsdWUxMjM=", /c2VjcmV0dmFsdWUxMjM/],
+  ["a secret inside a path", "/opt/keys/5f4dcc3b5aa765d61d8327deb882cf99", /5f4dcc3b5aa765d61d8327deb882cf99/],
+  ["a weak prefix with a random tail", "sk_live_abc123def456", /abc123def456/],
+  ["a pat prefix with a random tail", "pat_abcdef123456", /abcdef123456/],
+  ["a short key with a random tail", "sk-abc123def456gh", /abc123def456gh/],
+  ["a long run of lower-case letters and digits", "abcdefghijklmnopqrstuvwx2026", /abcdefghijklmnopqrstuvwx2026/],
 ];
 const ORDINARY = [
   "pat-experiments-2026-09",
   "sk-inventory-rewrite",
+  "https://github.com/acmecorp/skilliton2026",
+  "github.com/acmecorp/skilliton2026",
+  "https://ghe.acme.example/acmecorp/skilliton2026",
+  "repos/skilliton2026/packs",
+  "clones/Skilliton2026Marketplace",
+  "acmecorporation//skilliton2026",
   "acme/skills",
   "~/clones/skills-2026-09-17",
   "./a-very-long-folder-name-with-2026-in-it",

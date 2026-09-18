@@ -17,6 +17,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { appendFileSync, closeSync, fstatSync, mkdirSync, openSync, readSync } from "node:fs";
+import { userInfo } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 
 export const JOURNAL_EVENTS = ["session-start", "session-end", "pre-compact", "stop", "checkpoint", "stop-reminded"];
@@ -56,17 +57,45 @@ export const REPOSITORY_OVERRIDES = ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE
 export const CONFIG_FROM_THE_ENVIRONMENT = [
   "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
   "GIT_PROXY_COMMAND", "GIT_SSH_COMMAND", "GIT_SSH", "GIT_ALLOW_PROTOCOL", "GIT_EXTERNAL_DIFF", "GIT_TEXTCONV", "GIT_EXEC_PATH",
+  // Programs git runs for a person: the one it asks for a password with (tried before any terminal prompt, so
+  // GIT_TERMINAL_PROMPT=0 does not cover it), the editor, the pager, and the folder it copies hooks from into a new
+  // repository. None of them has any business being chosen from outside on a call nobody is sitting in front of.
+  "GIT_ASKPASS", "SSH_ASKPASS", "SSH_ASKPASS_REQUIRE", "GIT_EDITOR", "GIT_SEQUENCE_EDITOR", "GIT_PAGER", "GIT_TEMPLATE_DIR",
 ];
 
-// The environment for a git call that reads a repository but takes no settings from it or from around it. `keepConfig`
-// is for the calls a person drives (release signing), where their own configuration is the point.
-export function gitEnvironment({ keepConfig = false, optionalLocks = false } = {}) {
+// This user's own home folder as the system knows it, rather than as the environment says. HOME chooses
+// ~/.gitconfig, and ~/.gitconfig can name a program for git to run (core.sshCommand, core.askPass, gpg.program), so
+// on a call that reaches a network, HOME is as powerful as GIT_CONFIG_GLOBAL and has to be settled the same way.
+// os.userInfo() reads the system's own record for this user and ignores HOME. It throws where the system has no
+// record (a container started with a user id that is in no passwd file), and then the caller is told rather than
+// left believing something was pinned.
+export function realHome() {
+  try {
+    const home = userInfo().homedir;
+    return home ? { home, problem: null } : { home: null, problem: "the system has no home folder recorded for this user" };
+  } catch (e) {
+    return { home: null, problem: `the system has no record for this user (${e.code ?? e.message})` };
+  }
+}
+
+// The environment for a git call that reads a repository but takes no settings from it or from around it.
+//   keepConfig   for the calls a person drives (release signing), where their own configuration is the point
+//   pinHome      for a call that reaches a network: HOME and the Windows profile folder are set from the system's own
+//                record of this user, and XDG_CONFIG_HOME is dropped, so the configuration that applies is this
+//                machine's own and not one a prepared project's settings file put in the environment. It is not the
+//                default, because every other call is a local read where the same pinning would only make what a
+//                test measures depend on the machine it runs on
+export function gitEnvironment({ keepConfig = false, optionalLocks = false, pinHome = false } = {}) {
   const env = { ...process.env };
   if (!optionalLocks) env.GIT_OPTIONAL_LOCKS = "0";
   for (const name of REPOSITORY_OVERRIDES) delete env[name];
   if (keepConfig) return env;
   for (const name of CONFIG_FROM_THE_ENVIRONMENT) delete env[name];
   for (const name of Object.keys(env)) if (/^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(name)) delete env[name];
+  if (pinHome) {
+    const { home } = realHome();
+    if (home) { env.HOME = home; env.USERPROFILE = home; delete env.XDG_CONFIG_HOME; }
+  }
   return env;
 }
 

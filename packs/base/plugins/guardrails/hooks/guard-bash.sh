@@ -482,7 +482,16 @@ ask()  { [ -n "$ASK_REASON" ] || ASK_REASON=$1; }
 
 g() { # git, run where this segment runs, with no prompts, no pager, and no stderr
   [ -n "$GDIR" ] || return 97
-  git -C "$GDIR" ${GARGS[@]+"${GARGS[@]}"} -c core.quotepath=off -c core.fsmonitor=false "$@" </dev/null 2>/dev/null
+  # The same variables the runtime takes out (runtime/lib/journal.mjs): the ones that would choose a different
+  # repository than -C names, hand git settings from outside a configuration file, or name a program for it to run.
+  # A decision about the command a session is running must not be answerable by the environment that session set up.
+  env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES \
+      -u GIT_NAMESPACE -u GIT_COMMON_DIR -u GIT_PREFIX -u GIT_CONFIG -u GIT_CONFIG_GLOBAL -u GIT_CONFIG_SYSTEM \
+      -u GIT_CONFIG_COUNT -u GIT_CONFIG_PARAMETERS -u GIT_PROXY_COMMAND -u GIT_SSH_COMMAND -u GIT_SSH \
+      -u GIT_ALLOW_PROTOCOL -u GIT_EXTERNAL_DIFF -u GIT_TEXTCONV -u GIT_EXEC_PATH -u GIT_ASKPASS -u SSH_ASKPASS \
+      -u SSH_ASKPASS_REQUIRE \
+      -u GIT_EDITOR -u GIT_SEQUENCE_EDITOR -u GIT_PAGER -u GIT_TEMPLATE_DIR \
+      git -C "$GDIR" ${GARGS[@]+"${GARGS[@]}"} -c core.quotepath=off -c core.fsmonitor=false "$@" </dev/null 2>/dev/null
 }
 
 repo_state() { # 0: a git repository; 1: not one; 2: the directory could not be worked out

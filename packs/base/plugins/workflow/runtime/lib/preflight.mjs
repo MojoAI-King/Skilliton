@@ -29,6 +29,7 @@ import { randomBytes } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { BACKUPS, PLUGIN_ROOT, isDir, refuse, statOrNull, tilde, which } from "./core.mjs";
+import { realHome } from "./journal.mjs";
 import { runGit, trustDir } from "./trust.mjs";
 import { joinDir } from "./join.mjs";
 import { claudeConfigDir, codexHome } from "./verify.mjs";
@@ -450,31 +451,46 @@ export function checkFolders(options = {}) {
 const GITHUB_REPO = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
 
 // A value to print back in a refusal: never a credential someone pasted into it, and never so cautious that the
-// person cannot read the mistake they made. Both halves matter. A rule that hides anything long and hyphenated hides
-// the folder name they typed, and then the message says nothing; a rule that only knows the shapes seen so far
-// prints the next one.
+// person cannot read the mistake they made. Both halves matter, and both have been got wrong here before. A rule
+// that hides anything long hides the repository URL they typed, and then the message says nothing; a rule that
+// knows only the shapes seen so far prints the next one.
 //
-// The shapes: anything before an @ in a URL, any setting whose name reads like a credential, a known token prefix,
-// and a long unbroken run that mixes letters and digits (a secret has no word breaks; a name, a branch and a path
-// do). A value that is a path is not put through that last rule, because a path is not a secret and a long folder
-// name has to survive to be read; a known token prefix inside one is still removed.
-const TOKEN_PREFIXES = /\b(gh[pousr]|github_pat|glpat|xox[baprs]|sk-ant|sk-proj|npm|dop_v1|shpat|sbp)[_-][A-Za-z0-9_-]{12,}/g;
+// The shapes: anything before an @ in a URL, any setting whose name reads like a credential, a token prefix, a
+// base64 run, and a long unbroken run of letters and digits. The last one is what makes it work on a value nobody
+// has seen before: a secret has no word breaks, while a name, a branch, a host and a path all break at their
+// separators, so the rule reads runs rather than whole strings. That is why there is no "this looks like a path, so
+// leave it alone" escape: a secret inside a path is still a secret.
+const SPECIFIC_TOKENS = /\b(gh[pousr]|github_pat|glpat|xox[baprs]|sk-ant|sk-proj|npm|dop_v1|shpat|sbp)[_-][A-Za-z0-9_-]{12,}/g;
 const AWS_KEY_IDS = /\b(AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{12,}\b/g;
 const GOOGLE_KEYS = /\bAIza[A-Za-z0-9_-]{20,}/g;
-// 24 or more of the characters a token is made of, with at least one letter and one digit, and no break in it. The
-// character class carries + / and = so that a base64 secret is one run; an ordinary name breaks at its hyphens.
-const A_LONG_RUN = /(?<![A-Za-z0-9+/=])(?=[A-Za-z0-9+/=]*[0-9])(?=[A-Za-z0-9+/=]*[A-Za-z])[A-Za-z0-9+/=]{24,}(?![A-Za-z0-9+/=])/g;
-const A_PATH = /^(?:[~.]|\/|[A-Za-z]:[\\/])/;
+// Prefixes that are also ordinary words in a folder name (sk-inventory-rewrite, pat-experiments-2026). The prefix
+// alone says nothing, so what follows has to look like a secret rather than like words: an unbroken run of ten or
+// more letters and digits, with at least one digit in it.
+const WEAK_PREFIXES = /\b(sk|pat|key|token|secret|apikey)[_-][A-Za-z0-9_-]{8,}/gi;
+const RANDOM_LOOKING = /(?=[A-Za-z0-9]*[0-9])[A-Za-z0-9]{10,}/;
+// A base64 secret is one run even across the / that a path breaks at, so it is read before anything else. The + or
+// the = padding is what tells it apart from a host and a path, which have neither.
+const BASE64_SECRET = /(?<![A-Za-z0-9+/=])(?:[A-Za-z0-9+/]{24,}={1,2}|[A-Za-z0-9/]*\+[A-Za-z0-9+/]{23,}={0,2})(?![A-Za-z0-9+/=])/g;
+// Twenty-four or more letters and digits with no break at all, with at least one letter and one digit. A hyphen, an
+// underscore, a dot or a slash ends the run, which is why a repository URL and a dated folder name survive.
+const A_LONG_RUN = /(?<![A-Za-z0-9])(?=[A-Za-z0-9]*[0-9])(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{24,}(?![A-Za-z0-9])/g;
+// The one long run that is left alone: capitalised words and numbers run together, the way a person names a folder
+// (SkillitonMarketplace2026). A secret has no such shape. An unbroken run of lower-case letters and digits is hidden
+// even though a person may have meant it as a name, because that is also exactly what a token looks like, and a name
+// the person can retype costs less than a secret in a terminal.
+const READS_AS_WORDS = /^(?:[A-Z][a-z]{2,}|\d{2,})+$/;
 
 export function redact(value) {
-  const text = String(value);
-  const out = text
+  return String(value)
     .replace(/\/\/[^/@\s]*@/g, "//<credentials removed>@")
     .replace(/([?&#][^=&\s]*(?:token|key|secret|pass|pat|auth|credential)[^=&\s]*=)[^&\s]+/gi, "$1<removed>")
-    .replace(TOKEN_PREFIXES, "<removed>")
+    .replace(SPECIFIC_TOKENS, "<removed>")
     .replace(AWS_KEY_IDS, "<removed>")
-    .replace(GOOGLE_KEYS, "<removed>");
-  return (A_PATH.test(text) ? out : out.replace(A_LONG_RUN, "<removed>")).slice(0, 120);
+    .replace(GOOGLE_KEYS, "<removed>")
+    .replace(WEAK_PREFIXES, (match) => (RANDOM_LOOKING.test(match.slice(match.search(/[_-]/) + 1)) ? "<removed>" : match))
+    .replace(BASE64_SECRET, "<removed>")
+    .replace(A_LONG_RUN, (run) => (READS_AS_WORDS.test(run) ? run : "<removed>"))
+    .slice(0, 120);
 }
 
 // Asks the company's plugin repository for its branches. `marketplace` is <owner>/<repo> or a folder.
@@ -511,16 +527,23 @@ export function checkRepository(marketplace) {
   }
   let r;
   try {
+    // pinHome: HOME chooses ~/.gitconfig, and ~/.gitconfig can rewrite this address and name a program to run for
+    // it (core.sshCommand, core.askPass). This machine's own configuration is meant to apply, because the clone this
+    // check is a promise about would use it too; a HOME put into the session's environment by a project's settings
+    // file is not this machine's own, so the home comes from the system's record of this user instead.
     r = runGit(null, ["-c", "protocol.ext.allow=never", "ls-remote", "--heads", "--", url], {
-      timeoutMs: LS_REMOTE_TIMEOUT_MS, cwd: empty, extraEnv: { GIT_DIR: empty },
+      timeoutMs: LS_REMOTE_TIMEOUT_MS, cwd: empty, pinHome: true, extraEnv: { GIT_DIR: empty },
     });
   } finally {
     try { rmdirSync(empty); } catch { /* something else wrote in it */ }
     removeCreated(madeTemp);
   }
+  // Said out loud rather than assumed: where the system has no record for this user, the home folder could not be
+  // pinned, so whatever HOME said chose the configuration this check ran with.
+  const unpinned = realHome().problem ? `; this machine's own git configuration could not be pinned (${realHome().problem}), so the HOME in this session chose it` : "";
   if (r.ok) {
     const refs = r.stdout.split("\n").filter(Boolean).length;
-    return [state(`github.com/${marketplace}`, "repository", "ok", `answered with ${refs} branch(es)`)];
+    return [state(`github.com/${marketplace}`, "repository", "ok", `answered with ${refs} branch(es)${unpinned}`)];
   }
   const message = (r.stderr || r.failure || "").trim().split("\n").filter((l) => !/^remote:/.test(l))[0]?.slice(0, 200) ?? r.failure;
   const action = r.notFound
@@ -532,7 +555,7 @@ export function checkRepository(marketplace) {
             : /transport '[a-z]+' not allowed|protocol .*(not supported|not allowed)/i.test(message) ? "The folder this command ran in holds a Git configuration that rewrites github.com to something else. That is not a question for IT: run the check somewhere else, and read that folder's .git/config."
               : /timed out|connection refused|connection reset|failed to connect|could ?n[o']?t connect|network is unreachable|proxy|forbidden/i.test(message) ? "Ask IT whether this machine may reach github.com, and with which proxy (docs/IT-ALLOWLIST.md section 4)."
                 : "Read the message above with whoever manages these laptops; docs/IT-ALLOWLIST.md section 4 lists what git needs.";
-  return [state(`github.com/${marketplace}`, "repository", "blocked", `git ls-remote could not read it: ${message}`, action, "setup")];
+  return [state(`github.com/${marketplace}`, "repository", "blocked", `git ls-remote could not read it: ${message}${unpinned}`, action, "setup")];
 }
 
 // ---------- the report ----------
