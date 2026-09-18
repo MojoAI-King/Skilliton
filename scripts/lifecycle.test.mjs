@@ -657,6 +657,9 @@ test("session-start names every missing piece and stays within handoff.maxBytes"
   const expectLine = (pattern) => assert.ok(lines.some((line) => pattern.test(line)), `${pattern}\n${full.out}`);
   expectLine(/^- Branch: main @ [0-9a-f]{7,}, 1 uncommitted$/);
   expectLine(/^- Layout \(needs attention\): not prepared by Skilliton \(no prepare\.version/);
+  // M8's first increment: the offer is made in plain words in the hook output, because a never-prepared repository has
+  // no managed block to instruct the assistant, and a yes has its commands spelled out.
+  expectLine(/^- Not prepared \(needs attention\): offer it in plain words before other work: "This project is not set up for Skilliton yet\. .*Nothing is written until you say yes\." On a yes: skilliton prepare shows the change, skilliton prepare --apply writes it, then skilliton task start "<title>" --apply starts the first task$/);
   expectLine(HAS_MIGRATIONS ? /^- Pending migrations: none pending \(layout unknown, target 3\)$/ : /^- Pending migrations \(not run\): not available in this build \(runtime\/lib\/migrations\.mjs is not present\)$/);
   expectLine(new RegExp(`^- Versions: workflow runtime ${escape(INSTALLED)} installed; the project names no minimum version`));
   expectLine(/^- Records \(needs attention\): 9 of 9 missing: docs\/STATUS\.md \(status\), /);

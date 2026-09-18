@@ -1,9 +1,6 @@
 # macOS folder metadata; never meaningful in a repo
 .DS_Store
 
-# gate.mjs writes full test output here; the summary line is the committed artifact, not the log
-.gate/
-
 # claude plugin eval results; finished evidence is copied into evidence/<sha>/ deliberately
 **/evals/results/
 

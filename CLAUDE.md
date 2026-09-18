@@ -38,8 +38,13 @@ Each behavior is marked **enforced** (a hook of an installed, enabled plugin doe
 
 ### While working
 - **Enforced:** when you try to finish with changes and no recent checkpoint, the stop hook asks you to record one. **Instructed:** record a checkpoint whenever something is decided, verified or blocked: `skilliton checkpoint --state "<what is true now>" --evidence "<what ran and its result>" --next "<next step>" --apply`. Record a decision as its own entry: `skilliton record decision "<title>" --apply`, then fill in the file.
-- **Instructed:** never load a large file whole; search it or read the part you need. Keep command output out of the conversation when a summary will do.
 - **Enforced (guardrails enabled, shell commands the assistant runs):** force-pushes to protected branches, skipped git hooks and secret-shaped commits are blocked; commands that throw away uncommitted work need confirmation, and in Codex they are blocked instead. Other terminals and indirect commands are not covered. **Instructed:** when a command is blocked, explain why and offer a safe next step; never try to get around a block.
+
+### Session cost
+- **Enforced (context-hygiene enabled, Claude Code):** a whole-file read of a non-image file over 50KB is refused, with the reason. **Instructed:** never load a large file whole; read a range with offset and limit, search it, or summarize it with a script that prints a bounded result.
+- **Instructed:** run the project's checks through `skilliton gate` (the delivery policy's checks, else `npm run verify`, else `--cmd "<command>"`). It keeps the full output in a log under `.git/skilliton/gate/` and prints the verdict from the exit status with the tree it ran on, so a test run reaches the conversation as a result, not a transcript. Never pipe a check through `head` or `tail`, and keep other command output out of the conversation when a summary will do.
+- **Instructed:** batch independent inspections into one call and do not poll. A subagent is a session of its own: brief it with a bound and ask for a conclusion, and never spawn one where a direct lookup would do.
+- **Enforced (Claude Code, where the team settings are applied):** the session compacts automatically at the window `autoCompactWindow` sets in `.claude/settings.json`. **Instructed:** do not wait for it: when finished work has grown the context, write the handoff and end the session; pick the model at the start of a session rather than switching mid-way. Any statement about cost or savings comes from the company's meter cross-checked against the client's usage screen, never from an estimate.
 
 ### Before committing
 - **Instructed:** run `/workflow:review` and show its summary: what changed, what could break, what was tested, and the security evidence state from `skilliton security status`.
@@ -55,13 +60,10 @@ Each behavior is marked **enforced** (a hook of an installed, enabled plugin doe
 - **Instructed:** never write a secret value (keys, tokens, passwords) into any file, commit or message.
 <!-- skilliton:harness:end -->
 
-## Session cost
+## Session cost, in this repository
 
-Context is not free, and the shape of the cost is the opposite of what it looks like: a cache write costs many times a cache read, so **adding tokens is expensive and re-reading them is nearly free**. The ratio quoted in the maintainer's own notes was measured outside this repository and is not a claim this project makes; `scripts/token-cost.mjs` is what measures a window here, and PLAN.md sections 6 and 8 govern any number that leaves this repository.
+The rules are in the managed block above (its "Session cost" section) and in the context-hygiene skill; they reach every prepared project the same way. What is particular to this repository:
 
-- **Screenshots and other image reads are the single largest line.** Read an image when you are going to look at it, never to confirm a file exists. Prefer a crawl's own report over re-reading its images.
-- **Do not read a non-image file over ~50KB into context.** A global hook refuses it. Read a range with offset and limit, grep or head it, or summarize it with a script that prints a bounded result. Bash output is already capped by the harness and needs no rule.
-- **An idle gap past the cache TTL forces a full rewrite of the context.** End finished work with a concise handoff rather than leaving a large session warm for hours.
-- **Batch independent inspections into one call.** Do not poll.
-- **Subagents are not free workers.** Measured at a quarter to a half of spend. They earn their place on bounded work where only a conclusion returns. Never spawn one where a direct lookup would do.
-- `node scripts/token-cost.mjs --project <this checkout's key>` reports what a window cost, and `node scripts/token-cost.test.mjs` must pass before its output is believed. The key is the folder name for this checkout under the client's own projects folder, which is particular to one machine and is deliberately not written here. `docs/USAGE_BASELINE.md` is the frozen before-picture. Both are reconstructions, not a bill: the client's Usage screen is the only real meter.
+- `scripts/token-cost.mjs` is the meter. `node scripts/token-cost.test.mjs` must pass before its output is believed, and `--reference` must reproduce the known window on the machine that holds those transcripts (it reports NOT RUN elsewhere). `node scripts/token-cost.mjs <from> <to> --project <key>` reports a window; the key is the folder name for this checkout under the client's own projects folder, which is particular to one machine and is deliberately not written here.
+- `docs/USAGE_BASELINE.md` is the frozen before-picture. Both are reconstructions, not a bill: the client's Usage screen is the only real meter, and PLAN.md sections 6 and 8 govern any number that leaves this repository.
+- An image is priced by its pixels, not its bytes: read one when you are going to look at it. The read guard never refuses an image or a PDF.

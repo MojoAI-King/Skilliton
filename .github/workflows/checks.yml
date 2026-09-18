@@ -68,8 +68,12 @@ jobs:
           claude plugin validate --strict .
           for p in packs/*/plugins/*/; do claude plugin validate --strict "$p"; done
 
-      - name: Usage meter
-        run: node scripts/token-cost.test.mjs
+      - name: Usage meter (the reference part reports NOT RUN here; the transcripts are on one machine)
+        run: node scripts/token-cost.test.mjs --reference
+      - name: Read guard hook (context-hygiene)
+        run: node --test scripts/read-guard.test.mjs
+      - name: Gate command (checks as a verdict, output in a log)
+        run: node --test scripts/gate.test.mjs
 
       - name: Setup (status line apply and undo)
         run: node scripts/setup.test.mjs

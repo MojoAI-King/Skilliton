@@ -102,8 +102,11 @@ await R.step("A2", "adoption of a large real project (a clone of this repository
   const claude = readFileSync(join(clone, "CLAUDE.md"), "utf8");
   const humanRulesKept = claude.includes("Rules for every session in this repo:");
   const oneBlock = (claude.match(/skilliton:harness:start/g) ?? []).length === 1;
+  // The clone carries the committed block; this runtime's template may be newer, and then the block waits for a
+  // migration. Bringing it current is part of adopting a real project, so the check runs after the migration.
+  const migrated = sg(["migrate", "--dir", clone, "--apply"]);
   const again = sg(["prepare", "--dir", clone, "--check"]);
-  return { ok: preview.code === 0 && apply.code === 0 && kept && humanRulesKept && oneBlock && again.code === 0, detail: `preview ${preview.code}; apply ${apply.code}; living documents byte-identical: ${kept}; human rules kept in CLAUDE.md: ${humanRulesKept}; exactly one managed block: ${oneBlock}; check after apply ${again.code}` };
+  return { ok: preview.code === 0 && apply.code === 0 && kept && humanRulesKept && oneBlock && migrated.code === 0 && again.code === 0, detail: `preview ${preview.code}; apply ${apply.code}; migrate ${migrated.code}; living documents byte-identical: ${kept}; human rules kept in CLAUDE.md: ${humanRulesKept}; exactly one managed block: ${oneBlock}; check after apply ${again.code}` };
 });
 
 await R.step("G1", "a prototype (layout 1) project migrates to layout 3 (the integrated layout under the Skilliton names) through the command line", () => {

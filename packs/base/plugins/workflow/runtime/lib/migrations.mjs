@@ -35,6 +35,7 @@ import {
   GITIGNORE_LINES, MIGRATIONS_DIR, RECORDS_README_REL, SECURITY_README_REL, entryFolderReadme, gitignoreWithSkilliton,
   recordsReadme, securityReadme,
 } from "./project-files.mjs";
+import { LEGACY_TEMPLATE } from "./legacy-template.mjs";
 import {
   LEGACY_BACKUPS_DIR, LEGACY_COMMAND, LEGACY_CONFIG_REL, LEGACY_ENV_PREFIX, LEGACY_HARNESS_END,
   LEGACY_HARNESS_PREFIX, LEGACY_HARNESS_START, LEGACY_JOURNAL_DIR, LEGACY_MARKETPLACE, LEGACY_MIGRATIONS_DIR,
@@ -304,9 +305,12 @@ async function plan0003(project, { root, runtimeVersion }) {
   const template = readHarnessTemplate(HARNESS_TEMPLATE);
   const vars = templateVars(project);
   const previous = latestLegacyBlocks(root);
-  // What the last runtime before the rename wrote for this template, so a block refreshed with its harness --apply,
-  // which leaves no receipt, is recognised as written by Skilliton rather than by a person.
+  // What the last runtime before the rename wrote, so a block it wrote with prepare or harness --apply, which leaves
+  // no receipt, is recognised as written by Skilliton rather than by a person: its own template, frozen in
+  // legacy-template.mjs, and the current template under the earlier names (for a block refreshed with a later
+  // template). Rendering only the current template broke the day the template first changed after the rename.
   const legacyInnerSha = sha256(Buffer.from(asLegacy(templateBody(template, vars)), "latin1"));
+  const frozenInnerSha = sha256(Buffer.from(templateBody(LEGACY_TEMPLATE, vars), "latin1"));
   const blocks = {}, edited = [];
   for (const name of HARNESS_FILES) {
     const bytes = readPath(root, name);
@@ -323,7 +327,7 @@ async function plan0003(project, { root, runtimeVersion }) {
     const inner = sha256(Buffer.from(text.slice(legacy.innerStart, legacy.innerEnd).replace(/\r\n/g, "\n"), "latin1"));
     // Written by Skilliton: exactly the earlier release's rendering of this template, or exactly what the last earlier
     // instructions receipt recorded. Anything else may hold a person's edit and is refused.
-    if (inner !== legacyInnerSha && !(previous && previous.blocks[name] === inner)) { edited.push(name); continue; }
+    if (inner !== legacyInnerSha && inner !== frozenInnerSha && !(previous && previous.blocks[name] === inner)) { edited.push(name); continue; }
     const block = renderBlock(template, detectEol(text), vars);
     const next = text.slice(0, legacy.startOffset) + block + text.slice(legacy.endOffset);
     blocks[name] = sha256(Buffer.from(templateInner(block), "latin1"));

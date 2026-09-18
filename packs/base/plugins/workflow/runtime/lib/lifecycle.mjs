@@ -644,6 +644,8 @@ function taskLines(report, check) {
   return lines;
 }
 
+export const prepareOffer = () => `offer it in plain words before other work: "This project is not set up for Skilliton yet. Setting it up adds records for status, backlog, decisions, lessons and handoffs, a managed instruction block in CLAUDE.md and AGENTS.md, and a security register; it keeps any of those that already exist. Nothing is written until you say yes." On a yes: ${selfCommand()} prepare shows the change, ${selfCommand()} prepare --apply writes it, then ${selfCommand()} task start "<title>" --apply starts the first task`;
+
 // What a resuming session needs first comes first, because truncation keeps the top of the block.
 const BLOCK_ORDER = ["tasks", "sessions", "handoff", "layout", "migrations", "versions", "records", "security"];
 
@@ -659,6 +661,9 @@ export function sessionStartBlock(report, { maxBytes, notes = [] }) {
     if (name === "tasks") { lines.push(...taskLines(report, check)); continue; }
     const word = WORDS[check.status];
     lines.push(`- ${BLOCK_LABELS[name]}${word ? ` (${word})` : ""}: ${clip(check.summary, 600)}`);
+    // A never-prepared repository has no managed block to instruct the assistant, so the offer is made here, in plain
+    // words, with the commands a yes runs (PLAN.md M8, first increment).
+    if (name === "layout" && report.data?.layout?.version === null) lines.push(`- Not prepared (needs attention): ${prepareOffer()}`);
   }
   return boundLines(lines, maxBytes, `[workflow] Project state truncated at ${maxBytes} bytes; for all of it run: ${selfCommand()} status`);
 }

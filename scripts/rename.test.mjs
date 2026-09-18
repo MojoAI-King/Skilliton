@@ -451,3 +451,17 @@ test("the scrub check and the status line setup name files left at the earlier d
   assert.equal(undo.status, 1, `${undo.stdout}${undo.stderr}`);
   assert.match(undo.stdout, /holds backups made before the rename to Skilliton, which this version does not read/);
 });
+
+// The template frozen for migration 0003 is the one the last release before the rename shipped (commit 214eb17), and
+// the current template differs from it, which is the case the frozen copy exists for: without it, the first template
+// change after the rename made every block that release wrote look hand-edited (found 2026-09-18).
+test("the frozen template migration 0003 recognises is the earlier release's own, and the current template has moved on", async () => {
+  const { createHash } = await import("node:crypto");
+  const { readFileSync: read } = await import("node:fs");
+  const { LEGACY_TEMPLATE, LEGACY_TEMPLATE_SHA12 } = await import("../packs/base/plugins/workflow/runtime/lib/legacy-template.mjs");
+  const sha12 = (text) => createHash("sha256").update(text, "utf8").digest("hex").slice(0, 12);
+  assert.equal(LEGACY_TEMPLATE_SHA12, "a340107f1258");
+  assert.equal(sha12(LEGACY_TEMPLATE), LEGACY_TEMPLATE_SHA12);
+  const current = read(new URL("../packs/base/plugins/workflow/templates/harness.md", import.meta.url), "utf8");
+  assert.notEqual(sha12(current.replace(/skilliton/g, "skillgate")), LEGACY_TEMPLATE_SHA12, "the current template under the earlier names is no longer the earlier release's, so the frozen copy is load-bearing");
+});
