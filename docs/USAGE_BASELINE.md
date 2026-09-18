@@ -2,7 +2,7 @@
 
 Kind: Living. Optional usage-measurement workstream; its blockers do not block the core autopilot milestones in PLAN.md.
 
-STATUS: NOT YET RECORDED, and BLOCKED (2026-09-16). The meter passes its fixture test but does not yet reproduce the known-correct real-window figure; see DECISIONS.md, item O2. No baseline is recorded with an untrusted meter. A baseline written after the change is not a baseline.
+STATUS: NOT YET RECORDED; no longer blocked (2026-09-18). The meter passes its fixture test and reproduces the known-correct real-window figure on the machine that holds those transcripts (`node scripts/token-cost.test.mjs --reference`; DECISIONS.md O2, closed). Recording it writes this machine's per-day reconstructed cost into a public repository, which is the owner's decision, not a session's; until then the baseline is the reference window itself (UTC 2026-09-14 to 15: 1919 top-level and 439 subagent requests). A baseline written after a change is not a baseline.
 
 ## How to fill this in
 

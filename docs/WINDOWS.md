@@ -10,7 +10,10 @@ Claude Code passes each hook's command to a shell: `sh -c` on macOS and Linux, *
 when Git Bash is not installed (https://code.claude.com/docs/en/hooks). Skilliton's hooks are shell scripts, so on
 Windows they need Git Bash, which comes with Git for Windows. Every Skilliton hook now says `"shell": "bash"`, so a
 machine without Git Bash should fail loudly rather than hand a shell script to PowerShell. That is the decision in
-`docs/decisions/2026-09-17-windows-is-supported-through-git-for-win-cb9e.md`.
+`docs/decisions/2026-09-17-windows-is-supported-through-git-for-win-cb9e.md`. One hook is a Node script rather than a
+shell script: the context-hygiene read guard (`hooks/read-guard.mjs`), started by its first line `#!/usr/bin/env node`
+through the same `bash`. Git Bash resolves that line through its own `/usr/bin/env`, which needs `node` on the PATH Git
+Bash sees; this is unmeasured on Windows like every other hook here, and the check below covers it.
 
 Git for Windows also brings most of what the allow list needs: `bash`, `awk`, `sed`, `grep`, `tr`, `wc`, `cat`,
 `find`, `xargs`, `tar`, `ssh-keygen` and `git` itself.
@@ -101,6 +104,10 @@ These are guesses, written down so the run can confirm or refute them:
 - **The preflight check on Windows** looks for Git Bash through `CLAUDE_CODE_GIT_BASH_PATH`, then PATH, then beside
   `git.exe`. If it says Git for Windows was not found although it is installed, send the output of
   `which git` and `where.exe git`.
+- **Bare program names in the delivery policy.** A policy check such as `npm test` is started by name, and on
+  Windows a program started by name without a path can be found in the current folder before the PATH. `skilliton
+  gate` and the delivery gate run the same checks, so the run should show whether that matters here. Not verified
+  on Windows.
 - **The status line and the drift check** use `jq`, which Git for Windows does not bring. They are optional, and the
   check should say so rather than fail.
 

@@ -1,0 +1,28 @@
+{
+  "schema": "skilliton.migration-receipt/1",
+  "id": "0100-instructions-ff8374b8e33a",
+  "from": 3,
+  "to": 3,
+  "appliedAt": "2026-09-18T16:32:18.716Z",
+  "runtime": "0.7.1",
+  "files": [
+    {
+      "path": "CLAUDE.md",
+      "action": "update",
+      "beforeSha256": "fbfb8ae17822036a947a575002c4b1ea687df4abc00d498f2b1c337309a2c04b",
+      "afterSha256": "a62ff2a3f457b0277d976c58f137ba80f705c0745196d5ab61de67ec7cd27a8e"
+    },
+    {
+      "path": "AGENTS.md",
+      "action": "update",
+      "beforeSha256": "69126c11d5b0d62516d4992345a3b8f03a209bb502aecf52bc49adff750f20b1",
+      "afterSha256": "2276503b251fa8683e034c4c82fc21507c2e6ce646a7e0668836cf2ed5a90c62"
+    }
+  ],
+  "backup": "20260918T163218Z-migrate-76f09d96",
+  "blocks": {
+    "CLAUDE.md": "ed083d2c626ab326eca56f435372ddcc3b0d4e24ae17d5e9963ebc017105ad51",
+    "AGENTS.md": "ed083d2c626ab326eca56f435372ddcc3b0d4e24ae17d5e9963ebc017105ad51"
+  },
+  "templateSha256": "ff8374b8e33a531c5298338587a49b2625871765f9d62e6c0784bc17f81bf725"
+}

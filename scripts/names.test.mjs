@@ -20,6 +20,7 @@ const WORD = /skillgate/i;
 // Paths (a trailing slash means everything under that folder) where the earlier name is expected.
 export const ALLOWED_PATHS = [
   ["evidence/", "recorded runs keep the names they ran with"],
+  ["packs/base/plugins/workflow/runtime/lib/legacy-template.mjs", "the template the last release before the rename shipped, frozen so migration 0003 recognises the blocks that release wrote"],
   ["docs/history/", "archived plans"],
   ["docs/tasks/", "task records are dated history"],
   ["docs/decisions/", "decision entries are dated history"],

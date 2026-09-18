@@ -60,6 +60,7 @@ export const PROGRAMS = [
   { name: "ssh-keygen", by: "runtime", need: "required", what: "checking the signature on a company release, so verify can say VERIFIED", blocks: "setup" },
   { name: "jq", by: "hook", need: "feature", what: "the optional status line and the drift check, which have no other way to read JSON; the guardrails and handoff hooks fall back to node", blocks: "sessions" },
   { name: "python3", by: "hook", need: "optional", what: "reading a hook's input where neither jq nor node is there, which cannot happen while node is required", blocks: null },
+  { name: "npm", by: "runtime", need: "optional", what: "skilliton gate's fallback (npm run verify) in a project with a verify script in package.json and no delivery policy; a project without either names its command with --cmd", blocks: null },
   { name: "grep", by: "hook", need: "required", what: "the guardrails check for secrets in a commit", blocks: "sessions" },
   { name: "find", by: "hook", need: "required", what: "the same check, when it looks at files", blocks: "sessions" },
   { name: "dirname", by: "hook", need: "required", what: "the terminal launcher and the status line", blocks: "sessions" },
@@ -118,7 +119,9 @@ function startOnce(file, args, timeoutMs) {
       resolve({ stdout, stderr, timedOut, escaped, tooMuchOutput, ...result });
     };
     try {
-      child = spawn(file, args, { stdio: ["ignore", "pipe", "pipe"], detached: group, windowsHide: true });
+      // A program asked for its version must leave nothing behind: a Node program (npm, for one) writes a compile cache
+      // under the temporary folder unless told not to, and the preflight check promises to write nothing.
+      child = spawn(file, args, { stdio: ["ignore", "pipe", "pipe"], detached: group, windowsHide: true, env: { ...process.env, NODE_DISABLE_COMPILE_CACHE: "1" } });
     } catch (e) { done({ error: e, code: e.code ?? null, status: null }); return; }
     LIVE.add(stop);
     installCleanup();

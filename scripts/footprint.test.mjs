@@ -66,6 +66,7 @@ const PERSISTENCE_PATTERNS = [
 export const PROCESS_GROUPS = [
   [`${PLUGINS}/workflow/runtime/lib/collectors.mjs`, 1, "a policy's test command, so a timeout can stop the whole group"],
   [`${PLUGINS}/workflow/runtime/lib/delivery.mjs`, 1, "the same, in the delivery gate"],
+  [`${PLUGINS}/workflow/runtime/lib/gate.mjs`, 2, "the same, in skilliton gate (one start for a policy check's argument list, one for a command run through the shell), so a test runner's workers go when the check is stopped"],
   [`${PLUGINS}/workflow/runtime/lib/preflight.mjs`, 1, "one program being checked, so a program that hangs is taken away with its children"],
 ];
 

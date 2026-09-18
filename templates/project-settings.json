@@ -12,5 +12,6 @@
     "context-hygiene@skilliton": true,
     "workflow@skilliton": true,
     "guardrails@skilliton": true
-  }
+  },
+  "autoCompactWindow": 200000
 }

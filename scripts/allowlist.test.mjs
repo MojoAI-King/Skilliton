@@ -60,6 +60,8 @@ export const DYNAMIC_CALLS = [
   { file: `${WORKFLOW}/runtime/lib/join.mjs`, callee: "runClient", arg: "c.binary", count: 4, programs: ["claude", "codex"], why: "join and join --undo run each client's own marketplace and plugin commands" },
   { file: `${WORKFLOW}/runtime/lib/collectors.mjs`, callee: "spawn", arg: "check.command[0]", count: 1, programs: [], policy: true, why: "a command from the project's own delivery policy, collecting test evidence" },
   { file: `${WORKFLOW}/runtime/lib/delivery.mjs`, callee: "spawn", arg: "check.command[0]", count: 1, programs: [], policy: true, why: "a command from the shared repository's delivery policy, run by the gate" },
+  { file: `${WORKFLOW}/runtime/lib/gate.mjs`, callee: "spawn", arg: "run.argv[0]", count: 1, programs: [], policy: true, why: "a command from the project's own delivery policy, run locally by skilliton gate" },
+  { file: `${WORKFLOW}/runtime/lib/gate.mjs`, callee: "spawn", arg: "run.shell", count: 1, programs: ["sh", "npm"], why: "skilliton gate runs npm run verify (package.json's verify script), or the command a person gave after --cmd, through the shell" },
   { file: `${WORKFLOW}/runtime/lib/delivery.mjs`, callee: "runProgram", arg: "runtimePath", count: 1, programs: ["bash", "node"], why: "delivery install probes the workflow plugin's bin/skilliton launcher, a bash script that runs node" },
   { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "spawn", arg: "file", count: 1, programs: [], why: "inside startOnce, the wrapper that waits for one program in its own process group and kills the group when it will not stop; every caller of it is read below" },
   { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "startOnce", arg: "bash.path", count: 1, programs: ["bash"], why: "on Windows the probe script is run by Git Bash, which is how Claude Code runs a hook there" },
@@ -182,6 +184,7 @@ export const OUTSIDE_A_REPOSITORY = [
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, "madeTemp = makeFolderChain(tmpdir())", "the temporary folder, made again for the reachability check after the folder test removed it, and taken away again with every folder that had to be made for it"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, "the temporary folder ${tilde(tmpdir())} could not be used", "the message that names the temporary folder when it cannot be used"],
   [`${PLUGIN}/context-hygiene/hooks/statusline-quota.sh`, 'LOG="${SKILLITON_USAGE_LOG:-$HOME/.claude/skilliton/usage-log.jsonl}"', "~/.claude/skilliton/usage-log.jsonl"],
+  [`${PLUGIN}/context-hygiene/hooks/read-guard.mjs`, ': join(homedir(), ".claude", "skilliton", "read-guard.log");', "~/.claude/skilliton/read-guard.log, one line per refused read"],
   [`${PLUGIN}/context-hygiene/hooks/statusline-quota.sh`, 'KEYS_LOG="${SKILLITON_KEYS_LOG:-$HOME/.claude/skilliton/statusline-keys-seen.log}"', "~/.claude/skilliton/statusline-keys-seen.log"],
   [`${PLUGIN}/context-hygiene/hooks/config-drift-check.sh`, 'SETTINGS="${SKILLITON_SETTINGS:-$HOME/.claude/settings.json}"', "Claude Code's settings, read only"],
   [`${PLUGIN}/context-hygiene/hooks/config-drift-check.sh`, 'PROJECTS="${SKILLITON_PROJECTS:-$HOME/.claude/projects}"', "Claude Code's transcripts, read only"],
@@ -422,7 +425,8 @@ export function hookCommands(files = scopeFiles(), readFile = read, listHooks = 
       const m = /^"\$\{CLAUDE_PLUGIN_ROOT\}"\/((?:hooks|bin)\/[A-Za-z0-9._-]+)(?: [a-z-]+)*$/.exec(command ?? "");
       if (!m) { problems.push(`${path}: the hook command ${JSON.stringify(command)} is not "\${CLAUDE_PLUGIN_ROOT}"/hooks/<script> or /bin/<script>; read what it starts and update ${ALLOWLIST_DOC}`); continue; }
       const script = `${dirname(dirname(path))}/${m[1]}`;
-      if (!files.shell.includes(script)) problems.push(`${path}: the hook command runs ${script}, which this test does not read; add it to the files in scripts/inventory.mjs`);
+      // A hook is a shell script or a Node script started by its first line; either way it must be a file this test reads.
+      if (!files.shell.includes(script) && !files.js.includes(script)) problems.push(`${path}: the hook command runs ${script}, which this test does not read; add it to the files in scripts/inventory.mjs`);
       shells.push(`${path} (${m[1]})`);
     }
   }
@@ -629,6 +633,8 @@ export function measureWrites() {
       ["the guardrails session hook", () => script("guardrails", "session-start-guardrails.sh", sessionInput)],
       ["the guardrails command hook", () => script("guardrails", "guard-bash.sh", JSON.stringify({ session_id: "s1", cwd: ws.project, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "git commit -m test" } }))],
       ["the checklist hook", () => script("context-hygiene", "session-start-checklist.sh", sessionInput, { SKILLITON_LESSONS: join(ws.project, "README.md") })],
+      ["the read guard hook (a refusal, which writes its log)", () => { writeFileSync(join(ws.project, "large.txt"), "x".repeat(60 * 1024)); return run(process.execPath, [join(ws.repo, PLUGIN, "context-hygiene", "hooks", "read-guard.mjs")], { cwd: ws.project, input: JSON.stringify({ session_id: "s1", cwd: ws.project, hook_event_name: "PreToolUse", tool_name: "Read", tool_input: { file_path: join(ws.project, "large.txt") } }) }); }],
+      ["gate --cmd", () => cli(["gate", "--dir", ws.project, "--cmd", "true"])],
       ["status", () => cli(["status", "--dir", ws.project]), [0, 1]],
       ["record a decision --apply", () => cli(["record", "decision", "a choice", "--dir", ws.project, "--apply"])],
       ["index --apply", () => cli(["index", "--dir", ws.project, "--apply"])],

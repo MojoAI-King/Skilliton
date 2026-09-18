@@ -33,8 +33,13 @@ Each behavior is marked **enforced** (a hook of an installed, enabled plugin doe
 
 ### While working
 - **Enforced:** when you try to finish with changes and no recent checkpoint, the stop hook asks you to record one. **Instructed:** record a checkpoint whenever something is decided, verified or blocked: `skilliton checkpoint --state "<what is true now>" --evidence "<what ran and its result>" --next "<next step>" --apply`. Record a decision as its own entry: `skilliton record decision "<title>" --apply`, then fill in the file.
-- **Instructed:** never load a large file whole; search it or read the part you need. Keep command output out of the conversation when a summary will do.
 - **Enforced (guardrails enabled, shell commands the assistant runs):** force-pushes to protected branches, skipped git hooks and secret-shaped commits are blocked; commands that throw away uncommitted work need confirmation, and in Codex they are blocked instead. Other terminals and indirect commands are not covered. **Instructed:** when a command is blocked, explain why and offer a safe next step; never try to get around a block.
+
+### Session cost
+- **Enforced (context-hygiene enabled, Claude Code):** a whole-file read of a non-image file over 50KB is refused, with the reason. **Instructed:** never load a large file whole; read a range with offset and limit, search it, or summarize it with a script that prints a bounded result.
+- **Instructed:** run the project's checks through `skilliton gate` (the delivery policy's checks, else `npm run verify`, else `--cmd "<command>"`). It keeps the full output in a log under `.git/skilliton/gate/` and prints the verdict from the exit status with the tree it ran on, so a test run reaches the conversation as a result, not a transcript. Never pipe a check through `head` or `tail`, and keep other command output out of the conversation when a summary will do.
+- **Instructed:** batch independent inspections into one call and do not poll. A subagent is a session of its own: brief it with a bound and ask for a conclusion, and never spawn one where a direct lookup would do.
+- **Enforced (Claude Code, where the team settings are applied):** the session compacts automatically at the window `autoCompactWindow` sets in `.claude/settings.json`. **Instructed:** do not wait for it: when finished work has grown the context, write the handoff and end the session; pick the model at the start of a session rather than switching mid-way. Any statement about cost or savings comes from the company's meter cross-checked against the client's usage screen, never from an estimate.
 
 ### Before committing
 - **Instructed:** run `/workflow:review` and show its summary: what changed, what could break, what was tested, and the security evidence state from `skilliton security status`.

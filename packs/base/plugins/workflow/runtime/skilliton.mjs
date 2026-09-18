@@ -33,6 +33,7 @@ const GROUPS = [
       { name: "index", summary: "regenerate the decision, lesson and task indexes from their entries" },
       { name: "security", summary: "project security evidence: status, record, applicability, collect, findings" },
       { name: "hook", summary: "run a lifecycle hook (session-start, stop, pre-compact, session-end); called by the plugin's hooks" },
+      { name: "gate", summary: "run the project's checks (delivery policy, or npm run verify, or --cmd) and return a verdict with the full output in a log" },
     ],
   },
   {
