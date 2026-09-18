@@ -363,11 +363,14 @@ function handoffMovedOn(root, rel, archiveRel, git, data) {
   data.shallowHistory = shallow.status === 0 ? shallow.stdout.trim() === "true" : null;
   const exclude = ["--", ".", `:(exclude)${rel}`, `:(exclude)${archiveRel}`];
 
-  // The NEWEST commit that added this file, not the oldest. A handoff that was deleted and written again (a second
-  // preparation, a move of the records folder) has more than one, and measuring from the first would count every
-  // commit since a file that no longer exists was created.
+  // The OLDEST commit that added this file. This is only ever asked when the handoff still holds the line
+  // preparation wrote, so the question is "how much has happened that no session has written a handoff about", and
+  // the answer starts the first time this project had a handoff at all. Taking the newest add instead (tried, and
+  // wrong) lets a second preparation, or a move of the records folder, reset the count to none and bury every
+  // commit before it: a project with weeks of work behind an unwritten handoff then reads as one prepared a minute
+  // ago. What a re-created file does change is nothing about that question.
   const added = runGit(root, ["log", "--diff-filter=A", "--format=%H", "--", rel]);
-  const from = added.status === 0 ? added.stdout.trim().split("\n").filter(Boolean)[0] ?? null : null;
+  const from = added.status === 0 ? added.stdout.trim().split("\n").filter(Boolean).at(-1) ?? null : null;
   let since;
   if (from) {
     data.handoffCommit = from;

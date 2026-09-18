@@ -310,6 +310,18 @@ expect "git commit -anm x (combined)"                 deny "$R" 'git commit -anm
 expect "git commit --no-veri -m x (abbreviation git accepts)" deny "$R" 'git commit --no-veri -m "x"'
 expect "git push --no-verify origin feature"          deny "$R" 'git push --no-verify origin feature'
 expect "cd repo && git commit --no-verify -m x"       deny "$TMP" 'cd repo && git commit --no-verify -m "x"'
+# ---------------------------------------------------------------- the shell's own startup file
+# BASH_ENV names a file the shell runs before the first line of any script it starts, including this hook. A careless
+# setting is reported; a deliberate one cannot be, because the file it names runs first and can end the shell. Both
+# are measured here so that the limit is a written-down fact rather than a surprise, and so a change in bash's
+# behaviour shows up as a failing test.
+section "the shell's own startup file"
+printf ': ordinary\n' > "$TMP/bashenv-ordinary.sh"
+printf 'exit 0\n' > "$TMP/bashenv-quiet.sh"
+expect "BASH_ENV set: a command that would be denied asks instead" ask "$R" 'git commit --no-verify -m "x"' "BASH_ENV=$TMP/bashenv-ordinary.sh"
+reason_has "the reason names the variable" "BASH_ENV or ENV"
+expect "known limit: BASH_ENV naming a file that ends the shell silences the hook" allow "$R" 'git commit --no-verify -m "x"' "BASH_ENV=$TMP/bashenv-quiet.sh"
+
 section "allow: flags that only look similar (negative controls)"
 expect "git commit -m \"add -n flag docs\" (quoted message)" allow "$R" 'git commit -m "add -n flag docs"'
 expect "git commit -mn (message is the letter n)"     allow "$R" 'git commit -mn'

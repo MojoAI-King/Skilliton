@@ -1079,9 +1079,9 @@ test("status exits 1 for each attention condition and names it", async () => wit
   const truncated = attentionOnly(shallow, "handoff", /whether the project has moved on since cannot be judged here: the history in this clone is shallow/);
   assert.equal(truncated.json.details.handoff.shallowHistory, true);
 
-  // A handoff that was deleted and written again (a second preparation, a move of the records folder) has more than
-  // one commit that added it. The mark is the newest, or every commit since a file that no longer exists would be
-  // counted against the one on disk.
+  // A placeholder handoff deleted and written again is still a handoff nobody has written, and the work before it is
+  // still work no handoff describes. Measuring from the newest commit that added the file (tried, and wrong) resets
+  // the count to none and hides that work: the project reads as one prepared a minute ago.
   const reAdded = fresh({ written: "not yet assessed" });
   writeFileSync(join(reAdded, "README.md"), "# weeks of work\n");
   commit(reAdded, env, "work");
@@ -1089,9 +1089,8 @@ test("status exits 1 for each attention condition and names it", async () => wit
   commit(reAdded, env, "the records folder is rearranged");
   writeHandoff(reAdded, "not yet assessed");
   commit(reAdded, env, "the handoff preparation writes, again");
-  const again = statusJson(reAdded, env);
-  assert.equal(again.code, 0, `a handoff added again at HEAD is not a handoff the project has moved on from:\n${again.out}`);
-  assert.equal(again.json.details.handoff.commitsSinceHandoffCommit, 0);
+  const again = attentionOnly(reAdded, "handoff", /still carries the line preparation wrote \("not yet assessed"\), and the project has moved on since \(1 commit\(s\) that changed something else since it was committed\)/);
+  assert.equal(again.json.details.handoff.commitsSinceHandoffCommit, 1, "the count is taken from the first time this project had a handoff, not from the newest copy of the file; the two commits that only moved the handoff itself are not work it is behind");
 
   // A later commit that only tidies the handoff resets nothing: the work before it still counts.
   const tidied = fresh();

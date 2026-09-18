@@ -67,6 +67,13 @@ export const CONFIG_FROM_THE_ENVIRONMENT = [
   // A company's own certificate authority still applies through the machine's git configuration (http.sslCAInfo) or
   // the system trust store, which is where docs/IT-ALLOWLIST.md section 4 already says it belongs.
   "GIT_SSL_NO_VERIFY", "GIT_SSL_CAINFO", "GIT_SSL_CAPATH", "GIT_SSL_CERT", "GIT_SSL_KEY", "GIT_SSL_VERSION", "GIT_SSL_CIPHER_LIST",
+  // Switching off the machine's own system configuration is the same act as redirecting it: /etc/gitconfig is where
+  // a company keeps the proxy and the certificate authority this tool promises to follow, so a project that can
+  // turn it off can make a working machine report itself as blocked.
+  "GIT_CONFIG_NOSYSTEM", "GIT_ATTR_NOSYSTEM",
+  // What git prints on its error stream, which is what a check reads to say WHY something is blocked. A trace puts
+  // its own lines there, and the certificate error a person needs to see is no longer the one they are shown.
+  "GIT_CURL_VERBOSE", "GIT_REDIRECT_STDERR", "GIT_REDIRECT_STDOUT",
 ];
 
 // The proxy a connection would go through, as the environment names it. It is kept, because a company machine sets
@@ -75,8 +82,21 @@ export const CONFIG_FROM_THE_ENVIRONMENT = [
 // leaving that out of the line.
 export const PROXY_VARIABLES = ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "HTTP_PROXY", "http_proxy"];
 export function proxyInUse(env = process.env) {
-  for (const name of PROXY_VARIABLES) if (env[name]) return { name, value: env[name] };
+  for (const name of PROXY_VARIABLES) if (env[name]) return { name, value: env[name], where: proxyAddress(env[name]) };
   return null;
+}
+
+// A proxy address with any credentials in it left out: a proxy is often written user:password@host, with or without
+// a scheme (curl and git accept both), and this value is printed in a line the tool tells the person to hand to
+// whoever manages their machines. Only the scheme, the host and the port are ever shown.
+export function proxyAddress(value) {
+  const text = String(value).trim();
+  const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(text)?.[1];
+  try {
+    const url = new URL(scheme ? text : `http://${text}`);
+    if (!url.host) return "an address that could not be read";
+    return scheme ? `${scheme}://${url.host}` : url.host;
+  } catch { return "an address that could not be read"; }
 }
 
 // This user's own home folder as the system knows it, rather than as the environment says. HOME chooses
@@ -101,16 +121,19 @@ export function realHome() {
 //                machine's own and not one a prepared project's settings file put in the environment. It is not the
 //                default, because every other call is a local read where the same pinning would only make what a
 //                test measures depend on the machine it runs on
-export function gitEnvironment({ keepConfig = false, optionalLocks = false, pinHome = false } = {}) {
+export function gitEnvironment({ keepConfig = false, optionalLocks = false, pinHome = false, home = null } = {}) {
   const env = { ...process.env };
   if (!optionalLocks) env.GIT_OPTIONAL_LOCKS = "0";
   for (const name of REPOSITORY_OVERRIDES) delete env[name];
   if (keepConfig) return env;
   for (const name of CONFIG_FROM_THE_ENVIRONMENT) delete env[name];
-  for (const name of Object.keys(env)) if (/^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(name)) delete env[name];
+  for (const name of Object.keys(env)) if (/^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(name) || /^GIT_TRACE/.test(name)) delete env[name];
   if (pinHome) {
-    const { home } = realHome();
-    if (home) { env.HOME = home; env.USERPROFILE = home; delete env.XDG_CONFIG_HOME; }
+    // `home` is for a caller that knows which home it means (a test, so that what it measures does not depend on the
+    // machine it runs on). It is an argument and never a variable, because a variable is exactly what pinning is
+    // there to refuse.
+    const pinned = home ?? realHome().home;
+    if (pinned) { env.HOME = pinned; env.USERPROFILE = pinned; delete env.XDG_CONFIG_HOME; }
   }
   return env;
 }

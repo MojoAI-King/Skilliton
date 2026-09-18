@@ -495,7 +495,9 @@ g() { # git, run where this segment runs, with no prompts, no pager, and no stde
           GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS GIT_PROXY_COMMAND GIT_SSH_COMMAND GIT_SSH \
           GIT_ALLOW_PROTOCOL GIT_EXTERNAL_DIFF GIT_TEXTCONV GIT_EXEC_PATH GIT_ASKPASS SSH_ASKPASS \
           SSH_ASKPASS_REQUIRE GIT_EDITOR GIT_SEQUENCE_EDITOR GIT_PAGER GIT_TEMPLATE_DIR \
-          GIT_SSL_NO_VERIFY GIT_SSL_CAINFO GIT_SSL_CAPATH GIT_SSL_CERT GIT_SSL_KEY GIT_SSL_VERSION GIT_SSL_CIPHER_LIST
+          GIT_SSL_NO_VERIFY GIT_SSL_CAINFO GIT_SSL_CAPATH GIT_SSL_CERT GIT_SSL_KEY GIT_SSL_VERSION GIT_SSL_CIPHER_LIST \
+          GIT_CONFIG_NOSYSTEM GIT_ATTR_NOSYSTEM GIT_CURL_VERBOSE GIT_REDIRECT_STDERR GIT_REDIRECT_STDOUT \
+          GIT_TRACE GIT_TRACE2 GIT_TRACE_CURL GIT_TRACE_PACKET GIT_TRACE_PERFORMANCE GIT_TRACE_SETUP
     exec git -C "$GDIR" ${GARGS[@]+"${GARGS[@]}"} -c core.quotepath=off -c core.fsmonitor=false "$@"
   ) </dev/null 2>/dev/null
 }
@@ -1063,6 +1065,16 @@ main_pretooluse() {
     exit 0
   fi
   mentions_git "$IN_CMD" || exit 0
+  # A file named by BASH_ENV (or ENV, for sh) is run by the shell before the first line of this script, in this
+  # script's own shell and in the one the client ran the command in. A file that only says `exit 0` therefore ends
+  # this check before it starts, and the client reads that as an allow. Nothing inside a script can prevent that,
+  # so what is left is to say it when it can still be said: a careless setting is reported here, and the limit is
+  # written down in docs/IT-ALLOWLIST.md. Anyone who sets it deliberately can also unset it in the file it names,
+  # and then this line never runs, which is exactly why it is documented as a limit and not as a defence.
+  if [ -n "${BASH_ENV:-}" ] || [ -n "${ENV:-}" ]; then
+    emit_decision ask "Check first: this session sets BASH_ENV or ENV, which names a file the shell runs before any hook script, including this one. What this check reports cannot be relied on while that is set. Unset it, or read the command yourself and confirm only if it is what you intend."
+    exit 0
+  fi
   for t in git awk grep find; do
     if ! command -v "$t" >/dev/null 2>&1; then
       emit_decision ask "Check first: guardrails cannot inspect git commands because $t is not installed, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
