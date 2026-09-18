@@ -72,15 +72,18 @@ export const DYNAMIC_CALLS = [
 const INTERPRETERS = ["bash", "sh", "dash", "ksh", "zsh", "node", "python", "python3", "perl", "ruby", "php", "osascript", "awk", "gawk", "nawk", "mawk"];
 const AWK = ["awk", "gawk", "nawk", "mawk"];
 const SED = ["sed", "gsed"];
+// Options that ask a program to describe itself and then exit.
+const SELF_DESCRIBING = /^(--version|--help|--usage|-V|-h|-\?)$/;
 // GNU sed's two ways of running a command: `e` as a command of its own, and `e` as a flag on a substitution.
 const SED_RUNS_A_COMMAND = [/(?:^|;|\n)\s*[0-9,~$+]*\s*e(?:\s|;|$)/, /s(.)(?:\\.|(?!\1)[^\\])*\1(?:\\.|(?!\1)[^\\])*\1[a-zA-Z0-9]*e/];
 // Ways an embedded program starts a command of its own, which this reader cannot follow. The common list holds the
 // shapes that mean the same thing in every language here; the rest are read per language, because a backtick is a
 // command in Perl and Ruby and an ordinary string in JavaScript, and `exec(` runs a program in Perl while it
 // compiles text in Python.
-const EMBEDDED_COMMANDS = [/\bsystem\s*\(/, /\|\s*&?\s*getline\b/, /\bprint[^;]*\|/, /\bpopen\s*\(/, /\bsubprocess\b/, /\bos\.system\b/, /child_process/];
+// print ... | "a command" is awk starting a program; a | inside the text being printed (printf "%s|%s") is not.
+const EMBEDDED_COMMANDS = [/\bsystem\s*\(/, /\|\s*&?\s*getline\b/, /\bprint[^;]*\|\s*["']/, /\bpopen\s*\(/, /\bsubprocess\b/, /\bos\.system\b/, /child_process/];
 const EMBEDDED_BY_LANGUAGE = {
-  perl: [/`/, /\bqx\s*[({\[/|!'"]/, /\bopen\s*\([^)]*["'][|-]/, /\bexec\s*[({"']/, /\bfork\b/],
+  perl: [/`/, /\bqx\s*[({\[/|!'"]/, /\bopen\s*\([^)]*["'][|-]/, /\bexec\s*[({"']/, /\bfork\s*[(;]/],
   ruby: [/`/, /\bIO\.popen\b/, /\bexec\s*[({"']/, /\bspawn\s*[({"']/, /\bKernel\./],
   python: [/\bos\.(exec|spawn|posix_spawn|popen|fork)/, /\bpty\.(spawn|fork)/, /\bcommands\.getoutput\b/],
   python3: [/\bos\.(exec|spawn|posix_spawn|popen|fork)/, /\bpty\.(spawn|fork)/, /\bcommands\.getoutput\b/],
@@ -128,6 +131,8 @@ export const OUTSIDE_A_REPOSITORY = [
   [`${WORKFLOW}/runtime/lib/trust.mjs`, 'process.env.SKILLITON_TRUST_DIR || join(homedir(), ".config", "skilliton", "trust")', "~/.config/skilliton/trust/<company>.allowed_signers"],
   [`${WORKFLOW}/runtime/lib/verify.mjs`, 'process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude")', "Claude Code's own folder, read, and written by its own commands"],
   [`${WORKFLOW}/runtime/lib/verify.mjs`, 'process.env.CODEX_HOME || join(homedir(), ".codex")', "Codex's own folder, read, and created by join when it is missing"],
+  [`${WORKFLOW}/runtime/lib/preflight.mjs`, "process.env.HOME !== pinned.home", "nothing: it compares this session's home folder with the one the system records, to say which the reachability check read"],
+  [`${WORKFLOW}/runtime/lib/preflight.mjs`, "the home folder the system records for this user", "nothing: the same comparison, printed"],
   [`${WORKFLOW}/runtime/lib/legacy-names.mjs`, 'join(homedir(), ".config", OLD)', "the folder used before the rename, named in messages and never written"],
   [`${WORKFLOW}/runtime/lib/delivery.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-delivery-"))', "$TMPDIR/skilliton-delivery-*, removed when the gate finishes"],
   [`${WORKFLOW}/runtime/commands/propose.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-propose-"))', "$TMPDIR/skilliton-propose-*, removed when propose finishes"],
@@ -275,9 +280,11 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
       }
       // An interpreter with no program of its own runs whatever reaches its input: a pipe, a process substitution,
       // a here-document (handled above). None of that can be read from this line, so it is said out loud. A command
-      // that is all options (node --version, bash --help) is not that: it is answering about itself and reads
-      // nothing, so it is left alone.
-      if (first < 0 && c.args.length > 0) continue;
+      // answering about itself (node --version, bash --help) reads nothing and is left alone; that is the whole
+      // exemption, because every way of saying "read the program from standard input" is also option-shaped
+      // (bash -s, sh -, python3 -, awk -f-), and exempting option-shaped arguments in general would exempt exactly
+      // the case this rule exists for.
+      if (first < 0 && c.args.length > 0 && c.args.every((a) => typeof a === "string" && SELF_DESCRIBING.test(a))) continue;
       if (first < 0) { problems.push(`${path}:${c.line}: it runs ${base} with no file or program of its own, so whatever arrives on its input runs; this reader cannot follow that`); continue; }
       const given = c.args[first];
       const optionBefore = first > 0 ? c.args[first - 1] : null;
@@ -611,7 +618,10 @@ function writeJson(path, value) {
 // lstat, never stat: a link pointing nowhere or in a circle is a path that was written, and asking what it points at
 // would end the whole run with a stack trace instead of a report. A link to a folder is listed and not followed.
 function walkRelative(dir, out = [], root = dir) {
-  for (const name of readdirSync(dir).sort()) {
+  let names;
+  try { names = readdirSync(dir).sort(); }
+  catch { return out; } // a folder this user may not list was still written, and its own path is already recorded
+  for (const name of names) {
     const path = join(dir, name);
     out.push(relative(root, path).split("\\").join("/"));
     let st = null;

@@ -100,8 +100,17 @@ const ENVIRONMENT_FROM_THE_CALLER = [
 ];
 const RUNTIME_LIB = join(ROOT, "packs/base/plugins/workflow/runtime/lib");
 const RUNTIME_COMMANDS = join(ROOT, "packs/base/plugins/workflow/runtime/commands");
-// The wrappers a git call can be made through, so a call to one of these is read as a start of git too.
+// The wrappers a git call can be made through, so a call to one of these is read as a start of git too. runGit is
+// the name of both git wrappers in the runtime (journal.mjs and trust.mjs), and a call to it is a start of git
+// whatever its first argument says, which is a repository path and not a program name.
 const WRAPPERS = ["runGit", "runProgram", "git", "startOnce"];
+// Both names a git call is made through in this runtime: runGit (journal.mjs and trust.mjs) and the git() a
+// delivery run binds to one repository. Their first argument is a repository or an argument list, never a program.
+const GIT_WRAPPERS = ["runGit", "git"];
+// Calls to a git wrapper that hand it something that undoes what it does, with the reason each is allowed.
+const WRAPPER_EXCEPTIONS = [
+  { file: "release.mjs", contains: "userFacing: true", why: "signing a release is a command a person drives, where their own configuration and their terminal are the point" },
+];
 
 // Every start of git in the runtime: { file, line, call (its text), argsText, options, direct (a child_process call
 // rather than a call to a wrapper) }.
@@ -112,11 +121,15 @@ function gitStarts() {
       const text = readFileSync(join(dir, name), "utf8");
       const lines = text.split("\n");
       for (const call of jsProgramCalls(text, WRAPPERS).calls) {
-        // `git`, `/usr/bin/git`, `git.exe`, and exec's whole command line beginning with git.
-        if (!call.program || !/(?:^|[\\/])git(?:\.exe)?(?:$|\s)/.test(call.program)) continue;
+        // `git`, `/usr/bin/git`, `git.exe`, and exec's whole command line beginning with git; and every call to the
+        // runtime's own git wrapper, whose first argument is a repository and never a program name. Reading only the
+        // ones with a literal program left 83 of 92 git calls in this runtime unchecked.
+        const named = call.program && /(?:^|[\\/])git(?:\.exe)?(?:$|\s)/.test(call.program);
+        const throughWrapper = GIT_WRAPPERS.includes(call.callee) && call.fn === null;
+        if (!named && !throughWrapper) continue;
         found.push({
-          file: name, line: call.line, direct: call.fn !== null, fn: call.fn,
-          call: lines.slice(call.line - 1, call.line + 3).join(" "),
+          file: name, line: call.line, direct: call.fn !== null, throughWrapper, fn: call.fn,
+          call: lines.slice(call.line - 1, call.line + 4).join(" "),
           argsText: call.argsText ?? "", options: call.options, body: text,
         });
       }
@@ -125,10 +138,12 @@ function gitStarts() {
   return found;
 }
 
-// The text of a call's env option, brace aware, or null when the call passes no env at all.
-function envExpression(call) {
-  const at = /[{,]\s*env\s*:/.exec(call);
-  if (!at) return /[{,]\s*env\s*[,}]/.test(call) ? "env" : null;
+const e_key = (e) => `${e.file}:${e.contains}`;
+
+// The text of one of a call's options, brace aware, or null when the call does not pass it.
+function optionExpression(call, name) {
+  const at = new RegExp(`[{,]\\s*${name}\\s*:`).exec(call);
+  if (!at) return new RegExp(`[{,]\\s*${name}\\s*[,}]`).test(call) ? name : null;
   let depth = 0;
   const from = at.index + at[0].length;
   for (let i = from; i < call.length; i++) {
@@ -139,6 +154,7 @@ function envExpression(call) {
   }
   return call.slice(from).trim();
 }
+const envExpression = (call) => optionExpression(call, "env");
 
 // True when an expression is built from gitEnvironment() and nothing else: written there, or the name of a wrapper
 // defined in the same file whose body calls it and never reaches for process.env, or a variable assigned from it.
@@ -159,8 +175,11 @@ function fromGitEnvironment(expression, start) {
 
 test("every git call in the runtime turns the setting off", () => {
   const starts = gitStarts();
-  assert.ok(starts.length >= 5, `only ${starts.length} git call(s) were found in the runtime, so this check is reading the wrong thing`);
+  // A floor, so a change to the reader that quietly stops finding calls fails here rather than passing. The runtime
+  // had 92 when this was written; a fall to a handful is how the gate was found reading 9 of them.
+  assert.ok(starts.length >= 70, `only ${starts.length} git call(s) were found in the runtime (75 when this floor was set), so this check is reading almost none of them`);
   const missing = starts
+    .filter((s) => !s.throughWrapper) // the wrapper passes it for every call to it, and the wrapper itself is here
     .filter((s) => !s.argsText.includes("NO_REPOSITORY_PROGRAMS") && !/core\.fsmonitor=false/.test(s.call))
     .map((s) => `${s.file}:${s.line}: ${s.call.trim().slice(0, 120)}`);
   assert.deepEqual(missing, [], `these git calls do not pass NO_REPOSITORY_PROGRAMS, so a repository's own configuration could make git start a program:\n${missing.join("\n")}`);
@@ -169,9 +188,23 @@ test("every git call in the runtime turns the setting off", () => {
 test("every git call in the runtime takes its environment from gitEnvironment, or says why not", () => {
   const used = new Set();
   const found = [];
-  for (const start of gitStarts()) {
+  const starts = gitStarts();
+  assert.ok(starts.length >= 70, `only ${starts.length} git call(s) were found in the runtime (75 when this floor was set), so this check is reading almost none of them`);
+  for (const start of starts) {
     const allowed = ENVIRONMENT_FROM_THE_CALLER.find((e) => e.file === start.file && start.call.includes(e.contains));
     if (allowed) { used.add(allowed.contains); continue; }
+    // A call to the wrapper gets its environment from the wrapper. What it can still do is hand in variables of its
+    // own (extraEnv is spread over what the wrapper built) or ask for a person's own configuration (userFacing).
+    if (start.throughWrapper) {
+      const extra = optionExpression(start.call, "extraEnv");
+      if (extra && /process\.env|\.\.\./.test(extra)) found.push(`${start.file}:${start.line}: hands the git wrapper variables from around it (extraEnv: ${extra.slice(0, 60)})`);
+      if (/userFacing\s*:\s*true/.test(start.call)) {
+        const excused = WRAPPER_EXCEPTIONS.find((e) => e.file === start.file && start.call.includes(e.contains));
+        if (excused) used.add(`${e_key(excused)}`);
+        else found.push(`${start.file}:${start.line}: asks for the person's own configuration (userFacing: true) without a reason in WRAPPER_EXCEPTIONS`);
+      }
+      continue;
+    }
     // A call made through a wrapper does not carry spawn options itself: what it must show is that it hands the
     // wrapper an environment built from gitEnvironment(). The wrapper's own call to child_process is in this list
     // too, and is read the strict way.
@@ -180,7 +213,10 @@ test("every git call in the runtime takes its environment from gitEnvironment, o
       found.push(`${start.file}:${start.line}: ${start.call.trim().slice(0, 140)}`);
     }
   }
-  const stale = ENVIRONMENT_FROM_THE_CALLER.filter((e) => !used.has(e.contains)).map((e) => `${e.file}: ${e.contains}`);
+  const stale = [
+    ...ENVIRONMENT_FROM_THE_CALLER.filter((e) => !used.has(e.contains)).map((e) => `${e.file}: ${e.contains}`),
+    ...WRAPPER_EXCEPTIONS.filter((e) => !used.has(e_key(e))).map((e) => `${e.file}: ${e.contains}`),
+  ];
   // Checked before the findings, so a real violation cannot hide a stale exception.
   assert.deepEqual(stale, [], `these exceptions match no line any more and should be removed:\n${stale.join("\n")}`);
   assert.deepEqual(found, [], `these git calls take their environment from around them, so GIT_DIR or GIT_INDEX_FILE could decide which repository they read:\n${found.join("\n")}`);
@@ -218,14 +254,16 @@ test("an index named in the environment cannot narrow a secret scan", (t) => {
 
 test("the guardrails hook's git calls turn it off too, and take the same variables out", () => {
   const text = readFileSync(join(ROOT, "packs/base/plugins/guardrails/hooks/guard-bash.sh"), "utf8");
-  const calls = text.split("\n").filter((line) => /^\s*(env .*)?git\s+-C/.test(line));
+  const calls = text.split("\n").filter((line) => /^\s*(exec\s+)?git\s+-C/.test(line));
   assert.ok(calls.length > 0, "no git call found in the guardrails hook, so this check reads the wrong thing");
   for (const line of calls) assert.match(line, /core\.fsmonitor=false/, `a git call in the guardrails hook does not turn core.fsmonitor off: ${line.trim()}`);
   // The hook decides whether a command a session is running is allowed, so its own reading of the repository must
   // not be answerable by the environment that session set up. The list is the runtime's, in the shell's spelling.
-  const helper = /^g\(\)[\s\S]{0,1600}?^\}/m.exec(text)?.[0] ?? "";
+  const helper = /^g\(\)[\s\S]{0,3000}?^\}/m.exec(text)?.[0] ?? "";
   assert.ok(helper.includes("git -C"), "the git helper in the guardrails hook could not be found, so this check reads nothing");
+  const unset = /\bunset\b[\s\S]{0,1200}?\n\s*exec\s+git/.exec(helper)?.[0] ?? "";
+  assert.ok(unset.includes("GIT_DIR"), "the guardrails hook's git helper does not unset anything, so this check reads nothing");
   for (const name of [...REPOSITORY_OVERRIDES, ...CONFIG_FROM_THE_ENVIRONMENT]) {
-    assert.match(helper, new RegExp(`-u ${name}\\b`), `the guardrails hook's git helper does not take ${name} out of the environment`);
+    assert.match(unset, new RegExp(`\\b${name}\\b`), `the guardrails hook's git helper does not take ${name} out of the environment`);
   }
 });

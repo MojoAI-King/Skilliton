@@ -363,8 +363,11 @@ function handoffMovedOn(root, rel, archiveRel, git, data) {
   data.shallowHistory = shallow.status === 0 ? shallow.stdout.trim() === "true" : null;
   const exclude = ["--", ".", `:(exclude)${rel}`, `:(exclude)${archiveRel}`];
 
+  // The NEWEST commit that added this file, not the oldest. A handoff that was deleted and written again (a second
+  // preparation, a move of the records folder) has more than one, and measuring from the first would count every
+  // commit since a file that no longer exists was created.
   const added = runGit(root, ["log", "--diff-filter=A", "--format=%H", "--", rel]);
-  const from = added.status === 0 ? added.stdout.trim().split("\n").filter(Boolean).at(-1) ?? null : null;
+  const from = added.status === 0 ? added.stdout.trim().split("\n").filter(Boolean)[0] ?? null : null;
   let since;
   if (from) {
     data.handoffCommit = from;
@@ -375,7 +378,7 @@ function handoffMovedOn(root, rel, archiveRel, git, data) {
     if (data.shallowHistory === null) return { moved: [], unknown: "git could not say whether this clone's history is complete" };
     let writtenAt = null;
     try { writtenAt = Math.floor(statSync(join(root, rel)).mtimeMs / 1000); } catch { writtenAt = null; }
-    if (!writtenAt) return { moved: [], unknown: "it has never been committed and the time it was last written could not be read, so there is no point to measure from" };
+    if (writtenAt === null) return { moved: [], unknown: "it has never been committed and the time it was last written could not be read, so there is no point to measure from" };
     data.measuredFrom = "the time this file was last written on this machine (it has never been committed)";
     data.handoffWrittenOnDisk = new Date(writtenAt * 1000).toISOString();
     // One second later: a commit made in the same second as the write cannot be put on either side of it, and

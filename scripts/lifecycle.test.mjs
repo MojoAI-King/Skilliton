@@ -1079,6 +1079,20 @@ test("status exits 1 for each attention condition and names it", async () => wit
   const truncated = attentionOnly(shallow, "handoff", /whether the project has moved on since cannot be judged here: the history in this clone is shallow/);
   assert.equal(truncated.json.details.handoff.shallowHistory, true);
 
+  // A handoff that was deleted and written again (a second preparation, a move of the records folder) has more than
+  // one commit that added it. The mark is the newest, or every commit since a file that no longer exists would be
+  // counted against the one on disk.
+  const reAdded = fresh({ written: "not yet assessed" });
+  writeFileSync(join(reAdded, "README.md"), "# weeks of work\n");
+  commit(reAdded, env, "work");
+  rmSync(join(reAdded, "docs", "HANDOFF.md"), { force: true });
+  commit(reAdded, env, "the records folder is rearranged");
+  writeHandoff(reAdded, "not yet assessed");
+  commit(reAdded, env, "the handoff preparation writes, again");
+  const again = statusJson(reAdded, env);
+  assert.equal(again.code, 0, `a handoff added again at HEAD is not a handoff the project has moved on from:\n${again.out}`);
+  assert.equal(again.json.details.handoff.commitsSinceHandoffCommit, 0);
+
   // A later commit that only tidies the handoff resets nothing: the work before it still counts.
   const tidied = fresh();
   writeFileSync(join(tidied, "docs", "HANDOFF.md"), placeholder);

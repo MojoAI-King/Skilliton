@@ -29,7 +29,7 @@ import { randomBytes } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { BACKUPS, PLUGIN_ROOT, isDir, refuse, statOrNull, tilde, which } from "./core.mjs";
-import { realHome } from "./journal.mjs";
+import { proxyInUse, realHome } from "./journal.mjs";
 import { runGit, trustDir } from "./trust.mjs";
 import { joinDir } from "./join.mjs";
 import { claudeConfigDir, codexHome } from "./verify.mjs";
@@ -461,35 +461,59 @@ const GITHUB_REPO = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
 // separators, so the rule reads runs rather than whole strings. That is why there is no "this looks like a path, so
 // leave it alone" escape: a secret inside a path is still a secret.
 const SPECIFIC_TOKENS = /\b(gh[pousr]|github_pat|glpat|xox[baprs]|sk-ant|sk-proj|npm|dop_v1|shpat|sbp)[_-][A-Za-z0-9_-]{12,}/g;
+// A key from one of the services that writes the environment into the key itself (rk_live_, sk_test_).
+const LIVE_KEYS = /\b[A-Za-z]{2,4}_(live|test)_[A-Za-z0-9]{8,}/g;
 const AWS_KEY_IDS = /\b(AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{12,}\b/g;
 const GOOGLE_KEYS = /\bAIza[A-Za-z0-9_-]{20,}/g;
+// A signed token: three base64url parts separated by dots, the first beginning with the encoding of {"a.
+const A_SIGNED_TOKEN = /\beyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}/g;
 // Prefixes that are also ordinary words in a folder name (sk-inventory-rewrite, pat-experiments-2026). The prefix
-// alone says nothing, so what follows has to look like a secret rather than like words: an unbroken run of ten or
-// more letters and digits, with at least one digit in it.
-const WEAK_PREFIXES = /\b(sk|pat|key|token|secret|apikey)[_-][A-Za-z0-9_-]{8,}/gi;
-const RANDOM_LOOKING = /(?=[A-Za-z0-9]*[0-9])[A-Za-z0-9]{10,}/;
+// alone says nothing, so what follows has to look like a secret rather than like words.
+const WEAK_PREFIXES = /\b(sk|rk|pk|pat|key|token|secret|apikey)[_-][A-Za-z0-9_-]{8,}/gi;
 // A base64 secret is one run even across the / that a path breaks at, so it is read before anything else. The + or
 // the = padding is what tells it apart from a host and a path, which have neither.
 const BASE64_SECRET = /(?<![A-Za-z0-9+/=])(?:[A-Za-z0-9+/]{24,}={1,2}|[A-Za-z0-9/]*\+[A-Za-z0-9+/]{23,}={0,2})(?![A-Za-z0-9+/=])/g;
-// Twenty-four or more letters and digits with no break at all, with at least one letter and one digit. A hyphen, an
-// underscore, a dot or a slash ends the run, which is why a repository URL and a dated folder name survive.
-const A_LONG_RUN = /(?<![A-Za-z0-9])(?=[A-Za-z0-9]*[0-9])(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{24,}(?![A-Za-z0-9])/g;
-// The one long run that is left alone: capitalised words and numbers run together, the way a person names a folder
-// (SkillitonMarketplace2026). A secret has no such shape. An unbroken run of lower-case letters and digits is hidden
-// even though a person may have meant it as a name, because that is also exactly what a token looks like, and a name
-// the person can retype costs less than a secret in a terminal.
-const READS_AS_WORDS = /^(?:[A-Z][a-z]{2,}|\d{2,})+$/;
+// Twenty-four or more of the characters a token is made of, with nothing in between: the base64url alphabet, which
+// is what most modern tokens use, so a hyphen or an underscore does not end the run the way a dot or a slash does.
+// Whether such a run is a secret or a name is then decided by its shape, below.
+const A_LONG_RUN = /(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{24,}(?![A-Za-z0-9_-])/g;
+
+// Does this run read as words and numbers, the way a person names a folder (a-clone-of-the-skills-repository-2026,
+// ACMESkillsMarketplace2026), rather than as a secret? Separators split it into parts, and each part into chunks of
+// letters and digits. A name has few chunks, at least one real word among them, and no chunk longer than a word or
+// a year; a secret has many short chunks, or one long unbroken one, and no word in it at all. This is the whole
+// difference between printing back what the person typed and printing back their credential.
+export function readsAsWords(run) {
+  const parts = String(run).split(/[-_]/);
+  if (parts.some((part) => !part)) return false; // a doubled or trailing separator is not how names are written
+  let hasAWord = false;
+  for (const part of parts) {
+    const chunks = part.match(/[A-Z]{2,}(?![a-z])|[A-Z]?[a-z]+|\d+/g) ?? [];
+    if (chunks.join("") !== part || chunks.length > 8) return false;
+    // A long stretch with no lower-case letter in it is not how a person writes a name without breaking it up
+    // (ACMESkillsMarketplace has its words; ABCD1234EFGH5678IJKL9012 does not).
+    if (part.length > 12 && !/[a-z]/.test(part)) return false;
+    for (const chunk of chunks) {
+      if (/^\d+$/.test(chunk)) { if (chunk.length > 4) return false; continue; }
+      if (chunk.length > 15) return false;
+      if (chunk.length >= 4) hasAWord = true;
+    }
+  }
+  return hasAWord;
+}
 
 export function redact(value) {
   return String(value)
     .replace(/\/\/[^/@\s]*@/g, "//<credentials removed>@")
     .replace(/([?&#][^=&\s]*(?:token|key|secret|pass|pat|auth|credential)[^=&\s]*=)[^&\s]+/gi, "$1<removed>")
+    .replace(A_SIGNED_TOKEN, "<removed>")
     .replace(SPECIFIC_TOKENS, "<removed>")
+    .replace(LIVE_KEYS, "<removed>")
     .replace(AWS_KEY_IDS, "<removed>")
     .replace(GOOGLE_KEYS, "<removed>")
-    .replace(WEAK_PREFIXES, (match) => (RANDOM_LOOKING.test(match.slice(match.search(/[_-]/) + 1)) ? "<removed>" : match))
+    .replace(WEAK_PREFIXES, (match) => (readsAsWords(match.slice(match.search(/[_-]/) + 1)) ? match : "<removed>"))
     .replace(BASE64_SECRET, "<removed>")
-    .replace(A_LONG_RUN, (run) => (READS_AS_WORDS.test(run) ? run : "<removed>"))
+    .replace(A_LONG_RUN, (run) => (readsAsWords(run) ? run : "<removed>"))
     .slice(0, 120);
 }
 
@@ -538,9 +562,18 @@ export function checkRepository(marketplace) {
     try { rmdirSync(empty); } catch { /* something else wrote in it */ }
     removeCreated(madeTemp);
   }
-  // Said out loud rather than assumed: where the system has no record for this user, the home folder could not be
-  // pinned, so whatever HOME said chose the configuration this check ran with.
-  const unpinned = realHome().problem ? `; this machine's own git configuration could not be pinned (${realHome().problem}), so the HOME in this session chose it` : "";
+  // What this check did that the person cannot see from the line otherwise. All three are said out loud, because an
+  // "ok" that went somewhere else, or a "blocked" for a configuration this check declined to read, is worse than no
+  // answer at all.
+  const pinned = realHome();
+  const proxy = proxyInUse();
+  const notes = [];
+  if (pinned.problem) notes.push(`this machine's own git configuration could not be pinned (${pinned.problem}), so the HOME in this session chose it`);
+  else if (pinned.home && process.env.HOME && process.env.HOME !== pinned.home) {
+    notes.push(`this check read the git configuration in ${tilde(pinned.home)}, the home folder the system records for this user, and not the HOME set in this session (${tilde(process.env.HOME)}); a configuration you rely on that lives there was not used`);
+  }
+  if (proxy) notes.push(`it went through the proxy named by ${proxy.name} in this session (${redact(proxy.value)}), so what answered was reached through that proxy`);
+  const unpinned = notes.length ? `; ${notes.join("; ")}` : "";
   if (r.ok) {
     const refs = r.stdout.split("\n").filter(Boolean).length;
     return [state(`github.com/${marketplace}`, "repository", "ok", `answered with ${refs} branch(es)${unpinned}`)];
