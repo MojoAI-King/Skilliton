@@ -543,7 +543,7 @@ export function jsProgramCalls(src, wrappers = []) {
     // The options a child is started with are the third argument of a child_process call. A wrapper takes its own
     // arguments, so nothing is read there: the wrapper's own call is in this list too.
     const options = CHILD_PROCESS_FUNCTIONS.includes(names.get(m[1]) ?? "") ? (all[2] ?? null) : null;
-    calls.push({ callee: m[1], fn: names.get(m[1]) ?? null, arg, argsText: all[1] ?? null, options, program: literal ? literal[literal.length - 1] : null, line: lineOf(src, m.index) });
+    calls.push({ callee: m[1], fn: names.get(m[1]) ?? null, arg, argsText: all[1] ?? null, all, options, program: literal ? literal[literal.length - 1] : null, line: lineOf(src, m.index) });
   }
   return { calls, problems };
 }

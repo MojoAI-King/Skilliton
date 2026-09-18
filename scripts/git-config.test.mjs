@@ -140,7 +140,11 @@ function gitStarts() {
         const throughWrapper = GIT_WRAPPERS.includes(call.callee) && call.fn === null;
         if (!named && !throughWrapper) continue;
         found.push({
-          file: name, line: call.line, direct: call.fn !== null, throughWrapper, fn: call.fn, callText: call,
+          file: name, line: call.line, direct: call.fn !== null, throughWrapper, fn: call.fn, all: call.all ?? [],
+          // Three files define a runGit of their own (journal, trust, collectors), each with its own arguments:
+          // collectors' third argument is a buffer size, not an environment. A call inside such a file is a call to
+          // that file's own helper, and the helper itself is in this list as a direct call and read the strict way.
+          ownWrapper: /^\s*(export\s+)?function runGit\s*\(/m.test(text),
           call: lines.slice(call.line - 1, call.line + 4).join(" "),
           argsText: call.argsText ?? "", options: call.options, body: text,
         });
@@ -208,11 +212,20 @@ test("every git call in the runtime takes its environment from gitEnvironment, o
     // A call to the wrapper gets its environment from the wrapper. What it can still do is hand in variables of its
     // own (extraEnv is spread over what the wrapper built) or ask for a person's own configuration (userFacing).
     if (start.throughWrapper) {
+      // What the wrapper is handed as its options, read as an argument rather than as text. A name (runGit(root,
+      // args, options)) or a call is a set of options this gate cannot read at all, and `extraEnv: settingsFor()`
+      // is the same thing one level in: both were used to hand GIT_DIR straight through.
+      const given = (start.all[2] ?? "").trim();
+      if (given && !given.startsWith("{") && !start.ownWrapper) {
+        found.push(`${start.file}:${start.line}: hands the git wrapper options this check cannot read (${given.slice(0, 40)}); write them where they can be read, or name the call in WRAPPER_EXCEPTIONS with its reason`);
+        continue;
+      }
       // Read the NAMES it hands in, not the text it hands them in as. `extraEnv: { GIT_DIR, GIT_INDEX_FILE }` names
       // two variables taken from the environment a few lines above and contains neither process.env nor a spread,
       // so a rule about the text of the expression let it straight through.
       const extra = optionExpression(start.call, "extraEnv");
-      if (extra && /process\.env|\.\.\./.test(extra)) found.push(`${start.file}:${start.line}: hands the git wrapper variables from around it (extraEnv: ${extra.slice(0, 60)})`);
+      if (extra && !extra.trim().startsWith("{")) found.push(`${start.file}:${start.line}: hands the git wrapper an extraEnv this check cannot read (${extra.slice(0, 40)}); write the variables where they can be read`);
+      else if (extra && /process\.env|\.\.\./.test(extra)) found.push(`${start.file}:${start.line}: hands the git wrapper variables from around it (extraEnv: ${extra.slice(0, 60)})`);
       else if (extra) {
         const handed = [...extra.matchAll(/([A-Za-z_$][\w$]*)\s*(?::|,|})/g)].map((m) => m[1]);
         for (const name of handed) {
@@ -285,8 +298,12 @@ test("the guardrails hook's git calls turn it off too, and take the same variabl
   // not be answerable by the environment that session set up. The list is the runtime's, in the shell's spelling.
   const helper = /^g\(\)[\s\S]{0,3000}?^\}/m.exec(text)?.[0] ?? "";
   assert.ok(helper.includes("git -C"), "the git helper in the guardrails hook could not be found, so this check reads nothing");
-  const unset = /\bunset\b[\s\S]{0,1200}?\n\s*exec\s+git/.exec(helper)?.[0] ?? "";
-  assert.ok(unset.includes("GIT_DIR"), "the guardrails hook's git helper does not unset anything, so this check reads nothing");
+  // The unset command itself, with its continuation lines, and with every comment taken out first: a window of text
+  // is satisfied by a name written in a comment, and a hook that says "GIT_INDEX_FILE is left alone on purpose"
+  // while not unsetting it passed this gate.
+  const withoutComments = helper.split("\n").filter((line) => !/^\s*#/.test(line)).join("\n");
+  const unset = /^\s*unset\b(?:[^\n\\]*\\\n)*[^\n]*/m.exec(withoutComments)?.[0] ?? "";
+  assert.ok(unset.includes("GIT_DIR") && !/\s#/.test(unset), "the guardrails hook's git helper does not unset anything, so this check reads nothing");
   for (const name of [...REPOSITORY_OVERRIDES, ...CONFIG_FROM_THE_ENVIRONMENT]) {
     assert.match(unset, new RegExp(`\\b${name}\\b`), `the guardrails hook's git helper does not take ${name} out of the environment`);
   }
