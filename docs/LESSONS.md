@@ -205,4 +205,7 @@ Lesson entries in `docs/lessons/`, sorted by ID. `skilliton index` writes this l
 | [2026-09-17-a-synchronous-start-cannot-stop-a-progra-5e68](lessons/2026-09-17-a-synchronous-start-cannot-stop-a-progra-5e68.md) | A synchronous start cannot stop a program that ignores being stopped | accepted | 2026-09-17 |
 | [2026-09-17-a-test-that-proves-an-attack-is-prevente-af61](lessons/2026-09-17-a-test-that-proves-an-attack-is-prevente-af61.md) | A test that proves an attack is prevented needs its positive control in the same run | accepted | 2026-09-17 |
 | [2026-09-17-handoff-times-typed-ahead-of-the-clock-h-95ba](lessons/2026-09-17-handoff-times-typed-ahead-of-the-clock-h-95ba.md) | Handoff times typed ahead of the clock hide a stale handoff | accepted | 2026-09-17 |
+| [2026-09-18-a-fix-that-scopes-a-removal-can-open-a-h-d5df](lessons/2026-09-18-a-fix-that-scopes-a-removal-can-open-a-h-d5df.md) | A fix that scopes a removal can open a hole the removal was closing | accepted | 2026-09-18 |
+| [2026-09-18-a-gate-that-walks-the-list-it-is-checkin-7323](lessons/2026-09-18-a-gate-that-walks-the-list-it-is-checkin-7323.md) | A gate that walks the list it is checking passes when the list gets shorter | accepted | 2026-09-18 |
+| [2026-09-18-a-patch-that-aborts-leaves-the-file-unch-910d](lessons/2026-09-18-a-patch-that-aborts-leaves-the-file-unch-910d.md) | A patch that aborts leaves the file unchanged, and a self-test nobody wrote still passes | accepted | 2026-09-18 |
 <!-- skilliton:index:lessons:end -->
