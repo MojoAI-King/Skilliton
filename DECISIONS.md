@@ -295,4 +295,6 @@ Decision entries in `docs/decisions/`, sorted by ID. `skilliton index` writes th
 | [2026-09-17-live-multiplayer-sessions-are-a-separate-b953](docs/decisions/2026-09-17-live-multiplayer-sessions-are-a-separate-b953.md) | Live multiplayer sessions are a separate companion project | accepted | 2026-09-17 |
 | [2026-09-17-windows-is-in-scope-and-endpoint-securit-f76a](docs/decisions/2026-09-17-windows-is-in-scope-and-endpoint-securit-f76a.md) | Windows is in scope, and endpoint-security support is built without a product to test under | accepted | 2026-09-17 |
 | [2026-09-17-windows-is-supported-through-git-for-win-cb9e](docs/decisions/2026-09-17-windows-is-supported-through-git-for-win-cb9e.md) | Windows is supported through Git for Windows, with one implementation of every hook | accepted | 2026-09-17 |
+| [2026-09-18-a-git-call-s-environment-is-built-never-1fba](docs/decisions/2026-09-18-a-git-call-s-environment-is-built-never-1fba.md) | A git call's environment is built, never inherited | accepted | 2026-09-18 |
+| [2026-09-18-a-hook-can-be-silenced-by-the-shell-that-14f7](docs/decisions/2026-09-18-a-hook-can-be-silenced-by-the-shell-that-14f7.md) | A hook can be silenced by the shell that starts it, and that is written down rather than defended | accepted | 2026-09-18 |
 <!-- skilliton:index:decisions:end -->
