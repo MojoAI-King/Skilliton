@@ -370,12 +370,26 @@ function handoffMovedOn(root, rel, archiveRel, git, data) {
   // leaving out --follow does the same for a move of the records folder, because a rename adds the new path in one
   // commit and that commit is then the only add there is. Either way a project with weeks of work behind an
   // unwritten handoff reads as one prepared a minute ago.
-  const added = runGit(root, ["log", "--follow", "--diff-filter=A", "--format=%H", "--", rel]);
-  const from = added.status === 0 ? added.stdout.trim().split("\n").filter(Boolean).at(-1) ?? null : null;
+  const addedBy = (path, follow) => {
+    const r = runGit(root, ["log", ...(follow ? ["--follow"] : []), "--diff-filter=A", "--format=%H", "--", path]);
+    return r.status === 0 ? r.stdout.trim().split("\n").filter(Boolean).at(-1) ?? null : null;
+  };
+  let from = addedBy(rel, true);
+  // Following renames can walk out of this project's life with Skilliton and into whatever document git decided
+  // the handoff was renamed from: preparation that replaces an existing NOTES.md is paired with it, and a project
+  // prepared a minute ago would then be told it has years of work behind an unwritten handoff. The question is
+  // about what has happened since this project had a handoff, so the mark never goes back further than the commit
+  // that made this a Skilliton project.
+  const prepared = addedBy(CONFIG_REL, false);
+  let boundedByPreparation = false;
+  if (from && prepared && from !== prepared && runGit(root, ["merge-base", "--is-ancestor", from, prepared]).status === 0) {
+    from = prepared;
+    boundedByPreparation = true;
+  }
   let since;
   if (from) {
     data.handoffCommit = from;
-    data.measuredFrom = "it was committed";
+    data.measuredFrom = boundedByPreparation ? "this project was prepared" : "it was committed";
     since = runGit(root, ["rev-list", "--count", `${from}..HEAD`, ...exclude]);
   } else {
     if (data.shallowHistory) return { moved: [], unknown: "the history in this clone is shallow, so the commit that added it may not be here" };

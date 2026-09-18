@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Read before this script defines anything of its own: a function exported into the environment
+# (BASH_FUNC_name%%=...) is imported by bash before line 1, so it can replace a program this hook relies on, in this
+# hook's own shell. Measured: an exported printf turns a refusal into silence, which a client reads as an allow. It
+# is the same class as BASH_ENV and SHELLOPTS, and unlike those it can be seen from in here, so it is reported.
+SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 # guard-bash.sh: the guardrails PreToolUse hook for the Bash tool.
 #
 # Claude Code sends the proposed Bash command as JSON on stdin; Codex CLI runs the same plugin hook
@@ -496,7 +501,7 @@ g() { # git, run where this segment runs, with no prompts, no pager, and no stde
           GIT_ALLOW_PROTOCOL GIT_EXTERNAL_DIFF GIT_TEXTCONV GIT_EXEC_PATH GIT_ASKPASS SSH_ASKPASS \
           SSH_ASKPASS_REQUIRE GIT_EDITOR GIT_SEQUENCE_EDITOR GIT_PAGER GIT_TEMPLATE_DIR \
           GIT_SSL_NO_VERIFY GIT_SSL_CAINFO GIT_SSL_CAPATH GIT_SSL_CERT GIT_SSL_KEY GIT_SSL_VERSION GIT_SSL_CIPHER_LIST \
-          GIT_CONFIG_NOSYSTEM GIT_ATTR_NOSYSTEM GIT_CURL_VERBOSE GIT_REDIRECT_STDERR GIT_REDIRECT_STDOUT \
+          GIT_CONFIG_NOSYSTEM GIT_ATTR_NOSYSTEM GIT_CURL_VERBOSE GIT_REDIRECT_STDIN GIT_REDIRECT_STDERR GIT_REDIRECT_STDOUT \
           GIT_TRACE GIT_TRACE2 GIT_TRACE_CURL GIT_TRACE_PACKET GIT_TRACE_PERFORMANCE GIT_TRACE_SETUP \
           GIT_LITERAL_PATHSPECS GIT_ICASE_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS
     exec git -C "$GDIR" ${GARGS[@]+"${GARGS[@]}"} -c core.quotepath=off -c core.fsmonitor=false "$@"
@@ -1057,15 +1062,6 @@ main_pretooluse() {
   GUARD_RAW=$(cat)
   case "${SKILLITON_GUARDRAILS:-}" in [Oo][Ff][Ff]) exit 0 ;; esac
   mentions_git "$GUARD_RAW" || exit 0
-  if ! pick_parser; then
-    emit_decision ask "guardrails cannot inspect this git command because jq, node, and python3 are all missing; confirm it yourself"
-    exit 0
-  fi
-  if ! read_input; then
-    emit_decision ask "Check first: guardrails could not read this command from the hook input, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
-    exit 0
-  fi
-  mentions_git "$IN_CMD" || exit 0
   # BASH_ENV names a file bash runs before the first line of any script it starts, including this one, so a file
   # that only says `exit 0` ends this check before it begins and the client reads the silence as an allow. Nothing
   # inside a script can prevent that, because the file has already run; what is left is to say it while it can still
@@ -1077,6 +1073,19 @@ main_pretooluse() {
     emit_decision ask "Check first: this session sets BASH_ENV, which names a file the shell runs before any hook script, including this one. What this check reports cannot be relied on while that is set. Unset it, or read the command yourself and confirm only if it is what you intend."
     exit 0
   fi
+  if [ -n "${SKILLITON_IMPORTED_FUNCTIONS:-}" ]; then
+    emit_decision ask "Check first: this session exports shell functions into the environment, which bash imports before any hook script runs and which can replace the programs this check uses. What it reports cannot be relied on while they are set. Read the command yourself and confirm only if it is what you intend."
+    exit 0
+  fi
+  if ! pick_parser; then
+    emit_decision ask "guardrails cannot inspect this git command because jq, node, and python3 are all missing; confirm it yourself"
+    exit 0
+  fi
+  if ! read_input; then
+    emit_decision ask "Check first: guardrails could not read this command from the hook input, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
+    exit 0
+  fi
+  mentions_git "$IN_CMD" || exit 0
   for t in git awk grep find; do
     if ! command -v "$t" >/dev/null 2>&1; then
       emit_decision ask "Check first: guardrails cannot inspect git commands because $t is not installed, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."

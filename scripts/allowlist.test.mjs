@@ -77,6 +77,9 @@ const SED = ["sed", "gsed"];
 // is listed per interpreter rather than in the general set.
 const SELF_DESCRIBING_LONG = /^(--version|--help|--usage)$/;
 const SHELLS = ["bash", "sh", "dash", "ksh", "zsh"];
+// Options that take a separate value, which is not the program however much it looks like one: without this,
+// `bash -O extglob -s` has "extglob" as its first non-option word and the -s below reads as the script's own.
+const VALUE_OPTIONS = { bash: ["-O", "+O", "-o", "+o", "--rcfile", "--init-file"], sh: ["-o", "+o"], dash: ["-o", "+o"], ksh: ["-o", "+o"], zsh: ["-o", "+o"], awk: ["-v"], gawk: ["-v"], nawk: ["-v"], mawk: ["-v"] };
 // The short spellings are only self-describing for the programs that read them that way. For a shell, -h is
 // hashall and -v is verbose, and a shell with neither a script nor -c then reads its program from its input, which
 // is the thing this rule is for; node, perl and ruby print their version for -v.
@@ -93,7 +96,9 @@ const selfDescribing = (base, arg) => SELF_DESCRIBING_LONG.test(arg) || (SELF_DE
 function readsItsInput(base, args, first) {
   return args.some((a, i) => {
     if (a === "-") return first === i;
-    if (SHELLS.includes(base) && typeof a === "string" && /^-[A-Za-z]*s[A-Za-z]*$/.test(a)) return first < 0 || i < first;
+    // A shell takes its options with a minus or a plus (sh +s -s is a real invocation), and either spelling of a
+    // group containing s means "read the program from the input".
+    if (SHELLS.includes(base) && typeof a === "string" && /^[-+][A-Za-z]*s[A-Za-z]*$/.test(a)) return first < 0 || i < first;
     return AWK.includes(base) && (a === "-f-" || (a === "-f" && args[i + 1] === "-"));
   });
 }
@@ -107,8 +112,13 @@ const EMBEDDED_COMMANDS = [/\bsystem\s*\(/, /\|\s*&?\s*getline\b/, /\bpopen\s*\(
 // awk's print ... | "a command" starts a program. A | inside the text being printed (print $1 "|" $2) does not, so
 // this one is read with the quoted strings taken out first. Only for awk: taking strings out of a program in any
 // other language would take the name of what it starts with them.
-const AWK_PIPE = /\bprintf?\b[^;]*\|/;
-const withoutStrings = (text) => text.replace(/"(?:\\.|[^"\\])*"/g, '""');
+// Not || , which is an ordinary condition: print (a || b) is not a pipe into anything.
+const AWK_PIPE = /\bprintf?\b[^;]*(?<!\|)\|(?!\|)/;
+// Regular expressions first, then strings: a quote inside /"/ is not the start of a string, and reading it as one
+// swallowed the rest of the line, so `print $0 | "sh"` disappeared from what this rule could see.
+const withoutStrings = (text) => text
+  .replace(/\/(?:\\.|[^/\\\n])+\//g, "//")
+  .replace(/"(?:\\.|[^"\\])*"/g, '""');
 const EMBEDDED_BY_LANGUAGE = {
   perl: [/`/, /\bqx\s*[({\[/|!'"]/, /\bopen\s*\([^)]*["'][|-]/, /\bexec\s*[({"']/, /\bfork\s*[(;]/],
   ruby: [/`/, /\bIO\.popen\b/, /\bexec\s*[({"']/, /\bspawn\s*[({"']/, /\bKernel\./],
@@ -289,9 +299,10 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
       }
       if (!INTERPRETERS.includes(base)) continue;
       // Where the first argument that is not an option sits, read once and used by both rules below.
+      const takesAValue = VALUE_OPTIONS[base] ?? [];
       const firstArgument = c.args.findIndex((a, i) => {
-        if (isAwk && c.args[i - 1] === "-v") return false;
-        return !(typeof a === "string" && a.startsWith("-") && a !== "-");
+        if (takesAValue.includes(c.args[i - 1])) return false; // the value of an option, not the program
+        return !(typeof a === "string" && /^[-+]/.test(a) && a !== "-");
       });
       // Said before the arguments are read for a file name: under -s or -, the first argument is the program's own
       // argument and naming a file this test reads would otherwise end the check with nothing said.
@@ -868,8 +879,31 @@ function selfTest() {
       const { files, readFile } = fake({ "hooks/x.sh": "awk -f hooks/fields.awk -\nbash hooks/other.sh -s\n", "hooks/fields.awk": "{ print $1 }\n", "hooks/other.sh": "#!/bin/sh\ntrue\n" });
       return programsFromCode(files, readFile, [], []).problems.every((p) => !p.includes("takes its program from its input"));
     }],
+    ["an awk program that pipes into a command is reported", () => {
+      const missed = [];
+      for (const program of ['{ print $0 | "sh" }', '$0 ~ /"/ { print $0 | "sh" }', '{ printf "%s", $1 | "cat" }', '{ print $0 | ENVIRON["CMD"] }']) {
+        const { files, readFile } = fake({ "hooks/x.sh": `awk -e '${program.replace(/'/g, "'\\''")}'\n` });
+        const targets = [{ file: "hooks/x.sh", command: "awk", kind: "inline", count: 1, target: null, why: "a test" }];
+        if (!programsFromCode(files, readFile, [], targets).problems.some((p) => p.includes("starts a command of its own"))) missed.push(program);
+      }
+      if (missed.length) console.log(`     not caught: ${missed.join(" | ")}`);
+      return missed.length === 0;
+    }],
+    ["a shell told to read its program from its input past an option with a value is reported", () => {
+      const missed = [];
+      for (const line of ["bash -O extglob -s", "sh +s -s", "bash --rcfile hooks/rc -s"]) {
+        const { files, readFile } = fake({ "hooks/x.sh": `${line}\n` });
+        if (!programsFromCode(files, readFile, [], []).problems.some((p) => p.includes("takes its program from its input"))) missed.push(line);
+      }
+      if (missed.length) console.log(`     not caught: ${missed.join(" | ")}`);
+      return missed.length === 0;
+    }],
+    ["a shell given a script after an option with a value is left alone", () => {
+      const { files, readFile } = fake({ "hooks/x.sh": "bash -O extglob hooks/other.sh\n", "hooks/other.sh": "#!/bin/sh\ntrue\n" });
+      return programsFromCode(files, readFile, [], []).problems.every((p) => !p.includes("takes its program from its input"));
+    }],
     ["an ordinary awk or perl program is not read as a command", () => {
-      const ordinary = [["awk", '{printf "%s|%s\\n", $1, $2}'], ["awk", '{print $1 "|" $2}'], ["perl", "s/fork/branch/"]];
+      const ordinary = [["awk", '{printf "%s|%s\\n", $1, $2}'], ["awk", '{print $1 "|" $2}'], ["awk", '{ print ($1 == 1 || $2 == 2) ? 1 : 2 }'], ["perl", "s/fork/branch/"]];
       const wrong = [];
       for (const [command, program] of ordinary) {
         const { files, readFile } = fake({ "hooks/x.sh": `${command} -e '${program.replace(/'/g, "'\\''")}'\n` });

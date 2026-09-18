@@ -325,6 +325,10 @@ expect "known limit: SHELLOPTS=noexec silences the hook, and cannot be reported"
 # ENV is read by an interactive shell only, so it has no power over a hook and must not change a decision here: a
 # refusal that a powerless variable can turn into a question is a way to be allowed past this check.
 expect "ENV set: a command that would be denied is still denied" deny "$R" 'git commit --no-verify -m "x"' "ENV=$TMP/bashenv-quiet.sh"
+# A function exported into the environment is imported before the first line of the hook and can replace a program
+# it uses. Unlike BASH_ENV it can be seen from inside, so it is reported rather than only written down.
+expect "an exported shell function: a command that would be denied asks instead" ask "$R" 'git commit --no-verify -m "x"' 'BASH_FUNC_jq%%=() { true; }'
+reason_has "the reason names what was found" "exports shell functions"
 
 section "allow: flags that only look similar (negative controls)"
 expect "git commit -m \"add -n flag docs\" (quoted message)" allow "$R" 'git commit -m "add -n flag docs"'

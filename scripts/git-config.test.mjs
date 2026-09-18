@@ -117,6 +117,7 @@ const WRAPPERS = ["runGit", "runProgram", "git", "startOnce"];
 // Both names a git call is made through in this runtime: runGit (journal.mjs and trust.mjs) and the git() a
 // delivery run binds to one repository. Their first argument is a repository or an argument list, never a program.
 const GIT_WRAPPERS = ["runGit", "git"];
+const OWN_WRAPPER_FILES = ["lib/collectors.mjs", "lib/journal.mjs"];
 // Calls to a git wrapper that hand it something that undoes what it does, with the reason each is allowed.
 const WRAPPER_EXCEPTIONS = [
   { file: "commands/release.mjs", contains: "userFacing: true", why: "signing a release is a command a person drives, where their own configuration and their terminal are the point" },
@@ -141,10 +142,13 @@ function gitStarts() {
         if (!named && !throughWrapper) continue;
         found.push({
           file: name, line: call.line, direct: call.fn !== null, throughWrapper, fn: call.fn, all: call.all ?? [],
-          // Three files define a runGit of their own (journal, trust, collectors), each with its own arguments:
-          // collectors' third argument is a buffer size, not an environment. A call inside such a file is a call to
-          // that file's own helper, and the helper itself is in this list as a direct call and read the strict way.
-          ownWrapper: /^\s*(export\s+)?function runGit\s*\(/m.test(text),
+          // Named, not inferred. Two files define a runGit whose third argument is not an environment at all
+          // (collectors' is a buffer size, journal's is { timeoutMs }), so a call inside them is read as a call to
+          // that helper, and the helper itself is in this list as a direct call and read the strict way. A file is
+          // not allowed to earn this by writing a function of that name: a four-line wrapper around trust.mjs's
+          // runGit, in a new file, would otherwise exempt itself. trust.mjs is deliberately absent, because its
+          // runGit is the one that takes extraEnv, so its own calls have to write their options out like anyone.
+          ownWrapper: OWN_WRAPPER_FILES.includes(name),
           call: lines.slice(call.line - 1, call.line + 4).join(" "),
           argsText: call.argsText ?? "", options: call.options, body: text,
         });
