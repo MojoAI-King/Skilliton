@@ -371,7 +371,10 @@ const IGNORED_ARTEFACTS = [".DS_Store", "Thumbs.db"];
 // Links are not followed: one under the plugins is listed as a file, so the rules below read the link itself rather
 // than whatever it points at, which may be outside the folder a release carries.
 function walkFiles(dir, prefix, out = []) {
-  for (const name of readdirSync(dir).sort()) {
+  let names;
+  try { names = readdirSync(dir).sort(); }
+  catch { return out; } // a folder that cannot be listed is reported by the walker in inventory.mjs, not here
+  for (const name of names) {
     if (name === ".git" || name === "node_modules") continue;
     const path = join(dir, name);
     const st = lstatSync(path);

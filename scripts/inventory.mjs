@@ -38,7 +38,10 @@ const toPosix = (p) => p.split(sep).join("/");
 const kindOf = (st) => (st.isDirectory() ? "a folder" : st.isFIFO() ? "a pipe" : st.isSocket() ? "a socket" : st.isBlockDevice() || st.isCharacterDevice() ? "a device" : "not a plain file");
 
 function walk(dir, out = [], notRegular = []) {
-  for (const name of readdirSync(dir).sort()) {
+  let names;
+  try { names = readdirSync(dir).sort(); }
+  catch (e) { notRegular.push({ path: dir, why: `it could not be listed (${e.code ?? e.message})` }); return out; }
+  for (const name of names) {
     const path = join(dir, name);
     let st;
     try { st = lstatSync(path); } catch (e) { notRegular.push({ path, why: `it could not be looked at (${e.code ?? e.message})` }); continue; }

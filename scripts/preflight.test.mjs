@@ -332,6 +332,59 @@ test("a home folder and an askpass program named in the environment cannot steer
   assert.equal(existsSync(marker), false, "a program named in the environment as git's way of asking for a password was run");
 });
 
+// A proxy and a certificate are the other pair of variables that decide what answers a check about reaching a
+// repository. The proxy is followed, because that is how a company machine is set up, so it is named in the line;
+// the certificate is checked whatever the environment says, because a check that stops looking at who answered can
+// be answered by anyone. The server is a real TLS server on this machine with a certificate nobody trusts.
+test("a certificate check the environment asks to skip is still made, and a proxy is named in the line", async (t) => {
+  const ctx = fixture(t);
+  const openssl = toolPath("openssl");
+  if (!openssl) return t.skip("openssl is not on PATH, so a certificate nobody trusts cannot be made here");
+  const key = join(ctx.base, "key.pem"), cert = join(ctx.base, "cert.pem");
+  const made = spawnSync(openssl, ["req", "-x509", "-newkey", "rsa:2048", "-keyout", key, "-out", cert, "-days", "1", "-nodes", "-subj", "/CN=localhost"], { encoding: "utf8" });
+  if (made.status !== 0) return t.skip(`openssl could not make a certificate here: ${made.stderr?.trim().slice(0, 120)}`);
+
+  const child = spawn(process.execPath, ["-e", `
+    const { createServer } = require("node:tls");
+    const { readFileSync } = require("node:fs");
+    const server = createServer({ key: readFileSync(${JSON.stringify(key)}), cert: readFileSync(${JSON.stringify(cert)}) }, (socket) => {
+      socket.on("error", () => {});
+      const pkt = (line) => (line.length + 5).toString(16).padStart(4, "0") + line + "\\n";
+      const refs = "001e# service=git-upload-pack\\n0000" + pkt("1111111111111111111111111111111111111111 refs/heads/main\\u0000report-status") + "0000";
+      socket.on("data", () => socket.end("HTTP/1.1 200 OK\\r\\nContent-Type: application/x-git-upload-pack-advertisement\\r\\nContent-Length: " + Buffer.byteLength(refs) + "\\r\\nConnection: close\\r\\n\\r\\n" + refs));
+    });
+    server.listen(0, "127.0.0.1", () => console.log(server.address().port));
+  `], { stdio: ["ignore", "pipe", "pipe"] });
+  t.after(() => child.kill("SIGKILL"));
+  const port = await new Promise((done, fail) => {
+    const timer = setTimeout(() => fail(new Error("the local server did not say which port it is on")), 15000);
+    child.stdout.once("data", (d) => { clearTimeout(timer); done(Number(String(d).trim())); });
+  });
+  const url = `https://127.0.0.1:${port}/acme/skills.git`;
+
+  // The positive control: plain git with the variable set accepts the certificate and reads the repository.
+  const control = spawnSync(toolPath("git"), ["ls-remote", "--heads", "--", url], { cwd: ctx.base, encoding: "utf8", timeout: 30000, env: { PATH: ctx.tools, HOME: ctx.home, GIT_SSL_NO_VERIFY: "1", GIT_TERMINAL_PROMPT: "0" } });
+  assert.equal(control.status, 0, `the fixture did not make plain git accept the certificate, so this case would prove nothing (git said: ${control.stderr?.trim().slice(0, 200)})`);
+
+  const { runGit } = await import(pathToFileURL(join(ctx.repo, "packs/base/plugins/workflow/runtime/lib/trust.mjs")).href);
+  const saved = process.env.GIT_SSL_NO_VERIFY;
+  let answer;
+  try {
+    process.env.GIT_SSL_NO_VERIFY = "1";
+    answer = runGit(null, ["ls-remote", "--heads", "--", url], { timeoutMs: 30000, pinHome: true, cwd: ctx.base });
+  } finally {
+    if (saved === undefined) delete process.env.GIT_SSL_NO_VERIFY; else process.env.GIT_SSL_NO_VERIFY = saved;
+  }
+  assert.equal(answer.ok, false, "a certificate nobody trusts was accepted because the environment asked for it to be");
+  assert.match(answer.stderr, /certificate/i, `the call failed for some other reason than the certificate: ${answer.stderr.slice(0, 200)}`);
+
+  // And the proxy is named in the line a person reads, so an answer that came through one says so.
+  const proxied = preflight(ctx, ["--client", "claude-code", "--bin-dir", ctx.bin, "--marketplace", "acme/skills"], {
+    network: true, env: { HTTPS_PROXY: "http://127.0.0.1:9", https_proxy: "http://127.0.0.1:9" },
+  });
+  assert.match(item(proxied.out, "github\\.com/acme/skills"), /it went through the proxy named by https?_proxy/i, proxied.out);
+});
+
 test("a program that never answers is stopped with its children, and the check finishes", (t) => {
   if (process.platform === "win32") return t.skip("process groups work differently on Windows");
   const ctx = fixture(t);
@@ -372,6 +425,13 @@ const CREDENTIALS = [
   ["a pat prefix with a random tail", "pat_abcdef123456", /abcdef123456/],
   ["a short key with a random tail", "sk-abc123def456gh", /abc123def456gh/],
   ["a long run of lower-case letters and digits", "abcdefghijklmnopqrstuvwx2026", /abcdefghijklmnopqrstuvwx2026/],
+  ["a signed token", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk", /dBjftJeZ4CVP/],
+  ["a base64url secret, which hyphens and underscores do not break", "k7Qx-Zr9pLm2_Tn4Wv6Yb8Cd-Ef1Gh3Ij5Kl7Mn9Op", /Zr9pLm2/],
+  ["a secret written in chunks", "aB3d-fG7h-jK2m-nP9q-rS4t-uV6w", /jK2m-nP9q/],
+  ["a secret of letters only", "deadbeefdeadbeefdeadbeefdeadbeef", /deadbeefdeadbeefdeadbeefdeadbeef/],
+  ["a secret of digits only", "12345678901234567890123456789012", /12345678901234567890123456789012/],
+  ["an identifier used as a key", "550e8400-e29b-41d4-a716-446655440000", /446655440000/],
+  ["a key that names its environment", "rk_live_51H8xYzAbCdEfGhIjKlMnOp", /51H8xYzAbCdEfGhIjKlMnOp/],
 ];
 const ORDINARY = [
   "pat-experiments-2026-09",
@@ -388,6 +448,12 @@ const ORDINARY = [
   "/opt/clones/a-clone-of-the-skills-repository-2026",
   "C:\\Users\\First Last\\skills",
   "https://github.com/acme/skills.git",
+  "clones/ACMESkillsMarketplace2026",
+  "clones/SkillitonMarketplace2026v2",
+  "clones/skillitonMarketplaceClone2026",
+  "srv/pat_workspace2026/repo",
+  "token-driven-workflow2026",
+  "SKILLITON-2026-REPORT-ARCHIVE",
 ];
 
 test("a token pasted into a marketplace value is never printed back", () => {

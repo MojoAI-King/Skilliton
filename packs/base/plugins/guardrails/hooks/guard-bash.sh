@@ -483,15 +483,21 @@ ask()  { [ -n "$ASK_REASON" ] || ASK_REASON=$1; }
 g() { # git, run where this segment runs, with no prompts, no pager, and no stderr
   [ -n "$GDIR" ] || return 97
   # The same variables the runtime takes out (runtime/lib/journal.mjs): the ones that would choose a different
-  # repository than -C names, hand git settings from outside a configuration file, or name a program for it to run.
-  # A decision about the command a session is running must not be answerable by the environment that session set up.
-  env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES \
-      -u GIT_NAMESPACE -u GIT_COMMON_DIR -u GIT_PREFIX -u GIT_CONFIG -u GIT_CONFIG_GLOBAL -u GIT_CONFIG_SYSTEM \
-      -u GIT_CONFIG_COUNT -u GIT_CONFIG_PARAMETERS -u GIT_PROXY_COMMAND -u GIT_SSH_COMMAND -u GIT_SSH \
-      -u GIT_ALLOW_PROTOCOL -u GIT_EXTERNAL_DIFF -u GIT_TEXTCONV -u GIT_EXEC_PATH -u GIT_ASKPASS -u SSH_ASKPASS \
-      -u SSH_ASKPASS_REQUIRE \
-      -u GIT_EDITOR -u GIT_SEQUENCE_EDITOR -u GIT_PAGER -u GIT_TEMPLATE_DIR \
-      git -C "$GDIR" ${GARGS[@]+"${GARGS[@]}"} -c core.quotepath=off -c core.fsmonitor=false "$@" </dev/null 2>/dev/null
+  # repository than -C names, hand git settings from outside a configuration file, name a program for it to run, or
+  # turn off the certificate check. A decision about the command a session is running must not be answerable by the
+  # environment that session set up. unset is the shell's own, so this needs no program on PATH: a helper that
+  # depended on one would fail open on a machine without it, which for this hook means a secret-shaped commit
+  # allowed with nothing said. GIT_CONFIG_KEY_n and GIT_CONFIG_VALUE_n cannot be named one by one, and do not need
+  # to be: git reads them only when GIT_CONFIG_COUNT is set, which it no longer is.
+  (
+    unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES \
+          GIT_NAMESPACE GIT_COMMON_DIR GIT_PREFIX GIT_CONFIG GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM \
+          GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS GIT_PROXY_COMMAND GIT_SSH_COMMAND GIT_SSH \
+          GIT_ALLOW_PROTOCOL GIT_EXTERNAL_DIFF GIT_TEXTCONV GIT_EXEC_PATH GIT_ASKPASS SSH_ASKPASS \
+          SSH_ASKPASS_REQUIRE GIT_EDITOR GIT_SEQUENCE_EDITOR GIT_PAGER GIT_TEMPLATE_DIR \
+          GIT_SSL_NO_VERIFY GIT_SSL_CAINFO GIT_SSL_CAPATH GIT_SSL_CERT GIT_SSL_KEY GIT_SSL_VERSION GIT_SSL_CIPHER_LIST
+    exec git -C "$GDIR" ${GARGS[@]+"${GARGS[@]}"} -c core.quotepath=off -c core.fsmonitor=false "$@"
+  ) </dev/null 2>/dev/null
 }
 
 repo_state() { # 0: a git repository; 1: not one; 2: the directory could not be worked out

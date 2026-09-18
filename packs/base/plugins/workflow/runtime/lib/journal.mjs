@@ -61,7 +61,23 @@ export const CONFIG_FROM_THE_ENVIRONMENT = [
   // GIT_TERMINAL_PROMPT=0 does not cover it), the editor, the pager, and the folder it copies hooks from into a new
   // repository. None of them has any business being chosen from outside on a call nobody is sitting in front of.
   "GIT_ASKPASS", "SSH_ASKPASS", "SSH_ASKPASS_REQUIRE", "GIT_EDITOR", "GIT_SEQUENCE_EDITOR", "GIT_PAGER", "GIT_TEMPLATE_DIR",
+  // Variables that decide whether the certificate on the other end is checked, and against what. A check whose whole
+  // purpose is to say "this machine can reach the company repository" must not be the thing that stops looking at
+  // who answered: with these, a server on this machine can answer as github.com and the check reports it as ok.
+  // A company's own certificate authority still applies through the machine's git configuration (http.sslCAInfo) or
+  // the system trust store, which is where docs/IT-ALLOWLIST.md section 4 already says it belongs.
+  "GIT_SSL_NO_VERIFY", "GIT_SSL_CAINFO", "GIT_SSL_CAPATH", "GIT_SSL_CERT", "GIT_SSL_KEY", "GIT_SSL_VERSION", "GIT_SSL_CIPHER_LIST",
 ];
+
+// The proxy a connection would go through, as the environment names it. It is kept, because a company machine sets
+// exactly these and the check exists to answer "does this machine reach it, set up as it is". Keeping it means the
+// answer can be true of a proxy rather than of github.com, so the check says which proxy it went through instead of
+// leaving that out of the line.
+export const PROXY_VARIABLES = ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "HTTP_PROXY", "http_proxy"];
+export function proxyInUse(env = process.env) {
+  for (const name of PROXY_VARIABLES) if (env[name]) return { name, value: env[name] };
+  return null;
+}
 
 // This user's own home folder as the system knows it, rather than as the environment says. HOME chooses
 // ~/.gitconfig, and ~/.gitconfig can name a program for git to run (core.sshCommand, core.askPass, gpg.program), so
