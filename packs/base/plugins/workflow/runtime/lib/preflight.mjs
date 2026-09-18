@@ -29,7 +29,7 @@ import { randomBytes } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { BACKUPS, PLUGIN_ROOT, isDir, refuse, statOrNull, tilde, which } from "./core.mjs";
-import { proxyInUse, realHome } from "./journal.mjs";
+import { noProxyInUse, proxyInUse, realHome } from "./journal.mjs";
 import { runGit, trustDir } from "./trust.mjs";
 import { joinDir } from "./join.mjs";
 import { claudeConfigDir, codexHome } from "./verify.mjs";
@@ -483,14 +483,16 @@ const A_LONG_RUN = /(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g;
 // letters and digits. A name has few chunks, at least one real word among them, and no chunk longer than a word or
 // a year; a secret has many short chunks, or one long unbroken one, and no word in it at all. This is the whole
 // difference between printing back what the person typed and printing back their credential.
-export function readsAsWords(run) {
+export function readsAsWords(run, { allowLongWords = true } = {}) {
   const parts = String(run).split(/[-_]/);
   if (parts.some((part) => !part)) return false; // a doubled or trailing separator is not how names are written
   let hasAWord = false;
   for (const part of parts) {
-    // A long word is still a word: internationalization is twenty letters. Letters only, lower case only, and at
-    // least one letter outside the hexadecimal alphabet, which is what keeps deadbeefdeadbeefdeadbeef out of it.
-    if (/^[a-z]{4,40}$/.test(part) && /[g-z]/.test(part)) { hasAWord = true; continue; }
+    // A long word is still a word: internationalization is twenty letters. Letters only, lower case only, at least
+    // one letter outside the hexadecimal alphabet (which keeps deadbeefdeadbeef out of it), and no run of five
+    // consonants, which is what a word does not have and what a token of random letters nearly always does. Not
+    // allowed at all after a prefix that reads like a credential: there, what follows is judged on its own.
+    if (allowLongWords && /^[a-z]{4,40}$/.test(part) && /[g-z]/.test(part) && !/[bcdfghjklmnpqrstvwxz]{5}/.test(part)) { hasAWord = true; continue; }
     const chunks = part.match(/[A-Z]{2,}(?![a-z])|[A-Z]?[a-z]+|\d+/g) ?? [];
     if (chunks.join("") !== part || chunks.length > 8) return false;
     // A number on its own (a date, a ticket) can be long; a number run together with letters is a year or a version
@@ -517,8 +519,10 @@ export function redact(value) {
     .replace(LIVE_KEYS, (match) => (readsAsWords(match.replace(/^[A-Za-z]{2,4}_(live|test)_/, "")) ? match : "<removed>"))
     .replace(AWS_KEY_IDS, "<removed>")
     .replace(GOOGLE_KEYS, "<removed>")
-    .replace(WEAK_PREFIXES, (match) => (readsAsWords(match.slice(match.search(/[_-]/) + 1)) ? match : "<removed>"))
-    .replace(BASE64_SECRET, "<removed>")
+    .replace(WEAK_PREFIXES, (match) => (readsAsWords(match.slice(match.search(/[_-]/) + 1), { allowLongWords: false }) ? match : "<removed>"))
+    // Padding is a strong signal, but "a line that ends with sixteencharacters=" is not a secret: the run is read
+    // for its shape like any other before it is taken out.
+    .replace(BASE64_SECRET, (run) => (readsAsWords(run.replace(/=+$/, "")) ? run : "<removed>"))
     .replace(A_LONG_RUN, (run) => (readsAsWords(run) ? run : "<removed>"))
     .slice(0, 120);
 }
@@ -582,6 +586,8 @@ export function checkRepository(marketplace) {
   // proxy is not used for an https address, and NO_PROXY can exempt the host). A proxy set in this machine's own
   // git configuration is followed too and is not shown here, because this reads the environment and nothing else.
   if (proxy) notes.push(`${proxy.name} is set in this session (${proxy.where}), so an answer here may have come through that proxy rather than from github.com; a proxy set in this machine's own git configuration is not shown`);
+  const noProxy = noProxyInUse();
+  if (noProxy) notes.push(`${noProxy.name} is set in this session (${redact(noProxy.value)}), so some addresses go straight out, including past a proxy set in this machine's own configuration`);
   const unpinned = notes.length ? `; ${notes.join("; ")}` : "";
   if (r.ok) {
     const refs = r.stdout.split("\n").filter(Boolean).length;

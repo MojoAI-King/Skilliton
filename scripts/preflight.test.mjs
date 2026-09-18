@@ -434,10 +434,11 @@ test("the variables a project must not be able to hand a git call are taken out,
     "GIT_ASKPASS", "SSH_ASKPASS", "SSH_ASKPASS_REQUIRE", "GIT_EDITOR", "GIT_SEQUENCE_EDITOR", "GIT_PAGER", "GIT_TEMPLATE_DIR",
     "GIT_SSL_NO_VERIFY", "GIT_SSL_CAINFO", "GIT_SSL_CAPATH", "GIT_SSL_CERT", "GIT_SSL_KEY", "GIT_SSL_VERSION", "GIT_SSL_CIPHER_LIST",
     "GIT_LITERAL_PATHSPECS", "GIT_ICASE_PATHSPECS", "GIT_GLOB_PATHSPECS", "GIT_NOGLOB_PATHSPECS",
+    "GIT_CURL_VERBOSE", "GIT_REDIRECT_STDIN", "GIT_REDIRECT_STDERR", "GIT_REDIRECT_STDOUT", "GIT_TRACE", "GIT_TRACE2", "GIT_TRACE_CURL", "GIT_TRACE_PERFORMANCE",
   ];
   // Taken out only on the call that reaches a network: on a local read they change what is printed, not what is
   // true, and a person debugging with GIT_TRACE should get their trace.
-  const networkOnly = ["GIT_CONFIG_NOSYSTEM", "GIT_ATTR_NOSYSTEM", "GIT_CURL_VERBOSE", "GIT_REDIRECT_STDERR", "GIT_REDIRECT_STDOUT", "GIT_TRACE", "GIT_TRACE_CURL"];
+  const networkOnly = ["GIT_CONFIG_NOSYSTEM", "GIT_ATTR_NOSYSTEM"];
   const saved = { ...process.env };
   try {
     for (const name of [...always, ...networkOnly]) process.env[name] = "planted";
@@ -449,7 +450,7 @@ test("the variables a project must not be able to hand a git call are taken out,
     }
     for (const name of networkOnly) {
       assert.equal(network[name], undefined, `${name} survived a git call that reaches a network`);
-      assert.equal(local[name], "planted", `${name} was taken out of a local read, where it only changes what is printed and where a person may be using it to see why something fails`);
+      assert.equal(local[name], "planted", `${name} was taken out of a local read, where every test in this repository relies on it to isolate itself from the machine it runs on`);
     }
   } finally {
     for (const name of [...always, ...networkOnly]) { if (saved[name] === undefined) delete process.env[name]; else process.env[name] = saved[name]; }

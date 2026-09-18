@@ -71,23 +71,35 @@ export const CONFIG_FROM_THE_ENVIRONMENT = [
   // GIT_LITERAL_PATHSPECS set matches nothing, so a count of "commits that changed something else" quietly counts
   // the commits that changed only that file.
   "GIT_LITERAL_PATHSPECS", "GIT_ICASE_PATHSPECS", "GIT_GLOB_PATHSPECS", "GIT_NOGLOB_PATHSPECS",
+  // Where git sends its own output. GIT_TRACE and its family take a path and make git CREATE that file and append
+  // to it, which is a way to write a file through a tool that promises to write only in the places its allow list
+  // names; on Windows the redirect pair also closes or redirects git's standard handles, which made every command
+  // here report a repository as unreadable. Keeping them for a person debugging was the wrong trade: their trace
+  // goes to the error stream, which these calls discard anyway, and the price was a file-writing primitive any
+  // prepared project could reach.
+  "GIT_CURL_VERBOSE", "GIT_REDIRECT_STDIN", "GIT_REDIRECT_STDERR", "GIT_REDIRECT_STDOUT",
 ];
 
 // Taken out only on a call that reaches a network, where what this machine's own configuration says is part of the
-// answer and what git prints is the reason a person is given.
-//   the NOSYSTEM pair   switching /etc/gitconfig off is the same act as redirecting it, and that file is where a
-//                       company keeps its proxy and its certificate authority
-//   the output pair     a trace or a redirection decides which line of git's output becomes the reported reason
-// They are NOT taken out of the local reads. A person who sets GIT_TRACE to find out why something fails should get
-// their trace, every test in this repository sets GIT_CONFIG_NOSYSTEM to isolate itself from the machine it runs on,
-// and for a local read neither variable can change what is true, only what is printed.
-export const CONFIG_FOR_A_NETWORK_CALL = ["GIT_CONFIG_NOSYSTEM", "GIT_ATTR_NOSYSTEM", "GIT_CURL_VERBOSE", "GIT_REDIRECT_STDERR", "GIT_REDIRECT_STDOUT"];
+// answer. Switching /etc/gitconfig off is the same act as redirecting it, and that file is where a company keeps
+// its proxy and its certificate authority, so a project that turns it off can make a working machine report itself
+// as blocked. On a local read the pair is left alone, and for one reason only: every test in this repository sets
+// GIT_CONFIG_NOSYSTEM to isolate itself from the machine it runs on, and taking it away would make what those tests
+// measure depend on the system configuration of whoever runs them. Nothing else lives in this list, because
+// anything that can write a file or close a handle belongs in the list above, on every call.
+export const CONFIG_FOR_A_NETWORK_CALL = ["GIT_CONFIG_NOSYSTEM", "GIT_ATTR_NOSYSTEM"];
 
 // The proxy a connection would go through, as the environment names it. It is kept, because a company machine sets
 // exactly these and the check exists to answer "does this machine reach it, set up as it is". Keeping it means the
 // answer can be true of a proxy rather than of github.com, so the check says which proxy it went through instead of
 // leaving that out of the line.
 export const PROXY_VARIABLES = ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "HTTP_PROXY", "http_proxy"];
+// And the one that says which addresses skip a proxy, including a proxy set in this machine's own configuration.
+export const NO_PROXY_VARIABLES = ["NO_PROXY", "no_proxy"];
+export function noProxyInUse(env = process.env) {
+  for (const name of NO_PROXY_VARIABLES) if (env[name]) return { name, value: String(env[name]).slice(0, 80) };
+  return null;
+}
 export function proxyInUse(env = process.env) {
   // The value itself is never carried out of here: what a caller gets is the address with any credentials in it
   // already gone, because a value on an object is a value something later prints.
@@ -138,10 +150,9 @@ export function gitEnvironment({ keepConfig = false, optionalLocks = false, pinH
   for (const name of REPOSITORY_OVERRIDES) delete env[name];
   if (keepConfig) return env;
   for (const name of CONFIG_FROM_THE_ENVIRONMENT) delete env[name];
-  for (const name of Object.keys(env)) if (/^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(name)) delete env[name];
+  for (const name of Object.keys(env)) if (/^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(name) || /^GIT_TR(ACE|2)/.test(name)) delete env[name];
   if (pinHome) {
     for (const name of CONFIG_FOR_A_NETWORK_CALL) delete env[name];
-    for (const name of Object.keys(env)) if (/^GIT_TRACE/.test(name)) delete env[name];
     // `home` is for a caller that knows which home it means (a test, so that what it measures does not depend on the
     // machine it runs on). It is an argument and never a variable, because a variable is exactly what pinning is
     // there to refuse.
@@ -173,7 +184,17 @@ const firstLine = (text) => String(text).trim().split("\n")[0];
 // folder that does not exist). Throws GitError when git itself cannot run.
 export function gitTopLevel(dir) {
   const r = runGit(dir, ["rev-parse", "--show-toplevel"]);
-  if (r.status !== 0) return null;
+  // Exit 128 covers both "this is not a repository" and "this is a repository I will not open" (a malformed line
+  // in its configuration, an owner git does not trust). Only the first is a missing repository; for the second,
+  // git's own words are thrown instead, because telling a person their repository is not a repository sends them
+  // looking for the wrong thing entirely.
+  if (r.status !== 0) {
+    const said = firstLine(r.stderr);
+    if (said && !/not a git repository|no such file or directory/i.test(said)) {
+      throw new GitError(`git rev-parse --show-toplevel failed in ${dir}: ${said}`, "failed");
+    }
+    return null;
+  }
   const top = r.stdout.replace(/\r?\n$/, "");
   return top && isAbsolute(top) ? resolve(top) : null;
 }
@@ -187,7 +208,7 @@ export function gitDir(root) {
   // first is "not a repository", so git's own words decide which of the two a caller is told about.
   if (r.status !== 0 || !dir || !isAbsolute(dir)) {
     const said = firstLine(r.stderr);
-    const notARepository = r.status === 128 && /not a git repository|detected dubious ownership|no such file or directory/i.test(said);
+    const notARepository = r.status === 128 && /not a git repository|no such file or directory/i.test(said);
     throw new GitError(`git rev-parse --absolute-git-dir failed in ${root}: ${said || `exit ${r.status}`}`, notARepository ? "not-a-repository" : "failed");
   }
   return dir;

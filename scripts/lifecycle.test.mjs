@@ -492,6 +492,18 @@ test("bad invocations are refused with exit 2 and write nothing", async () => wi
   const missingDir = cli(p, ["status", "--dir", join(dir, "no-such-folder")], env);
   assert.equal(missingDir.code, 2, missingDir.all);
 
+  // A repository git declines to open is not a folder that is not a repository, and saying so would send a person
+  // looking for the wrong thing. git exits 128 for both, so what it says decides which one a caller is told about.
+  const unopenable = join(dir, "unopenable");
+  initRepo(unopenable, env);
+  writeFileSync(join(unopenable, ".git", "config"), "this line is not a configuration\n");
+  const control = spawnSync("git", ["rev-parse", "--absolute-git-dir"], { cwd: unopenable, env, encoding: "utf8" });
+  assert.equal(control.status, 128, `premise: git refuses this repository (${control.stderr?.trim().slice(0, 120)})`);
+  const refused = cli(unopenable, ["status"], env);
+  assert.equal(refused.code, 3, refused.all);
+  assert.doesNotMatch(refused.all, /is not inside a Git repository/, "a repository git declined to open was reported as a folder that is not a repository");
+  assert.match(refused.all, /bad config|config line/i, `git's own words are not in the message:\n${refused.all}`);
+
   git(p, ["checkout", "-q", "--detach"], env);
   const detached = cli(p, ["task", "start", "Detached", "--apply"], env);
   assert.equal(detached.code, 2, detached.all);
@@ -1105,6 +1117,29 @@ test("status exits 1 for each attention condition and names it", async () => wit
   // Two: the work, and the rename itself, which also changed the project's configuration.
   const afterMove = attentionOnly(moved, "handoff", /still carries the line preparation wrote \("not yet assessed"\), and the project has moved on since \(2 commit\(s\)/);
   assert.equal(afterMove.json.details.handoff.file, "docs/HANDOFF-NOTES.md");
+
+  // Preparation that replaces a document the project already had: git pairs them, so following renames walks into
+  // the older file's history. The mark stops at the commit that made this a Skilliton project, or a project
+  // prepared a minute ago would be told it has years of work behind a handoff nobody has written.
+  const replaced = join(dir, `p${n++}`);
+  initRepo(replaced, env);
+  // Close enough to what preparation writes that git pairs the two as a rename, which is what makes --follow walk
+  // into this file's history at all.
+  writeFileSync(join(replaced, "NOTES.md"), "# Notes\n\nKind: Living.\n\n## RESUME HERE\n\nWritten: by hand, before any of this\n\n- **State:** fixture.\n- **Next:** nothing.\n- **Blocked:** nothing.\n- **Watch out:** nothing.\n");
+  commit(replaced, env, "notes");
+  for (const i of [1, 2, 3]) { writeFileSync(join(replaced, `work${i}.md`), `# work ${i}\n`); commit(replaced, env, `work ${i}`); }
+  writeConfig(replaced, { prepare: { version: 3, requires: { workflow: INSTALLED } } });
+  for (const rel of RECORD_FILES.filter((f) => f !== "docs/HANDOFF.md")) {
+    mkdirSync(dirname(join(replaced, rel)), { recursive: true });
+    writeFileSync(join(replaced, rel), `# ${rel}\n\nKind: Living.\n`);
+  }
+  mkdirSync(join(replaced, "docs"), { recursive: true });
+  git(replaced, ["mv", "NOTES.md", "docs/HANDOFF.md"], env);
+  writeHandoff(replaced, "not yet assessed");
+  commit(replaced, env, "prepare");
+  const justPreparedOverNotes = statusJson(replaced, env);
+  assert.equal(justPreparedOverNotes.code, 0, `a project prepared over a document it already had is not one that has moved on:\n${justPreparedOverNotes.out}`);
+  assert.match(justPreparedOverNotes.out, /no session has written a handoff yet/);
 
   // A later commit that only tidies the handoff resets nothing: the work before it still counts.
   const tidied = fresh();

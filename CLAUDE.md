@@ -54,3 +54,14 @@ Each behavior is marked **enforced** (a hook of an installed, enabled plugin doe
 - **Instructed:** say "I don't know" or "not verified" instead of guessing; never report a failed or skipped check as a success; keep done locally, merged, released, installed and verified separate.
 - **Instructed:** never write a secret value (keys, tokens, passwords) into any file, commit or message.
 <!-- skilliton:harness:end -->
+
+## Session cost
+
+Context is not free, and the shape of the cost is the opposite of what it looks like: a cache write costs many times a cache read, so **adding tokens is expensive and re-reading them is nearly free**. The ratio quoted in the maintainer's own notes was measured outside this repository and is not a claim this project makes; `scripts/token-cost.mjs` is what measures a window here, and PLAN.md sections 6 and 8 govern any number that leaves this repository.
+
+- **Screenshots and other image reads are the single largest line.** Read an image when you are going to look at it, never to confirm a file exists. Prefer a crawl's own report over re-reading its images.
+- **Do not read a non-image file over ~50KB into context.** A global hook refuses it. Read a range with offset and limit, grep or head it, or summarize it with a script that prints a bounded result. Bash output is already capped by the harness and needs no rule.
+- **An idle gap past the cache TTL forces a full rewrite of the context.** End finished work with a concise handoff rather than leaving a large session warm for hours.
+- **Batch independent inspections into one call.** Do not poll.
+- **Subagents are not free workers.** Measured at a quarter to a half of spend. They earn their place on bounded work where only a conclusion returns. Never spawn one where a direct lookup would do.
+- `node scripts/token-cost.mjs --project <this checkout's key>` reports what a window cost, and `node scripts/token-cost.test.mjs` must pass before its output is believed. The key is the folder name for this checkout under the client's own projects folder, which is particular to one machine and is deliberately not written here. `docs/USAGE_BASELINE.md` is the frozen before-picture. Both are reconstructions, not a bill: the client's Usage screen is the only real meter.
