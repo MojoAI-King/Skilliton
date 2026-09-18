@@ -16,10 +16,10 @@ import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { jsProgramCalls } from "./inventory.mjs";
-import { CONFIG_FROM_THE_ENVIRONMENT, REPOSITORY_OVERRIDES } from "../packs/base/plugins/workflow/runtime/lib/journal.mjs";
+import { CONFIG_FROM_THE_ENVIRONMENT, PROXY_VARIABLES, REPOSITORY_OVERRIDES } from "../packs/base/plugins/workflow/runtime/lib/journal.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CLI = join(ROOT, "scripts", "skilliton.mjs");
@@ -95,11 +95,21 @@ test("prepare reads the repository without starting it", (t) => {
 // that puts process.env back. The reader follows all of them, and it reads every file in the runtime rather than a
 // list written here, so a git call in a new file cannot arrive unchecked.
 const ENVIRONMENT_FROM_THE_CALLER = [
-  { file: "delivery.mjs", contains: "env, encoding: buffer", why: "the push hook's own environment names the repository and the quarantined objects" },
-  { file: "delivery.mjs", contains: '"archive", "--format=tar"', why: "the same runner's environment, for the archive it extracts" },
+  { file: "lib/delivery.mjs", contains: "env, encoding: buffer", why: "the push hook's own environment names the repository and the quarantined objects" },
+  { file: "lib/delivery.mjs", contains: '"archive", "--format=tar"', why: "the same runner's environment, for the archive it extracts" },
 ];
-const RUNTIME_LIB = join(ROOT, "packs/base/plugins/workflow/runtime/lib");
-const RUNTIME_COMMANDS = join(ROOT, "packs/base/plugins/workflow/runtime/commands");
+const RUNTIME = join(ROOT, "packs/base/plugins/workflow/runtime");
+const RUNTIME_LIB = join(RUNTIME, "lib");
+// Every JavaScript file under the runtime, at any depth. Two named folders left the runtime's own entry point out of
+// both gates, and a raw git call written there passed all three checkers.
+function runtimeFiles(dir = RUNTIME, out = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) runtimeFiles(path, out);
+    else if (entry.name.endsWith(".mjs")) out.push(path);
+  }
+  return out;
+}
 // The wrappers a git call can be made through, so a call to one of these is read as a start of git too. runGit is
 // the name of both git wrappers in the runtime (journal.mjs and trust.mjs), and a call to it is a start of git
 // whatever its first argument says, which is a repository path and not a program name.
@@ -109,26 +119,28 @@ const WRAPPERS = ["runGit", "runProgram", "git", "startOnce"];
 const GIT_WRAPPERS = ["runGit", "git"];
 // Calls to a git wrapper that hand it something that undoes what it does, with the reason each is allowed.
 const WRAPPER_EXCEPTIONS = [
-  { file: "release.mjs", contains: "userFacing: true", why: "signing a release is a command a person drives, where their own configuration and their terminal are the point" },
+  { file: "commands/release.mjs", contains: "userFacing: true", why: "signing a release is a command a person drives, where their own configuration and their terminal are the point" },
+  { file: "lib/preflight.mjs", contains: "extraEnv: { GIT_DIR: empty }", why: "the reachability check points GIT_DIR at an empty folder it made, so no repository around the current one is read at all" },
 ];
 
 // Every start of git in the runtime: { file, line, call (its text), argsText, options, direct (a child_process call
 // rather than a call to a wrapper) }.
 function gitStarts() {
   const found = [];
-  for (const dir of [RUNTIME_LIB, RUNTIME_COMMANDS]) {
-    for (const name of readdirSync(dir).filter((f) => f.endsWith(".mjs"))) {
-      const text = readFileSync(join(dir, name), "utf8");
+  {
+    for (const file of runtimeFiles()) {
+      const name = relative(RUNTIME, file);
+      const text = readFileSync(file, "utf8");
       const lines = text.split("\n");
       for (const call of jsProgramCalls(text, WRAPPERS).calls) {
         // `git`, `/usr/bin/git`, `git.exe`, and exec's whole command line beginning with git; and every call to the
         // runtime's own git wrapper, whose first argument is a repository and never a program name. Reading only the
-        // ones with a literal program left 83 of 92 git calls in this runtime unchecked.
+        // ones with a literal program left 66 of the 75 git calls in this runtime unchecked.
         const named = call.program && /(?:^|[\\/])git(?:\.exe)?(?:$|\s)/.test(call.program);
         const throughWrapper = GIT_WRAPPERS.includes(call.callee) && call.fn === null;
         if (!named && !throughWrapper) continue;
         found.push({
-          file: name, line: call.line, direct: call.fn !== null, throughWrapper, fn: call.fn,
+          file: name, line: call.line, direct: call.fn !== null, throughWrapper, fn: call.fn, callText: call,
           call: lines.slice(call.line - 1, call.line + 4).join(" "),
           argsText: call.argsText ?? "", options: call.options, body: text,
         });
@@ -176,7 +188,7 @@ function fromGitEnvironment(expression, start) {
 test("every git call in the runtime turns the setting off", () => {
   const starts = gitStarts();
   // A floor, so a change to the reader that quietly stops finding calls fails here rather than passing. The runtime
-  // had 92 when this was written; a fall to a handful is how the gate was found reading 9 of them.
+  // had 75 when this was written; a fall to a handful is how the gate was found reading 9 of them.
   assert.ok(starts.length >= 70, `only ${starts.length} git call(s) were found in the runtime (75 when this floor was set), so this check is reading almost none of them`);
   const missing = starts
     .filter((s) => !s.throughWrapper) // the wrapper passes it for every call to it, and the wrapper itself is here
@@ -196,8 +208,20 @@ test("every git call in the runtime takes its environment from gitEnvironment, o
     // A call to the wrapper gets its environment from the wrapper. What it can still do is hand in variables of its
     // own (extraEnv is spread over what the wrapper built) or ask for a person's own configuration (userFacing).
     if (start.throughWrapper) {
+      // Read the NAMES it hands in, not the text it hands them in as. `extraEnv: { GIT_DIR, GIT_INDEX_FILE }` names
+      // two variables taken from the environment a few lines above and contains neither process.env nor a spread,
+      // so a rule about the text of the expression let it straight through.
       const extra = optionExpression(start.call, "extraEnv");
       if (extra && /process\.env|\.\.\./.test(extra)) found.push(`${start.file}:${start.line}: hands the git wrapper variables from around it (extraEnv: ${extra.slice(0, 60)})`);
+      else if (extra) {
+        const handed = [...extra.matchAll(/([A-Za-z_$][\w$]*)\s*(?::|,|})/g)].map((m) => m[1]);
+        for (const name of handed) {
+          if (![...REPOSITORY_OVERRIDES, ...CONFIG_FROM_THE_ENVIRONMENT, ...PROXY_VARIABLES].includes(name)) continue;
+          const excused = WRAPPER_EXCEPTIONS.find((e) => e.file === start.file && start.call.includes(e.contains));
+          if (excused) { used.add(e_key(excused)); continue; }
+          found.push(`${start.file}:${start.line}: hands the git wrapper ${name}, one of the variables gitEnvironment takes out, without a reason in WRAPPER_EXCEPTIONS`);
+        }
+      }
       if (/userFacing\s*:\s*true/.test(start.call)) {
         const excused = WRAPPER_EXCEPTIONS.find((e) => e.file === start.file && start.call.includes(e.contains));
         if (excused) used.add(`${e_key(excused)}`);

@@ -322,7 +322,7 @@ test("a home folder and an askpass program named in the environment cannot steer
   const saved = { ...process.env };
   try {
     Object.assign(process.env, planted);
-    runGit(null, ["ls-remote", "--heads", "--", original], { timeoutMs: 30000, pinHome: true, cwd: ctx.base });
+    runGit(null, ["ls-remote", "--heads", "--", original], { timeoutMs: 30000, pinHome: true, home: ctx.home, cwd: ctx.base });
   } finally {
     for (const k of Object.keys(planted)) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; }
   }
@@ -338,7 +338,7 @@ test("a home folder and an askpass program named in the environment cannot steer
 // be answered by anyone. The server is a real TLS server on this machine with a certificate nobody trusts.
 test("a certificate check the environment asks to skip is still made, and a proxy is named in the line", async (t) => {
   const ctx = fixture(t);
-  const openssl = toolPath("openssl");
+  const openssl = toolPathOrNull("openssl");
   if (!openssl) return t.skip("openssl is not on PATH, so a certificate nobody trusts cannot be made here");
   const key = join(ctx.base, "key.pem"), cert = join(ctx.base, "cert.pem");
   const made = spawnSync(openssl, ["req", "-x509", "-newkey", "rsa:2048", "-keyout", key, "-out", cert, "-days", "1", "-nodes", "-subj", "/CN=localhost"], { encoding: "utf8" });
@@ -371,7 +371,7 @@ test("a certificate check the environment asks to skip is still made, and a prox
   let answer;
   try {
     process.env.GIT_SSL_NO_VERIFY = "1";
-    answer = runGit(null, ["ls-remote", "--heads", "--", url], { timeoutMs: 30000, pinHome: true, cwd: ctx.base });
+    answer = runGit(null, ["ls-remote", "--heads", "--", url], { timeoutMs: 30000, pinHome: true, home: ctx.home, cwd: ctx.base });
   } finally {
     if (saved === undefined) delete process.env.GIT_SSL_NO_VERIFY; else process.env.GIT_SSL_NO_VERIFY = saved;
   }
@@ -382,7 +382,7 @@ test("a certificate check the environment asks to skip is still made, and a prox
   const proxied = preflight(ctx, ["--client", "claude-code", "--bin-dir", ctx.bin, "--marketplace", "acme/skills"], {
     network: true, env: { HTTPS_PROXY: "http://127.0.0.1:9", https_proxy: "http://127.0.0.1:9" },
   });
-  assert.match(item(proxied.out, "github\\.com/acme/skills"), /it went through the proxy named by https?_proxy/i, proxied.out);
+  assert.match(item(proxied.out, "github\\.com/acme/skills"), /https?_proxy is set in this session \(http:\/\/127\.0\.0\.1:9\)/i, proxied.out);
 });
 
 test("a program that never answers is stopped with its children, and the check finishes", (t) => {
@@ -432,6 +432,7 @@ const CREDENTIALS = [
   ["a secret of digits only", "12345678901234567890123456789012", /12345678901234567890123456789012/],
   ["an identifier used as a key", "550e8400-e29b-41d4-a716-446655440000", /446655440000/],
   ["a key that names its environment", "rk_live_51H8xYzAbCdEfGhIjKlMnOp", /51H8xYzAbCdEfGhIjKlMnOp/],
+  ["a twenty-character key", "Xk3mQ9pZr2vTn8Lw4Bd7", /Xk3mQ9pZr2vTn8Lw4Bd7/],
 ];
 const ORDINARY = [
   "pat-experiments-2026-09",
@@ -454,6 +455,10 @@ const ORDINARY = [
   "srv/pat_workspace2026/repo",
   "token-driven-workflow2026",
   "SKILLITON-2026-REPORT-ARCHIVE",
+  "/opt/clones/acme-skills-backup-20260917",
+  "feature-add-preflight-check-12345",
+  "/srv/git/INFRASTRUCTURE-MIGRATION-2026",
+  "/opt/app_test_fixtures/skills",
 ];
 
 test("a token pasted into a marketplace value is never printed back", () => {

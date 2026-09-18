@@ -476,7 +476,7 @@ const BASE64_SECRET = /(?<![A-Za-z0-9+/=])(?:[A-Za-z0-9+/]{24,}={1,2}|[A-Za-z0-9
 // Twenty-four or more of the characters a token is made of, with nothing in between: the base64url alphabet, which
 // is what most modern tokens use, so a hyphen or an underscore does not end the run the way a dot or a slash does.
 // Whether such a run is a secret or a name is then decided by its shape, below.
-const A_LONG_RUN = /(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{24,}(?![A-Za-z0-9_-])/g;
+const A_LONG_RUN = /(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g;
 
 // Does this run read as words and numbers, the way a person names a folder (a-clone-of-the-skills-repository-2026,
 // ACMESkillsMarketplace2026), rather than as a secret? Separators split it into parts, and each part into chunks of
@@ -490,11 +490,14 @@ export function readsAsWords(run) {
   for (const part of parts) {
     const chunks = part.match(/[A-Z]{2,}(?![a-z])|[A-Z]?[a-z]+|\d+/g) ?? [];
     if (chunks.join("") !== part || chunks.length > 8) return false;
-    // A long stretch with no lower-case letter in it is not how a person writes a name without breaking it up
-    // (ACMESkillsMarketplace has its words; ABCD1234EFGH5678IJKL9012 does not).
-    if (part.length > 12 && !/[a-z]/.test(part)) return false;
+    // A number on its own (a date, a ticket) can be long; a number run together with letters is a year or a version
+    // at most. acme-skills-backup-20260917 is a name; abcdef123456 is not.
+    const digitsAllowed = /^\d+$/.test(part) ? 8 : 4;
+    // A long stretch of upper-case letters AND digits together is not how a person writes a name
+    // (INFRASTRUCTURE-MIGRATION-2026 breaks into words; ABCD1234EFGH5678IJKL9012 does not).
+    if (part.length > 12 && !/[a-z]/.test(part) && /\d/.test(part)) return false;
     for (const chunk of chunks) {
-      if (/^\d+$/.test(chunk)) { if (chunk.length > 4) return false; continue; }
+      if (/^\d+$/.test(chunk)) { if (chunk.length > digitsAllowed) return false; continue; }
       if (chunk.length > 15) return false;
       if (chunk.length >= 4) hasAWord = true;
     }
@@ -508,7 +511,7 @@ export function redact(value) {
     .replace(/([?&#][^=&\s]*(?:token|key|secret|pass|pat|auth|credential)[^=&\s]*=)[^&\s]+/gi, "$1<removed>")
     .replace(A_SIGNED_TOKEN, "<removed>")
     .replace(SPECIFIC_TOKENS, "<removed>")
-    .replace(LIVE_KEYS, "<removed>")
+    .replace(LIVE_KEYS, (match) => (readsAsWords(match.replace(/^[A-Za-z]{2,4}_(live|test)_/, "")) ? match : "<removed>"))
     .replace(AWS_KEY_IDS, "<removed>")
     .replace(GOOGLE_KEYS, "<removed>")
     .replace(WEAK_PREFIXES, (match) => (readsAsWords(match.slice(match.search(/[_-]/) + 1)) ? match : "<removed>"))
@@ -572,13 +575,21 @@ export function checkRepository(marketplace) {
   else if (pinned.home && process.env.HOME && process.env.HOME !== pinned.home) {
     notes.push(`this check read the git configuration in ${tilde(pinned.home)}, the home folder the system records for this user, and not the HOME set in this session (${tilde(process.env.HOME)}); a configuration you rely on that lives there was not used`);
   }
-  if (proxy) notes.push(`it went through the proxy named by ${proxy.name} in this session (${redact(proxy.value)}), so what answered was reached through that proxy`);
+  // Named as set, not as used: whether git sends this address through that proxy is git's own decision (an http
+  // proxy is not used for an https address, and NO_PROXY can exempt the host). A proxy set in this machine's own
+  // git configuration is followed too and is not shown here, because this reads the environment and nothing else.
+  if (proxy) notes.push(`${proxy.name} is set in this session (${proxy.where}), so an answer here may have come through that proxy rather than from github.com; a proxy set in this machine's own git configuration is not shown`);
   const unpinned = notes.length ? `; ${notes.join("; ")}` : "";
   if (r.ok) {
     const refs = r.stdout.split("\n").filter(Boolean).length;
     return [state(`github.com/${marketplace}`, "repository", "ok", `answered with ${refs} branch(es)${unpinned}`)];
   }
-  const message = (r.stderr || r.failure || "").trim().split("\n").filter((l) => !/^remote:/.test(l))[0]?.slice(0, 200) ?? r.failure;
+  // git's own reason, which is the last line that names a failure. Taking the first line instead gave whatever
+  // happened to be printed first, and the line a person needs (a certificate, a proxy, a name that does not
+  // resolve) is the one git ends with.
+  const stderrLines = (r.stderr || r.failure || "").trim().split("\n").filter((l) => l.trim() && !/^remote:/.test(l));
+  const named = stderrLines.filter((l) => /^(fatal|error|warning):/i.test(l.trim()));
+  const message = (named.at(-1) ?? stderrLines[0])?.slice(0, 200) ?? r.failure;
   const action = r.notFound
     ? "Install git (docs/IT-ALLOWLIST.md section 1)."
     : /could not resolve host|couldn't resolve|name or service not known|temporary failure in name resolution/i.test(message) ? "Ask IT to allow this machine to reach github.com over HTTPS, or to name the proxy to use (docs/IT-ALLOWLIST.md section 4)."

@@ -31,19 +31,19 @@ export const MAX_TRUST_BYTES = 64 * 1024;
 // manifest or a tag), and run without prompts and in the C locale, so messages parse the same everywhere. The
 // settings a repository or the environment could otherwise hand git are taken out by gitEnvironment (journal.mjs),
 // except for a call a person drives, where their own configuration is the point.
-export function gitEnv({ userFacing = false, pinHome = false } = {}) {
-  const env = gitEnvironment({ keepConfig: userFacing, optionalLocks: true, pinHome });
+export function gitEnv({ userFacing = false, pinHome = false, home = null } = {}) {
+  const env = gitEnvironment({ keepConfig: userFacing, optionalLocks: true, pinHome, home });
   if (!userFacing) { env.GIT_TERMINAL_PROMPT = "0"; env.LC_ALL = "C"; env.GIT_NO_REPLACE_OBJECTS = "1"; }
   return env;
 }
 
 // Runs git with an argument array, with a repository's own configuration never able to make git start a program
 // (see runtime/lib/journal.mjs). Never throws for git's own failure; `notFound` says git is not installed.
-export function runGit(repo, args, { buffer = false, timeoutMs = 60000, userFacing = false, pinHome = false, cwd, extraEnv } = {}) {
+export function runGit(repo, args, { buffer = false, timeoutMs = 60000, userFacing = false, pinHome = false, home = null, cwd, extraEnv } = {}) {
   const r = spawnSync("git", repo ? ["-C", repo, ...NO_REPOSITORY_PROGRAMS, ...args] : [...NO_REPOSITORY_PROGRAMS, ...args], {
     cwd,
     encoding: buffer ? "buffer" : "utf8",
-    env: { ...gitEnv({ userFacing, pinHome }), ...extraEnv },
+    env: { ...gitEnv({ userFacing, pinHome, home }), ...extraEnv },
     timeout: timeoutMs,
     maxBuffer: 256 * 1024 * 1024,
     stdio: userFacing ? ["inherit", "inherit", "inherit"] : ["ignore", "pipe", "pipe"],

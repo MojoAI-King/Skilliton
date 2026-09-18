@@ -72,8 +72,20 @@ export const DYNAMIC_CALLS = [
 const INTERPRETERS = ["bash", "sh", "dash", "ksh", "zsh", "node", "python", "python3", "perl", "ruby", "php", "osascript", "awk", "gawk", "nawk", "mawk"];
 const AWK = ["awk", "gawk", "nawk", "mawk"];
 const SED = ["sed", "gsed"];
-// Options that ask a program to describe itself and then exit.
+// Options that ask a program to describe itself and then exit. -v is one of them for node, perl and ruby, and is
+// NOT one for a shell (bash -v reads its program from its input and prints it) or for python (-v is verbose), so it
+// is listed per interpreter rather than in the general set.
 const SELF_DESCRIBING = /^(--version|--help|--usage|-V|-h|-\?)$/;
+const DASH_V_IS_A_VERSION = ["node", "perl", "ruby"];
+const SHELLS = ["bash", "sh", "dash", "ksh", "zsh"];
+// Ways of saying "the program arrives on my input", which is exactly what this rule is about and all of which are
+// option-shaped: a bare -, a shell's -s (alone or in a group, bash -si), and awk's -f -. An argument after one of
+// these is the program's own arguments, not the program, so the file name that follows proves nothing.
+function readsItsInput(base, args) {
+  return args.some((a, i) => a === "-"
+    || (SHELLS.includes(base) && typeof a === "string" && /^-[A-Za-z]*s[A-Za-z]*$/.test(a))
+    || (AWK.includes(base) && (a === "-f-" || (a === "-f" && args[i + 1] === "-"))));
+}
 // GNU sed's two ways of running a command: `e` as a command of its own, and `e` as a flag on a substitution.
 const SED_RUNS_A_COMMAND = [/(?:^|;|\n)\s*[0-9,~$+]*\s*e(?:\s|;|$)/, /s(.)(?:\\.|(?!\1)[^\\])*\1(?:\\.|(?!\1)[^\\])*\1[a-zA-Z0-9]*e/];
 // Ways an embedded program starts a command of its own, which this reader cannot follow. The common list holds the
@@ -256,6 +268,12 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
         }
       }
       if (!INTERPRETERS.includes(base)) continue;
+      // Said before the arguments are read for a file name: under -s or -, the first argument is the program's own
+      // argument and naming a file this test reads would otherwise end the check with nothing said.
+      if (readsItsInput(base, c.args)) {
+        problems.push(`${path}:${c.line}: it runs ${base} in a way that takes its program from its input (${c.args.filter((a) => typeof a === "string").join(" ")}), so what runs cannot be read from this line`);
+        continue;
+      }
       // A here-document is the program, whatever the arguments say: `node <<EOF ... EOF` hands node a program on its
       // input. It is read for the one thing that matters here, and has to be named in the table like any other
       // program written into a script.
@@ -284,7 +302,7 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
       // exemption, because every way of saying "read the program from standard input" is also option-shaped
       // (bash -s, sh -, python3 -, awk -f-), and exempting option-shaped arguments in general would exempt exactly
       // the case this rule exists for.
-      if (first < 0 && c.args.length > 0 && c.args.every((a) => typeof a === "string" && SELF_DESCRIBING.test(a))) continue;
+      if (first < 0 && c.args.length > 0 && c.args.every((a) => typeof a === "string" && (SELF_DESCRIBING.test(a) || (a === "-v" && DASH_V_IS_A_VERSION.includes(base))))) continue;
       if (first < 0) { problems.push(`${path}:${c.line}: it runs ${base} with no file or program of its own, so whatever arrives on its input runs; this reader cannot follow that`); continue; }
       const given = c.args[first];
       const optionBefore = first > 0 ? c.args[first - 1] : null;
