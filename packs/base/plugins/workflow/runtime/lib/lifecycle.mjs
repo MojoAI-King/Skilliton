@@ -363,13 +363,14 @@ function handoffMovedOn(root, rel, archiveRel, git, data) {
   data.shallowHistory = shallow.status === 0 ? shallow.stdout.trim() === "true" : null;
   const exclude = ["--", ".", `:(exclude)${rel}`, `:(exclude)${archiveRel}`];
 
-  // The OLDEST commit that added this file. This is only ever asked when the handoff still holds the line
-  // preparation wrote, so the question is "how much has happened that no session has written a handoff about", and
-  // the answer starts the first time this project had a handoff at all. Taking the newest add instead (tried, and
-  // wrong) lets a second preparation, or a move of the records folder, reset the count to none and bury every
-  // commit before it: a project with weeks of work behind an unwritten handoff then reads as one prepared a minute
-  // ago. What a re-created file does change is nothing about that question.
-  const added = runGit(root, ["log", "--diff-filter=A", "--format=%H", "--", rel]);
+  // The OLDEST commit that added this file, following it through renames. This is only ever asked when the handoff
+  // still holds the line preparation wrote, so the question is "how much has happened that no session has written a
+  // handoff about", and the answer starts the first time this project had a handoff at all. Two ways of losing that
+  // date, both tried and both wrong: taking the newest add lets a second preparation reset the count to none, and
+  // leaving out --follow does the same for a move of the records folder, because a rename adds the new path in one
+  // commit and that commit is then the only add there is. Either way a project with weeks of work behind an
+  // unwritten handoff reads as one prepared a minute ago.
+  const added = runGit(root, ["log", "--follow", "--diff-filter=A", "--format=%H", "--", rel]);
   const from = added.status === 0 ? added.stdout.trim().split("\n").filter(Boolean).at(-1) ?? null : null;
   let since;
   if (from) {

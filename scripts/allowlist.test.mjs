@@ -75,16 +75,27 @@ const SED = ["sed", "gsed"];
 // Options that ask a program to describe itself and then exit. -v is one of them for node, perl and ruby, and is
 // NOT one for a shell (bash -v reads its program from its input and prints it) or for python (-v is verbose), so it
 // is listed per interpreter rather than in the general set.
-const SELF_DESCRIBING = /^(--version|--help|--usage|-V|-h|-\?)$/;
-const DASH_V_IS_A_VERSION = ["node", "perl", "ruby"];
+const SELF_DESCRIBING_LONG = /^(--version|--help|--usage)$/;
 const SHELLS = ["bash", "sh", "dash", "ksh", "zsh"];
-// Ways of saying "the program arrives on my input", which is exactly what this rule is about and all of which are
-// option-shaped: a bare -, a shell's -s (alone or in a group, bash -si), and awk's -f -. An argument after one of
-// these is the program's own arguments, not the program, so the file name that follows proves nothing.
-function readsItsInput(base, args) {
-  return args.some((a, i) => a === "-"
-    || (SHELLS.includes(base) && typeof a === "string" && /^-[A-Za-z]*s[A-Za-z]*$/.test(a))
-    || (AWK.includes(base) && (a === "-f-" || (a === "-f" && args[i + 1] === "-"))));
+// The short spellings are only self-describing for the programs that read them that way. For a shell, -h is
+// hashall and -v is verbose, and a shell with neither a script nor -c then reads its program from its input, which
+// is the thing this rule is for; node, perl and ruby print their version for -v.
+const SELF_DESCRIBING_SHORT = { node: ["-v", "-V", "-h"], perl: ["-v", "-V", "-h"], ruby: ["-v", "-h"], python: ["-V", "-h"], python3: ["-V", "-h"], php: ["-v", "-h"], osascript: ["-h"] };
+const selfDescribing = (base, arg) => SELF_DESCRIBING_LONG.test(arg) || (SELF_DESCRIBING_SHORT[base] ?? []).includes(arg);
+// Ways of saying "the program arrives on my input", which is what this rule is about and all of which are
+// option-shaped: a bare - in the place the program would be, a shell's -s among its leading options (alone or in a
+// group, bash -si), and awk's -f -. An argument after one of these is the program's own argument, not the program,
+// so the file name that follows proves nothing.
+//
+// `first` is where the first argument that is not an option sits, and it is what keeps this from firing on ordinary
+// lines: `awk -f prog.awk -` reads its DATA from the input and its program from a file, and `bash script.sh -s`
+// passes -s to the script. Both were reported before this took the position into account.
+function readsItsInput(base, args, first) {
+  return args.some((a, i) => {
+    if (a === "-") return first === i;
+    if (SHELLS.includes(base) && typeof a === "string" && /^-[A-Za-z]*s[A-Za-z]*$/.test(a)) return first < 0 || i < first;
+    return AWK.includes(base) && (a === "-f-" || (a === "-f" && args[i + 1] === "-"));
+  });
 }
 // GNU sed's two ways of running a command: `e` as a command of its own, and `e` as a flag on a substitution.
 const SED_RUNS_A_COMMAND = [/(?:^|;|\n)\s*[0-9,~$+]*\s*e(?:\s|;|$)/, /s(.)(?:\\.|(?!\1)[^\\])*\1(?:\\.|(?!\1)[^\\])*\1[a-zA-Z0-9]*e/];
@@ -92,8 +103,12 @@ const SED_RUNS_A_COMMAND = [/(?:^|;|\n)\s*[0-9,~$+]*\s*e(?:\s|;|$)/, /s(.)(?:\\.
 // shapes that mean the same thing in every language here; the rest are read per language, because a backtick is a
 // command in Perl and Ruby and an ordinary string in JavaScript, and `exec(` runs a program in Perl while it
 // compiles text in Python.
-// print ... | "a command" is awk starting a program; a | inside the text being printed (printf "%s|%s") is not.
-const EMBEDDED_COMMANDS = [/\bsystem\s*\(/, /\|\s*&?\s*getline\b/, /\bprint[^;]*\|\s*["']/, /\bpopen\s*\(/, /\bsubprocess\b/, /\bos\.system\b/, /child_process/];
+const EMBEDDED_COMMANDS = [/\bsystem\s*\(/, /\|\s*&?\s*getline\b/, /\bpopen\s*\(/, /\bsubprocess\b/, /\bos\.system\b/, /child_process/];
+// awk's print ... | "a command" starts a program. A | inside the text being printed (print $1 "|" $2) does not, so
+// this one is read with the quoted strings taken out first. Only for awk: taking strings out of a program in any
+// other language would take the name of what it starts with them.
+const AWK_PIPE = /\bprintf?\b[^;]*\|/;
+const withoutStrings = (text) => text.replace(/"(?:\\.|[^"\\])*"/g, '""');
 const EMBEDDED_BY_LANGUAGE = {
   perl: [/`/, /\bqx\s*[({\[/|!'"]/, /\bopen\s*\([^)]*["'][|-]/, /\bexec\s*[({"']/, /\bfork\s*[(;]/],
   ruby: [/`/, /\bIO\.popen\b/, /\bexec\s*[({"']/, /\bspawn\s*[({"']/, /\bKernel\./],
@@ -103,6 +118,9 @@ const EMBEDDED_BY_LANGUAGE = {
   node: [/\bprocess\.binding\b/, /\bDeno\.Command\b/],
 };
 const embeddedPatterns = (base) => [...EMBEDDED_COMMANDS, ...(EMBEDDED_BY_LANGUAGE[base] ?? [])];
+// True when an embedded program starts a command of its own, as far as this reader can tell.
+const startsACommand = (base, program) => embeddedPatterns(base).some((re) => re.test(program))
+  || (AWK.includes(base) && AWK_PIPE.test(withoutStrings(program)));
 
 // Every place a script hands an interpreter something this reader cannot follow: a path built from a variable
 // ("expansion") or a program written into the script itself ("inline"). `target`, when given, is a file this test must
@@ -258,6 +276,8 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
     // An interpreter runs whatever it is given, so the file or program it is given is read too, or said out loud.
     for (const c of commands) {
       const base = c.word.split("/").pop();
+      // awk takes -v name=value pairs before its program, and the program itself is not a file.
+      const isAwk = AWK.includes(base);
       // sed is not in the interpreter list, but GNU sed runs commands: the `e` command, and the `e` flag on s///.
       // A rule that reads only the program's name would never see it.
       if (SED.includes(base)) {
@@ -268,9 +288,14 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
         }
       }
       if (!INTERPRETERS.includes(base)) continue;
+      // Where the first argument that is not an option sits, read once and used by both rules below.
+      const firstArgument = c.args.findIndex((a, i) => {
+        if (isAwk && c.args[i - 1] === "-v") return false;
+        return !(typeof a === "string" && a.startsWith("-") && a !== "-");
+      });
       // Said before the arguments are read for a file name: under -s or -, the first argument is the program's own
       // argument and naming a file this test reads would otherwise end the check with nothing said.
-      if (readsItsInput(base, c.args)) {
+      if (readsItsInput(base, c.args, firstArgument)) {
         problems.push(`${path}:${c.line}: it runs ${base} in a way that takes its program from its input (${c.args.filter((a) => typeof a === "string").join(" ")}), so what runs cannot be read from this line`);
         continue;
       }
@@ -278,16 +303,12 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
       // input. It is read for the one thing that matters here, and has to be named in the table like any other
       // program written into a script.
       if (typeof c.heredoc === "string") {
-        for (const re of embeddedPatterns(base)) {
-          if (re.test(c.heredoc)) problems.push(`${path}:${c.line}: the ${base} program in the here-document here starts a command of its own (${c.heredoc.trim().slice(0, 60)}), which this reader cannot follow`);
-        }
+        if (startsACommand(base, c.heredoc)) problems.push(`${path}:${c.line}: the ${base} program in the here-document here starts a command of its own (${c.heredoc.trim().slice(0, 60)}), which this reader cannot follow`);
         const entry = interpreterTargets.find((e) => e.file === path && e.command === base && e.kind === "here-document");
         if (!entry) { problems.push(`${path}:${c.line}: it runs ${base} with a program in a here-document, which this reader follows only far enough to see whether it starts a command; add it to INTERPRETER_TARGETS in scripts/allowlist.test.mjs with what it runs`); continue; }
         entry.seen = (entry.seen ?? 0) + 1;
         continue;
       }
-      // awk takes -v name=value pairs before its program, and the program itself is not a file.
-      const isAwk = AWK.includes(base);
       let first = -1;
       for (let i = 0; i < c.args.length; i++) {
         const a = c.args[i];
@@ -302,7 +323,7 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
       // exemption, because every way of saying "read the program from standard input" is also option-shaped
       // (bash -s, sh -, python3 -, awk -f-), and exempting option-shaped arguments in general would exempt exactly
       // the case this rule exists for.
-      if (first < 0 && c.args.length > 0 && c.args.every((a) => typeof a === "string" && (SELF_DESCRIBING.test(a) || (a === "-v" && DASH_V_IS_A_VERSION.includes(base))))) continue;
+      if (first < 0 && c.args.length > 0 && c.args.every((a) => typeof a === "string" && selfDescribing(base, a))) continue;
       if (first < 0) { problems.push(`${path}:${c.line}: it runs ${base} with no file or program of its own, so whatever arrives on its input runs; this reader cannot follow that`); continue; }
       const given = c.args[first];
       const optionBefore = first > 0 ? c.args[first - 1] : null;
@@ -310,9 +331,7 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
       const kind = inlineOption || (isAwk && optionBefore !== "-f") ? "inline" : given === null ? "expansion" : "path";
       if (kind === "inline" && given !== null) {
         // An embedded program is read for the one thing this reader cares about: whether it starts a command.
-        for (const re of embeddedPatterns(base)) {
-          if (re.test(given)) problems.push(`${path}:${c.line}: the ${base} program written here starts a command of its own (${given.trim().slice(0, 60)}), which this reader cannot follow`);
-        }
+        if (startsACommand(base, given)) problems.push(`${path}:${c.line}: the ${base} program written here starts a command of its own (${given.trim().slice(0, 60)}), which this reader cannot follow`);
       }
       if (kind === "path") {
         const resolved = given.replace(/^\.\//, "");
@@ -827,6 +846,38 @@ function selfTest() {
       }
       if (missed.length) console.log(`     not caught: ${missed.join(" | ")}`);
       return missed.length === 0;
+    }],
+    ["an interpreter told to read its own input is reported", () => {
+      const missed = [];
+      for (const line of ["printf %s \"$X\" | bash -s", "cat x | sh -", "cat x | python3 -", "cat x | bash -si", "cat x | awk -f-",
+        // With an argument after it: that argument is the program's own, so a file name there proves nothing.
+        "bash -s hooks/x.sh < \"$X\"", "awk -f - data.txt", "bash -h"]) {
+        const { files, readFile } = fake({ "hooks/x.sh": `${line}\n` });
+        const said = programsFromCode(files, readFile, [], []).problems;
+        if (!said.some((p) => p.includes("takes its program from its input") || p.includes("no file or program of its own"))) missed.push(line);
+      }
+      if (missed.length) console.log(`     not caught: ${missed.join(" | ")}`);
+      return missed.length === 0;
+    }],
+    ["a command answering about itself is left alone", () => {
+      const { files, readFile } = fake({ "hooks/x.sh": "node --version\nbash --help\npython3 -V\nnode -v\n" });
+      return programsFromCode(files, readFile, [], []).problems.every((p) => !p.includes("no file or program of its own"));
+    }],
+    ["an ordinary line that only looks like one is left alone", () => {
+      // A program in a file with its data on the input, and a script with its own -s flag.
+      const { files, readFile } = fake({ "hooks/x.sh": "awk -f hooks/fields.awk -\nbash hooks/other.sh -s\n", "hooks/fields.awk": "{ print $1 }\n", "hooks/other.sh": "#!/bin/sh\ntrue\n" });
+      return programsFromCode(files, readFile, [], []).problems.every((p) => !p.includes("takes its program from its input"));
+    }],
+    ["an ordinary awk or perl program is not read as a command", () => {
+      const ordinary = [["awk", '{printf "%s|%s\\n", $1, $2}'], ["awk", '{print $1 "|" $2}'], ["perl", "s/fork/branch/"]];
+      const wrong = [];
+      for (const [command, program] of ordinary) {
+        const { files, readFile } = fake({ "hooks/x.sh": `${command} -e '${program.replace(/'/g, "'\\''")}'\n` });
+        const targets = [{ file: "hooks/x.sh", command, kind: "inline", count: 1, target: null, why: "a test" }];
+        if (programsFromCode(files, readFile, [], targets).problems.some((p) => p.includes("starts a command of its own"))) wrong.push(`${command}: ${program}`);
+      }
+      if (wrong.length) console.log(`     read as starting a command: ${wrong.join(" | ")}`);
+      return wrong.length === 0;
     }],
     ["a backtick in a JavaScript program is not read as a command", () => {
       const { files, readFile } = fake({ "hooks/x.sh": "node -e \"const line = `a ${name} b`; console.log(line)\"\n" });

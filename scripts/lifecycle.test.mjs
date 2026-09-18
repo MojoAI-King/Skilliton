@@ -1086,11 +1086,25 @@ test("status exits 1 for each attention condition and names it", async () => wit
   writeFileSync(join(reAdded, "README.md"), "# weeks of work\n");
   commit(reAdded, env, "work");
   rmSync(join(reAdded, "docs", "HANDOFF.md"), { force: true });
-  commit(reAdded, env, "the records folder is rearranged");
+  commit(reAdded, env, "the handoff is taken out");
   writeHandoff(reAdded, "not yet assessed");
   commit(reAdded, env, "the handoff preparation writes, again");
   const again = attentionOnly(reAdded, "handoff", /still carries the line preparation wrote \("not yet assessed"\), and the project has moved on since \(1 commit\(s\) that changed something else since it was committed\)/);
   assert.equal(again.json.details.handoff.commitsSinceHandoffCommit, 1, "the count is taken from the first time this project had a handoff, not from the newest copy of the file; the two commits that only moved the handoff itself are not work it is behind");
+
+  // And the other way of losing the date: the records folder is moved, so the handoff's path has exactly one commit
+  // that added it, which is the move. Without --follow that move becomes the mark and the work before it is gone.
+  const moved = fresh({ written: "not yet assessed" });
+  writeFileSync(join(moved, "README.md"), "# weeks of work\n");
+  commit(moved, env, "work");
+  git(moved, ["mv", "docs/HANDOFF.md", "docs/HANDOFF-NOTES.md"], env);
+  const movedConfig = JSON.parse(readFileSync(join(moved, ".skilliton", "config.json"), "utf8"));
+  movedConfig.prepare = { ...movedConfig.prepare, artifacts: { ...(movedConfig.prepare?.artifacts ?? {}), handoff: "docs/HANDOFF-NOTES.md" } };
+  writeFileSync(join(moved, ".skilliton", "config.json"), `${JSON.stringify(movedConfig, null, 2)}\n`);
+  commit(moved, env, "the handoff is renamed");
+  // Two: the work, and the rename itself, which also changed the project's configuration.
+  const afterMove = attentionOnly(moved, "handoff", /still carries the line preparation wrote \("not yet assessed"\), and the project has moved on since \(2 commit\(s\)/);
+  assert.equal(afterMove.json.details.handoff.file, "docs/HANDOFF-NOTES.md");
 
   // A later commit that only tidies the handoff resets nothing: the work before it still counts.
   const tidied = fresh();

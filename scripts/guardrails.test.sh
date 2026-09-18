@@ -319,8 +319,12 @@ section "the shell's own startup file"
 printf ': ordinary\n' > "$TMP/bashenv-ordinary.sh"
 printf 'exit 0\n' > "$TMP/bashenv-quiet.sh"
 expect "BASH_ENV set: a command that would be denied asks instead" ask "$R" 'git commit --no-verify -m "x"' "BASH_ENV=$TMP/bashenv-ordinary.sh"
-reason_has "the reason names the variable" "BASH_ENV or ENV"
+reason_has "the reason names the variable" "BASH_ENV"
 expect "known limit: BASH_ENV naming a file that ends the shell silences the hook" allow "$R" 'git commit --no-verify -m "x"' "BASH_ENV=$TMP/bashenv-quiet.sh"
+expect "known limit: SHELLOPTS=noexec silences the hook, and cannot be reported" allow "$R" 'git commit --no-verify -m "x"' "SHELLOPTS=noexec"
+# ENV is read by an interactive shell only, so it has no power over a hook and must not change a decision here: a
+# refusal that a powerless variable can turn into a question is a way to be allowed past this check.
+expect "ENV set: a command that would be denied is still denied" deny "$R" 'git commit --no-verify -m "x"' "ENV=$TMP/bashenv-quiet.sh"
 
 section "allow: flags that only look similar (negative controls)"
 expect "git commit -m \"add -n flag docs\" (quoted message)" allow "$R" 'git commit -m "add -n flag docs"'
@@ -330,6 +334,17 @@ expect "git log -n 5"                                 allow "$R" 'git log -n 5'
 
 # ---------------------------------------------------------------- rule 3: secret files and content
 section "deny: staging or committing secret-shaped files"
+# The environment must not be able to decide which files this check reads. GIT_INDEX_FILE names the index git uses,
+# so an index of someone else's choosing would leave a staged secret out of every list the hook looks at. The
+# decoy is built first and proved to narrow plain git, so the deny below means the hook scrubbed it.
+RX="$TMP/repo-index"; new_repo "$RX"
+printf 'TOKEN=not-a-real-value\n' > "$RX/.env"; git -C "$RX" add .env
+GIT_INDEX_FILE="$TMP/decoy.index" git -C "$RX" read-tree --empty
+DECOY_LIST=$(GIT_INDEX_FILE="$TMP/decoy.index" git -C "$RX" diff --cached --name-only --diff-filter=d | wc -l | tr -d ' ')
+REAL_LIST=$(git -C "$RX" diff --cached --name-only --diff-filter=d | wc -l | tr -d ' ')
+if [ "$DECOY_LIST" = 0 ] && [ "$REAL_LIST" != 0 ]; then verdict claude pass "the decoy index really narrows plain git (real $REAL_LIST staged, decoy $DECOY_LIST)"
+else verdict claude fail "the decoy index does not narrow plain git (real $REAL_LIST staged, decoy $DECOY_LIST), so the case below would prove nothing"; fi
+expect "GIT_INDEX_FILE cannot hide a staged secret from the check" deny "$RX" 'git commit -m "x"' "GIT_INDEX_FILE=$TMP/decoy.index"
 expect "git add .env"                                 deny "$R" 'git add .env'
 reason_has "secret-file reason names the file and rule" ".env looks like a file that holds passwords or keys (it matches the .env rule)"
 expect "git add -A (untracked .env present)"          deny "$R" 'git add -A'

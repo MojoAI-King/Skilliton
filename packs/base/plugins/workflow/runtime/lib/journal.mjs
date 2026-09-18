@@ -67,14 +67,21 @@ export const CONFIG_FROM_THE_ENVIRONMENT = [
   // A company's own certificate authority still applies through the machine's git configuration (http.sslCAInfo) or
   // the system trust store, which is where docs/IT-ALLOWLIST.md section 4 already says it belongs.
   "GIT_SSL_NO_VERIFY", "GIT_SSL_CAINFO", "GIT_SSL_CAPATH", "GIT_SSL_CERT", "GIT_SSL_KEY", "GIT_SSL_VERSION", "GIT_SSL_CIPHER_LIST",
-  // Switching off the machine's own system configuration is the same act as redirecting it: /etc/gitconfig is where
-  // a company keeps the proxy and the certificate authority this tool promises to follow, so a project that can
-  // turn it off can make a working machine report itself as blocked.
-  "GIT_CONFIG_NOSYSTEM", "GIT_ATTR_NOSYSTEM",
-  // What git prints on its error stream, which is what a check reads to say WHY something is blocked. A trace puts
-  // its own lines there, and the certificate error a person needs to see is no longer the one they are shown.
-  "GIT_CURL_VERBOSE", "GIT_REDIRECT_STDERR", "GIT_REDIRECT_STDOUT",
+  // Variables that change what a pathspec means. Every call here passes paths of its own, and :(exclude)<file> with
+  // GIT_LITERAL_PATHSPECS set matches nothing, so a count of "commits that changed something else" quietly counts
+  // the commits that changed only that file.
+  "GIT_LITERAL_PATHSPECS", "GIT_ICASE_PATHSPECS", "GIT_GLOB_PATHSPECS", "GIT_NOGLOB_PATHSPECS",
 ];
+
+// Taken out only on a call that reaches a network, where what this machine's own configuration says is part of the
+// answer and what git prints is the reason a person is given.
+//   the NOSYSTEM pair   switching /etc/gitconfig off is the same act as redirecting it, and that file is where a
+//                       company keeps its proxy and its certificate authority
+//   the output pair     a trace or a redirection decides which line of git's output becomes the reported reason
+// They are NOT taken out of the local reads. A person who sets GIT_TRACE to find out why something fails should get
+// their trace, every test in this repository sets GIT_CONFIG_NOSYSTEM to isolate itself from the machine it runs on,
+// and for a local read neither variable can change what is true, only what is printed.
+export const CONFIG_FOR_A_NETWORK_CALL = ["GIT_CONFIG_NOSYSTEM", "GIT_ATTR_NOSYSTEM", "GIT_CURL_VERBOSE", "GIT_REDIRECT_STDERR", "GIT_REDIRECT_STDOUT"];
 
 // The proxy a connection would go through, as the environment names it. It is kept, because a company machine sets
 // exactly these and the check exists to answer "does this machine reach it, set up as it is". Keeping it means the
@@ -82,7 +89,9 @@ export const CONFIG_FROM_THE_ENVIRONMENT = [
 // leaving that out of the line.
 export const PROXY_VARIABLES = ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "HTTP_PROXY", "http_proxy"];
 export function proxyInUse(env = process.env) {
-  for (const name of PROXY_VARIABLES) if (env[name]) return { name, value: env[name], where: proxyAddress(env[name]) };
+  // The value itself is never carried out of here: what a caller gets is the address with any credentials in it
+  // already gone, because a value on an object is a value something later prints.
+  for (const name of PROXY_VARIABLES) if (env[name]) return { name, where: proxyAddress(env[name]) };
   return null;
 }
 
@@ -92,11 +101,13 @@ export function proxyInUse(env = process.env) {
 export function proxyAddress(value) {
   const text = String(value).trim();
   const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(text)?.[1];
-  try {
-    const url = new URL(scheme ? text : `http://${text}`);
-    if (!url.host) return "an address that could not be read";
-    return scheme ? `${scheme}://${url.host}` : url.host;
-  } catch { return "an address that could not be read"; }
+  const withoutScheme = scheme ? text.slice(scheme.length + 3) : text;
+  // Whatever follows the last @ is the address; a password can hold @ / ? # and a backslash, and every one of those
+  // stops a URL reader. The host and the port are what a person needs to give to whoever manages their machines,
+  // and they are readable here even when the value as a whole is not.
+  const address = withoutScheme.slice(withoutScheme.lastIndexOf("@") + 1).split(/[/?#]/)[0].trim();
+  if (!address || /[\s]/.test(address)) return "an address that could not be read";
+  return scheme ? `${scheme}://${address}` : address;
 }
 
 // This user's own home folder as the system knows it, rather than as the environment says. HOME chooses
@@ -127,8 +138,10 @@ export function gitEnvironment({ keepConfig = false, optionalLocks = false, pinH
   for (const name of REPOSITORY_OVERRIDES) delete env[name];
   if (keepConfig) return env;
   for (const name of CONFIG_FROM_THE_ENVIRONMENT) delete env[name];
-  for (const name of Object.keys(env)) if (/^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(name) || /^GIT_TRACE/.test(name)) delete env[name];
+  for (const name of Object.keys(env)) if (/^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(name)) delete env[name];
   if (pinHome) {
+    for (const name of CONFIG_FOR_A_NETWORK_CALL) delete env[name];
+    for (const name of Object.keys(env)) if (/^GIT_TRACE/.test(name)) delete env[name];
     // `home` is for a caller that knows which home it means (a test, so that what it measures does not depend on the
     // machine it runs on). It is an argument and never a variable, because a variable is exactly what pinning is
     // there to refuse.
@@ -169,7 +182,14 @@ export function gitTopLevel(dir) {
 export function gitDir(root) {
   const r = runGit(root, ["rev-parse", "--absolute-git-dir"]);
   const dir = r.stdout.replace(/\r?\n$/, "");
-  if (r.status !== 0 || !dir || !isAbsolute(dir)) throw new GitError(`git rev-parse --absolute-git-dir failed in ${root}: ${firstLine(r.stderr) || `exit ${r.status}`}`, r.status === 128 ? "not-a-repository" : "failed");
+  // Exit 128 is git's "I could not do that here", which covers a folder that is not a repository AND a repository
+  // it declines to open: a malformed line in .git/config, or an owner it does not trust (safe.directory). Only the
+  // first is "not a repository", so git's own words decide which of the two a caller is told about.
+  if (r.status !== 0 || !dir || !isAbsolute(dir)) {
+    const said = firstLine(r.stderr);
+    const notARepository = r.status === 128 && /not a git repository|detected dubious ownership|no such file or directory/i.test(said);
+    throw new GitError(`git rev-parse --absolute-git-dir failed in ${root}: ${said || `exit ${r.status}`}`, notARepository ? "not-a-repository" : "failed");
+  }
   return dir;
 }
 

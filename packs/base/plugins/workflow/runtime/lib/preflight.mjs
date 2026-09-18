@@ -472,7 +472,7 @@ const A_SIGNED_TOKEN = /\beyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]
 const WEAK_PREFIXES = /\b(sk|rk|pk|pat|key|token|secret|apikey)[_-][A-Za-z0-9_-]{8,}/gi;
 // A base64 secret is one run even across the / that a path breaks at, so it is read before anything else. The + or
 // the = padding is what tells it apart from a host and a path, which have neither.
-const BASE64_SECRET = /(?<![A-Za-z0-9+/=])(?:[A-Za-z0-9+/]{24,}={1,2}|[A-Za-z0-9/]*\+[A-Za-z0-9+/]{23,}={0,2})(?![A-Za-z0-9+/=])/g;
+const BASE64_SECRET = /(?<![A-Za-z0-9+/=])(?:[A-Za-z0-9+/]{16,}={1,2}|[A-Za-z0-9/]*\+[A-Za-z0-9+/]{23,}={0,2})(?![A-Za-z0-9+/=])/g;
 // Twenty-four or more of the characters a token is made of, with nothing in between: the base64url alphabet, which
 // is what most modern tokens use, so a hyphen or an underscore does not end the run the way a dot or a slash does.
 // Whether such a run is a secret or a name is then decided by its shape, below.
@@ -488,6 +488,9 @@ export function readsAsWords(run) {
   if (parts.some((part) => !part)) return false; // a doubled or trailing separator is not how names are written
   let hasAWord = false;
   for (const part of parts) {
+    // A long word is still a word: internationalization is twenty letters. Letters only, lower case only, and at
+    // least one letter outside the hexadecimal alphabet, which is what keeps deadbeefdeadbeefdeadbeef out of it.
+    if (/^[a-z]{4,40}$/.test(part) && /[g-z]/.test(part)) { hasAWord = true; continue; }
     const chunks = part.match(/[A-Z]{2,}(?![a-z])|[A-Z]?[a-z]+|\d+/g) ?? [];
     if (chunks.join("") !== part || chunks.length > 8) return false;
     // A number on its own (a date, a ticket) can be long; a number run together with letters is a year or a version

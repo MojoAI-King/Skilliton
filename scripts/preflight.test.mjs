@@ -384,6 +384,77 @@ test("a certificate check the environment asks to skip is still made, and a prox
   });
   assert.match(item(proxied.out, "github\\.com/acme/skills"), /https?_proxy is set in this session \(http:\/\/127\.0\.0\.1:9\)/i, proxied.out);
 });
+// The three pieces the calls above rest on, each measured on its own, because a fix with no test of its own is a
+// fix the next change can remove without anything going red. Each of these was removed once, on a copy of the tree,
+// and this file stayed green: that is what these cases are for.
+test("the home a git call is pinned to comes from the system, not from HOME", async () => {
+  const { gitEnvironment, realHome } = await import(pathToFileURL(join(ROOT, "packs/base/plugins/workflow/runtime/lib/journal.mjs")).href);
+  const system = realHome();
+  if (system.problem) return; // a container with no record for this user: the check says so, and there is nothing to compare
+  const saved = { HOME: process.env.HOME, XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME };
+  try {
+    process.env.HOME = join(tmpdir(), "a-home-this-session-named");
+    process.env.XDG_CONFIG_HOME = join(tmpdir(), "a-config-folder-this-session-named");
+    const env = gitEnvironment({ pinHome: true });
+    assert.equal(env.HOME, system.home, "a git call that reaches a network took its home folder from HOME");
+    assert.notEqual(env.HOME, process.env.HOME, "the home folder in the environment was used, so pinning does nothing");
+    assert.equal(env.XDG_CONFIG_HOME, undefined, "a configuration folder named in the session survived pinning");
+    // And the other half: a local read is left alone, so a test that isolates itself with HOME still measures what it set up.
+    assert.equal(gitEnvironment().HOME, process.env.HOME, "a local read had its home folder changed, which would make what a test measures depend on the machine it runs on");
+  } finally {
+    for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+  }
+});
+
+test("a proxy is named by its address only, never by what is in front of the address", async () => {
+  const { proxyAddress, proxyInUse } = await import(pathToFileURL(join(ROOT, "packs/base/plugins/workflow/runtime/lib/journal.mjs")).href);
+  // Fabricated values, not anyone's: a proxy is often written with a password in it, with or without a scheme, and
+  // this address is printed in a line the report tells the person to hand to whoever manages their machines.
+  for (const [value, address] of [
+    ["http://proxyuser:S3cretWinter2026@proxy.example:3128", "http://proxy.example:3128"],
+    ["proxyuser:S3cretWinter2026@127.0.0.1:9", "127.0.0.1:9"],
+    ["http://user:pa/ss@proxy.example:3128", "http://proxy.example:3128"],
+    ["socks5://user:pw@host.example:1080", "socks5://host.example:1080"],
+    ["https://proxy.example:443", "https://proxy.example:443"],
+  ]) {
+    assert.equal(proxyAddress(value), address);
+    assert.doesNotMatch(proxyAddress(value), /S3cretWinter2026|:pw@|pa\/ss/, `a credential survived in ${value}`);
+  }
+  assert.deepEqual(Object.keys(proxyInUse({ HTTPS_PROXY: "http://u:p@h:1" })).sort(), ["name", "where"], "the value itself is carried out of proxyInUse, and a value on an object is a value something later prints");
+});
+
+test("the variables a project must not be able to hand a git call are taken out, each one named here", async () => {
+  const { gitEnvironment } = await import(pathToFileURL(join(ROOT, "packs/base/plugins/workflow/runtime/lib/journal.mjs")).href);
+  // Written out rather than read from the runtime's own list: a test that walks the list it is checking passes just
+  // as happily when the list gets shorter, which is how five of these were once removed with nothing going red.
+  const always = [
+    "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE",
+    "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0",
+    "GIT_PROXY_COMMAND", "GIT_SSH_COMMAND", "GIT_SSH", "GIT_ALLOW_PROTOCOL", "GIT_EXTERNAL_DIFF", "GIT_TEXTCONV", "GIT_EXEC_PATH",
+    "GIT_ASKPASS", "SSH_ASKPASS", "SSH_ASKPASS_REQUIRE", "GIT_EDITOR", "GIT_SEQUENCE_EDITOR", "GIT_PAGER", "GIT_TEMPLATE_DIR",
+    "GIT_SSL_NO_VERIFY", "GIT_SSL_CAINFO", "GIT_SSL_CAPATH", "GIT_SSL_CERT", "GIT_SSL_KEY", "GIT_SSL_VERSION", "GIT_SSL_CIPHER_LIST",
+    "GIT_LITERAL_PATHSPECS", "GIT_ICASE_PATHSPECS", "GIT_GLOB_PATHSPECS", "GIT_NOGLOB_PATHSPECS",
+  ];
+  // Taken out only on the call that reaches a network: on a local read they change what is printed, not what is
+  // true, and a person debugging with GIT_TRACE should get their trace.
+  const networkOnly = ["GIT_CONFIG_NOSYSTEM", "GIT_ATTR_NOSYSTEM", "GIT_CURL_VERBOSE", "GIT_REDIRECT_STDERR", "GIT_REDIRECT_STDOUT", "GIT_TRACE", "GIT_TRACE_CURL"];
+  const saved = { ...process.env };
+  try {
+    for (const name of [...always, ...networkOnly]) process.env[name] = "planted";
+    const local = gitEnvironment();
+    const network = gitEnvironment({ pinHome: true });
+    for (const name of always) {
+      assert.equal(local[name], undefined, `${name} survived a local git call`);
+      assert.equal(network[name], undefined, `${name} survived a git call that reaches a network`);
+    }
+    for (const name of networkOnly) {
+      assert.equal(network[name], undefined, `${name} survived a git call that reaches a network`);
+      assert.equal(local[name], "planted", `${name} was taken out of a local read, where it only changes what is printed and where a person may be using it to see why something fails`);
+    }
+  } finally {
+    for (const name of [...always, ...networkOnly]) { if (saved[name] === undefined) delete process.env[name]; else process.env[name] = saved[name]; }
+  }
+});
 
 test("a program that never answers is stopped with its children, and the check finishes", (t) => {
   if (process.platform === "win32") return t.skip("process groups work differently on Windows");
@@ -433,6 +504,7 @@ const CREDENTIALS = [
   ["an identifier used as a key", "550e8400-e29b-41d4-a716-446655440000", /446655440000/],
   ["a key that names its environment", "rk_live_51H8xYzAbCdEfGhIjKlMnOp", /51H8xYzAbCdEfGhIjKlMnOp/],
   ["a twenty-character key", "Xk3mQ9pZr2vTn8Lw4Bd7", /Xk3mQ9pZr2vTn8Lw4Bd7/],
+  ["a short base64 value with its padding", "dXNlcjpwYXNzd29yZA==", /dXNlcjpwYXNzd29yZA/],
 ];
 const ORDINARY = [
   "pat-experiments-2026-09",
@@ -459,6 +531,9 @@ const ORDINARY = [
   "feature-add-preflight-check-12345",
   "/srv/git/INFRASTRUCTURE-MIGRATION-2026",
   "/opt/app_test_fixtures/skills",
+  "/srv/internationalization/repo",
+  "/opt/infrastructureprovisioning/skills",
+  "acme/institutionalization",
 ];
 
 test("a token pasted into a marketplace value is never printed back", () => {
