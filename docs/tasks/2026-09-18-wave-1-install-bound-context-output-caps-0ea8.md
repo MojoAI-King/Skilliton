@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-18-wave-1-install-bound-context-output-caps-0ea8
-- **State:** in-progress
+- **State:** merged
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-19T02:50:06.648Z
+- **Updated:** 2026-09-19T02:56:47.724Z
 
 ## Request
 
