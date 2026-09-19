@@ -23,17 +23,22 @@ A prepared project gets:
     README files pointing at "skilliton security status"
   - the harness block in CLAUDE.md and AGENTS.md, the same block "harness --apply" writes; text outside it is kept
   - two .gitignore lines, for the lock file and .skilliton/private-evidence/
+  - drafts, read from what the repository shows and never run: dispatch.laneTestCommand from the build files
+    (package.json scripts, pytest, go.mod, Cargo.toml, Makefile), dispatch.laneRoot from the folder name,
+    dispatch.hotspots from the last 200 commits (once there are 10 or more), and, when a test command was detected,
+    .skilliton/delivery.draft.json with that one check; "skilliton delivery confirm --apply" turns the draft into
+    the policy. A dispatch value already set is kept. When nothing is detected the plan says so.
 
---apply takes .skilliton/prepare.lock, rechecks each file immediately before replacing it, backs up every file it
+--apply shows the plan first, then takes .skilliton/prepare.lock, rechecks each file immediately before replacing it, backs up every file it
 changes into <git folder>/skilliton-backups/<id>/ (never committed), and on a failure rolls back what it wrote,
 except a file someone else changed meanwhile, which is kept and named. Repeating --apply on a prepared project
 changes nothing. A project prepared by the standalone prototype (layout 1) is refused: run migrate instead.
 
-Exit codes: 0 complete (for --check: nothing missing or outdated); 1 --check found something missing or outdated, or
+Exit codes: 0 complete (for --check: nothing missing or outdated; a draft counts as neither); 1 --check found something missing or outdated, or
 a layout-1 project waits for its migration; 2 refused, nothing written; 3 operation failed (the output says what was
 rolled back).`;
 
-const VERBS = { create: ["create", "created"], update: ["update", "updated"], adopt: ["adopt", "adopted"], current: ["current", "current"], migrate: ["migrate", "migrate"] };
+const VERBS = { create: ["create", "created"], update: ["update", "updated"], adopt: ["adopt", "adopted"], current: ["current", "current"], migrate: ["migrate", "migrate"], draft: ["draft", "drafted"] };
 
 function printItems(items, past) {
   const width = Math.min(44, Math.max(...items.map((i) => i.path.length)));
@@ -62,7 +67,7 @@ export async function run(argv) {
       return 1;
     }
     const count = (action) => plan.items.filter((i) => i.action === action).length;
-    const counts = { create: count("create"), update: count("update"), adopt: count("adopt"), current: count("current"), migrate: count("migrate") };
+    const counts = { create: count("create"), update: count("update"), adopt: count("adopt"), current: count("current"), migrate: count("migrate"), draft: count("draft") };
     const details = (extra = {}) => ({
       root, mode, layoutVersion: plan.project.layoutVersion, targetLayout: LAYOUT_VERSION, runtime: plan.runtimeVersion,
       files: plan.items.map((i) => ({ path: i.path, action: i.action, description: i.what })), notes: plan.notes, written: false, backup: null, ...extra,
@@ -74,14 +79,14 @@ export async function run(argv) {
       say("");
     };
     const printNotes = () => { if (plan.notes.length) { say(""); for (const n of plan.notes) say(`Note: ${n}`); } };
-    const tally = `${counts.create} to create, ${counts.update} to update, ${counts.adopt} adopted as they are, ${counts.current} already current`;
+    const tally = `${counts.create} to create, ${counts.update} to update, ${counts.adopt} adopted as they are, ${counts.current} already current, ${counts.draft} drafted`;
 
     if (mode === "preview" || mode === "check") {
-      const incomplete = plan.changes.length > 0 || counts.migrate > 0;
+      const incomplete = mode === "check" ? counts.create + counts.update + counts.migrate > 0 : plan.changes.length > 0 || counts.migrate > 0;
       const migrateNote = counts.migrate ? `; ${counts.migrate} instruction block(s) wait for: ${selfCommand()} migrate${dirArg}` : "";
       let summary;
       if (mode === "preview") summary = plan.changes.length ? `${tally}${migrateNote}; nothing written. To write it: ${selfCommand()} prepare --apply${dirArg}` : counts.migrate ? `nothing for prepare to write${migrateNote}` : `the project is prepared (layout ${LAYOUT_VERSION}); nothing to change, nothing written.`;
-      else summary = incomplete ? `setup incomplete: ${counts.create} missing, ${counts.update} outdated${migrateNote}; nothing written.${plan.changes.length ? ` To fix it: ${selfCommand()} prepare --apply${dirArg}` : ""}` : `prepared (layout ${LAYOUT_VERSION}); nothing missing or outdated. This checks the prepared files only, not security evidence or application behavior.`;
+      else summary = incomplete ? `setup incomplete: ${counts.create} missing, ${counts.update} outdated${migrateNote}; nothing written.${plan.changes.length ? ` To fix it: ${selfCommand()} prepare --apply${dirArg}` : ""}` : `prepared (layout ${LAYOUT_VERSION}); nothing missing or outdated${counts.draft ? ` (${counts.draft} draft(s) wait for: ${selfCommand()} prepare --apply${dirArg}; a draft is never missing)` : ""}. This checks the prepared files only, not security evidence or application behavior.`;
       if (json) { emit(mode === "check" && incomplete ? "attention" : "complete", summary, details()); return mode === "check" && incomplete ? 1 : 0; }
       header();
       printItems(plan.items, false);
@@ -102,20 +107,19 @@ export async function run(argv) {
       return 0;
     }
 
+    // The plan is shown before anything is written, so the person sees what --apply is about to do even when it fails.
+    if (!json) { header(); printItems(plan.items, false); say(""); say(`Writing ${plan.changes.length} file(s) ...`); say(""); }
     let result;
     try { result = applyChanges({ root, gitDir: repo.gitDir, command: "prepare", changes: plan.changes }); } catch (e) {
       if (!(e instanceof TransactionFailed)) throw e;
       const failure = describeFailure("prepare", e);
       if (json) { emit(failure.result, failure.lines.join(" "), details({ written: e.written.length > 0, rolledBack: e.restored, notRolledBack: e.kept, rollbackComplete: e.rollbackComplete, backup: e.backupDir ? { path: e.backupDir } : null })); return failure.exit; }
-      header();
-      printItems(plan.items, false);
-      say("");
       for (const line of failure.lines) console.error(line);
       return failure.exit;
     }
-    const summary = `prepared (layout ${LAYOUT_VERSION}): ${counts.create} created, ${counts.update} updated, ${counts.adopt} adopted as they were, ${counts.current} already current. Created records say "not yet assessed" until a person fills them in, and security evidence starts missing (${selfCommand()} security status).`;
+    const summary = `prepared (layout ${LAYOUT_VERSION}): ${counts.create} created, ${counts.update} updated, ${counts.adopt} adopted as they were, ${counts.current} already current, ${counts.draft} drafted. Created records say "not yet assessed" until a person fills them in, and security evidence starts missing (${selfCommand()} security status).${counts.draft ? ` A draft is what prepare read from the repository; review it before relying on it.` : ""}`;
     if (json) { emit("complete", summary, details({ written: true, backup: result.backupDir ? { id: result.backupId, path: result.backupDir } : null })); return 0; }
-    header();
+    say("Written:");
     printItems(plan.items, true);
     printNotes();
     say("");

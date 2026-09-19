@@ -31,7 +31,8 @@ Kind: Living. Where Skilliton has and has not actually been run: platforms, vers
 ## Machine setup (`join`)
 
 - Exercised: `join` and `join --undo` on clean Claude Code 2.1.273 and Codex 0.154.0-alpha.6.2 homes with a signed release, a marketplace and plugin installed by hand beforehand, a repeat, and three refusals (machine rehearsal J1 to J7); stand-in clients in CI (`scripts/join.test.mjs`: failure part way, changed launcher and signers, several receipts).
-- Not exercised: the launcher from a real shell session with `~/.local/bin` on PATH (the rehearsal runs it by path); shells other than `/bin/sh` starting it; a person's existing Claude Code or Codex configuration; several companies joined on one real machine; Windows.
+- Exercised: the launcher resolved from a real Claude Code session's Bash tool on this machine, and the plugin `bin/` folders on the PATH of a session started after the install (`evidence/live/2026-09-19-which-skilliton-in-a-session.md`, `evidence/live/2026-09-19-path-in-a-new-session.md`); the Windows `skilliton.cmd` launcher's content and undo, with the platform injected (`scripts/join.test.mjs`).
+- Not exercised: shells other than `/bin/sh` starting the launcher; a person's existing Claude Code or Codex configuration; several companies joined on one real machine; anything run on Windows (the `.cmd` file has never been executed there).
 - Not exercised: passphrase-protected keys, ssh-agent, third-party signing programs; a present `.agents/plugins/marketplace.json` (the Codex catalog path, its path-mismatch refusal and `clients.codex` recording); `release create` with evidence of kind `skill-evaluation` or `other`; which cached version Codex loads when several are cached; whether a client's marketplace clone holds release tags.
 
 ## Endpoint security: the allow list, the footprint and the preflight check (M12)

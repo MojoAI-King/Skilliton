@@ -903,3 +903,53 @@ test("mutation checks: the assertions above fail when the gate ignores a failing
     assert.match(unsignedUnderReal.all, /without an approver signature: the commit is not signed/);
   });
 });
+
+test("confirm: the preview writes nothing, --apply moves the draft, and no draft, an existing policy or an invalid draft are refused", async () => {
+  await withSandbox("confirm", async (sb) => {
+    const dir = sb.path("app");
+    mkdirSync(dir);
+    gitOk(sb, dir, "init", "-q", "-b", "main");
+    const draft = { ...POLICY, checks: [{ name: "tests", command: ["node", "--test"], timeoutSeconds: 600 }] };
+    const draftFile = ".skilliton/delivery.draft.json";
+
+    const none = cli(sb, ["delivery", "confirm", "--dir", dir]);
+    assert.equal(none.code, 2, none.all);
+    assert.match(none.all, /no draft to confirm: \.skilliton\/delivery\.draft\.json does not exist \(prepare writes it when a test command is detected\)\..*Nothing was written/);
+
+    writeFiles(dir, { [draftFile]: draft });
+    const preview = cli(sb, ["delivery", "confirm", "--dir", dir]);
+    assert.equal(preview.code, 0, preview.all);
+    assert.match(preview.stdout, /delivery confirm \(preview\)/);
+    assert.match(preview.stdout, /protected branches: main/);
+    assert.match(preview.stdout, /check "tests": node --test \(timeout 600s\)/);
+    assert.match(preview.stdout, /Summary: nothing written; add --apply to move the draft to \.skilliton\/delivery\.json\./);
+    assert.equal(existsSync(join(dir, draftFile)), true);
+    assert.equal(existsSync(join(dir, POLICY_FILE)), false);
+
+    const applied = cli(sb, ["delivery", "confirm", "--dir", dir, "--apply"]);
+    assert.equal(applied.code, 0, applied.all);
+    assert.match(applied.stdout, /Summary: confirmed: \.skilliton\/delivery\.draft\.json moved to \.skilliton\/delivery\.json\. Commit it to the default branch/);
+    assert.equal(existsSync(join(dir, draftFile)), false);
+    assert.deepEqual(JSON.parse(readFileSync(join(dir, POLICY_FILE), "utf8")), draft);
+
+    writeFiles(dir, { [draftFile]: draft });
+    const exists = cli(sb, ["delivery", "confirm", "--dir", dir, "--apply"]);
+    assert.equal(exists.code, 2, exists.all);
+    assert.match(exists.all, /\.skilliton\/delivery\.json already exists, so there is nothing to confirm; remove \.skilliton\/delivery\.draft\.json by hand if it is stale\. Nothing was written/);
+    assert.equal(existsSync(join(dir, draftFile)), true, "the stale draft is left alone");
+
+    rmSync(join(dir, POLICY_FILE));
+    writeFiles(dir, { [draftFile]: { ...draft, checks: [] , policyPaths: ["nope/"] } });
+    const invalid = cli(sb, ["delivery", "confirm", "--dir", dir, "--apply"]);
+    assert.equal(invalid.code, 2, invalid.all);
+    assert.match(invalid.all, /\.skilliton\/delivery\.draft\.json is not a valid delivery policy, so it cannot be confirmed: .*policyPaths.*Nothing was written/);
+    assert.equal(existsSync(join(dir, POLICY_FILE)), false);
+
+    const plain = cli(sb, ["delivery", "confirm", "extra", "--dir", dir]);
+    assert.equal(plain.code, 2, plain.all);
+    assert.match(plain.all, /delivery confirm takes no plain arguments/);
+    const wrongOption = cli(sb, ["delivery", "confirm", "--bare", dir]);
+    assert.equal(wrongOption.code, 2, wrongOption.all);
+    assert.match(wrongOption.all, /--bare does not apply to delivery confirm/);
+  });
+});

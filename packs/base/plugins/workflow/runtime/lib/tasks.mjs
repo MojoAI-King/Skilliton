@@ -86,7 +86,7 @@ export function checkTaskId(id) {
 
 // ---------- rendering ----------
 
-export function renderTask({ id, title, state = "in-progress", branch, owner, updated, criteria = [] }) {
+export function renderTask({ id, title, state = "in-progress", branch, owner, updated, request = null, criteria = [] }) {
   return [
     `# Task: ${title}`, "",
     "Kind: Living. Task record.", "",
@@ -95,7 +95,7 @@ export function renderTask({ id, title, state = "in-progress", branch, owner, up
     `- **Branch:** ${branch}`,
     `- **Owner:** ${owner}`,
     `- **Updated:** ${updated}`, "",
-    "## Request", "", NOT_WRITTEN, "",
+    "## Request", "", request ?? NOT_WRITTEN, "",
     "## Acceptance criteria", "", ...(criteria.length ? criteria.map((c) => `- [ ] ${c}`) : [NOT_WRITTEN]), "",
     "## Decisions", "", NOT_WRITTEN, "",
     "## Checkpoints", "",
@@ -377,8 +377,9 @@ function isLink(file) {
 
 // Creates a task record. Without apply nothing is written and the returned id is only an example (the last four hex
 // digits are drawn again when it is written). Returns { id, rel, content, written }.
-export function createTask(project, { title, criteria = [], branch, owner = "unassigned", state = "in-progress", at = new Date().toISOString() }, { apply = false } = {}) {
+export function createTask(project, { title, request = null, criteria = [], branch, owner = "unassigned", state = "in-progress", at = new Date().toISOString() }, { apply = false } = {}) {
   const cleanTitle = checkTitle(title);
+  const cleanRequest = request === null || request === undefined ? null : checkText(request, "--request");
   const cleanCriteria = criteria.map((c, i) => checkText(c, `--criteria number ${i + 1}`));
   const cleanBranch = checkBranch(branch);
   const cleanOwner = checkOwner(owner);
@@ -390,7 +391,7 @@ export function createTask(project, { title, criteria = [], branch, owner = "una
     const id = newId(cleanTitle, { fallback: "task" });
     const rel = taskRel(project, id);
     checkRecordPath(project.root, rel, "the task record");
-    return { id, rel, content: renderTask({ id, title: cleanTitle, state, branch: cleanBranch, owner: cleanOwner, updated: at, criteria: cleanCriteria }) };
+    return { id, rel, content: renderTask({ id, title: cleanTitle, state, branch: cleanBranch, owner: cleanOwner, updated: at, request: cleanRequest, criteria: cleanCriteria }) };
   };
   if (!apply) return { ...attempt(), written: false };
   mkdirSync(dir, { recursive: true });

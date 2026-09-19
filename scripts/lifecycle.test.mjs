@@ -214,6 +214,14 @@ test("task start, list, show, checkpoint and close round-trip with the exact fil
   assert.equal(current.code, 0, current.all);
   assert.ok(current.out.includes(`  ID:       ${id}`));
 
+  // M8's second increment: --request fills the Request section with the user's words; the criteria stay the assistant's.
+  git(p, ["checkout", "-q", "-b", "feature/reset"], env);
+  const withRequest = startTask(p, env, "Password reset", ["--request", "People keep asking how to reset their password", "--criteria", "A reset email arrives"]);
+  const requested = readFileSync(withRequest.file, "utf8");
+  assert.ok(requested.includes("## Request\n\nPeople keep asking how to reset their password\n\n## Acceptance criteria\n\n- [ ] A reset email arrives\n"), requested);
+  assert.equal(requested.includes("not yet written\n\n## Acceptance"), false);
+  git(p, ["checkout", "-q", "feature/sign-in"], env);
+
   writeFileSync(join(p, "src.js"), "work\n");
   const cpArgs = ["checkpoint", "--state", "Form renders", "--evidence", "npm test: 3 passed", "--next", "Add email validation"];
   const cpPreview = cli(p, cpArgs, env);
@@ -469,6 +477,8 @@ test("bad invocations are refused with exit 2 and write nothing", async () => wi
     [["task", "start", "Bad branch", "--branch", "has..dots", "--apply"], /not a usable branch name/],
     [["task", "start", "No criteria value", "--criteria"], /--criteria needs a value/],
     [["task", "list", "--owner", "someone"], /--owner is not used by task list/],
+    [["task", "list", "--request", "words"], /--request is not used by task list/],
+    [["task", "start", "Bad request", "--request", "line one\nline two", "--apply"], /--request must be one line/],
     [["task", "show", "not-an-id"], /is not a task id/],
     [["task", "show", "2026-01-01-nothing-here-abcd"], /there is no task 2026-01-01-nothing-here-abcd/],
     [["task", "close", "2026-01-01-nothing-here-abcd"], /task close needs --state/],
@@ -667,7 +677,7 @@ test("session-start names every missing piece and stays within handoff.maxBytes"
   expectLine(/^- Layout \(needs attention\): not prepared by Skilliton \(no prepare\.version/);
   // M8's first increment: the offer is made in plain words in the hook output, because a never-prepared repository has
   // no managed block to instruct the assistant, and a yes has its commands spelled out.
-  expectLine(/^- Not prepared \(needs attention\): offer it in plain words before other work: "This project is not set up for Skilliton yet\. .*Nothing is written until you say yes\." On a yes: skilliton prepare shows the change, skilliton prepare --apply writes it, then skilliton task start "<title>" --apply starts the first task$/);
+  expectLine(/^- Not prepared \(needs attention\): offer it in plain words before other work: "This project is not set up for Skilliton yet\. .*Nothing is written until you say yes\." On a yes, in this order: skilliton prepare shows the change; skilliton prepare --apply shows it again and writes it, drafting dispatch\.laneTestCommand, laneRoot and hotspots and a delivery policy draft from what the repository shows; then turn the user's first request into the first task with two to six proposed criteria: skilliton task start "<title>" --request "<the user's words>" --criteria "<criterion>" --apply$/);
   expectLine(HAS_MIGRATIONS ? /^- Pending migrations: none pending \(layout unknown, target 3\)$/ : /^- Pending migrations \(not run\): not available in this build \(runtime\/lib\/migrations\.mjs is not present\)$/);
   expectLine(new RegExp(`^- Versions: workflow runtime ${escape(INSTALLED)} installed; the project names no minimum version`));
   expectLine(/^- Records \(needs attention\): 9 of 9 missing: docs\/STATUS\.md \(status\), /);

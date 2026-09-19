@@ -9,9 +9,12 @@ export const help = `task: start, list, show, or close a task record. Each task 
 docs/tasks), named by a collision-free ID (YYYY-MM-DD-<slug>-<four hex digits>), so contributors on different
 branches never edit the same file to add a task.
 
-  task start "<title>" [--criteria "<text>" ...] [--branch <name>] [--owner <label>] [--dir <project>] [--apply]
-      Shows the record it would create; --apply writes it. The State starts as in-progress. --branch defaults to
-      the checked-out branch. --owner is a label, not an authenticated identity (default: unassigned).
+  task start "<title>" [--request "<the user's words>"] [--criteria "<text>" ...] [--branch <name>] [--owner <label>]
+             [--dir <project>] [--apply]
+      Shows the record it would create; --apply writes it. --request fills the Request section with what the user
+      asked for, in their words (one line); without it the section reads "not yet written". The State starts as
+      in-progress. --branch defaults to the checked-out branch. --owner is a label, not an authenticated identity
+      (default: unassigned).
   task list [--all] [--dir <project>]
       Open tasks (with --all, every task); the current task is marked with *. Unreadable records are named.
   task show [<id>] [--dir <project>]
@@ -22,8 +25,8 @@ branches never edit the same file to add a task.
 Exit codes: 0 complete; 1 attention (unreadable task records, no current task for task show, or more than one);
 2 invalid or refused (nothing was written); 3 operation failed.`;
 
-const VALUE_OPTIONS = ["--branch", "--owner", "--state", "--dir"];
-const ALLOWED = { start: ["apply", "branch", "owner", "dir", "criteria"], list: ["all", "dir"], show: ["dir"], close: ["apply", "state", "dir"] };
+const VALUE_OPTIONS = ["--branch", "--owner", "--state", "--dir", "--request"];
+const ALLOWED = { start: ["apply", "branch", "owner", "dir", "criteria", "request"], list: ["all", "dir"], show: ["dir"], close: ["apply", "state", "dir"] };
 
 // --criteria may be given more than once, which parseArgs refuses for an option, so it is collected first.
 function takeCriteria(argv) {
@@ -49,12 +52,12 @@ function takeCriteria(argv) {
 
 export async function run(argv) {
   const { values: criteria, rest } = takeCriteria(argv);
-  const o = parseArgs(rest, { flags: ["apply", "all"], options: ["branch", "owner", "state", "dir"] }, "task");
+  const o = parseArgs(rest, { flags: ["apply", "all"], options: ["branch", "owner", "state", "dir", "request"] }, "task");
   if (o.help) { say(help); return 0; }
   const [sub, ...args] = o._;
   if (!sub) refuse(`task needs a subcommand: start, list, show or close. Run: ${selfCommand()} task --help`);
   if (!Object.prototype.hasOwnProperty.call(ALLOWED, sub)) refuse(`unknown task subcommand "${sub}"; use start, list, show or close`);
-  for (const key of ["apply", "all", "branch", "owner", "state", "dir"]) {
+  for (const key of ["apply", "all", "branch", "owner", "state", "dir", "request"]) {
     if (o[key] !== undefined && !ALLOWED[sub].includes(key)) refuse(`--${key} is not used by task ${sub}`);
   }
   if (criteria.length && !ALLOWED[sub].includes("criteria")) refuse(`--criteria is not used by task ${sub}`);
@@ -74,7 +77,7 @@ async function start(args, o, criteria) {
   }
   branch = checkBranch(branch);
   const before = listTasks(project);
-  const plan = createTask(project, { title: args[0], criteria, branch, owner: o.owner ?? "unassigned" }, { apply: o.apply === true });
+  const plan = createTask(project, { title: args[0], request: o.request ?? null, criteria, branch, owner: o.owner ?? "unassigned" }, { apply: o.apply === true });
   const sameBranch = before.tasks.filter((t) => t.branch === branch);
   const notes = [];
   if (sameBranch.length) notes.push(`note: branch ${branch} already has ${sameBranch.length} open task(s) (${sameBranch.map((t) => t.id).join(", ")}); with more than one, the current task is ambiguous and a checkpoint needs --task <id>`);

@@ -235,6 +235,92 @@ test("a launcher that is not this company's is never overwritten", (t) => {
   assert.equal(receipt(ctx).launcher, null);
 });
 
+// The Windows launcher: written on win32 only (the platform is injected through SKILLITON_PLATFORM, so the plan is
+// tested here on every platform), pinned by content, recorded in the receipt, removed by undo. Running it needs
+// Windows, which is the owner pass in docs/WINDOWS.md.
+test("on win32 join also writes skilliton.cmd, records launcherCmd, and undo removes it", async (t) => {
+  const { launcherCmdText } = await import(join(ROOT, "packs", "base", "plugins", "workflow", "runtime", "lib", "join.mjs"));
+  const ctx = fixture(t);
+  const win = { SKILLITON_PLATFORM: "win32" };
+  const preview = sg(ctx, joinArgs(ctx), { env: win });
+  assert.equal(preview.code, 0, preview.all);
+  assert.match(preview.out, /will add {8}.*launcher-bin\/skilliton\.cmd, the same command for PowerShell and the Command Prompt/);
+  assert.equal(existsSync(ctx.bin), false, "the preview writes nothing");
+  const r = sg(ctx, [...joinArgs(ctx), "--apply"], { env: win });
+  assert.equal(r.code, 1, r.all);
+  assert.match(r.out, /wrote the Windows terminal command .*launcher-bin\/skilliton\.cmd/);
+  const text = readFileSync(join(ctx.bin, "skilliton.cmd"), "utf8");
+  assert.equal(text, launcherCmdText("acme", ctx.repo));
+  assert.ok(text.startsWith("@echo off\r\n"), "cmd.exe line endings");
+  assert.ok(text.includes(`node "${ctx.repo.replace(/\//g, "\\")}\\scripts\\skilliton.mjs" %*\r\n`), text);
+  assert.ok(text.includes("where node >nul 2>nul || (echo skilliton: node was not found on PATH."), text);
+  assert.ok(text.includes('if "%SKILLITON_SELF%"=="" set "SKILLITON_SELF=skilliton"'), text);
+  assert.ok(text.endsWith("exit /b %ERRORLEVEL%\r\n"), text);
+  assert.equal(readdirSync(ctx.bin).sort().join(","), "skilliton,skilliton.cmd", "the POSIX launcher is written too, for Git Bash");
+  const rec = receipt(ctx);
+  assert.deepEqual(rec.launcherCmd, { path: join(ctx.bin, "skilliton.cmd"), sha256: rec.launcherCmd.sha256, createdFolder: false });
+  assert.match(rec.launcherCmd.sha256, /^[0-9a-f]{64}$/);
+  const again = sg(ctx, [...joinArgs(ctx), "--apply"], { env: win });
+  assert.equal(again.code, 1, again.all);
+  assert.match(again.out, /already in place {2}.*launcher-bin\/skilliton\.cmd/);
+  assert.equal(readFileSync(join(ctx.bin, "skilliton.cmd"), "utf8"), text, "a repeat leaves it byte for byte");
+
+  const undoPreview = sg(ctx, ["join", "--undo", "--company", "acme"], { env: win });
+  assert.equal(undoPreview.code, 0, undoPreview.all);
+  assert.match(undoPreview.out, /Windows terminal command: will remove .*launcher-bin\/skilliton\.cmd/);
+  const undo = sg(ctx, ["join", "--undo", "--company", "acme", "--apply"], { env: win });
+  assert.equal(undo.code, 0, undo.all);
+  assert.match(undo.out, /removed the Windows terminal command/);
+  assert.equal(existsSync(ctx.bin), false, "both launchers and the folder join created are gone");
+});
+
+test("a skilliton.cmd that is not this company's is never overwritten, and undo keeps one changed after join", (t) => {
+  const ctx = fixture(t);
+  const win = { SKILLITON_PLATFORM: "win32" };
+  mkdirSync(ctx.bin, { recursive: true });
+  writeFileSync(join(ctx.bin, "skilliton.cmd"), "@echo someone else\r\n");
+  const r = sg(ctx, [...joinArgs(ctx), "--apply"], { env: win });
+  assert.equal(r.code, 1, r.all);
+  assert.match(r.out, /not written: .*skilliton\.cmd already exists and is not this company's launcher/);
+  assert.match(r.out, /the terminal command was not written/);
+  assert.equal(readFileSync(join(ctx.bin, "skilliton.cmd"), "utf8"), "@echo someone else\r\n");
+  assert.equal(receipt(ctx).launcherCmd, null);
+  assert.equal(receipt(ctx).launcher.path, join(ctx.bin, "skilliton"), "the POSIX launcher is still written");
+  assert.equal(sg(ctx, ["join", "--undo", "--company", "acme", "--apply"], { env: win }).code, 0);
+  assert.equal(readFileSync(join(ctx.bin, "skilliton.cmd"), "utf8"), "@echo someone else\r\n", "undo never touches a file the receipt does not record");
+
+  const ctx2 = fixture(t);
+  assert.equal(sg(ctx2, [...joinArgs(ctx2), "--apply"], { env: win }).code, 1);
+  writeFileSync(join(ctx2.bin, "skilliton.cmd"), "@echo mine\r\n");
+  const undo = sg(ctx2, ["join", "--undo", "--company", "acme", "--apply"], { env: win });
+  assert.equal(undo.code, 1, undo.all);
+  assert.match(undo.out, /launcher-bin\/skilliton\.cmd, because it changed after join/);
+  assert.equal(readFileSync(join(ctx2.bin, "skilliton.cmd"), "utf8"), "@echo mine\r\n");
+});
+
+test("off Windows nothing named skilliton.cmd is written, a receipt without launcherCmd still undoes, and a wrong launcherCmd is refused", (t) => {
+  const ctx = fixture(t);
+  assert.equal(sg(ctx, [...joinArgs(ctx), "--apply"], { env: { SKILLITON_PLATFORM: "darwin" } }).code, 1);
+  assert.deepEqual(readdirSync(ctx.bin), ["skilliton"]);
+  assert.equal(receipt(ctx).launcherCmd, null);
+  const rec = receipt(ctx);
+  delete rec.launcherCmd;
+  writeFileSync(join(ctx.joined, "acme.json"), `${JSON.stringify(rec, null, 2)}\n`);
+  assert.equal(sg(ctx, ["join", "--undo", "--company", "acme", "--apply"]).code, 0, "a receipt written before launcherCmd existed is still valid");
+
+  const ctx2 = fixture(t);
+  assert.equal(sg(ctx2, [...joinArgs(ctx2), "--apply"]).code, 1);
+  const victim = join(ctx2.base, "victim.txt");
+  writeFileSync(victim, "keep me\n");
+  const rec2 = receipt(ctx2);
+  rec2.launcherCmd = { path: victim, sha256: "0".repeat(64), createdFolder: false };
+  writeFileSync(join(ctx2.joined, "acme.json"), `${JSON.stringify(rec2, null, 2)}\n`);
+  const r = sg(ctx2, ["join", "--undo", "--company", "acme", "--apply"]);
+  assert.equal(r.code, 2, r.all);
+  assert.match(r.all, /not a valid join receipt .*launcherCmd/);
+  assert.equal(readFileSync(victim, "utf8"), "keep me\n");
+});
+
 test("a client command that fails part way exits 3 with an accurate receipt, and undo cleans up", (t) => {
   const ctx = fixture(t);
   const r = sg(ctx, [...joinArgs(ctx), "--apply"], { env: { STANDIN_FAIL: "install guardrails" } });

@@ -21,7 +21,7 @@
 
 import { chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import {
   PLUGIN_ROOT, HARNESS_FILES, Refused, refuse, isPlainObject, clone, sameJson, tilde, argPath, which, runProgram,
   cmpVersion, planHarnessFile, readHarnessTemplate, HARNESS_TEMPLATE, readPluginVersion, selfCommand,
@@ -32,6 +32,8 @@ import {
   entryFolderReadme, gitignoreWithSkilliton, recordTemplate, recordsReadme, securityReadme,
 } from "./project-files.mjs";
 import { NO_REPOSITORY_PROGRAMS, gitEnvironment } from "./journal.mjs";
+import { DEFAULT_SKIP, detectStack, hotspots } from "./stack.mjs";
+import { DEFAULT_TIMEOUT_SECONDS, DRAFT_FILE, POLICY_FILE, POLICY_SCHEMA } from "./delivery.mjs";
 import { PROTOTYPE_RUNTIME_PATH } from "./prototype-v1.mjs";
 import { LEGACY_CONFIG_REL, LEGACY_NAME, LEGACY_PROJECT_DIR } from "./legacy-names.mjs";
 
@@ -416,9 +418,42 @@ export function prototypeContent(root, project) {
 
 const describeSource = (source) => (source === "config" ? "named in .skilliton/config.json" : "found at a conventional path");
 
-// The next .skilliton/config.json object: existing keys kept in place, unknown keys kept, and the prepare keys set.
-function nextConfig(project, runtimeVersion) {
+// The dispatch fields prepare drafts from what the repository shows (docs/CONTRACTS.md section 2): the lane test
+// command from the build files, the lane root from the folder name, the hotspots from the commit history. A key
+// already set (non-null) in config.dispatch is kept and listed; a missing or null key is drafted. Nothing is run.
+// fields: [{ key, value, source }]; kept: [key]; reasons: what was not drafted and why; test: the detected command.
+export const MIN_COMMITS_FOR_HOTSPOTS = 10;
+export function draftDispatch(root, project) {
+  const dispatch = isPlainObject(project.config.dispatch) ? project.config.dispatch : {};
+  const has = (key) => dispatch[key] !== undefined && dispatch[key] !== null;
+  const fields = [], kept = [], reasons = [];
+  const stack = detectStack(root);
+  if (has("laneTestCommand")) kept.push("laneTestCommand");
+  else if (stack.test) fields.push({ key: "laneTestCommand", value: stack.test.lane, source: stack.test.source });
+  else reasons.push(`${stack.reason}, so dispatch.laneTestCommand was not drafted; set it by hand in ${CONFIG_REL}`);
+  if (has("laneRoot")) kept.push("laneRoot");
+  else fields.push({ key: "laneRoot", value: `../${basename(root)}-lanes`, source: "the repository folder name" });
+  if (has("hotspots")) kept.push("hotspots");
+  else {
+    const skip = Array.isArray(dispatch.mainOnlyPaths) && dispatch.mainOnlyPaths.every((p) => typeof p === "string") ? dispatch.mainOnlyPaths : DEFAULT_SKIP;
+    const hot = hotspots(root, { skip });
+    if (hot.commitsSeen < MIN_COMMITS_FOR_HOTSPOTS) reasons.push(`dispatch.hotspots needs at least ${MIN_COMMITS_FOR_HOTSPOTS} commits to tell recurring paths apart (${hot.commitsSeen === 0 ? hot.reason : `the repository has ${hot.commitsSeen}`}); prepare drafts it once the history is longer`);
+    else if (!hot.paths.length) reasons.push(`dispatch.hotspots was not drafted: ${hot.reason}`);
+    else fields.push({ key: "hotspots", value: hot.paths, source: `the paths changed most often in the last ${hot.commitsSeen} commits` });
+  }
+  return { fields, kept, reasons, test: stack.test };
+}
+
+const showValue = (value) => JSON.stringify(value);
+
+// The next .skilliton/config.json object: existing keys kept in place, unknown keys kept, the prepare keys set and
+// the drafted dispatch fields added.
+function nextConfig(project, runtimeVersion, draft = { fields: [] }) {
   const config = clone(project.config);
+  if (draft.fields.length) {
+    const dispatch = isPlainObject(config.dispatch) ? config.dispatch : (config.dispatch = {});
+    for (const field of draft.fields) dispatch[field.key] = clone(field.value);
+  }
   const prepare = isPlainObject(config.prepare) ? config.prepare : (config.prepare = {});
   prepare.version = LAYOUT_VERSION;
   const artifacts = isPlainObject(prepare.artifacts) ? prepare.artifacts : (prepare.artifacts = {});
@@ -434,7 +469,9 @@ function nextConfig(project, runtimeVersion) {
   return config;
 }
 
-function configChanges(before, after) {
+// The changes between two config objects, in words. { lines: string[], drafts: number, others: number }: drafts counts
+// the drafted dispatch fields, others every other change, so the caller can tell a draft-only update apart.
+function configChanges(before, after, draft = { fields: [], kept: [] }) {
   const notes = [];
   const b = isPlainObject(before.prepare) ? before.prepare : {}, a = after.prepare;
   if (b.version !== a.version) notes.push(`prepare.version ${b.version ?? "absent"} to ${a.version}`);
@@ -442,7 +479,22 @@ function configChanges(before, after) {
   if (!sameJson(b.directories, a.directories)) notes.push("prepare.directories lists the entry folders");
   if (!sameJson(b.requires, a.requires)) notes.push(`prepare.requires.workflow ${a.requires.workflow}`);
   if (!sameJson(before.handoff, after.handoff)) notes.push(`handoff.file ${after.handoff.file}`);
-  return notes.join("; ");
+  const others = notes.length;
+  for (const field of draft.fields) notes.push(`dispatch.${field.key} ${showValue(field.value)} drafted from ${field.source}`);
+  for (const key of draft.kept) notes.push(`dispatch.${key} kept as set`);
+  return { lines: notes, drafts: draft.fields.length, others };
+}
+
+// The delivery policy draft prepare writes when a test command was detected (docs/CONTRACTS.md section 14): one
+// check, the first integration branch protected, the policy paths the delivery help names. Never run until a person
+// confirms it with skilliton delivery confirm --apply.
+export function deliveryDraft(project, test) {
+  return {
+    schema: POLICY_SCHEMA,
+    protectedBranches: [project.integrationBranches[0]],
+    checks: [{ name: "tests", command: [...test.argv], timeoutSeconds: DEFAULT_TIMEOUT_SECONDS }],
+    policyPaths: [POLICY_FILE, ".github/workflows/", ".github/CODEOWNERS", "CODEOWNERS"],
+  };
 }
 
 // Everything prepare would do, without writing. items: [{ path, action: "create" | "update" | "adopt" | "current",
@@ -524,12 +576,25 @@ export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLU
   }
 
   const configInfo = inspectPath(root, CONFIG_REL);
-  const next = nextConfig(project, runtimeVersion);
-  if (project.configExists && sameJson(next, project.config)) add(CONFIG_REL, "current", `layout ${LAYOUT_VERSION}, every record role, the entry folders and requires workflow ${next.prepare.requires.workflow} are already set`);
-  else {
-    const what = project.configExists ? `${configChanges(project.config, next)}; every other key is kept` : `layout ${LAYOUT_VERSION}, every record role, the entry folders, requires workflow ${next.prepare.requires.workflow}`;
-    add(CONFIG_REL, project.configExists ? "update" : "create", what, configInfo.exists ? readPath(root, CONFIG_REL) : null, Buffer.from(JSON.stringify(next, null, 2) + "\n", "utf8"));
+  const draft = draftDispatch(root, project);
+  const next = nextConfig(project, runtimeVersion, draft);
+  const draftedWords = draft.fields.map((f) => `dispatch.${f.key} ${showValue(f.value)} drafted from ${f.source}`);
+  if (project.configExists && sameJson(next, project.config)) add(CONFIG_REL, "current", `layout ${LAYOUT_VERSION}, every record role, the entry folders and requires workflow ${next.prepare.requires.workflow} are already set${draft.kept.length ? `; dispatch.${draft.kept.join(", dispatch.")} kept as set` : ""}`);
+  else if (!project.configExists) {
+    add(CONFIG_REL, "create", `layout ${LAYOUT_VERSION}, every record role, the entry folders, requires workflow ${next.prepare.requires.workflow}${draftedWords.length ? `; ${draftedWords.join("; ")}` : ""}`, null, Buffer.from(JSON.stringify(next, null, 2) + "\n", "utf8"));
+  } else {
+    const changes = configChanges(project.config, next, draft);
+    // An update that only adds drafted fields is a draft: prepare --check does not count it as outdated.
+    add(CONFIG_REL, changes.others ? "update" : "draft", `${changes.lines.join("; ")}; every other key is kept`, readPath(root, CONFIG_REL), Buffer.from(JSON.stringify(next, null, 2) + "\n", "utf8"));
   }
+  for (const reason of draft.reasons) notes.push(`${reason}.`);
+
+  const policyInfo = inspectPath(root, POLICY_FILE), draftInfo = inspectPath(root, DRAFT_FILE);
+  if (draft.test && !policyInfo.exists && !draftInfo.exists) {
+    add(DRAFT_FILE, "draft", `delivery policy draft with one check "tests" (${draft.test.lane}) from ${draft.test.source}; never run until confirmed with: ${selfCommand()} delivery confirm --apply`, null, Buffer.from(JSON.stringify(deliveryDraft(project, draft.test), null, 2) + "\n", "utf8"));
+  } else if (draft.test && policyInfo.exists) add(POLICY_FILE, "adopt", "delivery policy already present; left exactly as it is, no draft written");
+  else if (draft.test && draftInfo.exists) add(DRAFT_FILE, "adopt", `delivery policy draft already present; left exactly as it is. Review it, then: ${selfCommand()} delivery confirm --apply`);
+  else if (!draft.test && !policyInfo.exists && !draftInfo.exists) notes.push(`No delivery policy draft was written (no test command was detected); write ${POLICY_FILE} by hand, see: ${selfCommand()} delivery --help.`);
 
   const seen = new Map();
   for (const item of items) {
@@ -543,5 +608,5 @@ export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLU
     if (bytes && bytes.includes(PROTOTYPE_RUNTIME_PATH)) notes.push(`${rel} still tells people to run ${PROTOTYPE_RUNTIME_PATH}, which layout 2 does not have; replace that text by hand with skilliton security status (prepare never rewrites a file it adopted).`);
   }
 
-  return { project, root, runtimeVersion, items, notes, changes: items.filter((i) => i.action === "create" || i.action === "update") };
+  return { project, root, runtimeVersion, items, notes, draft, changes: items.filter((i) => i.action === "create" || i.action === "update" || i.action === "draft") };
 }

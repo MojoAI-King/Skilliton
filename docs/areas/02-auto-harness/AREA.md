@@ -9,7 +9,7 @@ Kind: Living. Area record. One of the ten areas in docs/REPORT_CARD.md; the batc
 - **What A- means here:** One yes at session start prepares the repository, drafts the delivery policy from the detected test command for a person to confirm, and opens the first task; rehearsed on three repository kinds and seen live once; the command is on the path in every supported client's terminal; enrollment rehearsed on macOS as it is on Linux.
 - **Owner inputs this area waits on:** One live unprepared repository session (owner). A macOS VM or second Mac for batch 03.
 - **Advances:** M7, M8, M12; B13, B22
-- **Build progress:** `[....................]` 0 (0 of 15) across 4 batch(es), by `node scripts/report-card.mjs --apply`
+- **Build progress:** `[###############.....]` 73 (11 of 15) across 4 batch(es), by `node scripts/report-card.mjs --apply`
 
 ## Batches
 
@@ -17,10 +17,10 @@ Kind: Living. Area record. One of the ten areas in docs/REPORT_CARD.md; the batc
 
 | Batch | Type | Progress |
 |---|---|---|
-| [01 M8 second increment (B13)](batch-01-m8-second-increment.md) | build | `[....................]` 0 (0 of 5) |
-| [02 The command on the path everywhere](batch-02-path-everywhere.md) | build | `[....................]` 0 (0 of 4) |
+| [01 M8 second increment (B13)](batch-01-m8-second-increment.md) | build | `[################....]` 80 (4 of 5) |
+| [02 The command on the path everywhere](batch-02-path-everywhere.md) | build | `[####################]` 100 (4 of 4) |
 | [03 Enrollment on macOS (M12, B22)](batch-03-macos-enrollment.md) | build | `[....................]` 0 (0 of 3) |
-| [04 Stack detection for the project config](batch-04-stack-detection.md) | build | `[....................]` 0 (0 of 3) |
+| [04 Stack detection for the project config](batch-04-stack-detection.md) | build | `[####################]` 100 (3 of 3) |
 
 <!-- report-card:end -->
 

@@ -15,7 +15,7 @@ Neither one is the assistant guardrails hook, and neither is a security or compl
 
 ## 1. The policy file
 
-Commit `.skilliton/delivery.json` to each protected branch:
+`skilliton prepare --apply` drafts one as `.skilliton/delivery.draft.json` when it detects a test command (package.json scripts, pytest, go.mod, Cargo.toml or a Makefile test target). No gate ever runs a draft. Review it, then `skilliton delivery confirm --apply` moves it to `.skilliton/delivery.json`; committing the confirmed file is a policy change like any other, so where the gate is installed it needs an approver's signature. Written by hand or confirmed from the draft, commit `.skilliton/delivery.json` to each protected branch:
 
 ```json
 {
