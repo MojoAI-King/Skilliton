@@ -2,7 +2,7 @@
 
 Kind: Living.
 
-Current state (2026-09-19, wave 2 published as 33921a1): the owner graded the repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, the owner pass listed at its end). Wave 1 joined this machine, chose the compaction window (600000, unmeasured) and pinned the output caps. Wave 2 moved the mechanical record writes into `skilliton checkpoint` (workflow 0.9.0), bounded the RESUME HERE block and this paragraph by a test, generated the milestone table below from PLAN.md section 7, and put the backlog and its archive under a relationship test; the maintain minutes stay the owner's to report. Next: wave 3 (02-01, 02-02, 02-04). Milestone by milestone: the table below. What each open item needs: docs/BACKLOG.md and DECISIONS.md. Claims with evidence: docs/POSITIONING.md. Earlier versions of this paragraph: docs/STATUS_ARCHIVE.md.
+Current state (2026-09-19, wave 3 published as 855d545): the owner graded the repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, the owner pass listed at its end; 38 of 123 items ticked). Wave 1 joined this machine and pinned the output caps; wave 2 moved the mechanical record writes into `skilliton checkpoint`; wave 3 (workflow 0.10.0) made preparation one yes: prepare shows its plan, drafts the dispatch fields and a delivery policy draft the person confirms with `delivery confirm`, the first task takes the user's words, the terminal command's path is measured in a live and a fresh session, and join writes a Windows launcher (unrun there). Next: wave 4 from the report card. Milestone by milestone: the table below. What each open item needs: docs/BACKLOG.md and DECISIONS.md. Claims with evidence: docs/POSITIONING.md. Earlier versions of this paragraph: docs/STATUS_ARCHIVE.md.
 
 <!-- living-docs:milestones:start -->
 
@@ -18,7 +18,7 @@ Written by `node scripts/living-docs.mjs --apply` from PLAN.md section 7 (the mi
 | M5 | Beginner/team rehearsal | Not started: needs a real person | O16 |
 | M6 | Make it yours | Verified locally | none |
 | M7 | One command per machine | Verified locally | B6 |
-| M8 | Autopilot on arrival | First increment built 2026-09-18 | B2, B3, B13 |
+| M8 | Autopilot on arrival | Second increment built 2026-09-19 | B2, B3, B13 |
 | M9 | One name | Verified locally | none |
 | M10 | Security audit that runs itself | Not started | B20 |
 | M11 | Routines while working | Not started | B21 |
@@ -37,7 +37,5 @@ Read `docs/HANDOFF.md` for the next step and `docs/BACKLOG.md` for outstanding w
 <!-- skilliton:index:tasks:start -->
 Open tasks in `docs/tasks/` (every state except done-local, merged, released, verified and abandoned), sorted by ID. `skilliton index` writes this list from the task records; edit the task records, not the list.
 
-| ID | Title | State | Branch | Owner | Updated |
-|---|---|---|---|---|---|
-| [2026-09-19-wave-3-m8-second-increment-path-everywhe-0619](tasks/2026-09-19-wave-3-m8-second-increment-path-everywhe-0619.md) | Wave 3: M8 second increment, path everywhere, stack detection | in-progress | main | unassigned | 2026-09-19T05:11:03.546Z |
+No open tasks.
 <!-- skilliton:index:tasks:end -->

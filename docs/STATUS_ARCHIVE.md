@@ -4,6 +4,10 @@ Kind: Reference. The current status is docs/STATUS.md.
 
 Superseded current-state paragraphs, newest first. Each is moved here unchanged when docs/STATUS.md gets a new one (docs/MAINTAIN.md step 6); `node scripts/living-docs.mjs --check` keeps the live paragraph under its byte limit.
 
+### 2026-09-19 (wave 3)
+
+Current state (2026-09-19, wave 2 published as 33921a1): the owner graded the repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, the owner pass listed at its end). Wave 1 joined this machine, chose the compaction window (600000, unmeasured) and pinned the output caps. Wave 2 moved the mechanical record writes into `skilliton checkpoint` (workflow 0.9.0), bounded the RESUME HERE block and this paragraph by a test, generated the milestone table below from PLAN.md section 7, and put the backlog and its archive under a relationship test; the maintain minutes stay the owner's to report. Next: wave 3 (02-01, 02-02, 02-04). Milestone by milestone: the table below. What each open item needs: docs/BACKLOG.md and DECISIONS.md. Claims with evidence: docs/POSITIONING.md. Earlier versions of this paragraph: docs/STATUS_ARCHIVE.md.
+
 ### 2026-09-19
 
 Current state (2026-09-18, published as 0f64946; wave 2 built after it): the owner graded the repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, and the owner pass listed at its end). Wave 1 joined this machine, decided the compaction window (600000, owner-chosen, unmeasured) and pinned the output caps; wave 2 moved the mechanical record writes into `skilliton checkpoint`, bounded the RESUME HERE block and this paragraph by a test, generated the milestone table below from PLAN.md section 7, and put the backlog and its archive under a relationship test. Milestone by milestone: the table below (PLAN.md section 7 holds the acceptance and evidence). What each open item needs: docs/BACKLOG.md and DECISIONS.md. What is claimed to a team, with its evidence: docs/POSITIONING.md. Superseded versions of this paragraph: docs/STATUS_ARCHIVE.md.
