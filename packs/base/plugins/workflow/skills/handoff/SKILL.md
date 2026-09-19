@@ -22,15 +22,20 @@ Then this conversation: what got finished, what was checked and how, what is hal
 
 **Evidence only.** Every line traces to this conversation, a git command, or a command's output. Nothing invented, nothing guessed: if you are not sure, leave it out or write "not verified". What the user told you but you did not see is marked "user-reported". **Never write a secret value** (keys, tokens, passwords, connection strings); name it and say where it lives. Keep "done locally", "merged", "released", "installed" and "verified" separate.
 
-## 2. Choose where the note goes
+## 2. Write the note with the command
 
-- **On an integration branch** (or when the repository has no task records): the shared handoff file. Follow section 3.
-- **On any other branch, with a current task record** (`skilliton task show` prints its path): the `## Handoff` section of that task record. Replace that section's four bullets (**State**, **Next**, **Blocked**, **Watch out**) and leave the rest of the file alone. First record a checkpoint if progress since the last one is not written down: `skilliton checkpoint --state "..." --evidence "..." --next "..." --apply`. Then go to section 4. Never edit the shared handoff from a task branch: two people writing it at once is how one note overwrites the other.
-- **On another branch with no task record:** say so, offer `skilliton task start "<title>" --apply`, and write the shared handoff only if the user agrees.
+When `skilliton` is available and there is a current task record (`skilliton task show` prints its path), one command writes the note in the right place and rotates the older ones:
 
-## 3. Write the shared note
+    skilliton checkpoint --handoff --state "<one or two sentences>" --evidence "<what ran and its result>" --next "<next actions, each naming the file or command>" --blocked "<what waits on whom>" --watch-out "<what a fresh session would trip on>"
 
-Create the file (and its folder) if it does not exist. The layout is fixed, because the session-start hook reads it:
+Run it once without `--apply` and read the diffs, then again with `--apply`. It chooses the place from the branch: on an integration branch it rewrites `## RESUME HERE` in the shared handoff file (the layout in section 3, with `Written:` read from the clock and a **Git** line for the branch, head and uncommitted count), moves the previous note to the top of `## Earlier`, keeps five there and moves the rest to the archive; on any other branch it writes the task record's `## Handoff` section only and prints why. `--blocked` and `--watch-out` left out carry over from the previous note, and the command prints each carry-over; check that the carried text is still true. It refuses, writing nothing, when the file's Written time is ahead of the clock or the file has no `## RESUME HERE` or `Written:` line; fix the file by hand, then run it again. The command does not know what is pushed: add the "Not pushed" facts from step 1 to the State text yourself.
+
+- **On any other branch with no task record:** say so, offer `skilliton task start "<title>" --apply`, and write the shared handoff by hand (section 3) only if the user agrees. Never edit the shared handoff from a task branch: two people writing it at once is how one note overwrites the other.
+- **Without `skilliton`** (the command is not found, or the repository is not prepared): write the shared note by hand as section 3 describes.
+
+## 3. The shared note's layout
+
+This is what the command writes, and what you write by hand when it is not available. Create the file (and its folder) if it does not exist. The layout is fixed, because the session-start hook reads it:
 
     # Handoff
 
@@ -44,6 +49,7 @@ Create the file (and its folder) if it does not exist. The layout is fixed, beca
     - **Next:** <next actions in priority order, each naming the file or command to start from>
     - **Blocked:** <what is waiting on whom, or "nothing">
     - **Watch out:** <what a fresh session would trip on, or "nothing known">
+    - **Git:** <branch> @ <short head>, <n> uncommitted
 
     ## Earlier
 
@@ -51,7 +57,7 @@ Create the file (and its folder) if it does not exist. The layout is fixed, beca
     <the previous RESUME HERE block, unchanged>
 
 - **The heading is exactly `## RESUME HERE`.** At the start of every session the hook shows that section and nothing else, cut off at `handoff.maxBytes` (default 6000 bytes). Stay well under it: a line with a path beats a paragraph.
-- **The previous note moves; it is never deleted.** It becomes the first entry under `## Earlier`, headed `### <its Written date>`. No `Written:` line: use `git log -1 --format=%cs -- <handoff file>`, or `undated` if that prints nothing.
+- **The previous note moves; it is never deleted.** It becomes the first entry under `## Earlier`, headed `### <its Written date>`. No `Written:` line (by hand only; the command refuses instead): use `git log -1 --format=%cs -- <handoff file>`, or `undated` if that prints nothing.
 - **At most five entries under `## Earlier`, newest first.** Move older ones to the top of the handoff archive (`docs/HANDOFF_ARCHIVE.md` by default), below its header. If you create it, it starts with `# Handoff archive`, then `Kind: Reference. Older handoff notes, newest first; the current note is <handoff file>.`
 - Anything else a person added to the file stays where it is.
 - "Not pushed" counts commits from before this note's own commit.

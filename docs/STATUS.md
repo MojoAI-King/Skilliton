@@ -2,7 +2,31 @@
 
 Kind: Living.
 
-Current state (2026-09-18, published as 0f64946): the owner graded the repository against their ten areas (docs/REPORT_CARD.md, bars from the batch files under docs/areas/); wave 1 landed the same day (this machine joined, the compaction window decided at 600000 owner-chosen, output caps pinned, the read guard and an automatic compaction measured in live sessions on Claude Code 2.1.276). Milestones: M1 verified locally; M2 verified on Claude Code; M3 verified at install level on Claude Code and Codex; M4 verified locally; M5 not started because it needs a real person; M6 (make it yours) and M7 (one command per machine) verified locally; Phase 3, the company-wide autopilot (M8 to M14, docs/PHASE-3.md), planned on 2026-09-16: M9 (every technical name is Skilliton) verified and published; the M12 enrollment spike measured on Linux (a managed drop-in plus a first-login install makes the company plugins active on the first session start); endpoint security built on 2026-09-17 and published on 2026-09-18: the IT allow list is held to the code by a test, the small footprint is enforced by a test, and `skilliton preflight` checks a laptop before setup and is proved against blocks made on purpose, with **no endpoint-security product available to test under**; Windows decided and built in theory (Git for Windows), with **nothing measured on Windows**; the demonstration kit built and rehearsed offline, not yet with a real client; the rest not started. Before publishing, ten adversarial review rounds ran over the new code, each attacking the previous round's fixes: three security holes were found and closed (a secret scan an environment variable could narrow to nothing, a program a project could have git run, and a reachability check an intercepting proxy could satisfy), along with two fixes that were themselves regressions and about fifty smaller defects; decisions 1fba and 14f7 record what came out of it. Token efficiency became part of the harness on 2026-09-18: the read guard hook, the Session cost section of the harness template, `skilliton gate`, the compaction window in the team settings template, and a meter that reproduces its reference window (O2 closed), plus the first M8 increment (an unprepared repository is offered preparation at session start), all reviewed independently before publishing; the owner's own use has raised the compaction window (B36) and rolling maintenance (B35) as the next questions. What is claimed to a team, with its evidence, is docs/POSITIONING.md. The milestone table with its evidence is PLAN.md section 7; what each open item needs is docs/BACKLOG.md and DECISIONS.md. On 2026-09-18 the owner graded the repository against their own intent (overall C+; docs/REPORT_CARD.md), and the road to A- in every area is planned as batches under docs/areas/ with count-based bars; wave 0 (the card, the generator, the folders) is built locally and uncommitted.
+Current state (2026-09-18, published as 0f64946; wave 2 built after it): the owner graded the repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, and the owner pass listed at its end). Wave 1 joined this machine, decided the compaction window (600000, owner-chosen, unmeasured) and pinned the output caps; wave 2 moved the mechanical record writes into `skilliton checkpoint`, bounded the RESUME HERE block and this paragraph by a test, generated the milestone table below from PLAN.md section 7, and put the backlog and its archive under a relationship test. Milestone by milestone: the table below (PLAN.md section 7 holds the acceptance and evidence). What each open item needs: docs/BACKLOG.md and DECISIONS.md. What is claimed to a team, with its evidence: docs/POSITIONING.md. Superseded versions of this paragraph: docs/STATUS_ARCHIVE.md.
+
+<!-- living-docs:milestones:start -->
+
+Written by `node scripts/living-docs.mjs --apply` from PLAN.md section 7 (the milestone table with its acceptance and evidence). PLAN.md is the file to edit; this table is the short view of it. State is the leading phrase of PLAN.md's State cell; Open items are the backlog and open-item IDs that cell names.
+
+| ID | Milestone | State | Open items |
+|---|---|---|---|
+| M0 | Shared direction | Done | none |
+| M1 | One prepared repository | Verified locally | none |
+| M2 | Normal-work continuity | Verified on Claude Code | O6, O9 |
+| M3 | Approved company updates | Verified at install level | O8 |
+| M4 | Security and shared delivery | Verified locally | O15 |
+| M5 | Beginner/team rehearsal | Not started: needs a real person | O16 |
+| M6 | Make it yours | Verified locally | none |
+| M7 | One command per machine | Verified locally | B6 |
+| M8 | Autopilot on arrival | First increment built 2026-09-18 | B2, B3, B13 |
+| M9 | One name | Verified locally | none |
+| M10 | Security audit that runs itself | Not started | B20 |
+| M11 | Routines while working | Not started | B21 |
+| M12 | Enrollment through device management | Spike measured on Linux | B22, B29, B30 |
+| M13 | Any AI coding tool | Not started | B23, O24 |
+| M14 | Proof of value and team view | Not started | B15, B16 |
+
+<!-- living-docs:milestones:end -->
 
 This repository was prepared by its own runtime on 2026-09-16 (layout 2): every existing living document was adopted untouched, the roadmap role points at PLAN.md, and the security register starts with all 15 controls undecided, because applicability is the owner's decision.
 
@@ -15,5 +39,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner | Updated |
 |---|---|---|---|---|---|
-| [2026-09-18-wave-1-install-bound-context-output-caps-0ea8](tasks/2026-09-18-wave-1-install-bound-context-output-caps-0ea8.md) | Wave 1: install, bound context, output caps | in-progress | main | unassigned | 2026-09-19T02:44:03.352Z |
+| [2026-09-18-wave-2-rolling-maintenance-short-records-18d7](tasks/2026-09-18-wave-2-rolling-maintenance-short-records-18d7.md) | Wave 2: rolling maintenance, short records, backlog test | in-progress | main | unassigned | 2026-09-19T04:16:20.925Z |
 <!-- skilliton:index:tasks:end -->

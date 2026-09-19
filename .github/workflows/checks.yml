@@ -55,6 +55,18 @@ jobs:
       - name: Report card check can fail
         run: node scripts/report-card.mjs --self-test
 
+      - name: Backlog and its archive agree
+        run: node scripts/backlog.test.mjs
+
+      - name: Backlog check can fail
+        run: node scripts/backlog.test.mjs --self-test
+
+      - name: Living records stay short and generated
+        run: node scripts/living-docs.mjs --check
+
+      - name: Living records check can fail
+        run: node scripts/living-docs.mjs --self-test
+
       - name: Enrollment rehearsal judgement can fail
         run: node scripts/rehearsals/enrollment.mjs --self-test
 
@@ -113,6 +125,9 @@ jobs:
 
       - name: Tasks, checkpoints, status and lifecycle hooks
         run: node scripts/lifecycle.test.mjs
+
+      - name: Handoff writer
+        run: node --test scripts/handoff-write.test.mjs
 
       - name: Project security evidence and collectors
         run: node --test scripts/security-evidence.test.mjs scripts/collectors.test.mjs

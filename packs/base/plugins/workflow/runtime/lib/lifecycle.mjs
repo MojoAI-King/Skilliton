@@ -94,7 +94,7 @@ export async function loadOptional(file, exportName) {
 // ---------- the handoff record's Written line ----------
 
 // US zone abbreviations that commonly appear in handoffs, plus UTC. Anything else is refused rather than guessed.
-const ZONES = { Z: 0, UTC: 0, GMT: 0, EST: -300, EDT: -240, CST: -360, CDT: -300, MST: -420, MDT: -360, PST: -480, PDT: -420 };
+export const WRITTEN_ZONES = { Z: 0, UTC: 0, GMT: 0, EST: -300, EDT: -240, CST: -360, CDT: -300, MST: -420, MDT: -360, PST: -480, PDT: -420 };
 
 // Parses a Written value such as "2026-09-16 14:41 EDT", "2026-09-16T18:41:00Z" or "2026-09-16 14:41" (the local time
 // of this machine). { ok: true, at, end, resolutionMs } where end is the last instant the value can mean (a value
@@ -119,10 +119,10 @@ export function parseWritten(raw) {
     const digits = zone.replace(":", "");
     const offset = (digits[0] === "-" ? -1 : 1) * (Number(digits.slice(1, 3)) * 60 + Number(digits.slice(3, 5)));
     ms = Date.UTC(Y, M - 1, D, H, MI, S, MS) - offset * 60000;
-  } else if (Object.prototype.hasOwnProperty.call(ZONES, zone.toUpperCase())) {
-    ms = Date.UTC(Y, M - 1, D, H, MI, S, MS) - ZONES[zone.toUpperCase()] * 60000;
+  } else if (Object.prototype.hasOwnProperty.call(WRITTEN_ZONES, zone.toUpperCase())) {
+    ms = Date.UTC(Y, M - 1, D, H, MI, S, MS) - WRITTEN_ZONES[zone.toUpperCase()] * 60000;
   } else {
-    return { ok: false, reason: `the time zone "${zone}" is not one Skilliton reads (use UTC, an offset such as +02:00, or one of ${Object.keys(ZONES).filter((z) => z !== "Z").join(", ")})` };
+    return { ok: false, reason: `the time zone "${zone}" is not one Skilliton reads (use UTC, an offset such as +02:00, or one of ${Object.keys(WRITTEN_ZONES).filter((z) => z !== "Z").join(", ")})` };
   }
   return { ok: true, at: new Date(ms), end: new Date(ms + resolutionMs - 1), resolutionMs };
 }
@@ -332,7 +332,7 @@ function tasksCheck(project, git, report) {
 }
 
 // How far ahead of this machine's clock a handoff's Written time may be, for clocks that differ between machines.
-const WRITTEN_AHEAD_MS = 5 * 60 * 1000;
+export const WRITTEN_AHEAD_MS = 5 * 60 * 1000;
 
 // Freshness of the shared handoff record. It is stale when its Written time is older than the latest commit, unless
 // no commit came after the last commit that changed the handoff record (committing a handoff is not a newer change),

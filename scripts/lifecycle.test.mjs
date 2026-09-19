@@ -229,8 +229,13 @@ test("task start, list, show, checkpoint and close round-trip with the exact fil
   const one = readFileSync(file, "utf8");
   const at = /^### (.+)$/m.exec(one)[1];
   const expectedOne = expected.replace(`- **Updated:** ${updated}`, `- **Updated:** ${at}`).replace("## Checkpoints\n\n",
-    `## Checkpoints\n\n### ${at}\n\n- **State:** Form renders\n- **Evidence:** npm test: 3 passed\n- **Next:** Add email validation\n- **Git:** feature/sign-in @ ${shortHead}, ${dirty} uncommitted\n\n`);
-  assert.equal(one, expectedOne);
+    `## Checkpoints\n\n### ${at}\n\n- **State:** Form renders\n- **Evidence:** npm test: 3 passed\n- **Next:** Add email validation\n- **Git:** feature/sign-in @ ${shortHead}, ${dirty} uncommitted\n\n`)
+    .replace("- **State:** not yet written\n- **Next:** not yet written\n- **Blocked:** not yet written\n- **Watch out:** not yet written",
+      "- **State:** Form renders. Evidence: npm test: 3 passed.\n- **Next:** Add email validation\n- **Blocked:** nothing\n- **Watch out:** nothing known");
+  assert.equal(one, expectedOne, "the checkpoint also rewrites the Handoff section");
+  assert.match(cp.out, /^handoff: Blocked not given and nothing to carry over; written as "nothing"$/m);
+  assert.match(cp.out, /^handoff: Watch out not given and nothing to carry over; written as "nothing known"$/m);
+  assert.match(cp.out, /^indexes: skipped; indexes are written on an integration branch \(main, master\), and this branch is feature\/sign-in$/m);
 
   const events = readEvents(p, env);
   assert.equal(events.length, 1);
@@ -248,7 +253,8 @@ test("task start, list, show, checkpoint and close round-trip with the exact fil
   const two = readFileSync(file, "utf8");
   const at2 = [...two.matchAll(/^### (.+)$/gm)].map((m) => m[1])[1];
   const expectedTwo = expectedOne.replace(`- **Updated:** ${at}`, `- **Updated:** ${at2}`).replace(`uncommitted\n\n## Handoff`,
-    `uncommitted\n\n### ${at2}\n\n- **State:** Validation added\n- **Evidence:** none given\n- **Next:** Open a pull request\n- **Git:** feature/sign-in @ ${shortHead}, ${porcelainCount(p, env)} uncommitted\n\n## Handoff`);
+    `uncommitted\n\n### ${at2}\n\n- **State:** Validation added\n- **Evidence:** none given\n- **Next:** Open a pull request\n- **Git:** feature/sign-in @ ${shortHead}, ${porcelainCount(p, env)} uncommitted\n\n## Handoff`)
+    .replace("- **State:** Form renders. Evidence: npm test: 3 passed.\n- **Next:** Add email validation", "- **State:** Validation added\n- **Next:** Open a pull request");
   assert.equal(two, expectedTwo);
   const shownTwo = cli(p, ["task", "show"], env);
   assert.ok(shownTwo.out.includes("Checkpoints: 2") && shownTwo.out.includes("    Next:     Open a pull request"), shownTwo.out);
@@ -293,7 +299,8 @@ test("human edits outside the header bullets are tolerated and every other byte 
   const at = /^### (\d{4}.+)$/m.exec(text)[1];
   const updated = /^- \*\*Updated:\*\* (.+)$/m.exec(edited)[1];
   const expected = edited.replace(`- **Updated:** ${updated}`, `- **Updated:** ${at}`).replace("A note above the checkpoints.\n\n",
-    `A note above the checkpoints.\n\n### ${at}\n\n- **State:** Edited by hand\n- **Evidence:** none given\n- **Next:** Keep going\n- **Git:** main @ ${git(p, ["rev-parse", "--short", "HEAD"], env).trim()}, 1 uncommitted\n\n`);
+    `A note above the checkpoints.\n\n### ${at}\n\n- **State:** Edited by hand\n- **Evidence:** none given\n- **Next:** Keep going\n- **Git:** main @ ${git(p, ["rev-parse", "--short", "HEAD"], env).trim()}, 1 uncommitted\n\n`)
+    .replace("- **State:** not yet written\n- **Next:** not yet written\n- **Blocked:** not yet written\n- **Watch out:** not yet written", "- **State:** Edited by hand\n- **Next:** Keep going\n- **Blocked:** nothing\n- **Watch out:** nothing known");
   assert.equal(text, expected);
   assert.ok(cli(p, ["task", "show", id], env).out.includes("Checkpoints: 1"));
 
@@ -304,7 +311,8 @@ test("human edits outside the header bullets are tolerated and every other byte 
   const crlfAfter = readFileSync(file, "utf8");
   assert.equal(/[^\r]\n/.test(crlfAfter), false, "every line of a CRLF file still ends in CRLF");
   assert.ok(crlfAfter.includes("\r\n- **State:** Windows line endings\r\n"), crlfAfter);
-  assert.equal(crlfAfter.replace(/### \d{4}-\d\d-\d\dT[^\r]+\r\n\r\n- \*\*State:\*\* Windows line endings\r\n- \*\*Evidence:\*\* none given\r\n- \*\*Next:\*\* Check them\r\n- \*\*Git:\*\* [^\r]+\r\n\r\n/, "").replace(/Updated:\*\* [^\r]+/, "U"), crlf.replace(/Updated:\*\* [^\r]+/, "U"));
+  assert.equal(crlfAfter.replace(/### \d{4}-\d\d-\d\dT[^\r]+\r\n\r\n- \*\*State:\*\* Windows line endings\r\n- \*\*Evidence:\*\* none given\r\n- \*\*Next:\*\* Check them\r\n- \*\*Git:\*\* [^\r]+\r\n\r\n/, "").replace(/Updated:\*\* [^\r]+/, "U")
+    .replace("- **State:** Windows line endings\r\n- **Next:** Check them\r\n", "- **State:** Edited by hand\r\n- **Next:** Keep going\r\n"), crlf.replace(/Updated:\*\* [^\r]+/, "U"), "the Handoff section is rewritten with CRLF kept");
 }));
 
 test("corrupted task records are named as unreadable and never written", async () => withTemp("corrupt", async ({ dir, env }) => {
@@ -702,11 +710,11 @@ test("session-start shows the current task, its last checkpoint and its handoff"
   const p = preparedRepo(join(dir, "p"), env);
   const { id, file } = startTask(p, env, "Resume me");
   assert.equal(cli(p, ["checkpoint", "--state", "Half done", "--evidence", "unit tests pass", "--next", "Finish the form", "--apply"], env).code, 0);
-  writeFileSync(file, readFileSync(file, "utf8").replace("- **State:** not yet written", "- **State:** paused mid-form").replace("- **Next:** not yet written", "- **Next:** wire the submit button"));
+  writeFileSync(file, readFileSync(file, "utf8").replace("- **State:** Half done. Evidence: unit tests pass.", "- **State:** paused mid-form").replace("- **Next:** Finish the form\n- **Blocked:**", "- **Next:** wire the submit button\n- **Blocked:**"));
   const r = hook(p, "session-start", { session_id: "s1" }, env);
   assert.equal(r.code, 0, r.all);
   assert.match(r.out, new RegExp(`^- Current task: ${id} "Resume me" \\(in-progress, 1 checkpoint\\(s\\)\\); last checkpoint [^:]+:\\d\\d:[^:]+: State: Half done; Evidence: unit tests pass; Next: Finish the form$`, "m"));
-  assert.match(r.out, /^- Task handoff: State: paused mid-form; Next: wire the submit button; Blocked: not yet written; Watch out: not yet written$/m);
+  assert.match(r.out, /^- Task handoff: State: paused mid-form; Next: wire the submit button; Blocked: nothing; Watch out: nothing known$/m);
   assert.match(r.out, /^- Layout: layout 3 \(current for this runtime\)$/m);
   assert.match(r.out, /^- Records: all 9 present$/m);
 }));
@@ -1306,6 +1314,165 @@ test("hooks.json parses, keeps the handoff hook first, and every command it name
     }
   }
   assert.deepEqual(readEvents(p, env).map((e) => e.event).sort(), ["pre-compact", "session-end", "session-start"]);
+}));
+
+// ---------------------------------------------------------------- checkpoint writes the handoff and the indexes (workflow 0.9.0)
+
+const HANDOFF_LIB = async () => import(pathToFileURL(join(PLUGIN, "runtime", "lib", "handoff.mjs")).href);
+const LIFECYCLE_LIB = async () => import(pathToFileURL(join(PLUGIN, "runtime", "lib", "lifecycle.mjs")).href);
+const handoffText = (p) => readFileSync(join(p, "docs", "HANDOFF.md"), "utf8");
+const resumeWritten = (text) => /^Written: (.+)$/m.exec(text)[1];
+
+test("checkpoint --handoff on main rewrites RESUME HERE byte for byte, the task Handoff, the tasks index, and reads back as current", async () => withTemp("handoff-main", async ({ dir, env }) => {
+  const { parseWritten } = await LIFECYCLE_LIB();
+  const fixtureWritten = "2026-09-18T20:00:00.000Z";
+  const p = preparedRepo(join(dir, "p"), env, { written: fixtureWritten });
+  const { id, file } = startTask(p, env, "Resume on main");
+  const original = handoffText(p);
+  const status = readFileSync(join(p, "docs", "STATUS.md"), "utf8");
+  const args = ["checkpoint", "--handoff", "--state", "Half done", "--evidence", "tests pass", "--next", "Finish the form", "--blocked", "waiting on review"];
+
+  const preview = cli(p, args, env);
+  assert.equal(preview.code, 0, preview.all);
+  assert.match(preview.out, /^\+Written: /m);
+  assert.match(preview.out, /^\+### 2026-09-18T20:00:00\.000Z$/m);
+  assert.match(preview.out, /^indexes: would write docs\/STATUS\.md \(tasks index: 1 open task\(s\) of 1\)$/m);
+  assert.match(preview.out, /^Preview only; nothing was written/m);
+  assert.equal(handoffText(p), original, "a preview must not write the handoff");
+  assert.equal(readFileSync(join(p, "docs", "STATUS.md"), "utf8"), status, "a preview must not write the index");
+  assert.equal(readEvents(p, env).length, 0);
+  assert.equal(existsSync(join(gitDir(p, env), "skilliton-backups")), false, "a preview makes no backups");
+
+  const shortHead = git(p, ["rev-parse", "--short", "HEAD"], env).trim();
+  const r = cli(p, [...args, "--apply"], env);
+  assert.equal(r.code, 0, r.all);
+  const text = handoffText(p);
+  const written = resumeWritten(text);
+  const parsed = parseWritten(written);
+  assert.ok(parsed.ok, `${written}: ${parsed.reason}`);
+  assert.ok(Math.abs(parsed.at.getTime() - Date.now()) < 5 * 60 * 1000, `Written ${written} is the clock, not a typed time`);
+  const task = readFileSync(file, "utf8");
+  const dirty = /- \*\*Git:\*\* main @ \w+, (\d+) uncommitted/.exec(task)[1];
+  assert.equal(text, [
+    "# Handoff", "", "Kind: Living.", "", "## RESUME HERE", "", `Written: ${written}`, "",
+    "- **State:** Half done. Evidence: tests pass.", "- **Next:** Finish the form", "- **Blocked:** waiting on review", "- **Watch out:** nothing.", `- **Git:** main @ ${shortHead}, ${dirty} uncommitted`, "",
+    "## Earlier", "", `### ${fixtureWritten}`, "- **State:** fixture.", "- **Next:** nothing.", "- **Blocked:** nothing.", "- **Watch out:** nothing.", "",
+  ].join("\n"));
+  assert.match(r.out, /^handoff: Watch out carried over from the previous note$/m);
+  assert.match(r.out, /^handoff: the previous note \(Written: 2026-09-18T20:00:00\.000Z\) moves to the top of Earlier$/m);
+  assert.match(r.out, /^handoff: written to docs\/HANDOFF\.md; backups of the previous versions are under /m);
+  assert.ok(task.includes("- **State:** Half done. Evidence: tests pass.\n- **Next:** Finish the form\n- **Blocked:** waiting on review\n- **Watch out:** nothing.\n"), task);
+  const index = readFileSync(join(p, "docs", "STATUS.md"), "utf8");
+  const updated = /^- \*\*Updated:\*\* (.+)$/m.exec(task)[1];
+  assert.ok(index.includes("<!-- skilliton:index:tasks:start -->"), index);
+  assert.ok(index.includes(`| [${id}](tasks/${id}.md) | Resume on main | in-progress | main | unassigned | ${updated} |`), `the index carries the Updated the checkpoint wrote\n${index}`);
+  assert.match(r.out, /^indexes: written docs\/STATUS\.md \(tasks index: 1 open task\(s\) of 1\)$/m);
+  assert.equal(readEvents(p, env).filter((e) => e.event === "checkpoint").length, 1);
+  assert.equal(readEvents(p, env)[0].fingerprint, fingerprint(p, env), "the event records the fingerprint after every write");
+
+  const j = statusJson(p, env);
+  assert.equal(checkStatus(j.json, "handoff"), "ok", JSON.stringify(j.json.details.checks.find((c) => c.name === "handoff")));
+  const start = hook(p, "session-start", { session_id: "s1" }, env);
+  assert.equal(start.code, 0, start.all);
+  assert.match(start.out, /^- Task handoff: State: Half done\. Evidence: tests pass\.; Next: Finish the form; Blocked: waiting on review; Watch out: nothing\.$/m);
+  assert.match(start.out, new RegExp(`^- Shared handoff: docs/HANDOFF\\.md was written ${escape(written)}; no later commit or uncommitted change`, "m"));
+
+  // A second note carries Blocked over and keeps the first note under Earlier.
+  const r2 = cli(p, ["checkpoint", "--handoff", "--state", "Done", "--next", "Open a pull request", "--apply"], env);
+  assert.equal(r2.code, 0, r2.all);
+  assert.match(r2.out, /^handoff: Blocked carried over from the previous note$/m);
+  const two = handoffText(p);
+  assert.ok(two.includes("- **State:** Done\n- **Next:** Open a pull request\n- **Blocked:** waiting on review\n- **Watch out:** nothing.\n"), two);
+  assert.deepEqual([...two.matchAll(/^### (.+)$/gm)].map((m) => m[1]), [written, fixtureWritten]);
+}));
+
+test("checkpoint --handoff keeps five Earlier entries and moves the rest to the top of a created archive", async () => withTemp("handoff-archive", async ({ dir, env }) => {
+  const p = preparedRepo(join(dir, "p"), env, { written: "2026-09-01T09:00:00.000Z" });
+  rmSync(join(p, "docs", "HANDOFF_ARCHIVE.md"));
+  startTask(p, env, "Rotate");
+  const writtens = [];
+  for (let i = 1; i <= 7; i++) {
+    const r = cli(p, ["checkpoint", "--handoff", "--state", `Note ${i}`, "--next", "n", "--apply"], env);
+    assert.equal(r.code, 0, r.all);
+    writtens.push(resumeWritten(handoffText(p)));
+    const entries = [...handoffText(p).matchAll(/^### (.+)$/gm)].map((m) => m[1]);
+    assert.ok(entries.length <= 5, `${i}: ${entries.length} entries`);
+    if (i < 6) assert.equal(existsSync(join(p, "docs", "HANDOFF_ARCHIVE.md")), false, `${i}: nothing archived yet`);
+    if (i === 6) {
+      assert.match(r.out, /^handoff: 1 older note\(s\) beyond the five kept move to the top of docs\/HANDOFF_ARCHIVE\.md \(created from the record template\)$/m);
+      assert.equal(readFileSync(join(p, "docs", "HANDOFF_ARCHIVE.md"), "utf8"), "# Handoff archive\n\nKind: Reference. The current handoff is `docs/HANDOFF.md`.\n\n### 2026-09-01T09:00:00.000Z\n- **State:** fixture.\n- **Next:** nothing.\n- **Blocked:** nothing.\n- **Watch out:** nothing.\n");
+    }
+  }
+  const archive = readFileSync(join(p, "docs", "HANDOFF_ARCHIVE.md"), "utf8");
+  assert.deepEqual([...archive.matchAll(/^### (.+)$/gm)].map((m) => m[1]), [writtens[0], "2026-09-01T09:00:00.000Z"], "the seventh note archives the first, above the fixture");
+  assert.ok(archive.includes(`### ${writtens[0]}\n- **State:** Note 1\n`), archive);
+  assert.deepEqual([...handoffText(p).matchAll(/^### (.+)$/gm)].map((m) => m[1]), writtens.slice(1, 6).reverse());
+}));
+
+test("checkpoint --handoff off an integration branch writes only the task record, and says why", async () => withTemp("handoff-branch", async ({ dir, env }) => {
+  const p = preparedRepo(join(dir, "p"), env);
+  git(p, ["checkout", "-q", "-b", "feature/x"], env);
+  const { file } = startTask(p, env, "Branch work");
+  const original = handoffText(p);
+  const status = readFileSync(join(p, "docs", "STATUS.md"), "utf8");
+  const r = cli(p, ["checkpoint", "--handoff", "--state", "On a branch", "--next", "Merge", "--watch-out", "the flaky test", "--apply"], env);
+  assert.equal(r.code, 0, r.all);
+  assert.equal(handoffText(p), original, "the shared handoff is never touched off an integration branch");
+  assert.equal(readFileSync(join(p, "docs", "STATUS.md"), "utf8"), status, "no index off an integration branch");
+  assert.match(r.out, /^handoff: the shared handoff is written on an integration branch \(main, master\), and this branch is feature\/x; the note went to the task record's Handoff section only$/m);
+  assert.match(r.out, /^indexes: skipped; indexes are written on an integration branch \(main, master\), and this branch is feature\/x$/m);
+  assert.ok(readFileSync(file, "utf8").includes("- **State:** On a branch\n- **Next:** Merge\n- **Blocked:** nothing\n- **Watch out:** the flaky test\n"));
+  const again = cli(p, ["checkpoint", "--state", "Still on a branch", "--next", "Merge", "--apply"], env);
+  assert.equal(again.code, 0, again.all);
+  assert.match(again.out, /^handoff: Watch out carried over from the previous note$/m);
+  assert.ok(readFileSync(file, "utf8").includes("- **Blocked:** nothing\n- **Watch out:** the flaky test\n"), "the task record's own previous value carries over");
+}));
+
+test("checkpoint on an unprepared main says the index is skipped because a record does not exist", async () => withTemp("handoff-unprepared", async ({ dir, env }) => {
+  const p = initRepo(join(dir, "p"), env);
+  startTask(p, env, "Unprepared");
+  const r = cli(p, ["checkpoint", "--state", "x", "--next", "y", "--apply"], env);
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.out, /^indexes: skipped; the [a-z ]+ record [A-Za-z/_.]+ does not exist \(run .*prepare --apply to create the records\)$/m);
+  assert.equal(existsSync(join(p, "docs", "STATUS.md")), false);
+}));
+
+test("checkpoint refuses with nothing written: a handoff ahead of the clock, without RESUME HERE, without or with an unreadable Written, and a task Updated ahead of the clock", async () => withTemp("handoff-refusals", async ({ dir, env }) => {
+  const p = preparedRepo(join(dir, "p"), env);
+  const { file } = startTask(p, env, "Refuse me");
+  const task = readFileSync(file, "utf8");
+  const status = readFileSync(join(p, "docs", "STATUS.md"), "utf8");
+  const cases = [
+    ["written ahead", () => writeHandoff(p, "2999-01-01 09:00 EDT"), ["--handoff"], /docs\/HANDOFF\.md says it was written 2999-01-01 09:00 EDT, which is later than this machine's clock .* by more than 5 minutes/],
+    ["no RESUME HERE", () => writeFileSync(join(p, "docs", "HANDOFF.md"), "# Handoff\n\nKind: Living.\n\nWritten: 2026-09-01 09:00 EDT\n"), ["--handoff"], /docs\/HANDOFF\.md has no "## RESUME HERE" section/],
+    ["no Written", () => writeFileSync(join(p, "docs", "HANDOFF.md"), "# Handoff\n\n## RESUME HERE\n\n- **State:** x\n"), ["--handoff"], /docs\/HANDOFF\.md has no "Written:" line/],
+    ["unreadable Written", () => writeFileSync(join(p, "docs", "HANDOFF.md"), "# Handoff\n\n## RESUME HERE\n\nWritten: yesterday\n"), ["--handoff"], /docs\/HANDOFF\.md: the Written value could not be read/],
+    ["task Updated ahead", () => { writeHandoff(p, "2026-09-01 09:00 EDT"); writeFileSync(file, task.replace(/^- \*\*Updated:\*\* .+$/m, "- **Updated:** 2999-01-01T00:00:00.000Z")); }, [], /says it was updated 2999-01-01T00:00:00\.000Z, which is later than this machine's clock/],
+  ];
+  for (const [label, arrange, extra, pattern] of cases) {
+    arrange();
+    const handoffBefore = handoffText(p);
+    const taskBefore = readFileSync(file, "utf8");
+    const r = cli(p, ["checkpoint", ...extra, "--state", "x", "--next", "y", "--apply"], env);
+    assert.equal(r.code, 2, `${label}\n${r.all}`);
+    assert.match(r.all, pattern, label);
+    assert.match(r.all, /Nothing was written/, label);
+    assert.equal(handoffText(p), handoffBefore, `${label}: the handoff is untouched`);
+    assert.equal(readFileSync(file, "utf8"), taskBefore, `${label}: the task record is untouched`);
+    assert.equal(readFileSync(join(p, "docs", "STATUS.md"), "utf8"), status, `${label}: the index is untouched`);
+    assert.equal(readEvents(p, env).length, 0, `${label}: no journal event`);
+    assert.equal(existsSync(join(gitDir(p, env), "skilliton-backups")), false, `${label}: no backups`);
+  }
+}));
+
+test("mutation check: without the skew bound, the written-ahead refusal does not happen", async () => withTemp("mutant-skew", async ({ dir, env }) => {
+  const mutant = copyPlugin(dir, (root) => mutateFile(join(root, "runtime", "lib", "lifecycle.mjs"), "export const WRITTEN_AHEAD_MS = 5 * 60 * 1000;", "export const WRITTEN_AHEAD_MS = Infinity;"));
+  const p = preparedRepo(join(dir, "p"), env, { written: "2999-01-01 09:00 EDT" });
+  startTask(p, env, "Skew");
+  const shipped = cli(p, ["checkpoint", "--handoff", "--state", "x", "--next", "y"], env);
+  assert.equal(shipped.code, 2, shipped.all);
+  const broken = cli(p, ["checkpoint", "--handoff", "--state", "x", "--next", "y"], env, { entry: mutant.entry });
+  assert.equal(broken.code, 0, `the mutant accepts the note written ahead, so the assertion above can fail\n${broken.all}`);
 }));
 
 // ---------------------------------------------------------------- mutation checks

@@ -17,3 +17,5 @@ Kind: Living. Batch record. Area [09-security-delivery](AREA.md).
 ## Notes
 
 None yet.
+
+Waits for the owner pass at the end (docs/REPORT_CARD.md).

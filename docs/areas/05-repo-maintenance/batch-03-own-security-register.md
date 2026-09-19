@@ -16,3 +16,5 @@ Kind: Living. Batch record. Area [05-repo-maintenance](AREA.md).
 ## Notes
 
 None yet.
+
+Waits for the owner pass at the end (docs/REPORT_CARD.md).

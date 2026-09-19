@@ -16,3 +16,5 @@ Kind: Living. Batch record. Area [01-autopilot-loop](AREA.md).
 ## Notes
 
 B2 has been blocked on a logged-in isolated Codex; the owner decides when.
+
+Waits for the owner pass at the end (docs/REPORT_CARD.md).
