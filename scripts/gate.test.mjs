@@ -241,3 +241,19 @@ test("a newline-free stream keeps the tail bounded and the log complete", () => 
   assert.ok(r.out.length < 3000, `the verdict stays bounded (${r.out.length} chars)`);
   assert.equal((logOf(dir).match(/a/g) || []).length >= 3000000, true, "every byte reached the log");
 });
+
+test("a draft policy is never run: the refusal names delivery confirm, with and without --policy", () => {
+  const dir = repo();
+  mkdirSync(join(dir, ".skilliton"));
+  writeFileSync(join(dir, ".skilliton", "delivery.draft.json"), JSON.stringify({
+    schema: "skilliton.delivery/1", protectedBranches: ["main"], policyPaths: [".skilliton/delivery.json"],
+    checks: [{ name: "never", command: node("require('fs').writeFileSync('ran', '1')"), timeoutSeconds: 5 }],
+  }, null, 2));
+  for (const args of [[], ["--policy"]]) {
+    const r = gate(dir, args);
+    assert.equal(r.status, 2, r.all);
+    assert.match(r.all, /\.skilliton\/delivery\.json does not exist.*but the draft \.skilliton\/delivery\.draft\.json does \(prepare wrote it; a draft is never run\)\. Review it, then: .*delivery confirm --apply\. Or name a command with --cmd/);
+  }
+  assert.equal(existsSync(join(dir, "ran")), false, "the draft's check did not run");
+  assert.equal(existsSync(join(dir, ".git", "skilliton", "gate")), false, "no log was written");
+});

@@ -19,7 +19,7 @@ import { spawn } from "node:child_process";
 import { createWriteStream, existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { refuse, selfCommand } from "./core.mjs";
-import { POLICY_FILE, parsePolicyText } from "./delivery.mjs";
+import { DRAFT_FILE, POLICY_FILE, parsePolicyText } from "./delivery.mjs";
 import { GitError, readGitState } from "./journal.mjs";
 
 export const DEFAULT_TAIL = 25;
@@ -42,8 +42,9 @@ export function planGate(root, { cmd = null, policy = false, timeoutSeconds = DE
     return { kind: "cmd", source: "the --cmd option", runs: [{ name: cmd.trim(), argv: null, shell: cmd.trim(), timeoutSeconds }] };
   }
   const policyPath = join(root, POLICY_FILE);
+  const draftNote = existsSync(join(root, DRAFT_FILE)) ? `, but the draft ${DRAFT_FILE} does (prepare wrote it; a draft is never run). Review it, then: ${selfCommand()} delivery confirm --apply. Or name a command with --cmd` : "";
   if (policy || existsSync(policyPath)) {
-    if (!existsSync(policyPath)) refuse(`--policy was given, but ${POLICY_FILE} does not exist in ${root}`);
+    if (!existsSync(policyPath)) refuse(`--policy was given, but ${POLICY_FILE} does not exist in ${root}${draftNote}`);
     let text;
     try { text = readFileSync(policyPath, "utf8"); } catch (e) { refuse(`${POLICY_FILE} could not be read (${e.code ?? e.message})`); }
     const parsed = parsePolicyText(text);
@@ -63,6 +64,7 @@ export function planGate(root, { cmd = null, policy = false, timeoutSeconds = DE
       return { kind: "npm", source: 'the "verify" script in package.json', runs: [{ name: "npm run verify", argv: null, shell: "npm run verify", timeoutSeconds }] };
     }
   }
+  if (draftNote) refuse(`nothing to run: ${POLICY_FILE} does not exist${draftNote}`);
   refuse(`nothing to run: no --cmd was given, ${POLICY_FILE} does not exist, and package.json has no "verify" script. Name the command: ${selfCommand()} gate --cmd "<the project's test command>"`);
   return null;
 }

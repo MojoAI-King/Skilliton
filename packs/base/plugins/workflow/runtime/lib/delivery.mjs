@@ -25,7 +25,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
-  accessSync, chmodSync, constants as fsConstants, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync,
+  accessSync, chmodSync, constants as fsConstants, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync,
   readlinkSync, realpathSync, renameSync, rmSync, statSync, writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -35,6 +35,7 @@ import { NO_REPOSITORY_PROGRAMS } from "./journal.mjs";
 import { LEGACY_DELIVERY_CONFIG_KEYS, LEGACY_DELIVERY_HOOK_MARKER, LEGACY_POLICY_FILE, LEGACY_POLICY_SCHEMA } from "./legacy-names.mjs";
 
 export const POLICY_FILE = ".skilliton/delivery.json";
+export const DRAFT_FILE = ".skilliton/delivery.draft.json";
 export const POLICY_SCHEMA = "skilliton.delivery/1";
 export const DEFAULT_TIMEOUT_SECONDS = 600;
 export const MAX_TIMEOUT_SECONDS = 86400;
@@ -160,6 +161,38 @@ export function parsePolicyText(text, format = CURRENT_FORMAT) {
       policyPaths: [...value.policyPaths],
     },
   };
+}
+
+// ---------- the draft prepare writes (docs/CONTRACTS.md section 14) ----------
+
+// A draft is a policy prepare wrote from what the repository shows; no gate runs it. Confirming it moves the file to
+// POLICY_FILE. planConfirm reads nothing but the two files: { root, draftPath, policyPath, draftText, policy }.
+// Refused (nothing written) when there is no draft, when the policy already exists, or when the draft is not valid.
+export function planConfirm(root) {
+  const draftPath = join(root, DRAFT_FILE), policyPath = join(root, POLICY_FILE);
+  if (existsSync(policyPath)) refuse(`${POLICY_FILE} already exists, so there is nothing to confirm${existsSync(draftPath) ? `; remove ${DRAFT_FILE} by hand if it is stale` : ""}. Nothing was written`);
+  if (!existsSync(draftPath)) refuse(`no draft to confirm: ${DRAFT_FILE} does not exist (prepare writes it when a test command is detected). Write ${POLICY_FILE} by hand instead; the format is in: delivery --help. Nothing was written`);
+  let text;
+  try { text = readFileSync(draftPath, "utf8"); } catch (e) { refuse(`${DRAFT_FILE} could not be read (${e.code ?? e.message}). Nothing was written`); }
+  const parsed = parsePolicyText(text);
+  if (parsed.problems) refuse(`${DRAFT_FILE} is not a valid delivery policy, so it cannot be confirmed: ${parsed.problems.join("; ")}. Fix the draft, or remove it and write ${POLICY_FILE} by hand. Nothing was written`);
+  return { root, draftPath, policyPath, draftText: text, policy: parsed.policy };
+}
+
+// The lines a preview prints for a policy: what would be protected, run and guarded.
+export function describePolicy(policy) {
+  const lines = [`protected branches: ${policy.protectedBranches.join(", ")}`];
+  for (const c of policy.checks) lines.push(`check "${c.name}": ${c.command.join(" ")} (timeout ${c.timeoutSeconds}s)`);
+  lines.push(`policy paths (a change needs an approver signature once the gate is installed): ${policy.policyPaths.join(", ")}`);
+  return lines;
+}
+
+// Moves the draft to the policy path. The policy is rechecked immediately before the move; a file that appeared
+// meanwhile is never replaced.
+export function applyConfirm(plan) {
+  if (existsSync(plan.policyPath)) refuse(`${POLICY_FILE} appeared before the draft was confirmed; nothing was written`);
+  renameSync(plan.draftPath, plan.policyPath);
+  return { policyPath: plan.policyPath };
 }
 
 // ---------- approvers file (ssh allowed_signers format) ----------

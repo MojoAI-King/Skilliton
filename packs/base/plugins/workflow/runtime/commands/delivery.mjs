@@ -2,8 +2,9 @@
 // The engine is ../lib/delivery.mjs; the plain-language guide is docs/DELIVERY.md in the company skills repository.
 
 import { join } from "node:path";
-import { PLUGIN_ROOT, parseArgs, refuse, say, selfCommand } from "../lib/core.mjs";
-import { applyInstall, describeInstall, planInstall, runGate, runLocalCheck } from "../lib/delivery.mjs";
+import { PLUGIN_ROOT, parseArgs, refuse, resolveExistingDir, say, selfCommand, tilde } from "../lib/core.mjs";
+import { DRAFT_FILE, POLICY_FILE, applyConfirm, applyInstall, describeInstall, describePolicy, planConfirm, planInstall, runGate, runLocalCheck } from "../lib/delivery.mjs";
+import { resolveGitRoot } from "../lib/prepare.mjs";
 
 export const help = `delivery: trusted delivery checks for a shared branch (docs/DELIVERY.md).
 
@@ -27,6 +28,12 @@ export const help = `delivery: trusted delivery checks for a shared branch (docs
       (default: origin), compared with the remote-tracking tip as last fetched. Nothing is pushed. Without
       --approvers, signatures on policy changes cannot be verified; the output says so and the exit code is 1.
 
+  delivery confirm [--dir <project>] [--apply]
+      Shows, and with --apply moves, the draft policy prepare wrote (.skilliton/delivery.draft.json) to
+      .skilliton/delivery.json. A draft is read from what the repository shows and is never run by any gate; the
+      confirmed file is the policy, so commit it to the default branch like any policy change. Refuses when there is
+      no draft, when the policy already exists, or when the draft is not a valid policy.
+
 Protected branches are the ones the policy on the repository's default branch lists. Until the default branch holds a
 policy, the default branch alone is protected, and the push that creates it must contain .skilliton/delivery.json and
 be signed by an approver. The policy format is .skilliton/delivery.json:
@@ -41,6 +48,7 @@ const OPTIONS = {
   install: ["bare", "approvers", "runtime"],
   gate: ["bare"],
   check: ["repo", "ref", "remote", "approvers"],
+  confirm: ["dir"],
 };
 
 async function readStdin() {
@@ -51,16 +59,28 @@ async function readStdin() {
 }
 
 export async function run(argv) {
-  const o = parseArgs(argv, { flags: ["apply"], options: ["bare", "approvers", "runtime", "repo", "ref", "remote"] }, "delivery");
+  const o = parseArgs(argv, { flags: ["apply"], options: ["bare", "approvers", "runtime", "repo", "ref", "remote", "dir"] }, "delivery");
   if (o.help) { say(help); return 0; }
   const [sub, ...extra] = o._;
-  if (!sub) refuse(`delivery needs a subcommand: install, gate or check. Run: ${selfCommand()} delivery --help`);
-  if (!Object.hasOwn(OPTIONS, sub)) refuse(`unknown delivery subcommand "${sub}" (install, gate or check). Run: ${selfCommand()} delivery --help`);
+  if (!sub) refuse(`delivery needs a subcommand: install, gate, check or confirm. Run: ${selfCommand()} delivery --help`);
+  if (!Object.hasOwn(OPTIONS, sub)) refuse(`unknown delivery subcommand "${sub}" (install, gate, check or confirm). Run: ${selfCommand()} delivery --help`);
   if (extra.length) refuse(`delivery ${sub} takes no plain arguments (got "${extra[0]}")`);
-  for (const key of ["bare", "approvers", "runtime", "repo", "ref", "remote"]) {
+  for (const key of ["bare", "approvers", "runtime", "repo", "ref", "remote", "dir"]) {
     if (o[key] !== undefined && !OPTIONS[sub].includes(key)) refuse(`--${key} does not apply to delivery ${sub}`);
   }
-  if (o.apply && sub !== "install") refuse(`--apply does not apply to delivery ${sub}`);
+  if (o.apply && sub !== "install" && sub !== "confirm") refuse(`--apply does not apply to delivery ${sub}`);
+
+  if (sub === "confirm") {
+    const { root } = resolveGitRoot(resolveExistingDir(o.dir, "--dir"));
+    const plan = planConfirm(root);
+    say(`delivery confirm (${o.apply ? "apply" : "preview"}): ${tilde(root)}`);
+    say(`  draft ${DRAFT_FILE}, written by prepare from what the repository shows; never run until confirmed:`);
+    for (const line of describePolicy(plan.policy)) say(`    ${line}`);
+    if (!o.apply) { say(`Summary: nothing written; add --apply to move the draft to ${POLICY_FILE}.`); return 0; }
+    applyConfirm(plan);
+    say(`Summary: confirmed: ${DRAFT_FILE} moved to ${POLICY_FILE}. Commit it to the default branch; from then on skilliton gate runs its check(s), and where the delivery gate is installed a change to the policy needs an approver signature (docs/DELIVERY.md).`);
+    return 0;
+  }
 
   if (sub === "gate") {
     if (!o.bare) refuse("delivery gate needs --bare <repo.git>");

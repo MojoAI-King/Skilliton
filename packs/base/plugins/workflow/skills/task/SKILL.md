@@ -22,7 +22,7 @@ The person asking may not be a developer. They describe an outcome; this skill m
 ## 3. Create the task record and pick the branch
 
 - On an integration branch (`main` by default) and the work is more than a small fix: tell the user you will work on a separate branch so the shared branch stays safe, then `git switch -c task/<short-name>`.
-- Create the record: `skilliton task start "<title>" --criteria "<criterion>" --criteria "<criterion>" --apply`. It lands in the project's task folder with a collision-free id, so two people starting tasks at once never overwrite each other.
+- Create the record: `skilliton task start "<title>" --request "<the user's words>" --criteria "<criterion>" --criteria "<criterion>" --apply`. The request is what the user asked for, in their words; the criteria are yours. It lands in the project's task folder with a collision-free id, so two people starting tasks at once never overwrite each other.
 - Six or more separate requests at once are a batch: use `/workflow:dispatch` instead.
 - If the person asked only to set the work up, not to build it yet, stop once the record exists: tell them in plain words where it is, what its criteria say and what you assumed. Leave commits, reviews and other shared records for when the work starts.
 

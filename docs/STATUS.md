@@ -39,5 +39,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner | Updated |
 |---|---|---|---|---|---|
-| [2026-09-18-wave-2-rolling-maintenance-short-records-18d7](tasks/2026-09-18-wave-2-rolling-maintenance-short-records-18d7.md) | Wave 2: rolling maintenance, short records, backlog test | in-progress | main | unassigned | 2026-09-19T04:24:59.767Z |
+| [2026-09-19-wave-3-m8-second-increment-path-everywhe-0619](tasks/2026-09-19-wave-3-m8-second-increment-path-everywhe-0619.md) | Wave 3: M8 second increment, path everywhere, stack detection | in-progress | main | unassigned | 2026-09-19T05:11:03.546Z |
 <!-- skilliton:index:tasks:end -->

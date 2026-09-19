@@ -204,7 +204,7 @@ test("records in conventional and configured locations are adopted untouched; un
   for (const rel of ["docs/STATUS.md", "docs/BACKLOG.md", "DECISIONS.md", "docs/LESSONS.md", "docs/HANDOFF.md"]) assert.equal(existsSync(join(ctx.dir, rel)), false, `${rel} not created beside an adopted record`);
 
   const next = JSON.parse(read(ctx, ".skilliton/config.json"));
-  assert.deepEqual(next.dispatch, { minItemsForLanes: 9 });
+  assert.deepEqual(next.dispatch, { minItemsForLanes: 9, laneRoot: "../repo-lanes" }, "the set value is kept; laneRoot is drafted from the folder name");
   assert.deepEqual(next.handoff, { file: "HANDOFF.md", maxBytes: 3000 });
   assert.deepEqual(next.customTeamSection, { anything: [1, 2, 3] });
   assert.deepEqual(next.prepare.futureOption, { keep: true });
@@ -527,4 +527,95 @@ test("mutation: without the recheck before replacing a file, the concurrent-edit
   const r = sg(ctx, ["prepare", "--dir", ctx.dir, "--apply"], { cli: join(copy, "runtime", "skilliton.mjs"), preload: preloader(ctx, EDIT_AFTER_AGENTS_BACKUP), env: { SKILLITON_TEST_TARGET: ctx.dir } });
   assert.equal(r.code, 0, `the mutated runtime completes without noticing: ${r.all}`);
   assert.notEqual(read(ctx, "AGENTS.md"), "# Concurrent edit\n", "the mutant overwrote the concurrent edit, so the unmutated test's assertion can fail");
+});
+
+// ---------------------------------------------------------------- drafts from what the repository shows (wave 3)
+
+const commitAll = (ctx, message = "change") => { git(ctx.dir, "add", "-A"); git(ctx.dir, "commit", "-q", "--allow-empty", "-m", message); };
+const nodeApp = (ctx) => {
+  write(ctx, "package.json", `${JSON.stringify({ name: "app", scripts: { test: "node --test" } }, null, 2)}\n`);
+  write(ctx, "README.md", "# app\n");
+  commitAll(ctx, "first");
+};
+
+test("a repository with no detectable stack drafts laneRoot only and says why the rest was not drafted", (t) => {
+  const ctx = fixture(t);
+  const r = prepare(ctx);
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.out, /create\s+\.skilliton\/config\.json\s+.*dispatch\.laneRoot "\.\.\/repo-lanes" drafted from the repository folder name/);
+  assert.doesNotMatch(r.out, /laneTestCommand "/);
+  assert.doesNotMatch(r.out, /delivery\.draft\.json/);
+  assert.match(r.out, /^Note: no test command was detected \(package\.json scripts, pytest, go\.mod, Cargo\.toml, Makefile\), so dispatch\.laneTestCommand was not drafted; set it by hand in \.skilliton\/config\.json\.$/m);
+  assert.match(r.out, /^Note: dispatch\.hotspots needs at least 10 commits .*the repository has no commits yet.*$/m);
+  assert.match(r.out, /^Note: No delivery policy draft was written \(no test command was detected\); write \.skilliton\/delivery\.json by hand/m);
+  assert.match(r.out, /Summary: 19 to create, 0 to update, 0 adopted as they are, 0 already current, 0 drafted; nothing written/);
+  assert.deepEqual(snapshot(ctx.dir), {});
+});
+
+test("a node repository drafts laneTestCommand, laneRoot and the delivery draft; apply shows the plan before writing; check counts no draft as missing", (t) => {
+  const ctx = fixture(t);
+  nodeApp(ctx);
+  const preview = prepare(ctx);
+  assert.equal(preview.code, 0, preview.all);
+  assert.match(preview.out, /create\s+\.skilliton\/config\.json\s+.*dispatch\.laneTestCommand "npm test" drafted from package\.json scripts\.test; dispatch\.laneRoot "\.\.\/repo-lanes" drafted from the repository folder name/);
+  assert.match(preview.out, /^  draft    \.skilliton\/delivery\.draft\.json\s+delivery policy draft with one check "tests" \(npm test\) from package\.json scripts\.test; never run until confirmed with: skilliton delivery confirm --apply$/m);
+  assert.match(preview.out, /^Note: dispatch\.hotspots needs at least 10 commits to tell recurring paths apart \(the repository has 1\); prepare drafts it once the history is longer\.$/m);
+  assert.match(preview.out, /Summary: 19 to create, 0 to update, 0 adopted as they are, 0 already current, 1 drafted; nothing written/);
+  assert.equal(existsSync(join(ctx.dir, ".skilliton")), false, "the preview wrote nothing");
+
+  const r = prepare(ctx, "--apply");
+  assert.equal(r.code, 0, r.all);
+  const planAt = r.out.indexOf("  draft    .skilliton/delivery.draft.json"), writingAt = r.out.indexOf("Writing 20 file(s) ..."), writtenAt = r.out.indexOf("  drafted  .skilliton/delivery.draft.json");
+  assert.ok(planAt > 0 && writingAt > planAt && writtenAt > writingAt, `the plan is printed before the write, then the past tense:\n${r.out}`);
+  assert.match(r.out, /Summary: prepared \(layout 3\): 19 created, 0 updated, 0 adopted as they were, 0 already current, 1 drafted\./);
+  assert.match(r.out, /A draft is what prepare read from the repository; review it before relying on it\./);
+  const config = JSON.parse(read(ctx, ".skilliton/config.json"));
+  assert.deepEqual(config.dispatch, { laneTestCommand: "npm test", laneRoot: "../repo-lanes" });
+  const draft = JSON.parse(read(ctx, ".skilliton/delivery.draft.json"));
+  assert.deepEqual(draft, {
+    schema: "skilliton.delivery/1", protectedBranches: ["main"],
+    checks: [{ name: "tests", command: ["npm", "test"], timeoutSeconds: 600 }],
+    policyPaths: [".skilliton/delivery.json", ".github/workflows/", ".github/CODEOWNERS", "CODEOWNERS"],
+  });
+  assert.equal(existsSync(join(ctx.dir, ".skilliton/delivery.json")), false, "the draft is not the policy");
+
+  const check = prepare(ctx, "--check");
+  assert.equal(check.code, 0, check.all);
+  assert.match(check.out, /adopt\s+\.skilliton\/delivery\.draft\.json\s+delivery policy draft already present; left exactly as it is\. Review it, then: skilliton delivery confirm --apply/);
+  assert.match(check.out, /Summary: prepared \(layout 3\); nothing missing or outdated\./);
+  const again = prepare(ctx, "--apply");
+  assert.equal(again.code, 0, again.all);
+  assert.match(again.out, /already prepared \(layout 3\); nothing to change, nothing written/);
+});
+
+test("existing dispatch values are kept and said so; an existing delivery.json suppresses the draft", (t) => {
+  const ctx = fixture(t);
+  nodeApp(ctx);
+  write(ctx, ".skilliton/config.json", `${JSON.stringify({ dispatch: { laneTestCommand: "make check", laneRoot: "../elsewhere", hotspots: ["src/"] } }, null, 2)}\n`);
+  write(ctx, ".skilliton/delivery.json", `${JSON.stringify({ schema: "skilliton.delivery/1", protectedBranches: ["main"], checks: [{ name: "t", command: ["true"] }], policyPaths: [".skilliton/delivery.json"] }, null, 2)}\n`);
+  const r = prepare(ctx);
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.out, /update\s+\.skilliton\/config\.json\s+.*dispatch\.laneTestCommand kept as set; dispatch\.laneRoot kept as set; dispatch\.hotspots kept as set; every other key is kept/);
+  assert.doesNotMatch(r.out, /drafted from/);
+  assert.match(r.out, /adopt\s+\.skilliton\/delivery\.json\s+delivery policy already present; left exactly as it is, no draft written/);
+  assert.match(r.out, /0 drafted; nothing written/);
+  const applied = prepare(ctx, "--apply");
+  assert.equal(applied.code, 0, applied.all);
+  assert.deepEqual(JSON.parse(read(ctx, ".skilliton/config.json")).dispatch, { laneTestCommand: "make check", laneRoot: "../elsewhere", hotspots: ["src/"] });
+  assert.equal(existsSync(join(ctx.dir, ".skilliton/delivery.draft.json")), false);
+});
+
+test("hotspots are drafted from the history once it holds 10 commits, and a draft-only config change is not outdated for --check", (t) => {
+  const ctx = fixture(t);
+  nodeApp(ctx);
+  assert.equal(prepare(ctx, "--apply").code, 0);
+  for (let i = 0; i < 12; i++) { write(ctx, "src/core.mjs", `// ${i}\n`); if (i % 3 === 0) write(ctx, "docs/GUIDE.md", `# ${i}\n`); commitAll(ctx, `c${i}`); }
+  const check = prepare(ctx, "--check");
+  assert.equal(check.code, 0, check.all);
+  assert.match(check.out, /^  draft    \.skilliton\/config\.json\s+dispatch\.hotspots \["src\/core\.mjs"\] drafted from the paths changed most often in the last 13 commits; dispatch\.laneTestCommand kept as set; dispatch\.laneRoot kept as set; every other key is kept$/m);
+  assert.match(check.out, /Summary: prepared \(layout 3\); nothing missing or outdated \(1 draft\(s\) wait for: skilliton prepare --apply --dir .*; a draft is never missing\)\./);
+  const r = prepare(ctx, "--apply");
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.out, /0 created, 0 updated, .*, 1 drafted\./);
+  assert.deepEqual(JSON.parse(read(ctx, ".skilliton/config.json")).dispatch.hotspots, ["src/core.mjs"], "docs/ is skipped by default");
 });

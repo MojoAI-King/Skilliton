@@ -58,6 +58,7 @@ async function join(o) {
   const plan = planJoin({
     repo, company: o.company, client: o.client, marketplace: o.marketplace, plugins: o.plugins,
     binDir: o["bin-dir"], noLauncher: o["no-launcher"], claude: o.claude, codex: o.codex, trustPlan,
+    platform: process.env.SKILLITON_PLATFORM || process.platform,
   });
 
   say(`skilliton join${o.apply ? "" : " (preview; nothing is set up)"}`);
@@ -101,6 +102,8 @@ async function join(o) {
   if (l.action === "none") say("  skipped (--no-launcher)");
   else if (l.action === "skip") say(`  not written: ${l.reason}`);
   else step(l.action === "present", `${tilde(l.path)}, which runs ${tilde(plan.repo)}/scripts/skilliton.mjs`);
+  if (l.cmd?.action === "skip") say(`  not written: ${l.cmd.reason}`);
+  else if (l.cmd) step(l.cmd.action === "present", `${tilde(l.cmd.path)}, the same command for PowerShell and the Command Prompt`);
   if (l.action !== "none" && !l.onPath) say(`  note: ${tilde(l.dir)} is not on PATH. To use skilliton in new terminals, add this line to your shell profile: export PATH="${l.dir}:$PATH"`);
   if (!plan.clone.releaseTags) say(`note: ${tilde(plan.repo)} has no release tags yet, so verify will not find an approved release until your company signs one and you fetch its tags (git -C ${tilde(plan.repo)} fetch --tags).`);
   say("");
@@ -135,7 +138,7 @@ async function join(o) {
     for (const p of report.details.plugins) say(`  ${p.state.padEnd(16)}${p.plugin}${p.version ? ` ${p.version}` : ""}`);
     if (report.exitCode !== 0) allVerified = false;
   }
-  const launcherOk = l.action !== "skip";
+  const launcherOk = l.action !== "skip" && l.cmd?.action !== "skip";
   say("");
   say(allVerified && launcherOk
     ? `Done: this machine is set up for ${plan.company}. Start a new session in any project; to prepare one, run skilliton prepare --dir <project>.`
@@ -163,6 +166,7 @@ function undo(o) {
   const describe = { remove: "will remove", gone: "already gone:", changed: "will keep (changed since join):" };
   if (plan.trust.action !== "none") say(`release signers: ${describe[plan.trust.action]} ${tilde(plan.trust.path)}`);
   if (plan.launcher.action !== "none") say(`terminal command: ${describe[plan.launcher.action]} ${tilde(plan.launcher.path)}`);
+  if (plan.launcherCmd.action !== "none") say(`Windows terminal command: ${describe[plan.launcherCmd.action]} ${tilde(plan.launcherCmd.path)}`);
   say(`receipt: will back up and remove ${tilde(plan.path)}`);
   say("");
   if (!o.apply) { say("Next: run the same command with --apply."); return 0; }

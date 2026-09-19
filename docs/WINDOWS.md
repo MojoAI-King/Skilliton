@@ -96,9 +96,11 @@ These are guesses, written down so the run can confirm or refute them:
 - **Paths.** The runtime builds paths with Node's own path handling, so `C:\Users\...` should be fine, but the
   launcher and the hooks pass paths through a shell, where a backslash is an escape character. A path with a space
   (`C:\Users\First Last\`) is the likely first failure.
-- **The terminal command.** `join` writes a POSIX shell script at `~/.local/bin/skilliton`, which Git Bash can run. In
-  PowerShell or the Command Prompt it will not run; there you type `node <clone>\scripts\skilliton.mjs`. If that turns
-  out to matter, a `.cmd` launcher is a small addition.
+- **The terminal command.** `join` writes a POSIX shell script at `~/.local/bin/skilliton`, which Git Bash can run,
+  and on Windows also `skilliton.cmd` beside it, for PowerShell and the Command Prompt. The `.cmd` file's content is
+  pinned by a unit test (`scripts/join.test.mjs`, the platform injected through `SKILLITON_PLATFORM`), and undo
+  removes it; it has not yet been run on Windows, so its first run is part of the owner pass below. If `~/.local/bin`
+  is not on PATH there, the fallback is still `node <clone>\scripts\skilliton.mjs`.
 - **File modes.** Windows has no execute bit, so `verify` may report files it expects to be executable. Say what it
   reports.
 - **The preflight check on Windows** looks for Git Bash through `CLAUDE_CODE_GIT_BASH_PATH`, then PATH, then beside

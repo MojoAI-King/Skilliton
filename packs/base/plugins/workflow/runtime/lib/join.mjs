@@ -30,6 +30,7 @@ import { LEGACY_COMMAND, legacyJoinDir } from "./legacy-names.mjs";
 
 export const RECEIPT_SCHEMA = "skilliton.join/1";
 export const LAUNCHER_NAME = "skilliton";
+export const LAUNCHER_CMD_NAME = "skilliton.cmd";
 const CLIENT_TIMEOUT_MS = 300000;
 const SHA256_RE = /^[0-9a-f]{64}$/;
 
@@ -61,6 +62,8 @@ function receiptProblem(r, company) {
   if (r.trust !== null && !(isPlainObject(r.trust) && typeof r.trust.path === "string" && isAbsolute(r.trust.path) && SHA256_RE.test(r.trust.sha256 ?? ""))) return "trust is not null or { path, sha256 }";
   const l = r.launcher;
   if (l !== null && !(isPlainObject(l) && typeof l.path === "string" && isAbsolute(l.path) && basename(l.path) === LAUNCHER_NAME && typeof l.createdFolder === "boolean")) return "launcher is not null or { path to a file named skilliton, createdFolder }";
+  const lc = r.launcherCmd;
+  if (lc !== undefined && lc !== null && !(isPlainObject(lc) && typeof lc.path === "string" && isAbsolute(lc.path) && basename(lc.path) === LAUNCHER_CMD_NAME && typeof lc.createdFolder === "boolean")) return "launcherCmd is not absent, null or { path to a file named skilliton.cmd, createdFolder }";
   if (!isPlainObject(r.clients)) return "clients is not an object";
   for (const [id, c] of Object.entries(r.clients)) {
     if (!Object.hasOwn(DRIVERS, id)) return `clients names an unknown client ${JSON.stringify(id)}`;
@@ -313,21 +316,47 @@ export function launcherText(company, repo) {
   ].join("\n");
 }
 
-// True when the file at path is a regular file holding exactly this company's launcher for this clone.
-function isOurLauncher(path, company, repo) {
-  const st = lstatOrNull(path);
-  return Boolean(st?.isFile()) && readFileSync(path, "utf8") === launcherText(company, repo);
+// The Windows launcher, for PowerShell and the Command Prompt, where a POSIX shell script does not run. Written by
+// join on Windows only (docs/WINDOWS.md); CRLF line endings, as cmd.exe expects.
+export function launcherCmdText(company, repo) {
+  const script = join(repo, "scripts", "skilliton.mjs").replace(/\//g, "\\").replace(/[\r\n]/g, " ");
+  return [
+    "@echo off",
+    `rem skilliton launcher for company ${company}, written by \`skilliton join\`; \`skilliton join --undo --company ${company}\` removes it.`,
+    "where node >nul 2>nul || (echo skilliton: node was not found on PATH. Install Node.js 18 or later, then run the command again. Nothing was run. 1>&2 & exit /b 3)",
+    'if "%SKILLITON_SELF%"=="" set "SKILLITON_SELF=skilliton"',
+    `node "${script}" %*`,
+    "exit /b %ERRORLEVEL%",
+    "",
+  ].join("\r\n");
 }
 
-function planLauncher(company, repo, binDir, disabled) {
-  if (disabled) return { action: "none" };
+// True when the file at path is a regular file holding exactly the given text.
+function holdsExactly(path, text) {
+  const st = lstatOrNull(path);
+  return Boolean(st?.isFile()) && readFileSync(path, "utf8") === text;
+}
+
+// True when the file at path is a regular file holding exactly this company's launcher for this clone.
+const isOurLauncher = (path, company, repo) => holdsExactly(path, launcherText(company, repo));
+
+function planOneLauncher(dir, name, text, what) {
+  const path = join(dir, name);
+  if (holdsExactly(path, text)) return { action: "present", path, text };
+  if (lstatOrNull(path)) return { action: "skip", path, reason: `${tilde(path)} already exists and is not this company's ${what}, so it is left as it is` };
+  return { action: "write", path, text, sha256: sha256(text) };
+}
+
+// On win32 the plan also carries cmd, the skilliton.cmd launcher next to the POSIX one, under the same rules; elsewhere
+// cmd is null. platform is injectable so the Windows plan is tested on every platform.
+function planLauncher(company, repo, binDir, disabled, platform = process.platform) {
+  if (disabled) return { action: "none", cmd: null };
   const dir = resolve(binDir ?? join(homedir(), ".local", "bin"));
-  const path = join(dir, LAUNCHER_NAME);
-  const text = launcherText(company, repo);
   const onPath = (process.env.PATH ?? "").split(delimiter).filter(Boolean).some((p) => resolve(p) === dir);
-  if (isOurLauncher(path, company, repo)) return { action: "present", dir, path, text, onPath };
-  if (lstatOrNull(path)) return { action: "skip", dir, path, onPath, reason: `${tilde(path)} already exists and is not this company's launcher, so it is left as it is` };
-  return { action: "write", dir, path, text, sha256: sha256(text), onPath, createFolder: !isDir(dir) };
+  const posix = planOneLauncher(dir, LAUNCHER_NAME, launcherText(company, repo), "launcher");
+  const cmd = platform === "win32" ? planOneLauncher(dir, LAUNCHER_CMD_NAME, launcherCmdText(company, repo), "launcher") : null;
+  const createFolder = posix.action === "write" ? !isDir(dir) : undefined;
+  return { ...posix, dir, onPath, ...(createFolder === undefined ? {} : { createFolder }), cmd };
 }
 
 // ---------- join ----------
@@ -343,14 +372,14 @@ function refuseLegacySetup(company) {
   refuse(`company ${company} was set up on this machine before the rename to Skilliton (its receipt is ${tilde(path)}). Remove that setup first with the release that wrote it: in a clone of the company skills repository checked out at a commit from before the rename, run node scripts/${LEGACY_COMMAND}.mjs join --undo --company ${company} --apply, then run join here again. Nothing was changed.`);
 }
 
-export function planJoin({ repo, company, client = "all", marketplace, plugins, binDir, noLauncher, claude, codex, trustPlan }) {
+export function planJoin({ repo, company, client = "all", marketplace, plugins, binDir, noLauncher, claude, codex, trustPlan, platform = process.platform }) {
   validateCompany(company);
   refuseLegacySetup(company);
   if (!["all", ...Object.keys(DRIVERS)].includes(client)) refuse(`--client must be all, claude-code or codex (got "${client}")`);
   const clone = inspectClone(repo);
   const market = planMarketplace(repo, marketplace);
   const pluginList = planPlugins(market, plugins);
-  const launcher = planLauncher(company, repo, binDir, noLauncher);
+  const launcher = planLauncher(company, repo, binDir, noLauncher, platform);
   const previous = readReceipt(company);
   if (previous) {
     const again = `Run join --undo --company ${company} --apply first, then join again. Nothing was changed.`;
@@ -396,7 +425,7 @@ export function applyJoin(plan, { say, writeTrust }) {
   const receipt = plan.previous ?? {
     schema: RECEIPT_SCHEMA, company: plan.company, source: plan.repo, joinedAt: new Date().toISOString(),
     marketplace: { name: plan.market.name, kind: plan.market.source.kind, location: plan.market.source.location },
-    trust: null, clients: {}, launcher: null,
+    trust: null, clients: {}, launcher: null, launcherCmd: null,
   };
   writeReceipt(receipt);
   say(`recorded ${tilde(plan.receipt)}`);
@@ -437,6 +466,13 @@ export function applyJoin(plan, { say, writeTrust }) {
     receipt.launcher = { path: l.path, sha256: l.sha256, createdFolder: l.createFolder };
     writeReceipt(receipt);
     say(`wrote the terminal command ${tilde(l.path)}`);
+  }
+  if (l.cmd?.action === "write") {
+    mkdirSync(l.dir, { recursive: true });
+    writeFileSync(l.cmd.path, l.cmd.text, { flag: "wx" });
+    receipt.launcherCmd = { path: l.cmd.path, sha256: l.cmd.sha256, createdFolder: false };
+    writeReceipt(receipt);
+    say(`wrote the Windows terminal command ${tilde(l.cmd.path)}`);
   }
   return { failed: null };
 }
@@ -508,7 +544,14 @@ export function planUndo({ company, claude, codex }) {
     else if (isOurLauncher(path, company, receipt.source)) launcher = { action: "remove", path, createdFolder };
     else launcher = { action: "changed", path, createdFolder };
   }
-  return { company, receipt, clients, trust, launcher, path: receiptPath(company) };
+  let launcherCmd = { action: "none" };
+  if (receipt.launcherCmd) {
+    const { path, createdFolder } = receipt.launcherCmd;
+    if (!lstatOrNull(path)) launcherCmd = { action: "gone", path, createdFolder };
+    else if (holdsExactly(path, launcherCmdText(company, receipt.source))) launcherCmd = { action: "remove", path, createdFolder };
+    else launcherCmd = { action: "changed", path, createdFolder };
+  }
+  return { company, receipt, clients, trust, launcher, launcherCmd, path: receiptPath(company) };
 }
 
 // Returns { failed, kept }, where kept lists what was deliberately left and why.
@@ -535,6 +578,10 @@ export function applyUndo(plan, { say, backup }) {
     unlinkSync(plan.trust.path);
     say(`removed the trusted release signers ${tilde(plan.trust.path)}`);
   } else if (plan.trust.action === "changed") kept.push(`${tilde(plan.trust.path)}, because it changed after join (remove it with trust remove)`);
+  if (plan.launcherCmd.action === "remove") {
+    unlinkSync(plan.launcherCmd.path);
+    say(`removed the Windows terminal command ${tilde(plan.launcherCmd.path)}`);
+  } else if (plan.launcherCmd.action === "changed") kept.push(`${tilde(plan.launcherCmd.path)}, because it changed after join (remove it by hand)`);
   if (plan.launcher.action === "remove") {
     unlinkSync(plan.launcher.path);
     say(`removed the terminal command ${tilde(plan.launcher.path)}`);

@@ -12,8 +12,8 @@
 // Exit: 0 every step PASS; 1 any step FAIL or NOT RUN.
 
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync, appendFileSync } from "node:fs";
-import { join, relative } from "node:path";
-import { CLI, REPO, Rehearsal, git, initRepo, isolatedEnv, parseFlags, run, workspace } from "./lib.mjs";
+import { dirname, join, relative } from "node:path";
+import { CLI, REPO, Rehearsal, git, initRepo, isolatedEnv, parseFlags, readJson, run, workspace } from "./lib.mjs";
 
 const flags = parseFlags(process.argv.slice(2), { keep: "flag", "no-evidence": "flag" });
 const ws = workspace("projects");
@@ -52,8 +52,53 @@ await R.step("N1", "fresh project: preview writes nothing, apply creates layout 
   const idempotent = snapshot(fresh) === afterFirst;
   const noCopiedRuntime = !existsSync(join(fresh, ".skilliton", "bin"));
   commit(fresh, "Prepare");
-  return { ok: preview.code === 0 && unchanged && apply.code === 0 && !missing.length && check.code === 0 && again.code === 0 && idempotent && noCopiedRuntime, critical: true, detail: `preview exit ${preview.code}, wrote nothing: ${unchanged}; apply exit ${apply.code}; missing layout files: ${missing.join(", ") || "none"}; check exit ${check.code}; repeat apply exit ${again.code}, byte-identical: ${idempotent}; no copied runtime: ${noCopiedRuntime}` };
+  // Wave 3: a README-only repository declares no test command, and prepare says so instead of drafting anything.
+  const noStack = preview.out.includes("no test command was detected") && preview.out.includes("No delivery policy draft was written") && !existsSync(join(fresh, ".skilliton", "delivery.draft.json"));
+  return { ok: preview.code === 0 && unchanged && apply.code === 0 && !missing.length && check.code === 0 && again.code === 0 && idempotent && noCopiedRuntime && noStack, critical: true, detail: `preview exit ${preview.code}, wrote nothing: ${unchanged}; apply exit ${apply.code}; missing layout files: ${missing.join(", ") || "none"}; check exit ${check.code}; repeat apply exit ${again.code}, byte-identical: ${idempotent}; no copied runtime: ${noCopiedRuntime}; no test command detected and said so, no draft: ${noStack}` };
 });
+
+// Wave 3 (M8 second increment): in a repository of each kind, one prepare drafts the test command and a delivery
+// policy draft from what the repository shows, the plan is shown before anything is written, confirm makes the draft
+// the policy the gate runs, and the first task record carries the user's request.
+const KINDS = [
+  ["K1", "node", { "package.json": `${JSON.stringify({ name: "k1", scripts: { test: "node --test" } }, null, 2)}\n` }, "npm test", ["npm", "test"], "package.json scripts.test"],
+  ["K2", "python", { "pyproject.toml": "[project]\nname = \"k2\"\n\n[tool.pytest.ini_options]\ntestpaths = [\"tests\"]\n", "tests/test_a.py": "def test_a():\n    assert True\n" }, "pytest", ["pytest"], "pyproject.toml [tool.pytest]"],
+  ["K3", "go", { "go.mod": "module example.test/k3\n\ngo 1.22\n", "main.go": "package main\n\nfunc main() {}\n" }, "go test ./...", ["go", "test", "./..."], "go.mod"],
+];
+for (const [id, kind, files, lane, argv, source] of KINDS) {
+  await R.step(id, `${kind} project: prepare drafts the test command and a delivery policy draft, confirm makes it the policy, the first task carries the request`, async () => {
+    const miss = need("prepare", "delivery", "task"); if (miss) return miss;
+    const dir = join(ws, `kind-${kind}`);
+    initRepo(dir, env);
+    for (const [rel, text] of Object.entries(files)) { mkdirSync(dirname(join(dir, rel)), { recursive: true }); writeFileSync(join(dir, rel), text); }
+    commit(dir, "init");
+    const draftFile = join(dir, ".skilliton", "delivery.draft.json"), policyFile = join(dir, ".skilliton", "delivery.json");
+    const preview = sg(["prepare", "--dir", dir]);
+    const previewSaysDraft = preview.out.includes(`dispatch.laneTestCommand "${lane}" drafted from ${source}`) && preview.out.includes(`delivery policy draft with one check "tests" (${lane}) from ${source}`) && !existsSync(draftFile);
+    const apply = sg(["prepare", "--dir", dir, "--apply"]);
+    const planFirst = apply.out.indexOf("  draft    .skilliton/delivery.draft.json") > 0 && apply.out.indexOf("  draft    .skilliton/delivery.draft.json") < apply.out.indexOf("Writing ") && apply.out.indexOf("Writing ") < apply.out.indexOf("Written:") && apply.out.indexOf("Written:") < apply.out.indexOf("  drafted  .skilliton/delivery.draft.json");
+    const config = existsSync(join(dir, ".skilliton", "config.json")) ? readJson(join(dir, ".skilliton", "config.json")) : {};
+    const dispatchOk = config.dispatch?.laneTestCommand === lane && config.dispatch?.laneRoot === `../kind-${kind}-lanes`;
+    const draft = existsSync(draftFile) ? readJson(draftFile) : null;
+    const draftOk = draft?.schema === "skilliton.delivery/1" && JSON.stringify(draft?.protectedBranches) === JSON.stringify(["main"]) && draft?.checks?.length === 1 && draft.checks[0].name === "tests" && JSON.stringify(draft.checks[0].command) === JSON.stringify(argv) && !existsSync(policyFile);
+    const check = sg(["prepare", "--dir", dir, "--check"]);
+    const confirmPreview = sg(["delivery", "confirm", "--dir", dir]);
+    const previewKept = existsSync(draftFile) && !existsSync(policyFile);
+    const confirm = sg(["delivery", "confirm", "--dir", dir, "--apply"]);
+    const confirmed = existsSync(policyFile) && !existsSync(draftFile) && JSON.stringify(readJson(policyFile)) === JSON.stringify(draft);
+    const { planGate } = await import(join(REPO, "packs", "base", "plugins", "workflow", "runtime", "lib", "gate.mjs"));
+    let gate; try { gate = planGate(dir, {}); } catch (e) { gate = { error: String(e?.message ?? e) }; }
+    const gateOk = gate.kind === "policy" && gate.runs?.length === 1 && gate.runs[0].name === "tests" && JSON.stringify(gate.runs[0].argv) === JSON.stringify(argv);
+    commit(dir, "Prepare and confirm the delivery policy");
+    const request = `Set the ${kind} project up and make the tests run before a merge`;
+    const task = sg(["task", "start", "First task", "--request", request, "--criteria", "The delivery policy runs the tests", "--criteria", "The task record holds the request", "--dir", dir, "--apply"]);
+    const created = /created (\S+\.md)/.exec(task.out);
+    const record = created ? readFileSync(join(dir, created[1]), "utf8") : "";
+    const requestOk = record.includes(`## Request\n\n${request}\n\n## Acceptance criteria\n\n- [ ] The delivery policy runs the tests\n`);
+    const ok = preview.code === 0 && previewSaysDraft && apply.code === 0 && planFirst && dispatchOk && draftOk && check.code === 0 && confirmPreview.code === 0 && previewKept && confirm.code === 0 && confirmed && gateOk && task.code === 0 && requestOk;
+    return { ok, detail: `preview exit ${preview.code}, names the drafted command and the policy draft, no draft file yet: ${previewSaysDraft}; apply exit ${apply.code}, plan shown before Writing, Written after: ${planFirst}; config dispatch laneTestCommand "${config.dispatch?.laneTestCommand}" laneRoot "${config.dispatch?.laneRoot}": ${dispatchOk}; draft is skilliton.delivery/1 with one check "tests" ${JSON.stringify(argv)}, no policy yet: ${draftOk}; check exit ${check.code}; confirm preview exit ${confirmPreview.code}, draft kept: ${previewKept}; confirm --apply exit ${confirm.code}, policy present and draft gone, same content: ${confirmed}; planGate kind ${gate.kind ?? gate.error} with one run "tests": ${gateOk}; task start exit ${task.code}, Request section holds the request: ${requestOk}` };
+  });
+}
 
 await R.step("N2", "doctor recognizes the prepared project's layout, versions and instruction blocks", () => {
   const d = sg(["doctor", "--dir", fresh]);

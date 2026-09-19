@@ -25,19 +25,19 @@ Each behavior is marked **enforced** (a hook of an installed, enabled plugin doe
 ### Project records
 - Status `docs/STATUS.md`; backlog `docs/BACKLOG.md` (finished items move to `docs/BACKLOG_ARCHIVE.md`); roadmap `PLAN.md`; decisions `DECISIONS.md`, one entry per file in `docs/decisions/`; lessons `docs/LESSONS.md`, entries in `docs/lessons/`; handoff `docs/HANDOFF.md`; this repository's own maintenance steps `docs/MAINTAIN.md`; one task record per piece of work in `docs/tasks/`.
 - The shared records (status, backlog, handoff and the indexes) are written on `main` only. On any other branch, record progress in that branch's task record, and propose decisions and lessons as new entry files.
-- Commands below are `skilliton <command>`. In Claude Code the workflow plugin puts `skilliton` on the shell path. If it is not found, say so, then use the `bin/skilliton` next to the workflow skills you were given, or `node scripts/skilliton.mjs` in the company skills repository.
+- Commands below are `skilliton <command>`. Two routes put it on the path: the terminal command `skilliton join` writes into `~/.local/bin` (measured as the one a session resolves first), and the workflow plugin's `bin/`, which Claude Code adds to the Bash tool's PATH in a session started after the plugin was installed (measured). If it is not found, say so, then use the `bin/skilliton` next to the workflow skills you were given, or `node scripts/skilliton.mjs` in the company skills repository.
 
 ### Start of a session
 - **Enforced:** the latest `RESUME HERE` from `docs/HANDOFF.md` and a "Project state" block (pending migrations, versions, the current task, an interrupted previous session, a stale handoff, security evidence counts) are shown. **Instructed:** read both, check their claims against the files and `git status`, and tell the user in two or three plain sentences where things stand and what is missing or stale. If the block is absent, run `skilliton status`.
 - **Instructed:** if there is no current task, ask what the user wants to get done before exploring the code.
 
 ### Starting a piece of work
-- **Instructed:** before changing code, turn the request into a task record with acceptance criteria: `skilliton task start "<title>" --criteria "<criterion>" --apply` (repeat `--criteria`). Keep one task per branch; small work may stay on the current branch.
+- **Instructed:** before changing code, turn the request into a task record with acceptance criteria: `skilliton task start "<title>" --request "<the user's words>" --criteria "<criterion>" --apply` (repeat `--criteria`; the request is what the user asked for, the criteria are what done means). Keep one task per branch; small work may stay on the current branch.
 - **Instructed:** when the user gives six or more separate tasks, bugs or notes, use `/workflow:dispatch` to verify and split them before writing code.
 - **Instructed:** explain what you are about to change in plain language before changing it, especially for users who are not developers.
 
 ### While working
-- **Enforced:** when you try to finish with changes and no recent checkpoint, the stop hook asks you to record one. **Instructed:** record a checkpoint whenever something is decided, verified or blocked: `skilliton checkpoint --state "<what is true now>" --evidence "<what ran and its result>" --next "<next step>" --apply`. Record a decision as its own entry: `skilliton record decision "<title>" --apply`, then fill in the file.
+- **Enforced:** when you try to finish with changes and no recent checkpoint, the stop hook asks you to record one. **Instructed:** record a checkpoint whenever something is decided, verified or blocked: `skilliton checkpoint --state "<what is true now>" --evidence "<what ran and its result>" --next "<next step>" --apply`; add `--handoff` on an integration branch to write the shared handoff (`docs/HANDOFF.md`) in the same write. Record a decision as its own entry: `skilliton record decision "<title>" --apply`, then fill in the file.
 - **Enforced (guardrails enabled, shell commands the assistant runs):** force-pushes to protected branches, skipped git hooks and secret-shaped commits are blocked; commands that throw away uncommitted work need confirmation, and in Codex they are blocked instead. Other terminals and indirect commands are not covered. **Instructed:** when a command is blocked, explain why and offer a safe next step; never try to get around a block.
 
 ### Session cost
