@@ -80,8 +80,9 @@ function parseEntryText(text, kind) {
 const shown = (value) => (value.length > 60 ? `${value.slice(0, 57)}...` : value);
 
 // { dir, entries, total, problems }. entries are sorted by ID; for tasks they are the open tasks only, and total counts
-// every task file read. A file that cannot be indexed as it is gets a problem naming it, never silence.
-export function readEntries(project, kind) {
+// every task file read. A file that cannot be indexed as it is gets a problem naming it, never silence. overlay maps
+// a record's path (relative to the root) to the text it is about to hold, so a plan can index a write not yet made.
+export function readEntries(project, kind, { overlay = null } = {}) {
   const dir = project.directories[kind];
   const folder = inspectFolder(project.root, dir, `the ${kind} folder`);
   const entries = [], problems = [];
@@ -101,7 +102,8 @@ export function readEntries(project, kind) {
     if (!st.isFile()) { problems.push(`${rel} was not indexed: it is not a regular file`); continue; }
     if (st.size > MAX_ENTRY_BYTES) { problems.push(`${rel} was not indexed: it is larger than 256 KB`); continue; }
     let text;
-    try { text = readFileSync(join(folder.abs, name), "utf8"); } catch (e) { problems.push(`${rel} was not indexed: it could not be read (${e.code ?? "error"})`); continue; }
+    if (overlay && overlay[rel] !== undefined) text = overlay[rel];
+    else { try { text = readFileSync(join(folder.abs, name), "utf8"); } catch (e) { problems.push(`${rel} was not indexed: it could not be read (${e.code ?? "error"})`); continue; } }
     total++;
     const { title, fields } = parseEntryText(text, kind);
     if (!title) problems.push(`${rel} does not start with a "${kind === "tasks" ? "# Task: <title>" : "# <title>"}" line`);
@@ -148,14 +150,14 @@ export function findIndexSection(text, kind, label) {
 // Plans the three sections: { branch, integration, sections: [{ kind, record, dir, count, total, hadSection,
 // before, after, changed }], problems, result }. With { apply: true, gitDir } the changed records are written through
 // the transactional writer, which is refused on a branch that is not an integration branch.
-export function regenerateIndexes(project, { apply = false, gitDir = null, branch } = {}) {
+export function regenerateIndexes(project, { apply = false, gitDir = null, branch, overlay = null } = {}) {
   const onBranch = branch === undefined ? currentBranch(project.root) : branch;
   const integration = onBranch !== null && project.integrationBranches.includes(onBranch);
   const sections = [], problems = [];
   for (const kind of INDEX_KINDS) {
     const role = INDEX_RECORD_ROLE[kind];
     const record = project.artifacts[role];
-    const { dir, entries, total, problems: found } = readEntries(project, kind);
+    const { dir, entries, total, problems: found } = readEntries(project, kind, { overlay });
     problems.push(...found);
     const bytes = readPath(project.root, record, `the ${ROLE_LABELS[role]} ${project.artifacts[role]}`);
     if (bytes === null) refuse(`the ${ROLE_LABELS[role]} ${record} does not exist, so the ${kind} index has nowhere to go. Run skilliton prepare --apply first. Nothing was written`);

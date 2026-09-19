@@ -16,3 +16,5 @@ Kind: Living. Batch record. Area [05-repo-maintenance](AREA.md).
 ## Notes
 
 A reported count of minutes is not a cost or savings claim; it stays labelled owner-reported.
+
+Waits for the owner pass at the end (docs/REPORT_CARD.md).

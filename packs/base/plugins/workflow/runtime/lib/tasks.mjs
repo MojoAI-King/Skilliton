@@ -177,7 +177,7 @@ const unquote = (value) => (value.length > 1 && value.startsWith("`") && value.e
 
 // Bullets (State, Evidence, Next, Git, Blocked, Watch out) between two line indexes, with indented continuation lines
 // joined by a space. Returns a map from label to text.
-function itemsBetween(lines, from, to) {
+export function itemsBetween(lines, from, to) {
   const items = {};
   let last = null;
   for (let i = from; i < to; i++) {
@@ -406,15 +406,68 @@ export function createTask(project, { title, criteria = [], branch, owner = "una
   throw new Error(`eight task ids in a row already existed in ${project.directories.tasks}; nothing was written`);
 }
 
-// Plans (and with apply writes) one checkpoint at the end of the "## Checkpoints" section, and sets Updated.
+export const HANDOFF_LABELS = ["State", "Next", "Blocked", "Watch out"];
+
+// Rewrites the "## Handoff" section's labelled bullets in place: a label in values replaces the bullet (and drops the
+// bullet's indented continuation lines); a label with no bullet is added in the fixed order; a section that does not
+// exist is appended at the end. Labels absent from values are left as they are. Mutates and returns lines.
+export function rewriteHandoffSection(lines, values, cr = "") {
+  const a = analyze(lines);
+  const section = a.sections.find((s) => s.name === "Handoff");
+  const wanted = HANDOFF_LABELS.filter((label) => values[label] !== undefined && values[label] !== null);
+  if (!section) {
+    while (lines.length && blank(lines[lines.length - 1])) lines.pop();
+    lines.push(cr, `## Handoff${cr}`, cr, ...wanted.map((label) => `- **${label}:** ${toLatin1(values[label])}${cr}`), "");
+    return lines;
+  }
+  const found = {};
+  for (let i = section.start + 1; i < section.end; i++) {
+    const m = ITEM_RE.exec(stripCr(lines[i]));
+    if (m && HANDOFF_LABELS.includes(m[1]) && found[m[1]] === undefined) found[m[1]] = i;
+  }
+  const isContinuation = (line) => /^(?: {2,}|\t)\S/.test(stripCr(line)) && !/^\s*[-*] /.test(stripCr(line));
+  const present = Object.entries(found).sort((x, y) => y[1] - x[1]);
+  for (const [label, at] of present) {
+    let end = at + 1;
+    while (end < lines.length && isContinuation(lines[end])) end++;
+    if (values[label] === undefined || values[label] === null) continue;
+    lines.splice(at, end - at, replaceValue(lines[at], values[label]));
+  }
+  const missing = wanted.filter((label) => found[label] === undefined);
+  if (missing.length) {
+    const b = analyze(lines);
+    const s = b.sections.find((x) => x.name === "Handoff");
+    let last = -1;
+    for (let i = s.start + 1; i < s.end; i++) if (ITEM_RE.test(stripCr(lines[i])) || (last >= 0 && isContinuation(lines[i]))) last = i;
+    const insert = missing.map((label) => `- **${label}:** ${toLatin1(values[label])}${cr}`);
+    if (last >= 0) lines.splice(last + 1, 0, ...insert);
+    else {
+      let at = s.start + 1;
+      while (at < s.end && blank(lines[at])) at++;
+      lines.splice(s.start + 1, 0, cr, ...insert, ...(at < s.end ? [cr] : []));
+    }
+  }
+  return lines;
+}
+
+// Plans (and with apply writes) one checkpoint at the end of the "## Checkpoints" section, and sets Updated. With
+// handoff (a map of Handoff labels to text) the "## Handoff" bullets are rewritten in the same write. With aheadMs,
+// a record whose Updated is later than the checkpoint time by more than that is refused (a clock typed ahead would
+// make the new checkpoint read as the older one).
 // checkpoint: { at, state, evidence, next, git: { branch, shortHead, dirty } }.
-// Returns { rel, file, task, before, after, lines, backup, written }.
-export function appendCheckpoint(project, id, checkpoint, { apply = false, backupDir = null } = {}) {
+// Returns { rel, file, task, before, after, lines, handoffLines, backup, written }.
+export function appendCheckpoint(project, id, checkpoint, { apply = false, backupDir = null, handoff = null, aheadMs = null } = {}) {
   const state = checkText(checkpoint.state, "--state");
   const next = checkText(checkpoint.next, "--next");
   const evidence = checkpoint.evidence === undefined || checkpoint.evidence === null ? "none given" : checkText(checkpoint.evidence, "--evidence");
   const at = checkpoint.at ?? new Date().toISOString();
   const { rel, file, before, task } = openForEdit(project, id);
+  if (aheadMs !== null) {
+    const updatedMs = Date.parse(task.updated), atMs = Date.parse(at);
+    if (Number.isFinite(updatedMs) && Number.isFinite(atMs) && updatedMs > atMs + aheadMs) {
+      throw new Refused(`${rel} says it was updated ${task.updated}, which is later than this machine's clock (${at}) by more than ${Math.round(aheadMs / 60000)} minutes, so the new checkpoint would read as the older one. Nothing was written. Fix the Updated line, then run the command again`);
+    }
+  }
   const lines = before.split("\n");
   const a = analyze(lines);
   const section = a.sections.find((s) => s.name === "Checkpoints");
@@ -428,7 +481,14 @@ export function appendCheckpoint(project, id, checkpoint, { apply = false, backu
   const updated = lines.slice();
   updated[a.fields.Updated] = replaceValue(updated[a.fields.Updated], at);
   updated.splice(last + 1, 0, ...block);
-  const plan = { rel, file, task, before, after: updated.join("\n"), lines: added, changed: true, backup: null, written: false };
+  let handoffLines = [];
+  if (handoff) {
+    const values = {};
+    for (const label of HANDOFF_LABELS) if (handoff[label] !== undefined && handoff[label] !== null) values[label] = checkText(handoff[label], `the Handoff ${label} line`);
+    rewriteHandoffSection(updated, values, cr);
+    handoffLines = Object.entries(values).map(([label, value]) => `- **${label}:** ${value}`);
+  }
+  const plan = { rel, file, task, before, after: updated.join("\n"), lines: added, handoffLines, changed: true, backup: null, written: false };
   return apply ? writeTaskPlan(project, plan, { backupDir, command: "checkpoint" }) : plan;
 }
 

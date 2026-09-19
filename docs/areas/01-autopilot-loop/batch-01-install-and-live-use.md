@@ -23,6 +23,8 @@ Nothing here is a code change unless something fails; a failure is a finding tha
 
 Join ran on 2026-09-18 22:24 EDT (company `mojoai`, receipt under `<home>/.config/skilliton/joined/`). It wrote the launcher to `<home>/.local/bin/skilliton`; whether that folder is on the owner's shell path is recorded in the task record for this wave. The headless rehearsal (`scripts/rehearsals/live-clients.mjs`) gained steps L5 (the read guard refusing a whole-file Read) and L6 (compaction at the window a project's settings set) in this wave; L5 passed on the first run (`evidence/rehearsals/2026-09-19-live-clients`, the UTC date) and L6 on the fourth (`2026-09-19-live-clients-run-4`); the three failed L6 attempts are kept because they recorded two client behaviors: a session that hits the window again within 3 turns of a compaction, 3 times in a row, is ended by the client, and a corpus of random hashes could not be compacted. The rows in docs/CLIENTS.md and docs/COVERAGE.md say measured only for what a step showed; B34 is closed on those two steps.
 
+Waits for the owner pass at the end (docs/REPORT_CARD.md).
+
 **The owner's interactive session (items 2 to 5).** Open Claude Code in this repository (the installed plugins, not `--plugin-dir`) and note, for each line, seen or not seen, with the exact text where there is any:
 
 1. At session start: the "Project state" block and the latest RESUME HERE from docs/HANDOFF.md appear before the first prompt.

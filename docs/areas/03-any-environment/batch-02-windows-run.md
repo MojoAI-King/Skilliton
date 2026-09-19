@@ -18,3 +18,5 @@ Kind: Living. Batch record. Area [03-any-environment](AREA.md).
 ## Notes
 
 The owner tests on Windows. Nothing here can be done from this machine.
+
+Waits for the owner pass at the end (docs/REPORT_CARD.md).

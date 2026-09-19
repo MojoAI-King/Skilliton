@@ -10,9 +10,9 @@ Kind: Living. Batch record. Area [05-repo-maintenance](AREA.md).
 
 ## Acceptance
 
-- [ ] the STATUS current-state table is generated from PLAN.md section 7 with a staleness check
-- [ ] the RESUME HERE size test exists (shared with 01-03)
-- [ ] the status archive step and file exist
+- [x] the STATUS current-state table is generated from PLAN.md section 7 with a staleness check (evidence: scripts/living-docs.mjs --apply and --check; CI steps "Living records stay short and generated" and "Living records check can fail", 2026-09-19)
+- [x] the RESUME HERE size test exists (shared with 01-03) (evidence: scripts/living-docs.mjs, 24 lines and 4500 bytes; docs/CONTRACTS.md section 3)
+- [x] the status archive step and file exist (evidence: docs/MAINTAIN.md step 6 and docs/STATUS_ARCHIVE.md)
 
 ## Notes
 

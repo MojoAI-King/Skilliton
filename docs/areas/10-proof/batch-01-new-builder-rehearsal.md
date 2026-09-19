@@ -16,3 +16,5 @@ Kind: Living. Batch record. Area [10-proof](AREA.md).
 ## Notes
 
 Deferred by the owner on 2026-09-18.
+
+Waits for the owner pass at the end (docs/REPORT_CARD.md).

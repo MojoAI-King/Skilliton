@@ -48,14 +48,16 @@ If none exist, offer `skilliton prepare` (it previews first, adopts what exists,
 
 ### The resume marker (`docs/HANDOFF.md`)
 
-The top of `docs/HANDOFF.md` is a section headed exactly `## RESUME HERE`, which the session-start hook shows to the next session. `/workflow:handoff` writes the same section; both follow the layout in that skill. Start the section with `Written: <date and time>`, reading the time from the clock with `date "+%Y-%m-%d %H:%M %Z"` rather than writing it from memory (`skilliton status` reports a time later than now instead of trusting it), then:
+The top of `docs/HANDOFF.md` is a section headed exactly `## RESUME HERE`, which the session-start hook shows to the next session. The day's checkpoints write it: `skilliton checkpoint --handoff ... --apply` on an integration branch rewrites the block, rotates the previous one under `## Earlier` and archives beyond five (the layout is in `/workflow:handoff`). Here the step is a check, not a rewrite: read the block's `Written:` time, run `git log --oneline --since="<that time>"`, and compare. If nothing happened since the block was written, leave it alone and say "handoff current". If the block is behind (commits, a decision or a blocker it does not name), write one more checkpoint with `--handoff` carrying the facts, rather than editing the file by hand. Write it by hand only where `skilliton` is not found, starting with `Written: <date and time>` read from the clock with `date "+%Y-%m-%d %H:%M %Z"` rather than from memory (`skilliton status` reports a time later than now instead of trusting it), then:
 
 - **State:** one or two sentences on where things stand.
 - **Next:** the next actions in priority order, each with the file or command to start from.
 - **Blocked:** what is waiting on whom.
 - **Watch out:** anything a fresh session would trip on (a failing check with a known reason, a half-finished migration).
 
-Move the previous `RESUME HERE` block below, under `## Earlier`, headed `### <its Written date>` (no `Written:` line: use `git log -1 --format=%cs -- docs/HANDOFF.md`, or `undated`). Keep the five most recent there; move older ones to `docs/HANDOFF_ARCHIVE.md`. The live file must stay short enough to read whole.
+By hand, move the previous `RESUME HERE` block below, under `## Earlier`, headed `### <its Written date>` (no `Written:` line: use `git log -1 --format=%cs -- docs/HANDOFF.md`, or `undated`). Keep the five most recent there; move older ones to `docs/HANDOFF_ARCHIVE.md`. The live file must stay short enough to read whole.
+
+The same rule holds for the other mechanical records: `skilliton index` without `--apply` must report every index current (a checkpoint on an integration branch regenerates them; a stale one means a record was edited by hand since, so apply it), and each open task record's `## Handoff` must match its last checkpoint (`skilliton task show <id>`). What still needs judgment, and is written here: new decisions and lessons as entry files, the status paragraph, and the backlog rows.
 
 ### Decisions (`DECISIONS.md`)
 

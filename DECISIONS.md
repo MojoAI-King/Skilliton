@@ -300,4 +300,5 @@ Decision entries in `docs/decisions/`, sorted by ID. `skilliton index` writes th
 | [2026-09-18-one-plan-in-dependency-waves-with-count-687f](docs/decisions/2026-09-18-one-plan-in-dependency-waves-with-count-687f.md) | One plan in dependency waves, with count-based bars per area | accepted | 2026-09-18 |
 | [2026-09-18-the-team-compaction-window-is-600000-own-e7ee](docs/decisions/2026-09-18-the-team-compaction-window-is-600000-own-e7ee.md) | The team compaction window is 600000, owner-chosen | accepted | 2026-09-18 |
 | [2026-09-18-token-efficiency-ships-in-the-harness-an-a3f4](docs/decisions/2026-09-18-token-efficiency-ships-in-the-harness-an-a3f4.md) | Token efficiency ships in the harness: an enforced read guard, the rules in the block, a gate command, the compaction window, and a meter that reproduces its reference | accepted | 2026-09-18 |
+| [2026-09-19-records-are-written-at-checkpoint-time-m-554d](docs/decisions/2026-09-19-records-are-written-at-checkpoint-time-m-554d.md) | Records are written at checkpoint time; maintain reconciles | accepted | 2026-09-19 |
 <!-- skilliton:index:decisions:end -->
