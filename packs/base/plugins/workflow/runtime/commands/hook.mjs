@@ -1,7 +1,8 @@
 // hook: the lifecycle hooks the workflow plugin's hooks.json runs. docs/CONTRACTS.md section 11.
 //
-// Client behavior this relies on, read from the Claude Code hooks reference (not yet observed in a live session from
-// this repository): the hook JSON arrives on stdin; SessionStart adds plain stdout to the conversation; a Stop hook
+// Client behavior this relies on, read from the Claude Code hooks reference and observed in live headless sessions
+// from this repository (scripts/rehearsals/live-clients.mjs L1, L2, L4, L5; PreCompact with trigger auto and the
+// SessionStart with source compact in L6, on Claude Code 2.1.276, 2026-09-18): the hook JSON arrives on stdin; SessionStart adds plain stdout to the conversation; a Stop hook
 // that prints {"decision":"block","reason":"..."} keeps Claude working and shows it the reason, and the client sends
 // stop_hook_active when it is already continuing because of a Stop hook; stderr from a hook that exits 0 goes only to
 // the debug log; exit 2 from Stop or PreCompact blocks, so this command never exits 2.

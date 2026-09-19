@@ -211,4 +211,5 @@ Lesson entries in `docs/lessons/`, sorted by ID. `skilliton index` writes this l
 | [2026-09-18-a-gate-that-walks-the-list-it-is-checkin-7323](lessons/2026-09-18-a-gate-that-walks-the-list-it-is-checkin-7323.md) | A gate that walks the list it is checking passes when the list gets shorter | accepted | 2026-09-18 |
 | [2026-09-18-a-patch-that-aborts-leaves-the-file-unch-910d](lessons/2026-09-18-a-patch-that-aborts-leaves-the-file-unch-910d.md) | A patch that aborts leaves the file unchanged, and a self-test nobody wrote still passes | accepted | 2026-09-18 |
 | [2026-09-18-a-rehearsal-that-clones-the-committed-tr-0316](lessons/2026-09-18-a-rehearsal-that-clones-the-committed-tr-0316.md) | A rehearsal that clones the committed tree but runs the working tree's runtime disagrees whenever the two differ | accepted | 2026-09-18 |
+| [2026-09-18-a-self-test-mutation-must-change-and-pro-0a3c](lessons/2026-09-18-a-self-test-mutation-must-change-and-pro-0a3c.md) | A self-test mutation must change and prove the same line | accepted | 2026-09-18 |
 <!-- skilliton:index:lessons:end -->

@@ -84,6 +84,15 @@ export function findClient(explicit, envName, fallback) {
   return r.code === 0 ? { path: chosen, version: r.out.trim().split("\n")[0] } : null;
 }
 
+// True when a client's version line (for example "2.1.276 (Claude Code)") is at least the given x.y.z.
+export function versionAtLeast(version, needed) {
+  const parse = (v) => (String(v).match(/(\d+)\.(\d+)\.(\d+)/) ?? []).slice(1, 4).map(Number);
+  const have = parse(version), want = parse(needed);
+  if (have.length !== 3 || want.length !== 3) return false;
+  for (let i = 0; i < 3; i++) { if (have[i] !== want[i]) return have[i] > want[i]; }
+  return true;
+}
+
 // Replace machine-specific paths before anything is written to the repository.
 export function sanitizer(ws) {
   const home = homedir();
@@ -92,10 +101,13 @@ export function sanitizer(ws) {
 }
 
 export class Rehearsal {
-  constructor(name, title) {
-    this.name = name; this.title = title; this.steps = []; this.notes = []; this.stopped = null;
+  // only: a set of step ids to run; the others are left out of the record and named in a note, so a rerun of two
+  // steps does not pay for the rest and does not record them as anything.
+  constructor(name, title, { only = null } = {}) {
+    this.name = name; this.title = title; this.steps = []; this.notes = []; this.stopped = null; this.only = only; this.skipped = [];
   }
   async step(id, label, fn, { requires = [] } = {}) {
+    if (this.only && !this.only.has(id)) { this.skipped.push(id); console.log(`SKIP ${id} ${label}: not in --only`); return null; }
     const missing = requires.filter((r) => !this.steps.some((s) => s.id === r && s.status === "PASS"));
     if (this.stopped || missing.length) {
       const why = this.stopped ? `an earlier required step failed (${this.stopped})` : `needs ${missing.join(", ")}`;
@@ -131,7 +143,8 @@ export class Rehearsal {
     for (const [k, v] of Object.entries(meta)) lines.push(`- **${k}:** ${v}`);
     lines.push("", "| Step | Result | Evidence |", "|---|---|---|");
     for (const s of this.steps) lines.push(`| ${s.id} ${s.label} | ${s.status} | ${String(s.detail).replace(/\|/g, "\\|").replace(/\n/g, " ")} |`);
-    if (this.notes.length) lines.push("", "## Notes", "", ...this.notes.map((n) => `- ${n}`));
+    const notes = this.skipped.length ? [...this.notes, `Steps ${this.skipped.join(", ")} were not run in this pass (--only ${[...this.only].join(",")}); they are not recorded here as anything.`] : this.notes;
+    if (notes.length) lines.push("", "## Notes", "", ...notes.map((n) => `- ${n}`));
     const pass = this.steps.filter((s) => s.status === "PASS").length;
     lines.push("", `Result: ${pass} of ${this.steps.length} steps passed${this.failed ? "; the rest are listed above with why" : ""}.`, "");
     return lines.join("\n");
