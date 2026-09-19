@@ -248,6 +248,24 @@ section("harness: malformed markers are refused with exit 2, and nothing is writ
   }
 }
 
+// ---------------------------------------------------------------- team settings template pins
+section("team settings template: the keys a team relies on are pinned");
+{
+  // The window is owner-chosen (decision 2026-09-18, the team compaction window is 600000), unmeasured, inside the
+  // documented range 100000 to 1000000; the two output caps are the documented defaults (settings reference retrieved
+  // 2026-09-18: both keys need 2.1.261 or later and are clamped to 4000 to 128000).
+  check("autoCompactWindow is 600000", SETTINGS_TEMPLATE.autoCompactWindow === 600000, String(SETTINGS_TEMPLATE.autoCompactWindow));
+  check("autoCompactWindow is inside the documented range", SETTINGS_TEMPLATE.autoCompactWindow >= 100000 && SETTINGS_TEMPLATE.autoCompactWindow <= 1000000);
+  check("bashOutputMaxChars is 30000, the documented default", SETTINGS_TEMPLATE.bashOutputMaxChars === 30000, String(SETTINGS_TEMPLATE.bashOutputMaxChars));
+  check("taskOutputMaxChars is 32000, the documented default", SETTINGS_TEMPLATE.taskOutputMaxChars === 32000, String(SETTINGS_TEMPLATE.taskOutputMaxChars));
+  check("both caps are inside the documented clamp range", [SETTINGS_TEMPLATE.bashOutputMaxChars, SETTINGS_TEMPLATE.taskOutputMaxChars].every((v) => v >= 4000 && v <= 128000));
+  check("the template carries only the keys docs/CONTRACTS.md section 5 names", JSON.stringify(Object.keys(SETTINGS_TEMPLATE).sort()) === JSON.stringify(["autoCompactWindow", "bashOutputMaxChars", "enabledPlugins", "extraKnownMarketplaces", "taskOutputMaxChars"]), Object.keys(SETTINGS_TEMPLATE).join(","));
+  const dir = folder("ps-pins");
+  const r = cli(["project-settings", "--apply", "--dir", dir], { SKILLITON_BACKUPS: join(tmp, "b-pins") });
+  const got = JSON.parse(readFileSync(join(dir, ".claude", "settings.json"), "utf8"));
+  check("apply writes the window and both caps into a fresh project", r.code === 0 && got.autoCompactWindow === 600000 && got.bashOutputMaxChars === 30000 && got.taskOutputMaxChars === 32000, r.all);
+}
+
 // ---------------------------------------------------------------- project-settings
 section("project-settings: merge into an existing file");
 {

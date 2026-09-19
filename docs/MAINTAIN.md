@@ -10,6 +10,7 @@ Kind: Living. Run these as part of `/maintain` (or `/workflow:maintain`) in this
    - end to end: `node scripts/autopilot-demo.mjs`, `node scripts/rehearsals/projects.mjs --no-evidence`, `node scripts/demo-day.mjs` (the five demonstration steps; add `--claude <path>` to drive the real client)
    - rehearsal judgement: `node scripts/rehearsals/enrollment.mjs --self-test` (needs no Docker)
    - names: `node scripts/names.test.mjs` and `node scripts/names.test.mjs --self-test` (no current file uses the product's earlier name; docs/BRANDING.md)
+  - report card: `node scripts/report-card.test.mjs`, `node scripts/report-card.mjs --check` and `node scripts/report-card.mjs --self-test` (the bars in docs/REPORT_CARD.md match the batch files under docs/areas/; run `--apply` after ticking an item)
    - endpoint security: `node scripts/allowlist.test.mjs` and `node scripts/allowlist.test.mjs --self-test` (docs/IT-ALLOWLIST.md names every program the code starts and every place it writes outside a repository; the writes check runs a scenario in an empty home folder and needs git and ssh-keygen)
    - small footprint: `node scripts/footprint.test.mjs` and `node scripts/footprint.test.mjs --self-test` (no network code, no administrator rights, nothing left running, no system paths, every shipped file a text script)
    - public safety: `bash scripts/scrub-check.sh`, `bash scripts/scrub-check.sh --self-test`

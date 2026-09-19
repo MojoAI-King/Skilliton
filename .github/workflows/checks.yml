@@ -46,6 +46,15 @@ jobs:
       - name: Names check can fail
         run: node scripts/names.test.mjs --self-test
 
+      - name: Report card generator contract
+        run: node scripts/report-card.test.mjs
+
+      - name: Report card bars match the batch files
+        run: node scripts/report-card.mjs --check
+
+      - name: Report card check can fail
+        run: node scripts/report-card.mjs --self-test
+
       - name: Enrollment rehearsal judgement can fail
         run: node scripts/rehearsals/enrollment.mjs --self-test
 
