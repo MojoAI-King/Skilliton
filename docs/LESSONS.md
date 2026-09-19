@@ -212,4 +212,5 @@ Lesson entries in `docs/lessons/`, sorted by ID. `skilliton index` writes this l
 | [2026-09-18-a-patch-that-aborts-leaves-the-file-unch-910d](lessons/2026-09-18-a-patch-that-aborts-leaves-the-file-unch-910d.md) | A patch that aborts leaves the file unchanged, and a self-test nobody wrote still passes | accepted | 2026-09-18 |
 | [2026-09-18-a-rehearsal-that-clones-the-committed-tr-0316](lessons/2026-09-18-a-rehearsal-that-clones-the-committed-tr-0316.md) | A rehearsal that clones the committed tree but runs the working tree's runtime disagrees whenever the two differ | accepted | 2026-09-18 |
 | [2026-09-18-a-self-test-mutation-must-change-and-pro-0a3c](lessons/2026-09-18-a-self-test-mutation-must-change-and-pro-0a3c.md) | A self-test mutation must change and prove the same line | accepted | 2026-09-18 |
+| [2026-09-19-a-rewriter-of-a-hand-edited-file-proves-43c7](lessons/2026-09-19-a-rewriter-of-a-hand-edited-file-proves-43c7.md) | A rewriter of a hand-edited file proves the round-trip before it writes | accepted | 2026-09-19 |
 <!-- skilliton:index:lessons:end -->
