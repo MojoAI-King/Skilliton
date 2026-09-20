@@ -11,7 +11,7 @@
 // rehearsal, not here. No model call, no cost.
 // Exit: 0 every step PASS; 1 any step FAIL or NOT RUN.
 
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync, appendFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { CLI, REPO, Rehearsal, git, initRepo, isolatedEnv, parseFlags, readJson, run, workspace } from "./lib.mjs";
 

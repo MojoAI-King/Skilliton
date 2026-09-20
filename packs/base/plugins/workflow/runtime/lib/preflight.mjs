@@ -23,7 +23,7 @@
 // takes its files, its folders and any program it started with it, and then dies of the signal it was sent. Nothing
 // here decides whether a security product is "supported": it reports what this machine did, on this run.
 
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { accessSync, closeSync, constants as fsConstants, mkdirSync, mkdtempSync, openSync, rmdirSync, statSync, unlinkSync, writeSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { homedir, tmpdir } from "node:os";

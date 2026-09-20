@@ -21,7 +21,6 @@ import { readFileSync, readdirSync, statSync, existsSync, mkdtempSync, mkdirSync
 import { join, dirname, resolve, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
-import { execFileSync } from "node:child_process";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
