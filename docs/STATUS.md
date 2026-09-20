@@ -2,7 +2,7 @@
 
 Kind: Living.
 
-Current state (2026-09-19, wave 3 published as 855d545): the owner graded the repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, the owner pass listed at its end; 38 of 123 items ticked). Wave 1 joined this machine and pinned the output caps; wave 2 moved the mechanical record writes into `skilliton checkpoint`; wave 3 (workflow 0.10.0) made preparation one yes: prepare shows its plan, drafts the dispatch fields and a delivery policy draft the person confirms with `delivery confirm`, the first task takes the user's words, the terminal command's path is measured in a live and a fresh session, and join writes a Windows launcher (unrun there). Next: wave 4 from the report card. Milestone by milestone: the table below. What each open item needs: docs/BACKLOG.md and DECISIONS.md. Claims with evidence: docs/POSITIONING.md. Earlier versions of this paragraph: docs/STATUS_ARCHIVE.md.
+Current state (2026-09-20, wave 4 published as 7af3b80): the owner graded the repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, the owner pass at its end; 45 of 123 items ticked). Wave 4 (workflow 0.11.0) built the dispatch half of the loop: `skilliton dispatch` turns a lane plan into one Git worktree per lane with a brief that bounds it, refusing rather than reusing anything, and three agents (`lane`, `locate`, `verify-item`) ship with the plugin. The VS Code extension has a measured column in docs/CLIENTS.md. Two things are recorded and not explained: no real dispatch has ever been run, and this repository's sessions compact nowhere near the 600000 window the settings name. Next: wave 5 from the report card. Milestone by milestone: the table below. What each open item needs: docs/BACKLOG.md and DECISIONS.md. Claims with evidence: docs/POSITIONING.md. Earlier versions: docs/STATUS_ARCHIVE.md.
 
 <!-- living-docs:milestones:start -->
 
@@ -39,5 +39,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner | Updated |
 |---|---|---|---|---|---|
-| [2026-09-20-wave-4-the-dispatch-command-subagent-hyg-0fa2](tasks/2026-09-20-wave-4-the-dispatch-command-subagent-hyg-0fa2.md) | Wave 4: the dispatch command, subagent hygiene, the VS Code extension column | in-progress | main | unassigned | 2026-09-20T04:59:15.638Z |
+| [2026-09-20-wave-4-the-dispatch-command-subagent-hyg-0fa2](tasks/2026-09-20-wave-4-the-dispatch-command-subagent-hyg-0fa2.md) | Wave 4: the dispatch command, subagent hygiene, the VS Code extension column | in-progress | main | unassigned | 2026-09-20T05:12:31.155Z |
 <!-- skilliton:index:tasks:end -->

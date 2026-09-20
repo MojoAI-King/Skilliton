@@ -1,6 +1,6 @@
 # How Skilliton works
 
-Kind: Living. For anyone meeting Skilliton for the first time: a company lead deciding whether to use it, a reviewer, or a new builder. Updated 2026-09-16. Each step links to the run that proved it; the milestones are in [PLAN.md](../PLAN.md) section 7.
+Kind: Living. For anyone meeting Skilliton for the first time: a company lead deciding whether to use it, a reviewer, or a new builder. Updated 2026-09-20. Each step links to the run that proved it; the milestones are in [PLAN.md](../PLAN.md) section 7.
 
 **Skilliton is a skeleton your company forks.** Your copy holds how your company builds software: its skills, checks, record keeping and security evidence. You release versions of it, every person's Claude Code or Codex installs that version, and the assistant then works the company's way in any repository they open. Lessons learned in projects come back to your copy as proposals, and nothing changes for developers until you release it.
 
@@ -79,7 +79,7 @@ Then keep, or leave out, what comes prepackaged:
 
 | Plugin | What it gives every project | How it runs |
 |---|---|---|
-| **workflow** (required: it carries the `skilliton` runtime) | `task`: a plain request becomes a task record with acceptance criteria and checkpoints. `review`: what changed, what could break, what was tested, and a READY TO COMMIT, NEEDS ATTENTION or STOP verdict. `handoff` and `maintain`: a note for the next session, and records reconciled with git. `dispatch`: many items split into checked parallel lanes. `security`: evidence that goes stale when its sources change. `skilliton gate`: the project's checks as a verdict, with the output in a log | Skills are **instructed**: the assistant follows them. The session-start summary and the reminder to record a checkpoint are hooks, **enforced** on Claude Code |
+| **workflow** (required: it carries the `skilliton` runtime) | `task`: a plain request becomes a task record with acceptance criteria and checkpoints. `review`: what changed, what could break, what was tested, and a READY TO COMMIT, NEEDS ATTENTION or STOP verdict. `handoff` and `maintain`: a note for the next session, and records reconciled with git. `dispatch`: many items split into checked parallel lanes, with `skilliton dispatch` creating one Git worktree per lane and writing each lane's brief, and three agents shipped ready to run them. `security`: evidence that goes stale when its sources change. `skilliton gate`: the project's checks as a verdict, with the output in a log | Skills are **instructed**: the assistant follows them. The session-start summary and the reminder to record a checkpoint are hooks, **enforced** on Claude Code |
 | **guardrails** | Blocks force-pushes to protected branches, skipped git hooks and commits that look like they hold a secret; asks before commands that throw away uncommitted work | A hook, **enforced** on Claude Code for the commands the assistant runs |
 | **context-hygiene** | A read guard that refuses a whole-file read of a non-image file over 50KB with the reason, a session-start checklist, and the rules for keeping the assistant's context small (ranges, batching, `skilliton gate` for checks, subagents) | The read guard is a hook, **enforced** on Claude Code for the Read tool; the rest is a skill, **instructed** |
 
@@ -216,6 +216,7 @@ A proposal is not policy: it changes nothing until the company reviews it, tests
 | Company plugins arriving from device-managed settings, with no developer command | measured on a clean Linux container without a login: active from the third session start, or the first with a first-login install; macOS not yet run | [enrollment rehearsal](../evidence/rehearsals/2026-09-17-enrollment/SUMMARY.md) |
 | Working alongside company endpoint security (application allowlisting, endpoint detection, inspecting proxies) | [IT-ALLOWLIST.md](IT-ALLOWLIST.md) is read from the code and held to it by a test; `skilliton preflight` checks a laptop before setup and is proved against blocks made on purpose; **not tested under any product** | B29 in [BACKLOG.md](BACKLOG.md) |
 | Running on Windows | decided and built in theory (Git for Windows, one implementation of every hook); **no Windows machine has run anything** | [WINDOWS.md](WINDOWS.md), B30 |
+| Dispatching work into lane worktrees | the command, the briefs and every refusal are measured over fixture repositories; **no real dispatch has been run, no lane agent has been launched from a brief, and no lane report has been collected** | [COVERAGE.md](COVERAGE.md), the dispatch section |
 | Lifecycle hooks on Codex | not observed | [CLIENTS.md](CLIENTS.md) |
 | The GitHub delivery adapter on a hosted repository | documented, not proved | [DELIVERY.md](DELIVERY.md) |
 | A real new builder following these docs | not started (M5) | [protocol](rehearsals/NEW_BUILDER.md) |
