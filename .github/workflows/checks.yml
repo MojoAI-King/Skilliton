@@ -104,7 +104,7 @@ jobs:
       - name: Stack detection (what prepare reads from a repository)
         run: node --test scripts/stack.test.mjs
 
-      - name: Dispatch (lanes, worktrees, briefs and the refusals)
+      - name: Dispatch (lanes, worktrees, briefs, the lane record, merge-back and the refusals)
         run: node --test scripts/dispatch.test.mjs
 
       - name: Setup (status line apply and undo)
