@@ -4,15 +4,22 @@ Kind: Living.
 
 ## RESUME HERE
 
-Written: 2026-09-20 01:53 EDT
+Written: 2026-09-20 02:32 EDT
 
+- **State:** Wave 4 and the handoff freshness repair are published and green, and this session's maintenance is closed: two lesson entries (32a5 the minute-granularity timestamp compared against file times, 5d82 a loop that ran six checks as one-word commands and reported six PASS with none started), the stale-claims sweep and the open items reconciled with no change needed, and the two cross-project files outside this repository sharpened rather than duplicated. Evidence: CI 35492630614 on 2e5aaa3 and 35492905976 on c668317, both success with all 54 steps read one by one; scrub-check PASS on the tree and over 122 commits of history; skilliton index reports every index current; living-docs --check current; docs.test exit 0; the zsh word-splitting claim in lesson 5d82 was measured on this machine, not recalled.
+- **Next:** Wave 5 from docs/REPORT_CARD.md, in plan mode, reading the batch files under docs/areas/ first
+- **Blocked:** Owner pass at the end (docs/REPORT_CARD.md): interactive checklist, maintain minutes (01-02 item 5, 05-05), the live unprepared session (02-01 item 5), Windows run including skilliton.cmd, B7 decisions, signing key, hosted repository approval, M5 participant, Codex login. Any cost statement (PLAN.md sections 6 and 8)
+- **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt
+- **Git:** main @ 8bc9211, 1 uncommitted
+
+## Earlier
+
+### 2026-09-20 01:53 EDT
 - **State:** The handoff freshness defect CI found on 3896fcb is fixed and published as 2e5aaa3 (workflow 0.11.1): a minute-granularity Written line compared against millisecond file times reported the checkpoint's own index write as later work, so a change within five seconds of the end of the Written minute now counts as part of that write. Evidence: CI run 35492630614 on 2e5aaa3 is success with all 54 steps read one by one, including step 38 Tasks, checkpoints, status and lifecycle hooks, the step that failed on run 35491126289; the new test at scripts/lifecycle.test.mjs reproduced the CI assertion before the fix and passes after; the offline suite 50 of 50 with no failures; scrub-check PASS on the tree and over the history.
 - **Next:** Wave 5 from docs/REPORT_CARD.md, read the batch files under docs/areas/ first
 - **Blocked:** Owner pass at the end (docs/REPORT_CARD.md): interactive checklist, maintain minutes (01-02 item 5, 05-05), the live unprepared session (02-01 item 5), Windows run including skilliton.cmd, B7 decisions, signing key, hosted repository approval, M5 participant, Codex login. Any cost statement (PLAN.md sections 6 and 8)
 - **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt
 - **Git:** main @ 2e5aaa3, 0 uncommitted
-
-## Earlier
 
 ### 2026-09-20 01:12 EDT
 - **State:** Wave 4 is published and green as 7af3b80 (CI run 35490519392, 54 steps, every one read): skilliton dispatch creates one worktree per lane with a brief and refuses rather than reusing, three agents ship in the workflow plugin 0.11.0, and Claude Code's VS Code extension has its own measured column in docs/CLIENTS.md. The maintenance pass reconciled the status paragraph, the README, the integration brief and the open items. Evidence: the offline suite 50 of 50 with no failures on 2026-09-20; node --test scripts/dispatch.test.mjs 14 of 14; report-card --check current at 45 of 123 items (37%); living-docs --check current (the current-state paragraph 984 bytes, its predecessor archived); skilliton index reports every index current; scrub-check PASS on the tree.
@@ -45,13 +52,3 @@ Written: 2026-09-20 01:53 EDT
   5. Wave 2: 01-02 rolling maintenance (B35), 01-03 and 05-02 bounded generated records, 05-01 backlog relationship test. Owner inputs unchanged: Windows run (03-02), demonstration rehearsal (around 2026-09-23), B29, B31, B4, B6, B7, B1.
 - **Blocked:** as before (M5 participant, Codex hooks login, hosted delivery approval, first signed release, any cost statement, B3). Area 10 deferred by the owner.
 - **Watch out:** `skilliton` now resolves on the login shell PATH (join wrote the launcher); `join --undo --company mojoai --apply` reverses the install. The context-hygiene read guard is live here: a whole Read of a non-image file over 50KB is refused, so read ranges. Rehearsal evidence folders carry the UTC date, which can be the next day. After ticking a batch item run `node scripts/report-card.mjs --apply`. Read the clock before writing a Written line.
-
-### 2026-09-18 19:28 EDT
-- **State:** The owner graded the repository against their own intent on 2026-09-18 (**overall C+**; strongest: make it yours B+, records and security B; weakest: any environment D, auto-harness D+, token efficiency C-). The card is saved as **docs/REPORT_CARD.md**, with one folder per area under **docs/areas/** holding 40 batch files, and **scripts/report-card.mjs** computing count-based bars (8 of 123 acceptance items ticked today, each with its evidence). One plan in dependency waves (decision entry of 2026-09-18). All of it is **built locally and uncommitted** on top of f8a935c: full suite 43 of 43 (the three new report-card steps included), scrub PASS, docs test 135 files labelled.
-- **Next:**
-  1. Owner: decide whether to commit and push wave 0 (`git status` lists the new and changed paths; the scrub and the suite passed on this tree).
-  2. Wave 1, all on the owner's machine: **01-01** run join here and work one real session in this repository, filing B5 and B34 as evidence; **04-01** decide the compaction window from measurement (the global value on this machine reads 1000000; B36); **04-05** set the output caps explicitly in the team settings.
-  3. Wave 2: 01-02 rolling maintenance (B35) with the owner's minutes measured before and after; 01-03 and 05-02 bounded generated records; 05-01 backlog relationship test.
-  4. Owner inputs unchanged: the Windows run (03-02), the demonstration rehearsal (around 2026-09-23), B29's product, B31, B4, B6, B7, B1, B16's ceiling.
-- **Blocked:** as before (M5 participant, Codex hooks login, hosted delivery approval, first signed release, any cost statement, a real login in a clean Claude Code configuration for B3). Area 10 (proof) is deferred by the owner.
-- **Watch out:** after ticking an acceptance item under docs/areas/, run `node scripts/report-card.mjs --apply` or the CI check fails; a ticked item must end with `(evidence: ...)`. `skilliton` is still not on this shell's PATH (that gap is area 02 batch 02); run `node packs/base/plugins/workflow/runtime/skilliton.mjs`.
