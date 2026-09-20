@@ -2,7 +2,7 @@
 
 Kind: Living.
 
-Current state (2026-09-20, wave 5 built on main): the owner graded this repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, the owner pass at its end; 55 of 123 items ticked). Wave 5 closed the dispatch loop wave 4 opened and gave the runtime a shape check: dispatch commits each lane's task record and prints a launch line, a guardrails hook refuses a lane's writes to the integration branch's paths, `dispatch merge` brings the records back and names every conflict, a dependency-free lint holds a 600 line ceiling that ratchets, and `lib/core.mjs` split into helpers, engines and command modules. Recorded and unexplained: no dispatch has run for real (B38), and sessions here compact nowhere near the 600000 the settings name (B36). Next: wave 6. Milestones: the table below. Open items: docs/BACKLOG.md and DECISIONS.md. Claims with evidence: docs/POSITIONING.md. Earlier: docs/STATUS_ARCHIVE.md.
+Current state (2026-09-20, wave 6 built on main at 6e072b7): the owner graded this repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, the owner pass at its end; 65 of 123 items ticked). Wave 6 was the four headless batches: each working routine named to the client event the hooks reference confirms, a UserPromptSubmit hook that suggests dispatch at six items, the Stop hook naming maintain when a batch has merged, one index reaching every document, and a dead code scan. Recorded and unexplained: no dispatch has run for real (B38), sessions compact nowhere near the 600000 the settings name (B36), and whether a plugin hook receives UserPromptSubmit is unverified (07-04 item 2). Next: wave 7. Milestones: the table below. Open items: docs/BACKLOG.md and DECISIONS.md. Claims with evidence: docs/POSITIONING.md. Earlier: docs/STATUS_ARCHIVE.md.
 
 <!-- living-docs:milestones:start -->
 
@@ -21,7 +21,7 @@ Written by `node scripts/living-docs.mjs --apply` from PLAN.md section 7 (the mi
 | M8 | Autopilot on arrival | Second increment built 2026-09-19 | B2, B3, B13 |
 | M9 | One name | Verified locally | none |
 | M10 | Security audit that runs itself | Not started | B20 |
-| M11 | Routines while working | Not started | B21 |
+| M11 | Routines while working | Two of three routines built 2026-09-20 | B21 |
 | M12 | Enrollment through device management | Spike measured on Linux | B22, B29, B30 |
 | M13 | Any AI coding tool | Not started | B23, O24 |
 | M14 | Proof of value and team view | Not started | B15, B16 |
