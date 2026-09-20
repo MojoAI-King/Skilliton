@@ -9,7 +9,7 @@ Kind: Living. Area record. One of the ten areas in docs/REPORT_CARD.md; the batc
 - **What A- means here:** skilliton dispatch creates lanes and worktrees previewably; lane agents launch with a shipped definition and a window; a guardrails rule refuses writes to main-only paths in lanes; skilliton dispatch merge integrates the records; one real dispatch measured under the window.
 - **Owner inputs this area waits on:** None beyond area 04 batch 01's decision.
 - **Advances:** M11; B21, B36
-- **Build progress:** `[#######.............]` 33 (4 of 12) across 4 batch(es), by `node scripts/report-card.mjs --apply`
+- **Build progress:** `[#############.......]` 67 (8 of 12) across 4 batch(es), by `node scripts/report-card.mjs --apply`
 
 ## Batches
 
@@ -18,8 +18,8 @@ Kind: Living. Area record. One of the ten areas in docs/REPORT_CARD.md; the batc
 | Batch | Type | Progress |
 |---|---|---|
 | [01 The dispatch command](batch-01-dispatch-command.md) | build | `[####################]` 100 (4 of 4) |
-| [02 Lane agents with a bound](batch-02-lane-agents-bounded.md) | build | `[....................]` 0 (0 of 3) |
-| [03 Merge-back and main-only paths](batch-03-merge-back.md) | build | `[....................]` 0 (0 of 3) |
+| [02 Lane agents with a bound](batch-02-lane-agents-bounded.md) | build | `[#######.............]` 33 (1 of 3) |
+| [03 Merge-back and main-only paths](batch-03-merge-back.md) | build | `[####################]` 100 (3 of 3) |
 | [04 Dispatch suggestion (M11)](batch-04-dispatch-suggestion.md) | build | `[....................]` 0 (0 of 2) |
 
 <!-- report-card:end -->

@@ -21,6 +21,8 @@ Synthetic transcripts with hand-computed expected totals, so the meter's correct
 ## Proving the test can fail
 Removing the dedup line, pricing every record at one model, or keeping the first copy instead of the largest-output copy turns the test red (checked 2026-09-16 and 2026-09-18 on scratch copies). A test that cannot fail on the bug it names is not a test.
 
+`peak_context` is the one field that is a maximum rather than a sum, so it has its own two mutations: summing the records inside a bucket reports 12010 where the hand computation says 12000, and summing the day buckets in `byScope` reports 15010. Both turn the test red, the second on two assertions (checked 2026-09-20 on a scratch copy).
+
 ## Field names
 They mirror the Claude Code JSONL shape as measured on real transcripts on 2026-09-16: top-level `requestId`, `timestamp`, `isSidechain`; `message.id`, `message.model`, `message.usage` with `cache_creation.ephemeral_5m_input_tokens` and `ephemeral_1h_input_tokens`. `usage.iterations` is a per-message breakdown and is not summed separately.
 

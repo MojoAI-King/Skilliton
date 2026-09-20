@@ -44,6 +44,17 @@ check("unpriced_models", all.unpriced_models, { "claude-unknown-9": 1 });
 check("incomplete", all.incomplete, true);
 scope("all", all, "top", { requests: 5, input: 1125, output: 2075, cache_read: 14000, cache_write_5m: 600, cache_write_1h: 1600, cost_usd: 0.0954, ttl_unknown_tokens: 200 });
 scope("all", all, "subagent", { requests: 1, input: 7, output: 9, cache_read: 500, cache_write_5m: 100, cache_write_1h: 0, cost_usd: 0.001895, ttl_unknown_tokens: 100 });
+// peak_context is a maximum and never a sum: the largest context one request carried, hand-computed as
+// input + cache_read + cache writes (output is not context).
+//   day 2026-09-14 top: m1 100+1000+200 = 1300; m2 10+3000 = 3010; m3 5+400+600 = 1005 -> 3010
+//   day 2026-09-15 top: m5 1000+10000+1000 = 12000; m7 10 -> 12000, and byScope takes the larger of the two days
+//   subagent:           m4 7+500+100 = 607 (its duplicate carries the same context and a larger output; peak ignores it)
+scope("all", all, "top", { peak_context: 12000 });
+scope("all", all, "subagent", { peak_context: 607 });
+// Three negative controls, one per way this could be written wrong: summing the day buckets in byScope would give
+// 15010, summing the records inside a bucket would give 12010, and counting m5's output as context would give 14000.
+check("negative control: peak is a maximum over requests and over buckets, and excludes output",
+  ![15010, 12010, 14000].includes(all.byScope.top.peak_context), true);
 // Every cache write at the 5m rate (how the reference figures were established): r3's 600 1h tokens move from
 // 20 to 12.5 $/MTok (17300 - 4500 = 12800), r5's 1000 from 10 to 6.25 (70000 - 3750 = 66250);
 // 6250 + 1850 + 12800 + 66250 = 87150 micro-usd.
@@ -57,17 +68,17 @@ check("negative control: first-copy-wins would differ", 2026 !== all.byScope.top
 const a = run("--project", "PROJ-A");
 check("project filter incomplete", a.incomplete, false);
 check("project filter filtered_project", a.filtered_project, 3);
-scope("proj-a", a, "top", { requests: 3, input: 115, output: 75, cache_read: 4000, cache_write_5m: 600, cache_write_1h: 600, cost_usd: 0.0254 });
+scope("proj-a", a, "top", { requests: 3, input: 115, output: 75, cache_read: 4000, cache_write_5m: 600, cache_write_1h: 600, peak_context: 3010, cost_usd: 0.0254 });
 
 // --until: 15:30Z keeps r1 (14:00Z) and r2 (15:00Z) only; r3, r4, r5, r7, r9 are out of window
 const u = run("--project", "proj-a", "--until", "2026-09-14T15:30:00Z");
 check("until out_of_window (window is checked before the project filter)", u.out_of_window, 5);
-scope("until", u, "top", { requests: 2, cost_usd: 0.0081 });
+scope("until", u, "top", { requests: 2, peak_context: 3010, cost_usd: 0.0081 });
 check("until subagent absent", u.byScope.subagent, undefined);
 
 // day window: Sep 15 only (America/New_York) keeps r5 and r7
 const d = run("2026-09-15", "2026-09-15");
-scope("day window", d, "top", { requests: 2, input: 1010, cost_usd: 0.07 });
+scope("day window", d, "top", { requests: 2, input: 1010, peak_context: 12000, cost_usd: 0.07 });
 
 // negative control: the naive sum (no dedup) must NOT match, or the fixture cannot detect the 3.28x class of bug
 const naiveTopInput = 3 * 100 + 10 + 5 + 2 * 1000 + 10;

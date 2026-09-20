@@ -83,7 +83,11 @@ function* walk(dir) {
 const dayOf = (ms) => new Date(ms).toLocaleDateString("en-CA", { timeZone: TZ }); // YYYY-MM-DD
 const FIELDS = ["requests", "input", "output", "cache_read", "cache_write_5m", "cache_write_1h"];
 // cost_all_5m_usd prices every cache write at the 5m rate; the reference figures were established that way.
-const blank = () => ({ requests: 0, input: 0, output: 0, cache_read: 0, cache_write_5m: 0, cache_write_1h: 0, cost_usd: 0, cost_all_5m_usd: 0, ttl_unknown_tokens: 0 });
+// peak_context is the one field that is a maximum and never a sum: the largest context a single request carried, which
+// is the closest this meter gets to the window a session reached. Output is not in it, because output is what came back
+// rather than what went in, and that is also why a later copy of a request (which can only correct the output count)
+// never changes it.
+const blank = () => ({ requests: 0, input: 0, output: 0, cache_read: 0, cache_write_5m: 0, cache_write_1h: 0, peak_context: 0, cost_usd: 0, cost_all_5m_usd: 0, ttl_unknown_tokens: 0 });
 const counters = { files: 0, unreadable_files: 0, unreadable_dirs: 0, unparseable_lines: 0, records: 0, distinct: 0, duplicates: 0, no_ids: 0, no_timestamp: 0, out_of_window: 0, filtered_project: 0, synthetic: 0 };
 const unpriced = {}; // model -> requests
 // key -> { output, bucket, price }: the copy of each request that is counted, so a later copy with a larger
@@ -155,6 +159,7 @@ for (const file of walk(ROOT)) {
       mine.bucket = b;
       mine.price = price ?? null;
       b.requests++;
+      b.peak_context = Math.max(b.peak_context, t.input + t.cache_read + t.cache_write_5m + t.cache_write_1h);
       for (const f of FIELDS.slice(1)) b[f] += t[f];
       b.cost_usd += cost;
       b.cost_all_5m_usd += cost5m;
@@ -176,6 +181,7 @@ if (JSON_OUT) {
   for (const [k, b] of Object.entries(buckets)) {
     const s = (byScope[k.split("|")[1]] ??= blank());
     for (const f of [...FIELDS, "cost_usd", "cost_all_5m_usd", "ttl_unknown_tokens"]) s[f] += b[f];
+    s.peak_context = Math.max(s.peak_context, b.peak_context);
   }
   for (const s of Object.values(byScope)) { s.cost_usd = round(s.cost_usd); s.cost_all_5m_usd = round(s.cost_all_5m_usd); }
   console.log(JSON.stringify({ ...counters, tz: TZ, window: { from: fromArg ?? null, to: toArg ?? null, until: UNTIL ?? null }, projects: PROJECTS, unpriced_models: unpriced, incomplete, byScope }));
@@ -185,13 +191,13 @@ if (JSON_OUT) {
 const c = counters;
 console.log(`files=${c.files} records=${c.records} distinct=${c.distinct} duplicates=${c.duplicates} dedup_ratio=${(c.records / Math.max(c.distinct, 1)).toFixed(2)}x tz=${TZ}${UNTIL ? ` until=${UNTIL}` : ""}${PROJECTS.length ? ` projects=${PROJECTS.length} filter(s)` : ""}`);
 console.log(`not summed: no_ids=${c.no_ids} no_timestamp=${c.no_timestamp} unparseable_lines=${c.unparseable_lines} unreadable_files=${c.unreadable_files} out_of_window=${c.out_of_window} filtered_project=${c.filtered_project} synthetic=${c.synthetic}`);
-console.log(`${(BY_PROJECT ? "project" : "day").padEnd(BY_PROJECT ? 40 : 10)} scope     requests     input    output  cache_read     cw_5m     cw_1h   est_usd`);
+console.log(`${(BY_PROJECT ? "project" : "day").padEnd(BY_PROJECT ? 40 : 10)} scope     requests     input    output  cache_read     cw_5m     cw_1h   peak_ctx   est_usd`);
 let grand = 0, ttlUnknown = 0;
 for (const k of Object.keys(buckets).sort()) {
   const [label, scope] = k.split("|");
   const b = buckets[k];
   grand += b.cost_usd; ttlUnknown += b.ttl_unknown_tokens;
-  console.log(`${label.padEnd(BY_PROJECT ? 40 : 10)} ${scope.padEnd(9)} ${String(b.requests).padStart(8)} ${String(b.input).padStart(9)} ${String(b.output).padStart(9)} ${String(b.cache_read).padStart(11)} ${String(b.cache_write_5m).padStart(9)} ${String(b.cache_write_1h).padStart(9)} ${b.cost_usd.toFixed(2).padStart(9)}`);
+  console.log(`${label.padEnd(BY_PROJECT ? 40 : 10)} ${scope.padEnd(9)} ${String(b.requests).padStart(8)} ${String(b.input).padStart(9)} ${String(b.output).padStart(9)} ${String(b.cache_read).padStart(11)} ${String(b.cache_write_5m).padStart(9)} ${String(b.cache_write_1h).padStart(9)} ${String(b.peak_context).padStart(10)} ${b.cost_usd.toFixed(2).padStart(9)}`);
 }
 if (ttlUnknown) console.log(`NOTE: ${ttlUnknown} cache-write tokens had no TTL breakdown and were priced at the 5m rate`);
 if (Object.keys(unpriced).length) console.log(`UNPRICED MODELS (requests counted, cost omitted): ${JSON.stringify(unpriced)}`);

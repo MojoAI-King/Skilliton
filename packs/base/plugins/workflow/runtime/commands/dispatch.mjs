@@ -2,7 +2,7 @@
 // the engine is lib/dispatch.mjs.
 
 import { parseArgs, refuse, say, selfCommand, tilde } from "../lib/core.mjs";
-import { BRIEF_FILE, LANE_FILE, REPORT_FILE, applyDispatch, planDispatch } from "../lib/dispatch.mjs";
+import { BRIEF_FILE, LANE_FILE, REPORT_FILE, applyDispatch, applyMerge, planDispatch, planMerge } from "../lib/dispatch.mjs";
 import { guardCommand, openProject } from "../lib/lifecycle.mjs";
 
 export const help = `dispatch: turn a lane plan into one Git worktree per lane, each holding a brief.
@@ -19,26 +19,53 @@ The plan is ${LANE_FILE} at the repository root, written by the dispatch skill (
       say. Writes nothing. --preview asks for the same thing out loud.
   dispatch --apply [--file <path>] [--dir <project>]
       Shows the plan, then creates each worktree with git worktree add under the lane root and writes each lane's
-      ${BRIEF_FILE}. ${BRIEF_FILE} and ${REPORT_FILE} are added once to the repository's info/exclude.
+      ${BRIEF_FILE}, then writes each lane's own task record into its worktree and commits it on the lane branch, one
+      acceptance criterion per item. ${BRIEF_FILE} and ${REPORT_FILE} are added once to the repository's info/exclude.
+  dispatch merge [--dir <project>] [--apply]
+      Brings each lane's own records back: the task record, and the decision and lesson entries it proposed, as they
+      are COMMITTED on the lane branch. Each file is brought back (not here yet), already present (identical), or a
+      conflict (here and different), and a conflict is named and never overwritten. Without --apply it writes
+      nothing; with it the records are written into this working tree and nothing is committed, so the diff is read
+      first. Run it in the main checkout, not in a lane.
 
 The lane root, the main-only paths, the lane test command and the lane setup come from the dispatch section of
 .skilliton/config.json. Setup commands are never run: they are printed and written into each brief for a person to
 run, because dispatch must not execute a repository's own code.
 
-Exit codes: 0 complete; 2 invalid or refused (nothing was created); 3 operation failed (a worktree or a brief could
-not be written; what was created is named).`;
+Exit codes: 0 complete; 1 attention (merge only: a conflict, a lane with uncommitted changes, or a lane that has not
+written LANE DONE); 2 invalid or refused (nothing was created); 3 operation failed (a worktree, a brief or a record
+could not be written; what was created is named).`;
+
+// A bare `dispatch` still means "plan the lanes", so only a recognised first plain argument routes to a subcommand.
+const ALLOWED = { merge: ["apply", "dir"] };
+const OPTIONS = ["apply", "preview", "file", "dir"];
 
 export async function run(argv) {
   const o = parseArgs(argv, { flags: ["apply", "preview"], options: ["file", "dir"] }, "dispatch");
   if (o.help) { say(help); return 0; }
-  if (o._.length) refuse(`dispatch takes no plain arguments (got "${o._[0]}"); the lane plan is ${LANE_FILE}, or --file <path>`);
+  const [sub, ...args] = o._;
+  if (sub !== undefined && !Object.prototype.hasOwnProperty.call(ALLOWED, sub)) {
+    refuse(`dispatch takes no plain arguments except the subcommand merge (got "${sub}"); the lane plan is ${LANE_FILE}, or --file <path>`);
+  }
+  if (sub !== undefined) {
+    if (args.length) refuse(`dispatch ${sub} takes no plain arguments (got "${args[0]}")`);
+    for (const key of OPTIONS) {
+      if (o[key] === undefined || ALLOWED[sub].includes(key)) continue;
+      refuse(key === "preview"
+        ? `dispatch ${sub} previews by default and writes only with --apply, so it does not take --preview`
+        : `--${key} is not used by dispatch ${sub}`);
+    }
+    return guardCommand(`dispatch ${sub}`, () => mergeBody(o));
+  }
   if (o.apply && o.preview) refuse("--apply and --preview ask for opposite things; --apply shows the plan and then creates the worktrees, and without it dispatch only shows the plan");
   return guardCommand("dispatch", () => body(o));
 }
 
 // The plan is read down a column: the label is padded so the values line up under each other.
 const FIELD_WIDTH = 17;
-const field = (label, value) => `${label}${" ".repeat(Math.max(1, FIELD_WIDTH - label.length))}${value}`;
+// The merge column carries a longer label than the plan column, and a label wider than its column loses the column.
+const MERGE_FIELD_WIDTH = 19;
+const field = (label, value, width = FIELD_WIDTH) => `${label}${" ".repeat(Math.max(1, width - label.length))}${value}`;
 
 function printPlan(plan, apply) {
   const lanes = plan.lanes;
@@ -54,6 +81,7 @@ function printPlan(plan, apply) {
     say(field("    items:", lane.items.length ? `${lane.items.length} (${lane.items.map((i) => i.ref).join(", ")})` : `none named in ${plan.planRel}; the brief says so instead of guessing`));
     if (bases.length > 1) say(field("    base:", `${lane.base.slice(0, 12)} (${lane.baseFrom})`));
     say(field("    brief:", `${BRIEF_FILE} (${apply ? "written" : "would be written"}: scope, bound, main-only paths, checks, setup)`));
+    say(field("    record:", `${lane.taskRel} (${apply ? "written and committed" : "would be written and committed"} on ${lane.branch}, ${lane.items.length} criteri${lane.items.length === 1 ? "on" : "a"})`));
     say(`    ${lane.command.join(" ")}`);
   }
   say("");
@@ -84,4 +112,73 @@ async function body(o) {
   say(`Next: open each folder in its own window, start a fresh session there, and say: read ${BRIEF_FILE} at the root of this worktree and follow it.`);
   say(`Merging is serial: each lane rebases on ${project.integrationBranches[0]} and passes the full gate again, one at a time. Run ${selfCommand()} gate in the lane before you merge it.`);
   return 0;
+}
+
+// ---------- merge ----------
+
+function laneState(lane) {
+  if (!lane.branch) return "detached HEAD, no lane branch";
+  const parts = [];
+  if (lane.dirty === null) parts.push("uncommitted work unknown");
+  else parts.push(lane.dirty ? `${lane.dirty} uncommitted change${lane.dirty === 1 ? "" : "s"}` : "clean");
+  if (lane.done === true) parts.push("LANE DONE");
+  else if (lane.done === false) parts.push(`no LANE DONE in ${REPORT_FILE}`);
+  else parts.push(`${REPORT_FILE} unread`);
+  return parts.join(", ");
+}
+
+function printMerge(plan, apply) {
+  say(`skilliton dispatch merge${apply ? "" : " (preview)"}: ${plan.lanes.length} lane${plan.lanes.length === 1 ? "" : "s"} under ${tilde(plan.laneRoot)}`);
+  say(field("  records:", plan.dirs.join(", "), MERGE_FIELD_WIDTH));
+  say(field("  this branch:", plan.branch, MERGE_FIELD_WIDTH));
+  for (const lane of plan.lanes) {
+    say("");
+    say(`  Lane ${lane.name}   branch ${lane.branch ?? "none"}`);
+    say(field("    worktree:", tilde(lane.dir), MERGE_FIELD_WIDTH));
+    say(field("    state:", laneState(lane), MERGE_FIELD_WIDTH));
+    say(field("    brought back:", `${lane.bring}${apply ? " (written)" : ""}`, MERGE_FIELD_WIDTH));
+    say(field("    already here:", String(lane.same), MERGE_FIELD_WIDTH));
+    say(field("    conflict:", String(lane.conflict), MERGE_FIELD_WIDTH));
+  }
+  if (plan.bring.length) {
+    say("");
+    say(`${plan.bring.length} record${plan.bring.length === 1 ? "" : "s"} ${apply ? "written into" : "would come back to"} ${plan.branch}:`);
+    for (const f of plan.bring) say(`  - ${f.path} (lane ${f.lane})`);
+  }
+  if (plan.conflicts.length) {
+    say("");
+    say(`${plan.conflicts.length} conflict${plan.conflicts.length === 1 ? "" : "s"}, not written:`);
+    for (const f of plan.conflicts) say(`  - ${f.path}: ${f.why}. Read the lane's copy with: git show ${f.branch}:${f.path}`);
+  }
+  if (plan.warnings.length) {
+    say("");
+    say(`${plan.warnings.length} warning${plan.warnings.length === 1 ? "" : "s"}:`);
+    for (const w of plan.warnings) say(`  - ${w}`);
+  }
+}
+
+async function mergeBody(o) {
+  const { root, project } = openProject(o.dir);
+  const plan = planMerge(root, project);
+  if (!plan.lanes.length) {
+    say(`skilliton dispatch merge: no lane worktree under ${tilde(plan.laneRoot)}${plan.laneRootExists ? "" : ", which does not exist"}, so there is nothing to bring back.`);
+    say(`Lanes are the worktrees ${selfCommand()} dispatch --apply creates there; git worktree list shows what this repository has.`);
+    return 0;
+  }
+  printMerge(plan, o.apply === true);
+  const attention = plan.conflicts.length + plan.warnings.length;
+  if (o.apply !== true) {
+    say("");
+    say(plan.bring.length
+      ? `Preview only; nothing was written. To write ${plan.bring.length === 1 ? "that record" : "those records"} into this working tree, run the same command with --apply.`
+      : "Preview only; nothing was written, and nothing would come back: every record the lanes committed is already here or in conflict.");
+    return attention ? 1 : 0;
+  }
+  const done = applyMerge(root, plan);
+  say("");
+  say(done.written.length
+    ? `Wrote ${done.written.length} record${done.written.length === 1 ? "" : "s"} into ${tilde(root)} and committed nothing: read them with git status and git diff, then commit on ${plan.branch}.`
+    : "Nothing was written: no lane record is missing from this branch.");
+  if (plan.conflicts.length) say(`The ${plan.conflicts.length} conflict${plan.conflicts.length === 1 ? " above was" : "s above were"} left alone; merge each one by hand.`);
+  return attention ? 1 : 0;
 }

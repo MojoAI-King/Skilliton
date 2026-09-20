@@ -34,7 +34,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-for t in git jq; do
+for t in git jq node; do
   command -v "$t" >/dev/null 2>&1 || { echo "NOT RUN: $t missing"; exit 2; }
 done
 
@@ -49,6 +49,7 @@ if [ -n "$OVERRIDE" ]; then
   LABEL="override: $(basename "$OVERRIDE") (NOT the shipped hook)"
 fi
 SS="$(dirname "$HOOK")/session-start-guardrails.sh"
+WHOOK="$SHIPPED_DIR/lane-write-guard.mjs"   # --hook replaces guard-bash.sh only; this one is always the shipped file
 
 export HOME="$TMP/home" GIT_CONFIG_GLOBAL="$TMP/gitconfig" GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
@@ -241,11 +242,13 @@ TOO_LARGE=$(head -c 4000000 /dev/zero | tr '\0' 'x')   # with "git status " in f
 section "packaging: hooks.json and executable bits (Claude Code runs the scripts by path)"
 HJ="$SHIPPED_DIR/hooks.json"
 jq_true() { if jq -e "$2" "$HJ" >/dev/null 2>&1; then ok "$1"; else bad "$1"; fi; }
-jq_true "PreToolUse has one entry, matcher Bash" '(.hooks.PreToolUse | length) == 1 and .hooks.PreToolUse[0].matcher == "Bash"'
+jq_true "PreToolUse has two entries: Bash, then the file-writing tools" '(.hooks.PreToolUse | length) == 2 and .hooks.PreToolUse[0].matcher == "Bash" and .hooks.PreToolUse[1].matcher == "Write|Edit|MultiEdit|NotebookEdit"'
 jq_true "PreToolUse runs guard-bash.sh by path, in bash, with timeout 10" '.hooks.PreToolUse[0].hooks == [{"type":"command","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/guard-bash.sh","shell":"bash","timeout":10}]'
 jq_true "SessionStart runs session-start-guardrails.sh by path, in bash" '.hooks.SessionStart == [{"hooks":[{"type":"command","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-start-guardrails.sh","shell":"bash"}]}]'
 jq_true "no if filter anywhere (compound commands must reach the hook)" '[.. | objects | has("if")] | any | not'
+jq_true "the write entry runs lane-write-guard.mjs by path, in bash, with timeout 5" '.hooks.PreToolUse[1].hooks == [{"type":"command","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/lane-write-guard.mjs","shell":"bash","timeout":5}]'
 if [ -x "$HOOK" ]; then ok "guard-bash.sh is executable"; else bad "guard-bash.sh is not executable"; fi
+if [ -x "$WHOOK" ]; then ok "lane-write-guard.mjs is executable"; else bad "lane-write-guard.mjs is not executable"; fi
 if [ -x "$SS" ]; then ok "session-start-guardrails.sh is executable"; else bad "session-start-guardrails.sh is not executable"; fi
 
 # ---------------------------------------------------------------- rule 1: force push
@@ -780,6 +783,90 @@ else
     ok "the other $((m_all - m_conv)) checks still pass against the copy, so it differs only in the conversion"
   else bad "$m_other_fail checks that do not need the conversion fail against the copy"; fi
 fi
+
+# ---------------------------------------------------------------- the lane write guard
+# A lane is a linked worktree, so these cases need a real one rather than a fixture that looks like one:
+# the main checkout is a prepared project with main-only paths, and the lane is a worktree of it.
+LANE_MAIN="$TMP/lane-main"; LANE_WT="$TMP/lane-lanes/alpha"
+LANE_PLAIN="$TMP/lane-plain"; LANE_PLAIN_WT="$TMP/lane-plain-lanes/beta"
+new_repo "$LANE_MAIN" || { echo "FAIL: could not build the lane fixture"; exit 1; }
+mkdir -p "$LANE_MAIN/.skilliton"
+printf '{"version":1,"dispatch":{"mainOnlyPaths":["docs/","DECISIONS.md"]}}\n' > "$LANE_MAIN/.skilliton/config.json"
+git -C "$LANE_MAIN" add .skilliton && git -C "$LANE_MAIN" commit -q -m config
+git -C "$LANE_MAIN" worktree add -q "$LANE_WT" -b lane/alpha main \
+  || { echo "FAIL: could not add the lane worktree"; exit 1; }
+# The same shape with no .skilliton/config.json at all: not a prepared project, so nothing is reserved.
+new_repo "$LANE_PLAIN" || { echo "FAIL: could not build the unprepared fixture"; exit 1; }
+git -C "$LANE_PLAIN" worktree add -q "$LANE_PLAIN_WT" -b lane/beta main \
+  || { echo "FAIL: could not add the unprepared lane worktree"; exit 1; }
+
+# payload_write <cwd> <tool> <path>: Claude-shaped PreToolUse input for a file-writing tool. Write, Edit
+# and MultiEdit take file_path; NotebookEdit takes notebook_path, which the last argument sets instead.
+payload_write() {
+  local key=file_path
+  case "$2" in NotebookEdit) key=notebook_path ;; esac
+  printf '{"session_id":"guardrails-test","transcript_path":%s,"cwd":%s,"scratchpad_dir":%s,"permission_mode":"default","hook_event_name":"PreToolUse","tool_name":%s,"tool_input":{"%s":%s,"content":"placeholder"},"tool_use_id":"toolu_guardrails_test"}' \
+    "$TRANSCRIPT_JSON" "$(jstr "$1")" "$SCRATCH_JSON" "$(jstr "$2")" "$key" "$(jstr "$3")"
+}
+# write_hook: runs the write guard by path on $TMP/payload.json, exactly as the client does.
+write_hook() { OUT=$(env "$@" "$WHOOK" < "$TMP/payload.json" 2>"$TMP/stderr"); RC=$?; read_result; }
+# expect_write <label> <deny|allow> <cwd> <tool> <path>
+expect_write() {
+  local label=$1 want=$2; shift 2
+  payload_write "$1" "$2" "$3" > "$TMP/payload.json"
+  write_hook CLAUDE_PROJECT_DIR="$1"
+  judge claude "$label" "$want"
+}
+
+section "lane write guard: inside a lane, the shared records are refused"
+expect_write "the shared handoff"            deny "$LANE_WT" Write "$LANE_WT/docs/HANDOFF.md"
+expect_write "the decisions monolith"        deny "$LANE_WT" Write "$LANE_WT/DECISIONS.md"
+expect_write "the status file, through Edit" deny "$LANE_WT" Edit  "$LANE_WT/docs/STATUS.md"
+expect_write "a path relative to the lane"   deny "$LANE_WT" Write "docs/BACKLOG.md"
+expect_write "a notebook under docs"         deny "$LANE_WT" NotebookEdit "$LANE_WT/docs/notes.ipynb"
+expect_write "the README of an entry folder" deny "$LANE_WT" Write "$LANE_WT/docs/tasks/README.md"
+reason_has "  the reason names the path"          "docs/tasks/README.md"
+reason_has "  the reason names the lane branch"   "lane/alpha"
+reason_has "  the reason names the report"        "LANE_REPORT.md"
+reason_has "  the reason names the setting"       "dispatch.mainOnlyPaths"
+reason_has "  the reason states what it cannot see" "cannot see a script writing through Bash"
+
+section "lane write guard: the lane's own records, and everything outside the reserved paths"
+expect_write "its own task record"      allow "$LANE_WT" Write "$LANE_WT/docs/tasks/2026-09-20-lane-alpha-0001.md"
+expect_write "a proposed decision"      allow "$LANE_WT" Write "$LANE_WT/docs/decisions/2026-09-20-a-choice-ab12.md"
+expect_write "a proposed lesson"        allow "$LANE_WT" Edit  "$LANE_WT/docs/lessons/2026-09-20-a-lesson-cd34.md"
+expect_write "source under the lane"    allow "$LANE_WT" Write "$LANE_WT/src/index.js"
+expect_write "its own report"           allow "$LANE_WT" Write "$LANE_WT/LANE_REPORT.md"
+expect_write "a folder that only starts like docs" allow "$LANE_WT" Write "$LANE_WT/docsite/README.md"
+expect_write "a file outside any repository"       allow "$LANE_WT" Write "$TMP/scratch-note.md"
+
+section "lane write guard: it guards a lane, not a checkout, and only a prepared project"
+expect_write "the same write in the main checkout" allow "$LANE_MAIN" Write "$LANE_MAIN/docs/HANDOFF.md"
+expect_write "the decisions monolith there too"    allow "$LANE_MAIN" Write "$LANE_MAIN/DECISIONS.md"
+expect_write "a lane of a repository with no configuration" allow "$LANE_PLAIN_WT" Write "$LANE_PLAIN_WT/docs/HANDOFF.md"
+
+section "lane write guard: it fails open on input it does not recognize"
+printf '{' > "$TMP/payload.json";                                        write_hook; judge claude "input that is not JSON" allow
+printf '[]\n' > "$TMP/payload.json";                                     write_hook; judge claude "input that is not an object" allow
+printf '{"tool_name":"Write"}\n' > "$TMP/payload.json";                  write_hook; judge claude "no tool_input at all" allow
+printf '{"tool_name":"Write","tool_input":{}}\n' > "$TMP/payload.json";  write_hook; judge claude "no path in tool_input" allow
+payload_write "$LANE_WT" Bash "$LANE_WT/docs/HANDOFF.md" > "$TMP/payload.json"
+write_hook; judge claude "a tool this hook is not for" allow
+printf '{"tool_name":"Write","cwd":%s,"tool_input":{"file_path":%s}}\n' "$(jstr "$LANE_WT")" "$(jstr "$LANE_WT/docs/HANDOFF.md")" > "$TMP/payload.json"
+write_hook; judge claude "the smallest payload that still names a reserved path" deny
+printf 'not json at all\n' > "$LANE_WT/.skilliton/config.json"
+expect_write "a configuration that does not parse" allow "$LANE_WT" Write "$LANE_WT/docs/HANDOFF.md"
+printf '{"version":1,"dispatch":{"mainOnlyPaths":[]}}\n' > "$LANE_WT/.skilliton/config.json"
+expect_write "a project that reserves nothing" allow "$LANE_WT" Write "$LANE_WT/docs/HANDOFF.md"
+printf '{"version":1,"dispatch":{},"prepare":{"directories":{"tasks":"records/tasks"}}}\n' > "$LANE_WT/.skilliton/config.json"
+expect_write "the default reserved paths when dispatch sets none" deny  "$LANE_WT" Write "$LANE_WT/docs/HANDOFF.md"
+expect_write "a task record in a folder the project moved"        allow "$LANE_WT" Write "$LANE_WT/records/tasks/one.md"
+expect_write "the default task folder once it has been moved"     deny  "$LANE_WT" Write "$LANE_WT/docs/tasks/one.md"
+# A lane checks the configuration out for itself, so the one that governs it is its own copy and not
+# the integration branch's: a lane based on an older commit is bounded by what that commit reserved.
+printf '{"version":1,"dispatch":{"mainOnlyPaths":["notes/"]}}\n' > "$LANE_WT/.skilliton/config.json"
+expect_write "the lane's own configuration, not the main checkout's" deny "$LANE_WT" Write "$LANE_WT/notes/plan.md"
+expect_write "  and docs is no longer reserved for it"               allow "$LANE_WT" Write "$LANE_WT/docs/HANDOFF.md"
 
 # ---------------------------------------------------------------- size and time
 section "large commands finish well inside the 10 second hook timeout"

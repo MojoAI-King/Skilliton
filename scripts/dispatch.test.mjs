@@ -106,7 +106,11 @@ test("preview: the plan names every lane, its folder, its branch and its items, 
   assert.equal(existsSync(ctx.laneRoot), false, "the preview created no folder");
   assert.deepEqual(branches(ctx), ["main"], "the preview created no branch");
   assert.equal(existsSync(join(ctx.dir, ".git", "info", "exclude")) ? readFileSync(join(ctx.dir, ".git", "info", "exclude"), "utf8").includes("LANE_BRIEF.md") : false, false, "the preview did not touch info/exclude");
-  assert.equal(sg(ctx, ["dispatch", "--preview"]).out, r.out, "--preview asks for the same plan");
+  const sameButTheId = (text) => text.replace(/-lane-(reviews|billing)-[0-9a-f]{4}\.md/g, "-lane-$1-<id>.md");
+  assert.match(r.out, /^ {4}record:\s+docs\/tasks\/\d{4}-\d{2}-\d{2}-lane-reviews-[0-9a-f]{4}\.md \(would be written and committed on lane\/reviews-0920, 2 criteria\)$/m);
+  assert.match(r.out, /^ {4}record:\s+docs\/tasks\/\d{4}-\d{2}-\d{2}-lane-billing-[0-9a-f]{4}\.md \(would be written and committed on lane\/billing-0920, 1 criterion\)$/m);
+  assert.equal(existsSync(join(ctx.dir, "docs")), false, "the preview wrote no record");
+  assert.equal(sameButTheId(sg(ctx, ["dispatch", "--preview"]).out), sameButTheId(r.out), "--preview asks for the same plan, up to the record id, which is collision-free and so is new each time");
 });
 
 test("--apply creates one worktree per lane with git worktree add under the lane root, after showing the plan", (t) => {
@@ -121,8 +125,23 @@ test("--apply creates one worktree per lane with git worktree add under the lane
     const dir = join(ctx.laneRoot, name);
     assert.equal(existsSync(join(dir, "README.md")), true, `${name}: the worktree holds the repository's files`);
     assert.equal(git(dir, "branch", "--show-current").trim(), branch, `${name}: the worktree is on its own branch`);
-    assert.equal(git(dir, "rev-parse", "HEAD").trim(), ctx.head, `${name}: the branch starts at the base commit`);
+    assert.equal(git(dir, "rev-parse", "HEAD~1").trim(), ctx.head, `${name}: the task record is one commit on top of the base`);
+    git(dir, "merge-base", "--is-ancestor", ctx.head, "HEAD"); // what the brief asks the lane to check; git() throws on a non-zero exit
+    assert.equal(git(dir, "log", "-1", "--pretty=%s").trim(), `lane ${name}: task record from LANES.md`);
+    assert.equal(git(dir, "status", "--porcelain").trim(), "", `${name}: the worktree is clean, so the record was committed and nothing else was left behind`);
+    const recordRel = git(dir, "show", "--pretty=", "--name-only", "HEAD").trim();
+    assert.match(recordRel, new RegExp(`^docs/tasks/\\d{4}-\\d{2}-\\d{2}-lane-${name}-[0-9a-f]{4}\\.md$`), `${name}: the commit holds one file, the lane's task record`);
+    const record = readFileSync(join(dir, recordRel), "utf8");
+    assert.match(record, /^# Task: Lane /m);
+    assert.match(record, /^- \*\*State:\*\* in-progress$/m);
+    assert.match(record, new RegExp(`^- \\*\\*Branch:\\*\\* ${branch.replace("/", "\\/")}$`, "m"));
+    assert.match(record, /^LANES\.md, dispatched \d{4}-\d{2}-\d{2}: the items below are this lane's whole scope, and work that is not among them belongs to another lane\.$/m);
     assert.match(r.out, new RegExp(`^created .*repo-lanes/${name} on ${branch.replace("/", "\\/")} from ${ctx.head.slice(0, 12)}, with LANE_BRIEF\\.md$`, "m"));
+    if (name === "reviews") {
+      assert.match(record, /^- \[ \] N1\. \[TOUCH\] Fix the empty state copy: src\/review\/empty\.tsx: the card names the next step$/m);
+      assert.match(record, /^- \[ \] N3\. \[FEATURE\] Add a filter: src\/review\/list\.tsx: the list filters by author$/m);
+      assert.doesNotMatch(record, /N2\./, "a lane's record carries its own items and no other lane's");
+    }
   }
   assert.deepEqual(branches(ctx), ["lane/billing-0920", "lane/reviews-0920", "main"]);
   const exclude = readFileSync(join(ctx.dir, ".git", "info", "exclude"), "utf8");
@@ -162,6 +181,40 @@ test("each lane's brief carries its scope, its bound, its model and the main-onl
   const billing = readFileSync(join(ctx.laneRoot, "billing", "LANE_BRIEF.md"), "utf8");
   assert.match(billing, /^## Scope: 1 item$/m);
   assert.match(billing, /^N2\. \[FEATURE\] Retry a failed charge/m);
+});
+
+// The launch line is read against the shipped definition rather than against a copy of its values, so a change to
+// agents/lane.md reaches this test instead of letting the brief and the definition drift apart.
+const declaredBy = (key) => {
+  const text = readFileSync(new URL("../packs/base/plugins/workflow/agents/lane.md", import.meta.url), "utf8");
+  return (new RegExp(`^${key}:[ \\t]*(.+)$`, "m").exec(text) ?? [])[1]?.trim();
+};
+
+test("the brief names the lane agent the plugin ships, with the model and effort its definition declares", (t) => {
+  const ctx = fixture(t);
+  lanePlan(ctx, TWO_LANES);
+  sg(ctx, ["dispatch", "--apply"]);
+  const [name, model, effort] = ["name", "model", "effort"].map(declaredBy);
+  assert.ok(name && model && effort, "agents/lane.md declares a name, a model and an effort for the brief to name");
+  const brief = readFileSync(join(ctx.laneRoot, "reviews", "LANE_BRIEF.md"), "utf8");
+  assert.match(brief, /^## Launching this lane$/m);
+  assert.match(brief, new RegExp(`the \`${name}\` agent the workflow plugin ships \\(\`agents/${name}\\.md\`, model ${model}, effort ${effort}\\)`));
+  assert.match(brief, new RegExp(`^cd .*repo-lanes/reviews && claude --agent ${name} --model sonnet --effort ${effort}$`, "m"));
+  // billing's plan names opus, which the definition does not, so this is the assertion that proves the lane's own
+  // model reaches the line rather than the definition's being printed for every lane.
+  assert.notEqual(model, "opus", "the fixture only proves the lane's model wins while it differs from the definition's");
+  const billing = readFileSync(join(ctx.laneRoot, "billing", "LANE_BRIEF.md"), "utf8");
+  assert.match(billing, new RegExp(`^cd .*repo-lanes/billing && claude --agent ${name} --model opus --effort ${effort}$`, "m"),
+    "LANES.md named opus for this lane, so the launch line carries the lane's model and not the definition's");
+});
+
+test("a lane whose model is a sentence falls back to the agent definition's model on the launch line", (t) => {
+  const ctx = fixture(t);
+  lanePlan(ctx, TWO_LANES.replace("model: sonnet   context", "model: the most capable one   context"));
+  sg(ctx, ["dispatch", "--apply"]);
+  const brief = readFileSync(join(ctx.laneRoot, "reviews", "LANE_BRIEF.md"), "utf8");
+  assert.match(brief, /^- \*\*Model:\*\* the most capable one \(named in LANES\.md\)$/m, "the bullet keeps what LANES.md said");
+  assert.match(brief, new RegExp(`^cd .* --model ${declaredBy("model")} --effort`, "m"), "but the runnable line carries a model and not a sentence");
 });
 
 test("a lane whose branch already exists is refused, and nothing is created", (t) => {
@@ -262,8 +315,17 @@ test("--apply and --preview together are refused, and a plain argument is refuse
   assert.match(both.err, /--apply and --preview ask for opposite things/);
   const plain = sg(ctx, ["dispatch", "lanes.md"]);
   assert.equal(plain.code, 2);
-  assert.match(plain.err, /dispatch takes no plain arguments \(got "lanes\.md"\); the lane plan is LANES\.md, or --file <path>/);
+  assert.match(plain.err, /dispatch takes no plain arguments except the subcommand merge \(got "lanes\.md"\); the lane plan is LANES\.md, or --file <path>/);
   assert.equal(existsSync(ctx.laneRoot), false);
+  const withFile = sg(ctx, ["dispatch", "merge", "--file", "LANES.md"]);
+  assert.equal(withFile.code, 2);
+  assert.match(withFile.err, /--file is not used by dispatch merge/);
+  const withPreview = sg(ctx, ["dispatch", "merge", "--preview"]);
+  assert.equal(withPreview.code, 2);
+  assert.match(withPreview.err, /dispatch merge previews by default and writes only with --apply, so it does not take --preview/);
+  const withArg = sg(ctx, ["dispatch", "merge", "reviews"]);
+  assert.equal(withArg.code, 2);
+  assert.match(withArg.err, /dispatch merge takes no plain arguments \(got "reviews"\)/);
 });
 
 test("--file reads another plan, and a lane with no items says so instead of guessing", (t) => {
@@ -318,4 +380,141 @@ test("the plan is read only up to a bound, because a lane plan is a page per lan
   const r = sg(ctx, ["dispatch"]);
   assert.equal(r.code, 2);
   assert.match(r.err, /LANES\.md is \d+ KB, over the 195 KB dispatch reads/);
+});
+
+// ---------- merging the lanes back ----------
+
+// Two lanes, created the way a person creates them, with anything the repository is meant to hold already committed.
+function dispatched(t, { config = { dispatch: {} }, seed = {} } = {}) {
+  const ctx = fixture(t, { config });
+  for (const [rel, text] of Object.entries(seed)) {
+    mkdirSync(dirname(join(ctx.dir, rel)), { recursive: true });
+    writeFileSync(join(ctx.dir, rel), text);
+  }
+  if (Object.keys(seed).length) {
+    git(ctx.dir, "add", "-A");
+    git(ctx.dir, "commit", "-q", "-m", "the records already here");
+    ctx.head = git(ctx.dir, "rev-parse", "HEAD").trim();
+  }
+  lanePlan(ctx, TWO_LANES);
+  const r = sg(ctx, ["dispatch", "--apply"]);
+  assert.equal(r.code, 0, r.err);
+  return ctx;
+}
+
+// One lane doing what its brief asks: committing its own records, then saying it is done in LANE_REPORT.md.
+function laneRecords(ctx, name, files, { done = true, message = "N1 records", uncommitted = null } = {}) {
+  const dir = join(ctx.laneRoot, name);
+  for (const [rel, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(dir, rel)), { recursive: true });
+    writeFileSync(join(dir, rel), text);
+  }
+  git(dir, "add", "-A");
+  git(dir, "commit", "-q", "-m", message);
+  if (done) writeFileSync(join(dir, "LANE_REPORT.md"), `# Lane report\n\n## Commits by item\n\nN1 ${git(dir, "rev-parse", "--short", "HEAD").trim()}\n\nLANE DONE\n`);
+  if (uncommitted) for (const [rel, text] of Object.entries(uncommitted)) {
+    mkdirSync(dirname(join(dir, rel)), { recursive: true });
+    writeFileSync(join(dir, rel), text);
+  }
+  return dir;
+}
+
+const untracked = (ctx) => git(ctx.dir, "status", "--porcelain", "--untracked-files=all").split("\n").map((l) => l.trim()).filter(Boolean).sort();
+
+test("merge: every lane's committed records come back, and the preview writes nothing", (t) => {
+  const ctx = dispatched(t);
+  laneRecords(ctx, "reviews", { "docs/tasks/rev.md": "reviews task\n", "docs/decisions/rev-dec.md": "proposed\n" });
+  laneRecords(ctx, "billing", { "docs/tasks/bill.md": "billing task\n" });
+
+  const preview = sg(ctx, ["dispatch", "merge"]);
+  assert.equal(preview.code, 0, preview.err);
+  assert.match(preview.out, /^skilliton dispatch merge \(preview\): 2 lanes under .*repo-lanes$/m);
+  assert.match(preview.out, /^ {2}records:\s+docs\/tasks, docs\/decisions, docs\/lessons$/m);
+  assert.match(preview.out, /^ {2}this branch:\s+main$/m);
+  assert.match(preview.out, /^ {2}Lane reviews {3}branch lane\/reviews-0920$/m);
+  assert.match(preview.out, /^ {4}state:\s+clean, LANE DONE$/m);
+  assert.match(preview.out, /^ {4}brought back: {2}3$/m, "reviews: its two records and the task record dispatch committed for it");
+  assert.match(preview.out, /^ {4}brought back: {2}2$/m, "billing: its one record and the task record dispatch committed for it");
+  assert.match(preview.out, /^5 records would come back to main:$/m);
+  assert.match(preview.out, /^ {2}- docs\/tasks\/rev\.md \(lane reviews\)$/m);
+  assert.match(preview.out, /^ {2}- docs\/tasks\/bill\.md \(lane billing\)$/m);
+  assert.match(preview.out, /^ {2}- docs\/tasks\/\d{4}-\d{2}-\d{2}-lane-reviews-[0-9a-f]{4}\.md \(lane reviews\)$/m, "the record dispatch wrote for the lane comes back with the lane's own");
+  assert.match(preview.out, /^Preview only; nothing was written\./m);
+  assert.equal(existsSync(join(ctx.dir, "docs", "tasks", "rev.md")), false, "the preview wrote no record");
+  assert.deepEqual(untracked(ctx), ["?? LANES.md"], "the preview left the working tree as it was");
+
+  const apply = sg(ctx, ["dispatch", "merge", "--apply"]);
+  assert.equal(apply.code, 0, apply.err);
+  assert.equal(readFileSync(join(ctx.dir, "docs", "tasks", "rev.md"), "utf8"), "reviews task\n");
+  assert.equal(readFileSync(join(ctx.dir, "docs", "decisions", "rev-dec.md"), "utf8"), "proposed\n");
+  assert.equal(readFileSync(join(ctx.dir, "docs", "tasks", "bill.md"), "utf8"), "billing task\n");
+  assert.match(apply.out, /^ {4}brought back: {2}3 \(written\)$/m);
+  assert.match(apply.out, /^Wrote 5 records into .* and committed nothing: read them with git status and git diff, then commit on main\.$/m);
+  const landed = untracked(ctx);
+  assert.equal(landed.filter((l) => /^\?\? docs\/tasks\/\d{4}-\d{2}-\d{2}-lane-(reviews|billing)-[0-9a-f]{4}\.md$/.test(l)).length, 2, "one lane task record per lane, the ones dispatch committed");
+  for (const path of ["?? LANES.md", "?? docs/decisions/rev-dec.md", "?? docs/tasks/bill.md", "?? docs/tasks/rev.md"]) assert.ok(landed.includes(path), `${path} is in the working tree and not committed`);
+  assert.equal(landed.length, 6, landed.join(", "));
+  assert.equal(git(ctx.dir, "log", "--oneline").trim().split("\n").length, 1, "merge committed nothing on the integration branch");
+  assert.equal(git(ctx.dir, "rev-parse", "HEAD").trim(), ctx.head, "the integration branch is where it was");
+});
+
+test("merge: a record already here and different is a conflict, named and never overwritten", (t) => {
+  const ctx = dispatched(t, { seed: { "docs/lessons/shared.md": "already here\n", "docs/tasks/same.md": "unchanged\n" } });
+  laneRecords(ctx, "reviews", { "docs/lessons/shared.md": "changed on the lane\n", "docs/tasks/rev.md": "reviews task\n" });
+  laneRecords(ctx, "billing", { "docs/tasks/bill.md": "billing task\n" });
+  const r = sg(ctx, ["dispatch", "merge", "--apply"]);
+  assert.equal(r.code, 1, `a conflict is attention, not success: ${r.err || r.out}`);
+  assert.match(r.out, /^1 conflict, not written:$/m);
+  assert.match(r.out, /^ {2}- docs\/lessons\/shared\.md: it is already on main and differs\. Read the lane's copy with: git show lane\/reviews-0920:docs\/lessons\/shared\.md$/m);
+  assert.match(r.out, /^The 1 conflict above was left alone; merge each one by hand\.$/m);
+  assert.equal(readFileSync(join(ctx.dir, "docs", "lessons", "shared.md"), "utf8"), "already here\n", "the conflict was not overwritten");
+  assert.equal(readFileSync(join(ctx.dir, "docs", "tasks", "rev.md"), "utf8"), "reviews task\n", "the rest of the lane still came back");
+  assert.match(r.out, /^ {4}already here: {2}2$/m, "billing: both seeded records are identical on its branch, so they are counted and not brought back again");
+  assert.match(r.out, /^ {4}already here: {2}1$/m, "reviews: one of the two is its conflict");
+  assert.equal(untracked(ctx).filter((l) => /-lane-(reviews|billing)-[0-9a-f]{4}\.md$/.test(l)).length, 2, "each lane's own task record came back beside the rest");
+});
+
+test("merge: two lanes bringing the same path back with different content is a conflict, not a last writer", (t) => {
+  const ctx = dispatched(t);
+  laneRecords(ctx, "reviews", { "docs/decisions/0007-same-id.md": "the reviews entry\n" });
+  laneRecords(ctx, "billing", { "docs/decisions/0007-same-id.md": "the billing entry\n" });
+  const r = sg(ctx, ["dispatch", "merge", "--apply"]);
+  assert.equal(r.code, 1, r.err || r.out);
+  assert.match(r.out, /^ {2}- docs\/decisions\/0007-same-id\.md: lane billing brings back the same path with different content\./m);
+  assert.equal(readFileSync(join(ctx.dir, "docs", "decisions", "0007-same-id.md"), "utf8"), "the billing entry\n", "the first lane in the order wrote it, and the second was named instead of overwriting it");
+});
+
+test("merge: an unfinished lane and one with uncommitted work are named, and what they committed still comes back", (t) => {
+  const ctx = dispatched(t);
+  laneRecords(ctx, "reviews", { "docs/tasks/rev.md": "reviews task\n" }, { done: false });
+  laneRecords(ctx, "billing", { "docs/tasks/bill.md": "billing task\n" }, { uncommitted: { "docs/tasks/draft.md": "not committed\n" } });
+  const r = sg(ctx, ["dispatch", "merge"]);
+  assert.equal(r.code, 1, "an unfinished lane is attention");
+  assert.match(r.out, /^ {2}- lane reviews has no LANE_REPORT\.md in .*, so it has not said what it did, what it skipped, or what to expect at merge$/m);
+  assert.match(r.out, /^ {2}- lane billing has 1 uncommitted change in .*; a record that is not committed is not read here$/m);
+  assert.match(r.out, /^ {4}state:\s+1 uncommitted change, LANE DONE$/m);
+  assert.match(r.out, /^4 records would come back to main:$/m, "two lane records, and the task record dispatch committed for each lane");
+  assert.doesNotMatch(r.out, /draft\.md/, "what the lane has not committed is not brought back");
+  writeFileSync(join(ctx.laneRoot, "reviews", "LANE_REPORT.md"), "# Lane report\n\nnothing here says it finished\n");
+  const half = sg(ctx, ["dispatch", "merge"]);
+  assert.equal(half.code, 1);
+  assert.match(half.out, /^ {2}- lane reviews: LANE_REPORT\.md has no LANE DONE line, so the lane is not finished; what it has committed is still read$/m);
+});
+
+test("merge: inside a lane it is refused, because a lane cannot bring its records back to itself", (t) => {
+  const ctx = dispatched(t);
+  laneRecords(ctx, "reviews", { "docs/tasks/rev.md": "reviews task\n" });
+  const r = sg(ctx, ["dispatch", "merge", "--apply"], { cwd: join(ctx.laneRoot, "reviews") });
+  assert.equal(r.code, 2, r.out);
+  assert.match(r.err, /is a linked worktree, and merge runs on the integration branch in the main checkout/);
+  assert.match(r.err, /Nothing was written/);
+  assert.equal(existsSync(join(ctx.dir, "docs", "tasks", "rev.md")), false, "nothing reached the integration branch");
+});
+
+test("merge: no lane worktree is said plainly, not reported as a clean merge of nothing", (t) => {
+  const ctx = fixture(t, { config: { dispatch: {} } });
+  const r = sg(ctx, ["dispatch", "merge"]);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /^skilliton dispatch merge: no lane worktree under .*repo-lanes, which does not exist, so there is nothing to bring back\.$/m);
+  assert.match(r.out, /git worktree list shows what this repository has\.$/m);
 });

@@ -15,9 +15,11 @@
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { refuse, tilde } from "./core.mjs";
-import { runGit } from "./journal.mjs";
+import { PLUGIN_ROOT, refuse, tilde } from "./core.mjs";
+import { readBranch, runGit } from "./journal.mjs";
+import { newId } from "./ids.mjs";
 import { OperationFailed } from "./lifecycle.mjs";
+import { renderTask, taskRel } from "./tasks.mjs";
 
 export const LANE_FILE = "LANES.md";
 export const BRIEF_FILE = "LANE_BRIEF.md";
@@ -114,15 +116,24 @@ function branchExists(root, branch) {
 function registeredWorktrees(root) {
   const r = runGit(root, ["worktree", "list", "--porcelain"]);
   if (r.status !== 0) throw new OperationFailed(`git worktree list failed (exit ${r.status}): ${(r.stderr || r.stdout).trim().split("\n").pop() || "no output"}; nothing was created`);
+  // One entry per block, and only one: a block ends at its branch line or at the blank line, whichever comes first,
+  // so an attached worktree is never also reported as detached.
   const out = [];
   let path = null;
+  const flush = (branch) => { if (path !== null) { out.push({ path, branch }); path = null; } };
   for (const line of r.stdout.split(/\r?\n/)) {
-    if (line.startsWith("worktree ")) path = line.slice("worktree ".length).trim();
-    else if (line.startsWith("branch ") && path) out.push({ path, branch: line.slice("branch ".length).trim().replace(/^refs\/heads\//, "") });
-    else if (line === "" && path) { out.push({ path, branch: null }); path = null; }
+    if (line.startsWith("worktree ")) { flush(null); path = line.slice("worktree ".length).trim(); }
+    else if (line.startsWith("branch ") && path !== null) flush(line.slice("branch ".length).trim().replace(/^refs\/heads\//, ""));
+    else if (line === "") flush(null);
   }
-  if (path && !out.some((w) => w.path === path)) out.push({ path, branch: null });
+  flush(null);
   return out;
+}
+
+// The lane root, from the project's configuration or beside the repository. planDispatch refuses one inside the
+// repository; merge only reads it, so it resolves the same path without repeating that judgement.
+export function laneRootOf(root, project) {
+  return resolve(root, project.dispatch.laneRoot ?? `../${basename(root)}-lanes`);
 }
 
 function gitCommonDir(root) {
@@ -144,6 +155,19 @@ function excludePlan(root) {
   return { path, add: [BRIEF_FILE, REPORT_FILE].filter((name) => !present.has(name)) };
 }
 
+// The lane agent this plugin ships, read from its own definition so the brief never states a model the definition does
+// not. Anything unreadable or incomplete returns null and the brief says so instead of naming an agent that may not
+// exist.
+export function laneAgent() {
+  let text;
+  try { text = readFileSync(join(PLUGIN_ROOT, "agents", "lane.md"), "utf8"); } catch { return null; }
+  const front = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!front) return null;
+  const field = (key) => (new RegExp(`^${key}:[ \t]*(.+)$`, "m").exec(front[1]) ?? [])[1]?.trim();
+  const agent = { name: field("name"), model: field("model"), effort: field("effort") };
+  return agent.name && agent.model && agent.effort ? agent : null;
+}
+
 // ---------- the brief ----------
 
 const bullet = (items) => items.map((i) => `- ${i}`).join("\n");
@@ -163,6 +187,23 @@ export function briefText(lane, ctx) {
   lines.push(`- **Integration branch:** ${ctx.integrationBranch}, at ${tilde(ctx.root)}`);
   lines.push(`- **Model:** ${model}`);
   lines.push(`- **Context ceiling:** ${ceiling}`);
+  lines.push("");
+  lines.push("## Launching this lane");
+  lines.push("");
+  if (ctx.agent) {
+    // The lane's own model reaches the command line only when it is a bare token: the LANES.md field is free text, and
+    // a sentence in it would make the line unrunnable. Anything else falls back to the definition's own model.
+    const m = /^[A-Za-z0-9][\w.-]*$/.test(lane.model ?? "") ? lane.model : ctx.agent.model;
+    lines.push(`This lane runs as the \`${ctx.agent.name}\` agent the workflow plugin ships (\`agents/${ctx.agent.name}.md\`, model ${ctx.agent.model}, effort ${ctx.agent.effort}). From the integration window:`);
+    lines.push("");
+    lines.push("```");
+    lines.push(`cd ${lane.dir} && claude --agent ${ctx.agent.name} --model ${m} --effort ${ctx.agent.effort}`);
+    lines.push("```");
+    lines.push("");
+    lines.push(`The model and the effort are on the line rather than left to the client to read from the definition. If \`claude --help\` here does not list \`--agent\`, open a session in this folder and ask for the ${ctx.agent.name} agent by name: the definition is the same either way.`);
+  } else {
+    lines.push("The `agents/lane.md` beside this runtime could not be read, so this brief names no agent. Open a session in this folder, say it is one lane of a dispatched batch, and give it this brief.");
+  }
   lines.push("");
   lines.push("## Check before you write");
   lines.push("");
@@ -200,7 +241,7 @@ export function briefText(lane, ctx) {
     lines.push(`This project sets no main-only paths (\`dispatch.mainOnlyPaths\` in .skilliton/config.json is empty), so nothing is reserved for ${ctx.integrationBranch}. If the shared records live in this repository, set it before the next dispatch.`);
     lines.push("");
   }
-  lines.push(`The exception is the files this lane creates for itself: its own task record (\`skilliton task start "${lane.name}" --branch ${lane.branch} --apply\`, then \`skilliton checkpoint --state "<what is true>" --evidence "<what ran>" --next "<next step>" --apply\` as items finish) and proposed decision or lesson entries (\`skilliton record decision "<title>" --apply\`). Never the shared handoff, status, backlog or indexes: ${ctx.integrationBranch} writes those once the lanes are merged.`);
+  lines.push(`The exception is the files this lane writes for itself. Its task record already exists and is committed on this branch: \`${lane.taskRel}\`, with one acceptance criterion per item above. Tick a criterion when it is done, and record a checkpoint as items finish (\`skilliton checkpoint --state "<what is true>" --evidence "<what ran>" --next "<next step>" --apply\`); a decision or a lesson goes in as its own proposed entry (\`skilliton record decision "<title>" --apply\`). Never the shared handoff, status, backlog or indexes: ${ctx.integrationBranch} writes those once the lanes are merged. \`skilliton dispatch merge\` brings this lane's records back, so commit them.`);
   lines.push("");
   lines.push("## Checks");
   lines.push("");
@@ -249,8 +290,7 @@ export function planDispatch(root, project, { file, now = new Date() } = {}) {
     refuse(`${tilde(path)} has no lane headings, so there is nothing to create. Each lane starts with a line like: ## Lane: reviews   branch: lane/reviews-0920   model: sonnet   context ceiling: 120000. Nothing was created`);
   }
 
-  const configured = project.dispatch.laneRoot;
-  const laneRoot = resolve(root, configured ?? `../${basename(root)}-lanes`);
+  const laneRoot = laneRootOf(root, project);
   const inside = relative(root, laneRoot);
   if (inside === "" || (!inside.startsWith("..") && !isAbsolute(inside))) {
     refuse(`the lane root is ${tilde(laneRoot)}, which is inside this repository. A worktree inside the repository it branches from is committed by accident and makes git status unreadable; set dispatch.laneRoot in .skilliton/config.json to a folder beside it, for example ../${basename(root)}-lanes. Nothing was created`);
@@ -309,7 +349,23 @@ export function planDispatch(root, project, { file, now = new Date() } = {}) {
     laneSetup: project.dispatch.laneSetup,
     laneTestCommand: project.dispatch.laneTestCommand,
     mainOnlyChecks: project.dispatch.mainOnlyChecks,
+    agent: laneAgent(),
   };
+  for (const lane of planned) {
+    lane.taskId = newId(`Lane ${lane.name}`, { date: now, fallback: "lane" });
+    lane.taskRel = taskRel(project, lane.taskId);
+    lane.taskPath = join(lane.dir, lane.taskRel);
+    lane.task = problems.length ? "" : renderTask({
+      id: lane.taskId,
+      title: `Lane ${lane.name}`,
+      state: "in-progress",
+      branch: lane.branch,
+      owner: "unassigned",
+      updated: now.toISOString(),
+      request: `${LANE_FILE}, dispatched ${ctx.date}: the items below are this lane's whole scope, and work that is not among them belongs to another lane.`,
+      criteria: lane.items.map((i) => `${i.ref}. ${i.text}`),
+    });
+  }
   for (const lane of planned) lane.brief = problems.length ? "" : briefText(lane, ctx);
 
   return {
@@ -346,6 +402,21 @@ export function applyDispatch(root, plan) {
     } catch (e) {
       throw new OperationFailed(`lane ${lane.name} has a worktree at ${tilde(lane.dir)} but its brief could not be written (${e.code ?? "error"}). ${soFar()}`);
     }
+    // The record is committed here, on the lane branch alone, rather than asked for in the brief: a lane's scope then
+    // exists as a file whether or not the session that reads the brief obliges, and `dispatch merge` has something
+    // deterministic to bring back. One commit on top of the base keeps the base an ancestor, which the brief checks.
+    try {
+      mkdirSync(dirname(lane.taskPath), { recursive: true });
+      writeFileSync(lane.taskPath, lane.task, "utf8");
+    } catch (e) {
+      throw new OperationFailed(`lane ${lane.name} has a worktree and a brief at ${tilde(lane.dir)} but its task record could not be written (${e.code ?? "error"}). ${soFar()}`);
+    }
+    for (const args of [["add", "--", lane.taskRel], ["commit", "-q", "-m", `lane ${lane.name}: task record from ${LANE_FILE}`, "--", lane.taskRel]]) {
+      const r = runGit(lane.dir, args, { timeoutMs: WORKTREE_TIMEOUT_MS });
+      if (r.status !== 0) {
+        throw new OperationFailed(`lane ${lane.name} has a worktree and a brief at ${tilde(lane.dir)}, but git ${args[0]} of its task record on ${lane.branch} failed (exit ${r.status}): ${(r.stderr || r.stdout).trim().split("\n").pop() || "no output"}. ${soFar()}`);
+      }
+    }
     created.push(lane);
   }
   const excluded = [];
@@ -356,4 +427,159 @@ export function applyDispatch(root, plan) {
     excluded.push(...plan.exclude.add);
   }
   return { created, laneRootCreated, excluded };
+}
+
+// ---------- merging the lanes back ----------
+//
+// What comes back is each lane's own records: its task record, and the decision and lesson entries it proposed. The
+// brief already tells a lane it may write those and nothing else shared, and the lane write guard in the guardrails
+// plugin refuses the rest. Merge reads what is COMMITTED on the lane branch, never the lane's working tree, because
+// the brief asks the lane to commit once per item and a half-written record is not a record.
+//
+// It writes into this working tree and commits nothing: the person reads the diff and decides. A record already here
+// and different is a conflict, named and never overwritten.
+
+const DONE_LINE = /^[ \t]*LANE DONE\b/m;
+const MAX_REPORT_BYTES = 200000;
+
+const under = (parent, child) => {
+  const rel = relative(parent, resolve(child));
+  return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
+};
+
+function gitDirOf(root) {
+  const r = runGit(root, ["rev-parse", "--git-dir"]);
+  if (r.status !== 0) throw new OperationFailed(`git rev-parse --git-dir failed (exit ${r.status}): ${(r.stderr || r.stdout).trim().split("\n").pop() || "no output"}; nothing was written`);
+  const value = r.stdout.trim();
+  return isAbsolute(value) ? value : resolve(root, value);
+}
+
+// The three record roles, in the order a reader expects them, without a duplicate if a project points two at one folder.
+function recordDirs(project) {
+  const dirs = [];
+  for (const role of ["tasks", "decisions", "lessons"]) {
+    const dir = project.directories?.[role];
+    if (dir && !dirs.includes(dir)) dirs.push(dir);
+  }
+  return dirs;
+}
+
+function committedRecords(root, branch, dirs) {
+  const r = runGit(root, ["ls-tree", "-r", "-z", "--name-only", branch, "--", ...dirs]);
+  if (r.status !== 0) throw new OperationFailed(`git ls-tree failed for ${branch} (exit ${r.status}): ${(r.stderr || r.stdout).trim().split("\n").pop() || "no output"}; nothing was written`);
+  return r.stdout.split("\0").filter(Boolean).sort();
+}
+
+function committedText(root, branch, path) {
+  const r = runGit(root, ["show", `${branch}:${path}`]);
+  if (r.status !== 0) throw new OperationFailed(`git show ${branch}:${path} failed (exit ${r.status}): ${(r.stderr || r.stdout).trim().split("\n").pop() || "no output"}; nothing was written`);
+  return r.stdout;
+}
+
+// Everything about one lane that does not need the other lanes: its branch, whether the worktree is clean, and
+// whether it has written LANE DONE. None of it refuses; an unfinished lane is still read.
+function readLane(root, worktree) {
+  const dir = resolve(worktree.path);
+  const lane = { name: basename(dir), dir, branch: worktree.branch, dirty: null, done: null, warnings: [], bring: 0, same: 0, conflict: 0 };
+  if (!lane.branch) {
+    lane.warnings.push(`lane ${lane.name} at ${tilde(dir)} has a detached HEAD, so there is no lane branch to read records from; check it out on its branch, or remove it with git worktree remove ${tilde(dir)}`);
+    return lane;
+  }
+  if (!existsSync(dir)) {
+    lane.warnings.push(`lane ${lane.name}: Git still has ${tilde(dir)} registered as a worktree on ${lane.branch} although the folder is gone. What is committed on the branch is still read; git worktree prune clears the registration`);
+    return lane;
+  }
+  const st = runGit(dir, ["status", "--porcelain"]);
+  if (st.status !== 0) {
+    lane.warnings.push(`lane ${lane.name}: git status failed in ${tilde(dir)} (exit ${st.status}), so whether it has uncommitted work is unknown`);
+  } else {
+    lane.dirty = st.stdout.split(/\r?\n/).filter((l) => l.trim() !== "").length;
+    if (lane.dirty) lane.warnings.push(`lane ${lane.name} has ${lane.dirty} uncommitted change${lane.dirty === 1 ? "" : "s"} in ${tilde(dir)}; a record that is not committed is not read here`);
+  }
+  const reportPath = join(dir, REPORT_FILE);
+  let size = null;
+  try { size = statSync(reportPath).size; } catch { size = null; }
+  if (size === null) {
+    lane.done = false;
+    lane.warnings.push(`lane ${lane.name} has no ${REPORT_FILE} in ${tilde(dir)}, so it has not said what it did, what it skipped, or what to expect at merge`);
+  } else if (size > MAX_REPORT_BYTES) {
+    lane.done = null;
+    lane.warnings.push(`lane ${lane.name}: ${REPORT_FILE} is ${Math.ceil(size / 1024)} KB, over the ${Math.round(MAX_REPORT_BYTES / 1024)} KB merge reads, so whether it ends with LANE DONE is unknown`);
+  } else {
+    let text = null;
+    try { text = readFileSync(reportPath, "utf8"); } catch (e) {
+      lane.warnings.push(`lane ${lane.name}: ${REPORT_FILE} could not be read (${e.code ?? "error"}), so whether it ends with LANE DONE is unknown`);
+    }
+    if (text !== null) {
+      lane.done = DONE_LINE.test(text);
+      if (!lane.done) lane.warnings.push(`lane ${lane.name}: ${REPORT_FILE} has no LANE DONE line, so the lane is not finished; what it has committed is still read`);
+    }
+  }
+  return lane;
+}
+
+function classify(root, lane, path, claimed, branch) {
+  const entry = { lane: lane.name, branch: lane.branch, path, content: committedText(root, lane.branch, path) };
+  if (entry.content.includes("\0")) {
+    lane.warnings.push(`lane ${lane.name}: ${path} is not text, so it was not brought back; merge carries records, and a binary file in a records folder belongs in a commit of its own`);
+    return null;
+  }
+  const here = join(root, path);
+  let mine = null;
+  if (existsSync(here)) {
+    try { mine = readFileSync(here, "utf8"); } catch (e) {
+      lane.conflict++;
+      return { ...entry, state: "conflict", why: `it is already at ${path} on ${branch} and could not be read there (${e.code ?? "error"})` };
+    }
+  }
+  if (mine === entry.content) { lane.same++; return { ...entry, state: "same", why: `identical to the file already on ${branch}` }; }
+  if (mine !== null) { lane.conflict++; return { ...entry, state: "conflict", why: `it is already on ${branch} and differs` }; }
+  const twin = claimed.get(path);
+  if (twin && twin.content !== entry.content) { lane.conflict++; return { ...entry, state: "conflict", why: `lane ${twin.lane} brings back the same path with different content` }; }
+  if (twin) { lane.same++; return { ...entry, state: "same", why: `identical to the copy lane ${twin.lane} brings back` }; }
+  lane.bring++;
+  claimed.set(path, entry);
+  return { ...entry, state: "bring", why: `not on ${branch}` };
+}
+
+export function planMerge(root, project) {
+  if (gitDirOf(root) !== gitCommonDir(root)) {
+    refuse(`${tilde(root)} is a linked worktree, and merge runs on the integration branch in the main checkout: a lane cannot bring its own records back to itself. Open the main checkout and run it there. Nothing was written`);
+  }
+  const laneRoot = laneRootOf(root, project);
+  const dirs = recordDirs(project);
+  const branch = readBranch(root) ?? "this detached HEAD";
+  const lanes = registeredWorktrees(root).filter((w) => under(laneRoot, w.path)).map((w) => readLane(root, w));
+  lanes.sort((a, b) => a.name.localeCompare(b.name));
+  const claimed = new Map();
+  const files = [];
+  for (const lane of lanes) {
+    if (!lane.branch || !existsSync(lane.dir)) continue;
+    for (const path of committedRecords(root, lane.branch, dirs)) {
+      const entry = classify(root, lane, path, claimed, branch);
+      if (entry) files.push(entry);
+    }
+  }
+  const of = (state) => files.filter((f) => f.state === state);
+  return {
+    laneRoot, laneRootExists: existsSync(laneRoot), dirs, branch, lanes,
+    bring: of("bring"), same: of("same"), conflicts: of("conflict"),
+    warnings: lanes.flatMap((l) => l.warnings),
+  };
+}
+
+export function applyMerge(root, plan) {
+  const written = [];
+  const soFar = () => (written.length ? `${written.length} record${written.length === 1 ? " was" : "s were"} written first: ${written.join(", ")}` : "No record was written");
+  for (const entry of plan.bring) {
+    const target = join(root, entry.path);
+    try {
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, entry.content, "utf8");
+    } catch (e) {
+      throw new OperationFailed(`${entry.path} from lane ${entry.lane} could not be written (${e.code ?? "error"}). ${soFar()}`);
+    }
+    written.push(entry.path);
+  }
+  return { written };
 }

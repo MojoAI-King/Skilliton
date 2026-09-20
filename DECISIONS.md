@@ -305,4 +305,5 @@ Decision entries in `docs/decisions/`, sorted by ID. `skilliton index` writes th
 | [2026-09-19-records-are-written-at-checkpoint-time-m-554d](docs/decisions/2026-09-19-records-are-written-at-checkpoint-time-m-554d.md) | Records are written at checkpoint time; maintain reconciles | accepted | 2026-09-19 |
 | [2026-09-20-a-dependency-free-in-repo-lint-and-a-siz-da3d](docs/decisions/2026-09-20-a-dependency-free-in-repo-lint-and-a-siz-da3d.md) | A dependency-free in-repo lint, and a size ceiling that ratchets | accepted | 2026-09-20 |
 | [2026-09-20-dispatch-creates-worktrees-and-refuses-t-2249](docs/decisions/2026-09-20-dispatch-creates-worktrees-and-refuses-t-2249.md) | Dispatch creates worktrees and refuses to reuse one, and the bound is written prose | accepted | 2026-09-20 |
+| [2026-09-20-the-merge-back-half-of-dispatch-the-lane-ef33](docs/decisions/2026-09-20-the-merge-back-half-of-dispatch-the-lane-ef33.md) | The merge-back half of dispatch: the lane's record is committed for it, and a warning is exit 1 | accepted | 2026-09-20 |
 <!-- skilliton:index:decisions:end -->

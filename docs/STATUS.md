@@ -2,7 +2,7 @@
 
 Kind: Living.
 
-Current state (2026-09-20, wave 4 published as 7af3b80): the owner graded the repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, the owner pass at its end; 45 of 123 items ticked). Wave 4 (workflow 0.11.0) built the dispatch half of the loop: `skilliton dispatch` turns a lane plan into one Git worktree per lane with a brief that bounds it, refusing rather than reusing anything, and three agents (`lane`, `locate`, `verify-item`) ship with the plugin. The VS Code extension has a measured column in docs/CLIENTS.md. Two things are recorded and not explained: no real dispatch has ever been run, and this repository's sessions compact nowhere near the 600000 window the settings name. Next: wave 5 from the report card. Milestone by milestone: the table below. What each open item needs: docs/BACKLOG.md and DECISIONS.md. Claims with evidence: docs/POSITIONING.md. Earlier versions: docs/STATUS_ARCHIVE.md.
+Current state (2026-09-20, wave 5 built on main): the owner graded this repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, the owner pass at its end; 55 of 123 items ticked). Wave 5 closed the dispatch loop wave 4 opened and gave the runtime a shape check: dispatch commits each lane's task record and prints a launch line, a guardrails hook refuses a lane's writes to the integration branch's paths, `dispatch merge` brings the records back and names every conflict, a dependency-free lint holds a 600 line ceiling that ratchets, and `lib/core.mjs` split into helpers, engines and command modules. Recorded and unexplained: no dispatch has run for real (B38), and sessions here compact nowhere near the 600000 the settings name (B36). Next: wave 6. Milestones: the table below. Open items: docs/BACKLOG.md and DECISIONS.md. Claims with evidence: docs/POSITIONING.md. Earlier: docs/STATUS_ARCHIVE.md.
 
 <!-- living-docs:milestones:start -->
 
@@ -39,5 +39,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner | Updated |
 |---|---|---|---|---|---|
-| [2026-09-20-wave-5-lane-agents-bounded-merge-back-li-cf12](tasks/2026-09-20-wave-5-lane-agents-bounded-merge-back-li-cf12.md) | Wave 5: lane agents bounded, merge-back, lint, split core.mjs | in-progress | main | unassigned | 2026-09-20T14:56:00.420Z |
+| [2026-09-20-wave-5-lane-agents-bounded-merge-back-li-cf12](tasks/2026-09-20-wave-5-lane-agents-bounded-merge-back-li-cf12.md) | Wave 5: lane agents bounded, merge-back, lint, split core.mjs | in-progress | main | unassigned | 2026-09-20T15:33:44.528Z |
 <!-- skilliton:index:tasks:end -->

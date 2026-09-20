@@ -4,7 +4,6 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { KNOWN_SECTIONS } from "./config.mjs";
 import { HOME, SKILLS_REPO, isDir, isFile, isPlainObject, listDirNames, readJsonMaybe, runProgram, tilde } from "./core.mjs";
 
 const versionOf = (text) => /^(\d+\.\d+\.\d+)/.exec(String(text).trim())?.[1] ?? null;
@@ -151,10 +150,8 @@ function referencesTool(text, tool) {
   return new RegExp(`(^|[\\s;|&(\`$"'/])${tool}($|[\\s;|&)"'])`, "m").test(code);
 }
 
-const KNOWN_CONFIG_SECTIONS = KNOWN_SECTIONS;
 
 export {
   versionOf, findEditorCopies, parseJsonArray, settingsFiles, readLocalPluginFiles, gatherPluginRecords,
   readCatalog, readTeamTemplate, basePluginDirs, listPluginHookFiles, listHookFiles, referencesTool,
-  KNOWN_CONFIG_SECTIONS,
 };
