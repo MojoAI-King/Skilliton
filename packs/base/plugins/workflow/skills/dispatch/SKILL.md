@@ -45,7 +45,7 @@ Filed issues are often already fixed. For each item, check the code first:
 
 - Already fixed or built: mark SHIPPED with the file and line. Do not lane it.
 - Conflicts with a recorded decision (`DECISIONS.md` or the repo's equivalent): mark DECISION, cite it, and route it to the owner.
-- Real and buildable: attach the file pointers now. Use subagents to locate code so the main session stays small; the brief must name the files so the lane does not search again.
+- Real and buildable: attach the file pointers now. Use subagents to locate code so the main session stays small: the workflow plugin ships `workflow:locate` (read-only, a turn limit, returns file and line pointers and nothing else) and `workflow:verify-item` (one item, one verdict, with the write set a lane needs). The brief must name the files so the lane does not search again.
 
 ## Step 3: size each item
 
@@ -70,20 +70,25 @@ Say these outcomes out loud rather than engineering around them: everything coll
 
 ## Step 5: write LANES.md
 
-**Name the base commit.** Record `git rev-parse main` at the top of `LANES.md` as the base. A lane created from anything older (an agent worktree made from the last pushed commit is the usual cause) silently misses work, so every brief checks it.
+**Name the base commit.** Put it on its own line near the top, in this exact form, so that `skilliton dispatch` reads the same commit a person does:
 
-Before the setup lines, run `git worktree list` and check each lane folder under `laneRoot`:
+    Base commit: <the full sha from `git rev-parse main`>
 
-- Folder missing: emit `git worktree add <laneRoot>/<name> -b lane/<name>-<mmdd>`.
-- Folder present and idle (detached): emit `git -C <laneRoot>/<name> checkout -b lane/<name>-<mmdd> main`.
-- Folder present and on a `lane/*` branch: it is active in another window. Never reuse it. Use a new folder (`<name>2`) or queue the items under "Queued for the next batch". Say which.
+A lane created from anything older (an agent worktree made from the last pushed commit is the usual cause) silently misses work, so every brief checks it. The line applies to every lane below it, and a second one before a later batch changes the base from there down. With no such line, `skilliton dispatch` uses HEAD and says in its plan that it did.
+
+`skilliton dispatch` creates the worktrees from this file, so `LANES.md` no longer carries the `git worktree add` lines. It checks every lane before it writes anything and refuses the whole run if one is taken, because half a batch is worse than none:
+
+- Folder already there, or a folder Git still has registered as a worktree: refused. Use a new folder (`<name>2`) or queue the items under "Queued for the next batch". Say which.
+- Branch already there: refused. A lane never reuses a branch; the branch is what proves which commits are the lane's own.
 - A `lane/*` branch with no worktree is a leftover to mention, not reuse.
 
 If `LANES.md` exists and any of its lane branches still exist, append a dated section `# Batch: <date>`; never overwrite an active batch.
 
-**At the very top, the lane sentence**, identical for every lane and every batch, with the real absolute path of this `LANES.md` filled in:
+**At the very top, the lane sentence**, identical for every lane and every batch:
 
-    Read "<absolute path to main>/LANES.md", find the lane whose folder matches this one, and follow its brief exactly.
+    Read LANE_BRIEF.md at the root of this worktree and follow it exactly.
+
+`skilliton dispatch --apply` writes that brief into each worktree from this file. When the lanes were made by hand instead, the sentence names the absolute path of this `LANES.md` and tells the lane to find the heading whose folder matches its own.
 
 **Then the coverage ledger.** This makes "nothing slipped through" checkable instead of asserted:
 
@@ -104,9 +109,7 @@ Every N number appears in exactly one bucket. **Sum the buckets and check the to
 ````
 ## Lane: <name>   branch: lane/<name>-<mmdd>   model: <suggested>   context ceiling: <tokens>
 
-Setup (run in the MAIN window's terminal, repo root):
-  <the one worktree line that applies>
-  <each laneSetup command, with {lane} filled in>
+Setup: `skilliton dispatch --apply` creates <laneRoot>/<name> on this branch and writes its brief. The `laneSetup` commands are printed and written into the brief; dispatch never runs them.
 
 Then open <laneRoot>/<name> in a new window, start a fresh session, and paste the lane sentence from the top of this file.
 
@@ -133,6 +136,16 @@ N<k>. [tier] <title>: <files>: <what done looks like, one line>
 A lane that needs more than about 200K tokens of context was scoped too wide; fix the partition here instead of absorbing it later. Mechanical lanes with a written spec and a gate behind them do not need the most capable model.
 
 **At the bottom:** Shipped already (with evidence, so the author can cross them off), Owner decisions (with the conflicting decision), Main window items (with files), and the Merge order with the playbook's merge sentence verbatim.
+
+## Step 6: create the lanes
+
+`skilliton dispatch` with no flags prints the plan and writes nothing: the lane root, the base commit and where it came from, and for each lane its folder, branch, model, context ceiling, item count and the `git worktree add` line it would run. `--apply` prints that same plan and then creates each worktree and writes `LANE_BRIEF.md` at its root. `--file <path>` reads a plan that is not `LANES.md`. It reads at most the first 200KB of the plan, which is a page per lane and then some.
+
+What it writes: one worktree per lane, one brief per lane, and `LANE_BRIEF.md` plus `LANE_REPORT.md` added to this repository's `.git/info/exclude`, so neither is ever committed. What it never does: run a command from `dispatch.laneSetup`, touch the integration branch, or push.
+
+The brief is the bound. It carries the lane's items and nothing else as its scope, what to read (this brief, the files the items name, and what those lead to), what to return (`LANE_REPORT.md` with its five headings), the model and the context ceiling the heading named, the main-only paths, the check to run, and the setup dispatch did not run. A lane that needs more than its ceiling was scoped too wide: it stops and says so rather than compacting through it.
+
+**Running a lane as an agent.** The workflow plugin ships `workflow:lane`: sonnet at high effort, no turn limit, briefed with the lane folder and nothing else. It reads `LANE_BRIEF.md`, runs the branch and base checks first, and returns `LANE_REPORT.md`. When a heading names a different model, pass it as the agent's model override; the brief records which model the plan named. Whether a lane agent's peak context stays under the window on real work is measured per dispatch, not assumed.
 
 ## Merge protocol (main window, one lane at a time)
 

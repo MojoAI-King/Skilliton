@@ -29,6 +29,7 @@ const GROUPS = [
       { name: "status", summary: "where the project stands: versions, migrations, records, open tasks, handoff freshness, security evidence" },
       { name: "task", summary: "start, list, show, or close a task record (one file per task, safe for parallel contributors)" },
       { name: "checkpoint", summary: "add a checkpoint (state, evidence, next step) to the current task record" },
+      { name: "dispatch", summary: "turn a lane plan into one Git worktree per lane, each with a brief that bounds it (--apply creates)" },
       { name: "record", summary: "create a decision or lesson entry with a collision-free ID" },
       { name: "index", summary: "regenerate the decision, lesson and task indexes from their entries" },
       { name: "security", summary: "project security evidence: status, record, applicability, collect, findings" },

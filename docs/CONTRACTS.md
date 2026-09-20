@@ -7,7 +7,7 @@ Kind: Living. PLAN.md is the product authority. This file holds the shared names
 | Pack | Plugin | Ships | Invocation |
 |---|---|---|---|
 | `base` | `context-hygiene` | skill `context-hygiene`; SessionStart hook `session-start-checklist.sh`; status line `statusline-quota.sh` (applied by `scripts/setup.mjs`) | model-invoked |
-| `base` | `workflow` | skills `task`, `dispatch`, `review`, `handoff`, `maintain`, `security`; hooks: SessionStart `session-start-handoff.sh` and `skilliton hook session-start`, Stop, PreCompact and SessionEnd `skilliton hook <event>`; the Skilliton runtime (`runtime/`, launched by `bin/skilliton`); the harness template (`templates/harness.md`); security catalogs (`catalogs/`) | `/workflow:<skill>`, model-invoked from the description, or `skilliton <command>` |
+| `base` | `workflow` | skills `task`, `dispatch`, `review`, `handoff`, `maintain`, `security`; agents `lane`, `locate`, `verify-item` (`agents/`, section 18); hooks: SessionStart `session-start-handoff.sh` and `skilliton hook session-start`, Stop, PreCompact and SessionEnd `skilliton hook <event>`; the Skilliton runtime (`runtime/`, launched by `bin/skilliton`); the harness template (`templates/harness.md`); security catalogs (`catalogs/`) | `/workflow:<skill>`, model-invoked from the description, or `skilliton <command>` |
 | `base` | `guardrails` | PreToolUse hook `guard-bash.sh` on the Bash tool (asks in Claude Code, refuses in Codex; section 15); SessionStart hook `session-start-guardrails.sh` (one status line: on, off, or a problem); skill `guardrails` explaining what is blocked and why | hook runs on every Bash call; skill model-invoked |
 | `<company>` (in a fork) | anything | the company's own skills | `/<plugin>:<skill>` |
 
@@ -89,7 +89,7 @@ The runtime is `packs/base/plugins/workflow/runtime/skilliton.mjs`. `scripts/ski
 | `new-skill <plugin> <skill> [--pack <pack>] [--repo <dir>] [--description <text>]` | scaffolds `packs/<pack>/plugins/<plugin>/skills/<skill>/SKILL.md` with frontmatter and bumps the plugin version | the new skill, `plugin.json` |
 | `import <skill-dir> --into <plugin> [--pack <pack>] [--repo <dir>] [--name <skill>]` | scans the source (scrub check, secret shapes, home paths; refuses when no denylist is configured), then copies it into a company plugin | the copied skill, `plugin.json` |
 | `gate [--dir <repo root>] [--cmd "<command>"] [--policy] [--label <name>] [--tail <lines>] [--timeout <seconds>]` | runs the project's checks and prints a verdict from the exit status, the tree it ran on (commit, branch, uncommitted files) and on failure the last lines, never the whole output: the delivery policy's checks in order, stopping at the first failure (argument lists, no shell), else `npm run verify` when package.json has a verify script, else the command after `--cmd`, through the shell; a signal, a timeout or a program that cannot start is a failure that says so; refuses with nothing to run, a bad label or number, `--cmd` with `--policy`, or an invalid policy | `.git/skilliton/gate/<label>.log` (folder 0700, file 0600; the full output and the tree) |
-| `prepare`, `migrate`, `remove`, `status`, `task`, `checkpoint`, `record`, `index`, `security`, `hook`, `propose`, `release`, `verify`, `trust`, `join`, `preflight`, `delivery` | sections 10 to 14 (built in workflow 0.3.0; `join` in 0.5.0; `preflight` in 0.7.0; `gate` in 0.8.0; `checkpoint --handoff`, the task Handoff rewrite and the index regeneration at checkpoint time in 0.9.0; `task start --request`, the prepare drafts read by `runtime/lib/stack.mjs`, `delivery confirm` and the Windows launcher in 0.10.0) | per command |
+| `prepare`, `migrate`, `remove`, `status`, `task`, `checkpoint`, `record`, `index`, `security`, `hook`, `propose`, `release`, `verify`, `trust`, `join`, `preflight`, `delivery`, `dispatch` | sections 10 to 14 and 17 (built in workflow 0.3.0; `join` in 0.5.0; `preflight` in 0.7.0; `gate` in 0.8.0; `checkpoint --handoff`, the task Handoff rewrite and the index regeneration at checkpoint time in 0.9.0; `task start --request`, the prepare drafts read by `runtime/lib/stack.mjs`, `delivery confirm` and the Windows launcher in 0.10.0; `dispatch` and the shipped agents in 0.11.0) | per command |
 
 A listed command whose module is not present is refused as "not built in this version" (exit 2) and marked so in `--help`.
 
@@ -227,3 +227,34 @@ Skilliton was named Skillgate before milestone M9. `runtime/lib/legacy-names.mjs
 | A security artifact starting `# skillgate-file-manifest/1` | still checked as a manifest, because observation records are immutable |
 | The session journal and backups in `<git-dir>/skillgate/` and `<git-dir>/skillgate-backups/` | left in place and no longer read; migration 0003 says so |
 
+## 17. Dispatch: lanes, worktrees and briefs
+
+Built in workflow 0.11.0. `dispatch [--file <plan>] [--dir <project>] [--preview] [--apply]` reads a lane plan and creates one Git worktree per lane. The engine is `runtime/lib/dispatch.mjs`; the skill that writes the plan is `skills/dispatch`.
+
+**The plan.** `LANES.md` at the repository root by default, at most 200KB (a plan longer than that is refused, naming the size: a page per lane is the shape, and a runaway file is a mistake, not a batch). Three things are read and nothing else is inferred:
+
+- `## Lane: <name>` starts a lane and runs to the next level-1 or level-2 heading, so a `### Brief` section stays inside it. The name and each field are separated by **two or more spaces**; a single space inside a field's value is ordinary. Known fields: `branch` (required), `model`, `context ceiling`. An unknown field, a missing branch, a duplicate lane name, a name that is not a folder name, or a branch that is not a branch name is a problem, and every problem in the plan is reported together before anything is created.
+- `Base commit: <sha>` on its own line outside a lane sets the base for every lane below it (7 to 40 hexadecimal characters, optionally as a list item, bold, or in backticks). With no such line the plan uses `HEAD`, and the printed plan says which it used and where it came from. A base the repository does not have is refused.
+- `N<k>. <text>` inside a lane is one item. A lane with no items is created with a brief that says the plan named none, rather than a guessed scope.
+
+**What it refuses (exit 2, nothing created).** A missing plan; a plan with no lanes; a lane root inside the repository; a lane folder that exists, or one Git still has registered as a worktree; a lane branch that already exists; a repository with no commits; `--apply` with `--preview`; a plain argument. The whole batch is checked before the first worktree is made, because half a batch is worse than none.
+
+**What it writes with `--apply`.** One worktree per lane, created with `git worktree add <laneRoot>/<name> -b <branch> <base>`; `LANE_BRIEF.md` at each worktree root; and `LANE_BRIEF.md` plus `LANE_REPORT.md` in the repository's `.git/info/exclude`, so a lane's brief and report are never committed. It never runs a `dispatch.laneSetup` command: those are printed and written into each brief for a person to run, because dispatch runs in repositories nobody has reviewed.
+
+**The brief is the bound.** Each `LANE_BRIEF.md` carries the lane, its branch and base, its worktree, the integration branch, the model and context ceiling the heading named, the two checks to run before writing (branch and base ancestry), the lane's items and nothing else as its scope, a "Your bound" section (what to read, what to return, the model, the ceiling, and that nothing is silent), the main-only paths with the per-lane exception for its own task record and proposed entries, the check to run, and the setup dispatch did not run.
+
+**Lane root.** `dispatch.laneRoot` (section 2), or `../<repository folder name>-lanes` when unset, which is why dispatch resolves it rather than `config.mjs`. A lane root inside the repository is refused: a worktree under the repository would be walked by its own checks.
+
+## 18. Agents shipped in a plugin
+
+A plugin's `agents/<name>.md` files are discovered automatically; the `agents` key in `plugin.json` is optional (documented, retrieved 2026-09-20). Installed, they are named `<plugin>:<name>`.
+
+Every agent Skilliton ships states `model` and `effort` in its frontmatter, and `scripts/packs.test.mjs` fails without them: an agent with no model runs on whatever model the calling session happened to be using, which makes cost and quality a property of when it was called rather than of what it does. The accepted values are the documented ones: `model` is `sonnet`, `opus`, `haiku`, `fable`, `inherit` or a `claude-` model id; `effort` is `low`, `medium`, `high`, `xhigh` or `max`; `maxTurns` is a positive integer. No documented frontmatter key sets a subagent's context window or its compaction, so a bound is written into the agent's instructions and into the lane brief, not configured.
+
+| Agent | Model, effort | Reads | Returns |
+|---|---|---|---|
+| `workflow:lane` | sonnet, high, no turn limit | `LANE_BRIEF.md` in its worktree, the files its items name | `LANE_REPORT.md` with its five headings, ending `LANE DONE` |
+| `workflow:locate` | sonnet, low, 12 turns, read-only tools, no project instruction file | search results, then only the ranges it needs | `<path>:<line>` pointers and one `FOUND`, `NOT FOUND` or `INCOMPLETE` line |
+| `workflow:verify-item` | sonnet, medium, 20 turns, read-only tools | one item and the code it points at | one verdict: `SHIPPED`, `DECISION`, `REAL` or `CANNOT TELL`, with the write set a lane needs |
+
+A lane's model may be overridden per lane from the plan's heading; the brief records which model the plan named. Whether a lane agent's peak context stays under the window on real work is measured per dispatch (area 04 batch 03, area 07 batch 02), not assumed.

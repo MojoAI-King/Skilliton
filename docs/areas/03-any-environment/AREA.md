@@ -9,7 +9,7 @@ Kind: Living. Area record. One of the ten areas in docs/REPORT_CARD.md; the batc
 - **What A- means here:** Measured columns for the Claude Code terminal, the VS Code extension and Codex; a Windows run completed with each failure fixed and tested; a Cursor decision recorded; a rule with a test that a client is supported only with a measured column.
 - **Owner inputs this area waits on:** The Windows machine (owner). A Cursor account (owner). A logged-in Codex (owner).
 - **Advances:** M13; B2, B23, B30
-- **Build progress:** `[....................]` 0 (0 of 15) across 5 batch(es), by `node scripts/report-card.mjs --apply`
+- **Build progress:** `[###.................]` 13 (2 of 15) across 5 batch(es), by `node scripts/report-card.mjs --apply`
 
 ## Batches
 
@@ -17,7 +17,7 @@ Kind: Living. Area record. One of the ten areas in docs/REPORT_CARD.md; the batc
 
 | Batch | Type | Progress |
 |---|---|---|
-| [01 VS Code extension column](batch-01-vscode-column.md) | measure | `[....................]` 0 (0 of 4) |
+| [01 VS Code extension column](batch-01-vscode-column.md) | measure | `[##########..........]` 50 (2 of 4) |
 | [02 Windows run (B30)](batch-02-windows-run.md) | owner | `[....................]` 0 (0 of 4) |
 | [03 Codex adapter (B2, M13)](batch-03-codex-adapter.md) | build | `[....................]` 0 (0 of 3) |
 | [04 Cursor spike (M13, O24)](batch-04-cursor-spike.md) | research | `[....................]` 0 (0 of 2) |

@@ -48,6 +48,20 @@ export const DEFAULTS = {
   security: { maxAgeDays: null },
 };
 
+// The dispatch section (docs/CONTRACTS.md sections 2 and 15). laneRoot null means "beside the repository, named after
+// its folder"; dispatch resolves it, because only it knows the folder name. laneSetup is never run by Skilliton: it is
+// printed and written into each lane's brief for a person to run.
+export const DISPATCH_DEFAULTS = {
+  laneRoot: null,
+  hotspots: [],
+  mainOnlyPaths: ["docs/", "DECISIONS.md"],
+  laneSetup: [],
+  laneTestCommand: null,
+  mainOnlyChecks: [],
+  maxItemsPerLane: 8,
+  minItemsForLanes: 6,
+};
+
 // kind: "invalid" (the configuration or a path in it is wrong; exit 2) or "failed" (it could not be read; exit 3).
 // legacy: true when the project still uses the earlier names and only migrate can open it; callers add the command.
 export class ConfigError extends Error {
@@ -154,6 +168,20 @@ export function configProblems(config) {
   if (checkpoints.minMinutes !== undefined && !(Number.isInteger(checkpoints.minMinutes) && checkpoints.minMinutes >= 0 && checkpoints.minMinutes <= 1440)) problems.push("checkpoints.minMinutes must be a whole number from 0 to 1440");
   const security = isObject(config.security) ? config.security : {};
   if (security.maxAgeDays !== undefined && security.maxAgeDays !== null && !(Number.isInteger(security.maxAgeDays) && security.maxAgeDays >= 1 && security.maxAgeDays <= 3650)) problems.push("security.maxAgeDays must be null or a whole number from 1 to 3650");
+  const dispatch = isObject(config.dispatch) ? config.dispatch : {};
+  for (const key of Object.keys(dispatch)) if (!Object.hasOwn(DISPATCH_DEFAULTS, key)) problems.push(`dispatch has the unknown key "${key}" (known: ${Object.keys(DISPATCH_DEFAULTS).join(", ")})`);
+  for (const key of ["laneRoot", "laneTestCommand"]) {
+    const v = dispatch[key];
+    if (v !== undefined && v !== null && !(typeof v === "string" && v.trim() !== "" && v.length <= 300)) problems.push(`dispatch.${key} must be null or a non-empty string of at most 300 characters`);
+  }
+  for (const key of ["hotspots", "mainOnlyPaths", "laneSetup", "mainOnlyChecks"]) {
+    const v = dispatch[key];
+    if (v !== undefined && (!Array.isArray(v) || !v.every((entry) => typeof entry === "string" && entry.trim() !== "" && entry.length <= 300))) problems.push(`dispatch.${key} must be a list of non-empty strings of at most 300 characters each`);
+  }
+  for (const key of ["maxItemsPerLane", "minItemsForLanes"]) {
+    const v = dispatch[key];
+    if (v !== undefined && !(Number.isInteger(v) && v >= 1 && v <= 100)) problems.push(`dispatch.${key} must be a whole number from 1 to 100`);
+  }
   return problems;
 }
 
@@ -225,6 +253,7 @@ export function resolveProject(rootInput, { allowLegacy = false } = {}) {
     handoff: { file: artifacts.handoff, maxBytes: handoffSection.maxBytes ?? DEFAULTS.handoffMaxBytes },
     checkpoints: { ...DEFAULTS.checkpoints, ...(isObject(config.checkpoints) ? config.checkpoints : {}) },
     security: { ...DEFAULTS.security, ...(isObject(config.security) ? config.security : {}) },
+    dispatch: { ...DISPATCH_DEFAULTS, ...(isObject(config.dispatch) ? config.dispatch : {}) },
   };
 }
 

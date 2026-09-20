@@ -37,5 +37,7 @@ Read `docs/HANDOFF.md` for the next step and `docs/BACKLOG.md` for outstanding w
 <!-- skilliton:index:tasks:start -->
 Open tasks in `docs/tasks/` (every state except done-local, merged, released, verified and abandoned), sorted by ID. `skilliton index` writes this list from the task records; edit the task records, not the list.
 
-No open tasks.
+| ID | Title | State | Branch | Owner | Updated |
+|---|---|---|---|---|---|
+| [2026-09-20-wave-4-the-dispatch-command-subagent-hyg-0fa2](tasks/2026-09-20-wave-4-the-dispatch-command-subagent-hyg-0fa2.md) | Wave 4: the dispatch command, subagent hygiene, the VS Code extension column | in-progress | main | unassigned | 2026-09-20T04:59:15.638Z |
 <!-- skilliton:index:tasks:end -->

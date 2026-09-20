@@ -9,7 +9,7 @@ Kind: Living. Area record. One of the ten areas in docs/REPORT_CARD.md; the batc
 - **What A- means here:** The window is set from measurement in the team settings and in agent definitions; the guard and gate are seen in live sessions; subagent peak context in one real dispatch stays under the window; a before-and-after for one merged batch exists from the meter, cross-checked against the usage screen, with no savings sentence until then.
 - **Owner inputs this area waits on:** The owner's usage screen for the cross-check. The owner's decision on the baseline window (docs/USAGE_BASELINE.md).
 - **Advances:** M2, M11; B9, B34, B36
-- **Build progress:** `[###########.........]` 53 (10 of 19) across 5 batch(es), by `node scripts/report-card.mjs --apply`
+- **Build progress:** `[#############.......]` 63 (12 of 19) across 5 batch(es), by `node scripts/report-card.mjs --apply`
 
 ## Batches
 
@@ -19,7 +19,7 @@ Kind: Living. Area record. One of the ten areas in docs/REPORT_CARD.md; the batc
 |---|---|---|
 | [01 Bound context (B36)](batch-01-bound-context.md) | research | `[################....]` 80 (4 of 5) |
 | [02 Guard and gate in real sessions (B34)](batch-02-guard-and-gate-live.md) | measure | `[##########..........]` 50 (2 of 4) |
-| [03 Subagent hygiene](batch-03-subagent-hygiene.md) | build | `[....................]` 0 (0 of 3) |
+| [03 Subagent hygiene](batch-03-subagent-hygiene.md) | build | `[#############.......]` 67 (2 of 3) |
 | [04 The meter as a routine](batch-04-meter-as-routine.md) | build | `[#####...............]` 25 (1 of 4) |
 | [05 Output caps in the team settings](batch-05-output-caps.md) | build | `[####################]` 100 (3 of 3) |
 

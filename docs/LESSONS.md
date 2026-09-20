@@ -215,4 +215,6 @@ Lesson entries in `docs/lessons/`, sorted by ID. `skilliton index` writes this l
 | [2026-09-19-a-hand-typed-list-of-options-in-a-refusa-ee5f](lessons/2026-09-19-a-hand-typed-list-of-options-in-a-refusa-ee5f.md) | A hand-typed list of options in a refusal loop accepts a new option silently everywhere it was left out | accepted | 2026-09-19 |
 | [2026-09-19-a-rewriter-of-a-hand-edited-file-proves-43c7](lessons/2026-09-19-a-rewriter-of-a-hand-edited-file-proves-43c7.md) | A rewriter of a hand-edited file proves the round-trip before it writes | accepted | 2026-09-19 |
 | [2026-09-19-a-session-that-installed-the-plugins-sti-fd48](lessons/2026-09-19-a-session-that-installed-the-plugins-sti-fd48.md) | A session that installed the plugins still sees the PATH computed at its start; measure in a session started after the change | accepted | 2026-09-19 |
+| [2026-09-20-a-replacement-string-ending-in-a-dollar-1e99](lessons/2026-09-20-a-replacement-string-ending-in-a-dollar-1e99.md) | A replacement string ending in a dollar-backtick splices the file into itself | accepted | 2026-09-20 |
+| [2026-09-20-an-unquoted-colon-space-in-frontmatter-d-0f41](lessons/2026-09-20-an-unquoted-colon-space-in-frontmatter-d-0f41.md) | An unquoted colon-space in frontmatter drops the whole block | accepted | 2026-09-20 |
 <!-- skilliton:index:lessons:end -->
