@@ -37,7 +37,5 @@ Read `docs/HANDOFF.md` for the next step and `docs/BACKLOG.md` for outstanding w
 <!-- skilliton:index:tasks:start -->
 Open tasks in `docs/tasks/` (every state except done-local, merged, released, verified and abandoned), sorted by ID. `skilliton index` writes this list from the task records; edit the task records, not the list.
 
-| ID | Title | State | Branch | Owner | Updated |
-|---|---|---|---|---|---|
-| [2026-09-20-repair-the-handoff-freshness-check-read-d7e3](tasks/2026-09-20-repair-the-handoff-freshness-check-read-d7e3.md) | Repair: the handoff freshness check read its own write as later work | in-progress | main | unassigned | 2026-09-20T05:33:11.504Z |
+No open tasks.
 <!-- skilliton:index:tasks:end -->
