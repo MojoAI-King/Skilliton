@@ -46,6 +46,12 @@ jobs:
       - name: Names check can fail
         run: node scripts/names.test.mjs --self-test
 
+      - name: Size ceiling, unused imports, command shape and no dependencies
+        run: node scripts/lint.test.mjs
+
+      - name: Lint can fail
+        run: node scripts/lint.test.mjs --self-test
+
       - name: Report card generator contract
         run: node scripts/report-card.test.mjs
 

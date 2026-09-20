@@ -37,5 +37,7 @@ Read `docs/HANDOFF.md` for the next step and `docs/BACKLOG.md` for outstanding w
 <!-- skilliton:index:tasks:start -->
 Open tasks in `docs/tasks/` (every state except done-local, merged, released, verified and abandoned), sorted by ID. `skilliton index` writes this list from the task records; edit the task records, not the list.
 
-No open tasks.
+| ID | Title | State | Branch | Owner | Updated |
+|---|---|---|---|---|---|
+| [2026-09-20-wave-5-lane-agents-bounded-merge-back-li-cf12](tasks/2026-09-20-wave-5-lane-agents-bounded-merge-back-li-cf12.md) | Wave 5: lane agents bounded, merge-back, lint, split core.mjs | in-progress | main | unassigned | 2026-09-20T14:56:00.420Z |
 <!-- skilliton:index:tasks:end -->
