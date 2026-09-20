@@ -1396,6 +1396,34 @@ test("checkpoint --handoff on main rewrites RESUME HERE byte for byte, the task 
   assert.deepEqual([...two.matchAll(/^### (.+)$/gm)].map((m) => m[1]), [written, fixtureWritten]);
 }));
 
+// The handoff's Written line is printed to the minute; the files one checkpoint writes carry millisecond times. When a
+// run straddles a minute boundary the index lands after the end of the minute the handoff names, and without a window
+// the handoff a command just wrote reads as older than the files the same command wrote. Seen once in CI on
+// 2026-09-20 (run 35491126289), where the same test passed on the run before it.
+test("a file the same checkpoint wrote, landing in the next minute, is not newer than the handoff", async () => withTemp("handoff-boundary", async ({ dir, env }) => {
+  const { parseWritten } = await LIFECYCLE_LIB();
+  const p = preparedRepo(join(dir, "p"), env, { written: "2026-09-18T20:00:00.000Z" });
+  startTask(p, env, "Boundary");
+  const r = cli(p, ["checkpoint", "--handoff", "--state", "Half done", "--evidence", "tests pass", "--next", "Finish", "--apply"], env);
+  assert.equal(r.code, 0, r.all);
+  const written = resumeWritten(handoffText(p));
+  const parsed = parseWritten(written);
+  assert.ok(parsed.ok, `${written}: ${parsed.reason}`);
+  const end = parsed.end.getTime();
+  const index = join(p, "docs", "STATUS.md");
+
+  utimesSync(index, new Date(end + 1), new Date(end + 1));
+  const ok = statusJson(p, env).json;
+  assert.equal(checkStatus(ok, "handoff"), "ok", JSON.stringify(ok.details.checks.find((c) => c.name === "handoff")));
+
+  // The window is short on purpose: work done half a minute later is still work done after the handoff.
+  utimesSync(index, new Date(end + 30000), new Date(end + 30000));
+  const late = statusJson(p, env).json;
+  const check = late.details.checks.find((c) => c.name === "handoff");
+  assert.equal(check.status, "attention", JSON.stringify(check));
+  assert.match(check.summary, /uncommitted change\(s\) modified after it \(for example docs\/STATUS\.md\)/);
+}));
+
 test("checkpoint --handoff keeps five Earlier entries and moves the rest to the top of a created archive", async () => withTemp("handoff-archive", async ({ dir, env }) => {
   const p = preparedRepo(join(dir, "p"), env, { written: "2026-09-01T09:00:00.000Z" });
   rmSync(join(p, "docs", "HANDOFF_ARCHIVE.md"));

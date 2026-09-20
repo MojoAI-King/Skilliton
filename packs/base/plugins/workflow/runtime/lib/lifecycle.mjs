@@ -334,6 +334,14 @@ function tasksCheck(project, git, report) {
 // How far ahead of this machine's clock a handoff's Written time may be, for clocks that differ between machines.
 export const WRITTEN_AHEAD_MS = 5 * 60 * 1000;
 
+// A handoff's Written line is printed to the minute, but the files a checkpoint writes carry millisecond modification
+// times, and one run writes the handoff, the task record and the indexes in that order. When the run straddles a
+// minute boundary the later files land after the end of the minute the handoff names, and the note the command has
+// just written reads as older than the files the same command wrote. So a change modified within this window of the
+// end of the Written minute counts as part of that write rather than as work done after it. It is deliberately short:
+// the next real edit is minutes away, not seconds, and a longer window would hide work.
+export const HANDOFF_WRITE_WINDOW_MS = 5 * 1000;
+
 // Freshness of the shared handoff record. It is stale when its Written time is older than the latest commit, unless
 // no commit came after the last commit that changed the handoff record (committing a handoff is not a newer change),
 // or when an uncommitted change (other than the handoff and its archive) was modified after that time. On a branch
@@ -473,7 +481,7 @@ function handoffCheck(project, git) {
       if (skip.has(path)) continue;
       let st;
       try { st = lstatSync(join(root, path)); } catch { data.unknownTimeChanges++; continue; }
-      if (st.mtimeMs > parsed.end.getTime()) {
+      if (st.mtimeMs > parsed.end.getTime() + HANDOFF_WRITE_WINDOW_MS) {
         data.newerChanges++;
         if (data.newerExamples.length < 3) data.newerExamples.push(path);
       }

@@ -39,5 +39,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner | Updated |
 |---|---|---|---|---|---|
-| [2026-09-20-wave-4-the-dispatch-command-subagent-hyg-0fa2](tasks/2026-09-20-wave-4-the-dispatch-command-subagent-hyg-0fa2.md) | Wave 4: the dispatch command, subagent hygiene, the VS Code extension column | in-progress | main | unassigned | 2026-09-20T05:12:31.155Z |
+| [2026-09-20-repair-the-handoff-freshness-check-read-d7e3](tasks/2026-09-20-repair-the-handoff-freshness-check-read-d7e3.md) | Repair: the handoff freshness check read its own write as later work | in-progress | main | unassigned | 2026-09-20T05:33:11.504Z |
 <!-- skilliton:index:tasks:end -->
