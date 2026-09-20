@@ -28,10 +28,10 @@ export const DEFAULT_TIMEOUT_SECONDS = 1800;
 export const MAX_TIMEOUT_SECONDS = 86400;
 export const DEFAULT_LABEL = "gate";
 export const LABEL_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
-export const LOG_DIR = ["skilliton", "gate"];
+const LOG_DIR = ["skilliton", "gate"];
 const LINE_LIMIT = 400;
 
-export const logPath = (gitDir, label) => join(gitDir, ...LOG_DIR, `${label}.log`);
+const logPath = (gitDir, label) => join(gitDir, ...LOG_DIR, `${label}.log`);
 
 // The runs the gate will make: [{ name, argv: string[] | null, shell: string | null, timeoutSeconds }].
 // argv runs a program with arguments (a policy check); shell runs text through the shell (--cmd, npm run verify).
@@ -72,7 +72,7 @@ export function planGate(root, { cmd = null, policy = false, timeoutSeconds = DE
 // Runs one entry of the plan. Resolves { name, ok, code, signal, timedOut, startError, seconds, tail }.
 // Output goes to `log` (a writable stream) as it arrives; the tail keeps the last `tailLines` lines, each cut at
 // LINE_LIMIT characters, for the failure report.
-export function runOne(run, { cwd, log, tailLines = DEFAULT_TAIL, env = process.env, onChild = null }) {
+function runOne(run, { cwd, log, tailLines = DEFAULT_TAIL, env = process.env, onChild = null }) {
   return new Promise((done) => {
     const began = Date.now();
     const tail = [];
@@ -140,7 +140,7 @@ export function runOne(run, { cwd, log, tailLines = DEFAULT_TAIL, env = process.
 
 // The tree the gate ran on: { shortHead, branch, dirty: [paths] } or null when git could not say (no git, no
 // commits yet, or not a repository). A green run on a tree with uncommitted files is about that tree, not a commit.
-export function provenance(root) {
+function provenance(root) {
   try {
     const state = readGitState(root, { shortHead: true });
     const dirty = (state.porcelain ?? "").split("\n").filter((l) => l.length > 3).map((l) => l.slice(3).trim());

@@ -28,9 +28,9 @@ import { runGit, trustFilePath, validateCompany } from "./trust.mjs";
 import { claudeConfigDir, codexHome, readClaudeInstalls, readCodexInstalls } from "./verify.mjs";
 import { LEGACY_COMMAND, legacyJoinDir } from "./legacy-names.mjs";
 
-export const RECEIPT_SCHEMA = "skilliton.join/1";
-export const LAUNCHER_NAME = "skilliton";
-export const LAUNCHER_CMD_NAME = "skilliton.cmd";
+const RECEIPT_SCHEMA = "skilliton.join/1";
+const LAUNCHER_NAME = "skilliton";
+const LAUNCHER_CMD_NAME = "skilliton.cmd";
 const CLIENT_TIMEOUT_MS = 300000;
 const SHA256_RE = /^[0-9a-f]{64}$/;
 
@@ -51,7 +51,7 @@ export function joinDir() {
   return resolve(process.env.SKILLITON_JOIN_DIR || join(homedir(), ".config", "skilliton", "joined"));
 }
 
-export const receiptPath = (company) => join(joinDir(), `${company}.json`);
+const receiptPath = (company) => join(joinDir(), `${company}.json`);
 
 function receiptProblem(r, company) {
   if (!isPlainObject(r) || r.schema !== RECEIPT_SCHEMA) return `schema is not ${RECEIPT_SCHEMA}`;
@@ -77,7 +77,7 @@ function receiptProblem(r, company) {
 
 // The receipt for a company, or null when it has not joined this machine. A receipt that does not have the recorded
 // shape is refused rather than acted on, because undo deletes what it names.
-export function readReceipt(company) {
+function readReceipt(company) {
   validateCompany(company);
   const path = receiptPath(company);
   const st = lstatOrNull(path);
@@ -179,7 +179,7 @@ function readCodexMarketplaces(home) {
 // state() returns { marketplaces: Map, marketplace, installed, installs }: `installs` lists every install from the
 // marketplace as { plugin, joinScope }, where joinScope marks the scope join installs into (Claude Code's user scope;
 // Codex has one), and `installed` names the plugins present in that scope.
-export const DRIVERS = {
+const DRIVERS = {
   "claude-code": {
     label: "Claude Code", binaryName: "claude", flag: "--claude", homeVariable: "CLAUDE_CONFIG_DIR", home: claudeConfigDir, createsHome: true,
     addMarketplace: (source) => ["plugin", "marketplace", "add", source],
@@ -302,7 +302,7 @@ function sameSource(present, wanted) {
 
 const shellQuote = (text) => `'${text.replace(/'/g, `'\\''`)}'`;
 
-export function launcherText(company, repo) {
+function launcherText(company, repo) {
   return [
     "#!/bin/sh",
     `# skilliton launcher for company ${company}, written by \`skilliton join\`; \`skilliton join --undo --company ${company}\` removes it.`,

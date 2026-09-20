@@ -38,9 +38,9 @@ export const POLICY_FILE = ".skilliton/delivery.json";
 export const DRAFT_FILE = ".skilliton/delivery.draft.json";
 export const POLICY_SCHEMA = "skilliton.delivery/1";
 export const DEFAULT_TIMEOUT_SECONDS = 600;
-export const MAX_TIMEOUT_SECONDS = 86400;
-export const TAIL_LINES = 20;
-export const HOOK_MARKER = "# skilliton:delivery-hook v1";
+const MAX_TIMEOUT_SECONDS = 86400;
+const TAIL_LINES = 20;
+const HOOK_MARKER = "# skilliton:delivery-hook v1";
 const HOOK_MARKER_RE = /^# skilliton:delivery-hook v\d+[ \t]*$/m;
 const MAX_POLICY_BYTES = 256 * 1024;
 const MAX_APPROVERS_BYTES = 1024 * 1024;
@@ -51,10 +51,10 @@ const CHECK_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 ._:+/-]{0,63}$/;
 
 // An error the gate cannot turn into a policy decision (git failed, a file could not be written). The gate reports it
 // as a rejection with its reason; the command line exits 3.
-export class DeliveryError extends Error {}
+class DeliveryError extends Error {}
 
 const short = (id) => String(id).slice(0, 12);
-export const isZeroId = (id) => /^0+$/.test(id);
+const isZeroId = (id) => /^0+$/.test(id);
 const zeroIdLike = (id) => "0".repeat(id.length);
 function lastLines(text, n) {
   return String(text ?? "").replace(/\r/g, "").split("\n").map((l) => l.trimEnd()).filter(Boolean).slice(-n);
@@ -63,7 +63,7 @@ function lastLines(text, n) {
 // ---------- policy ----------
 
 // A plain branch name as a policy lists it: "main", "release/2.x". No "refs/" prefix, wildcards or spaces.
-export function validBranchName(name) {
+function validBranchName(name) {
   if (typeof name !== "string" || name.length === 0 || name.length > 200) return false;
   if (name === "HEAD" || name === "@" || name.startsWith("refs/") || name.startsWith("-")) return false;
   if (name.startsWith("/") || name.endsWith("/") || name.endsWith(".") || name.includes("..") || name.includes("@{")) return false;
@@ -72,7 +72,7 @@ export function validBranchName(name) {
 }
 
 // A policy path: a repository-relative file path, or a folder when it ends with "/".
-export function validPolicyPath(entry) {
+function validPolicyPath(entry) {
   if (typeof entry !== "string" || entry.length === 0 || entry.length > 400) return false;
   if (entry.startsWith("/") || entry.includes("\\") || /[\x00-\x1f\x7f]/.test(entry)) return false;
   const body = entry.endsWith("/") ? entry.slice(0, -1) : entry;
@@ -80,7 +80,7 @@ export function validPolicyPath(entry) {
 }
 
 // The policy entry that covers a changed path, or null. An entry covers its exact path and everything below it.
-export function matchPolicyPath(path, policyPaths) {
+function matchPolicyPath(path, policyPaths) {
   for (const entry of policyPaths) {
     const body = entry.endsWith("/") ? entry.slice(0, -1) : entry;
     if (path === body || path.startsWith(body + "/")) return entry;
@@ -93,7 +93,7 @@ const CURRENT_FORMAT = { file: POLICY_FILE, schema: POLICY_SCHEMA };
 const LEGACY_FORMAT = { file: LEGACY_POLICY_FILE, schema: LEGACY_POLICY_SCHEMA };
 
 // Every problem with a parsed policy value, in plain words. An empty list means the policy is valid.
-export function policyProblems(value, { file = POLICY_FILE, schema = POLICY_SCHEMA } = CURRENT_FORMAT) {
+function policyProblems(value, { file = POLICY_FILE, schema = POLICY_SCHEMA } = CURRENT_FORMAT) {
   if (!isPlainObject(value)) return ["the file must hold a JSON object"];
   const problems = [];
   for (const key of Object.keys(value)) {
@@ -216,7 +216,7 @@ function splitSignersLine(line) {
 }
 
 // Problems with allowed_signers text: each line is "<principals> [options] <key type> <base64 key>".
-export function approversProblems(text) {
+function approversProblems(text) {
   if (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(text)) {
     return ["holds a private key; an approvers file lists public keys only, in ssh allowed_signers format"];
   }
@@ -238,7 +238,7 @@ export function approversProblems(text) {
 }
 
 // Read and check an approvers file: { text } or { problems } (each problem reads after the file's path).
-export function readApproversFile(path) {
+function readApproversFile(path) {
   let st;
   try { st = statSync(path); } catch (e) { return { problems: [e.code === "ENOENT" ? "does not exist" : `cannot be read (${e.code ?? e.message})`] }; }
   if (!st.isFile()) return { problems: ["is not a regular file"] };
@@ -253,7 +253,7 @@ export function readApproversFile(path) {
 
 // A git runner bound to one repository: where is ["--git-dir", <bare repository>] or ["-C", <working tree>]. The
 // environment passes through unchanged, so inside a pre-receive hook git still sees the quarantined pushed objects.
-export function gitRunner(where, env = process.env) {
+function gitRunner(where, env = process.env) {
   const git = (args, { allowExit = [0], buffer = false } = {}) => {
     const r = spawnSync("git", [...where, ...NO_REPOSITORY_PROGRAMS, ...args], {
       env, encoding: buffer ? "buffer" : "utf8", maxBuffer: GIT_MAX_BUFFER, stdio: ["ignore", "pipe", "pipe"],
@@ -271,7 +271,7 @@ export function gitRunner(where, env = process.env) {
   return git;
 }
 
-export function revParseCommit(git, name) {
+function revParseCommit(git, name) {
   const r = git(["rev-parse", "--verify", "-q", `${name}^{commit}`], { allowExit: [0, 1] });
   return r.status === 0 ? r.stdout.trim() : null;
 }
@@ -279,7 +279,7 @@ export function revParseCommit(git, name) {
 // The policy at a commit: { state: "absent" } | { state: "invalid", problems, file } | { state: "valid", policy, file }.
 // A commit without .skilliton/delivery.json that still has the earlier policy file (legacy-names.mjs) is governed by that
 // policy, read in its earlier format, so a shared branch stays protected until its migration commit moves the file.
-export function readPolicyAt(git, commit) {
+function readPolicyAt(git, commit) {
   for (const format of [CURRENT_FORMAT, LEGACY_FORMAT]) {
     const listing = git(["ls-tree", "-z", "--full-tree", commit, "--", format.file]).stdout;
     const entry = listing.split("\0").find(Boolean);
@@ -299,7 +299,7 @@ export function readPolicyAt(git, commit) {
 
 // Where branch tips and the default branch come from. The gate reads the bare repository's own refs; `delivery check`
 // reads a working repository's remote-tracking refs for one remote.
-export function bareView(git) {
+function bareView(git) {
   return {
     defaultBranch() {
       const r = git(["symbolic-ref", "-q", "HEAD"], { allowExit: [0, 1] });
@@ -310,7 +310,7 @@ export function bareView(git) {
   };
 }
 
-export function remoteView(git, remote) {
+function remoteView(git, remote) {
   const prefix = `refs/remotes/${remote}/`;
   return {
     defaultBranch() {
@@ -323,7 +323,7 @@ export function remoteView(git, remote) {
 }
 
 // Which branch names are protected: { names: Set, defaultBranch, basis } or { error }.
-export function protectionFor(git, view) {
+function protectionFor(git, view) {
   const def = view.defaultBranch();
   if (!def) return { error: "the repository's HEAD does not name a default branch, so the protected branches cannot be determined" };
   const tip = view.tip(def);
@@ -339,7 +339,7 @@ export function protectionFor(git, view) {
 // ---------- signatures ----------
 
 // The signature header of a raw commit object, or null when it has none.
-export function commitSignature(raw) {
+function commitSignature(raw) {
   const end = raw.indexOf("\n\n");
   const lines = (end < 0 ? raw : raw.slice(0, end)).split("\n");
   for (let i = 0; i < lines.length; i++) {
@@ -534,7 +534,7 @@ const checkSummary = (names) => (names.length ? `${names.length} check(s) passed
 
 // update: { ref, branch, oldId, newId }. ctx: { git, approvers (path or null), say (progress line) }.
 // Resolves { verdict: "accepted", checks, notChecked } or { verdict: "rejected", reason, tail?, notChecked }.
-export async function evaluateUpdate(ctx, update) {
+async function evaluateUpdate(ctx, update) {
   const { git, say } = ctx;
   const { branch, oldId, newId } = update;
   const notChecked = [];
@@ -622,7 +622,7 @@ export async function evaluateUpdate(ctx, update) {
 // ---------- the gate (pre-receive) ----------
 
 // "<old> <new> <ref>" lines, as git feeds a pre-receive hook.
-export function parseRefUpdates(text) {
+function parseRefUpdates(text) {
   const updates = [];
   const problems = [];
   const lines = String(text).split("\n");
@@ -743,7 +743,7 @@ export async function runLocalCheck({ repo, ref, remote = "origin", approvers, p
 // ---------- install ----------
 
 // The pre-receive hook. It reads the runtime path from the repository's git config at push time and fails closed.
-export function hookScript() {
+function hookScript() {
   return [
     "#!/bin/sh",
     HOOK_MARKER,

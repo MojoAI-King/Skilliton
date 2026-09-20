@@ -45,16 +45,16 @@ export const LEGACY_BACKUPS_DIR = `${OLD}-backups`;
 
 // ---------- a machine ----------
 
-export const legacyConfigHome = () => join(homedir(), ".config", OLD);
+const legacyConfigHome = () => join(homedir(), ".config", OLD);
 export const legacyJoinDir = () => join(legacyConfigHome(), "joined");
 export const legacyTrustDir = () => join(legacyConfigHome(), "trust");
-export const LEGACY_LAUNCHER_NAME = OLD;
+const LEGACY_LAUNCHER_NAME = OLD;
 export const LEGACY_ENV_PREFIX = "SKILLGATE_";
 
 // ---------- a company skills repository and a shared repository ----------
 
 export const LEGACY_RELEASE_TAG = `${OLD}-release/`;
-export const LEGACY_WITHDRAWN_TAG = `${OLD}-withdrawn/`;
+const LEGACY_WITHDRAWN_TAG = `${OLD}-withdrawn/`;
 export const LEGACY_DELIVERY_HOOK_MARKER = new RegExp(`^# ${OLD}:delivery-hook v\\d+[ \\t]*$`, "m");
 export const LEGACY_DELIVERY_CONFIG_KEYS = [`${OLD}.approvers`, `${OLD}.runtime`];
 // A shared branch whose delivery policy is still at the earlier path stays protected by it until the project's

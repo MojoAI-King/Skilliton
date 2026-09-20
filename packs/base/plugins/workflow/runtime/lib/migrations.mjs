@@ -44,9 +44,9 @@ import {
   maintenanceInstructions, projectInstructions, prototypeBlock,
 } from "./prototype-v1.mjs";
 
-export const RECEIPT_SCHEMA = "skilliton.migration-receipt/1";
-export const INSTRUCTIONS_PREFIX = "0100-instructions-";
-export const MIGRATION_ID_RE = /^\d{4}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const RECEIPT_SCHEMA = "skilliton.migration-receipt/1";
+const INSTRUCTIONS_PREFIX = "0100-instructions-";
+const MIGRATION_ID_RE = /^\d{4}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const BACKUP_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 const SHA_RE = /^[0-9a-f]{64}$/;
 const ID_0002 = "0002-integrated-layout";
@@ -58,7 +58,7 @@ const receiptsDir = (project) => (project.legacyNames ? LEGACY_MIGRATIONS_DIR : 
 // ---------- prototype blocks ----------
 
 // The single skillgate:project block in text, or null. Marker text that is not exactly one well-formed block is refused.
-export function findPrototypeBlock(text, label) {
+function findPrototypeBlock(text, label) {
   const spans = lineSpans(text);
   const starts = [], ends = [], other = [];
   spans.forEach((s, i) => {
@@ -461,7 +461,7 @@ function latestInstructionsReceipt(root, dir = MIGRATIONS_DIR) {
 
 // { id, templateSha12, outdated: [file names whose block differs from the current rendering], applied } for a layout-2
 // project, else null. Malformed markers are refused (core findBlock), which status reports as a failed check.
-export function instructionsState(project) {
+function instructionsState(project) {
   if (project.layoutVersion !== LAYOUT_VERSION) return null;
   const template = readHarnessTemplate(HARNESS_TEMPLATE);
   const vars = templateVars(project);
@@ -590,7 +590,7 @@ function receiptProblem(r, id) {
   return null;
 }
 
-export function readReceipt(root, id, dir = MIGRATIONS_DIR) {
+function readReceipt(root, id, dir = MIGRATIONS_DIR) {
   if (typeof id !== "string" || !MIGRATION_ID_RE.test(id)) refuse(`"${id}" is not a migration ID (NNNN-slug, for example ${ID_0002})`);
   const rel = `${dir}/${id}.json`;
   const bytes = readPath(root, rel, `the receipt ${rel}`);

@@ -35,7 +35,7 @@ import { DEFAULT_TIMEOUT_SECONDS, DRAFT_FILE, POLICY_FILE, POLICY_SCHEMA } from 
 import { PROTOTYPE_RUNTIME_PATH } from "./prototype-v1.mjs";
 import { LEGACY_CONFIG_REL, LEGACY_NAME, LEGACY_PROJECT_DIR } from "./legacy-names.mjs";
 
-export const MAX_BYTES = 1024 * 1024;
+const MAX_BYTES = 1024 * 1024;
 const PROTOTYPE_TEXT = "skillgate:project:";
 
 // ---------- errors ----------
@@ -47,7 +47,7 @@ export class OperationFailed extends Error {}
 export class NeedsMigration extends Refused {}
 
 // A destination held something other than what the plan expected.
-export class DestinationChanged extends Error {
+class DestinationChanged extends Error {
   constructor(path, when) { super(`${path} changed ${when}`); this.path = path; this.when = when; }
 }
 
@@ -354,7 +354,7 @@ const CONTROL_ID_RE = /^[A-Za-z][A-Za-z0-9_.:-]{0,63}$/;
 
 // A reason the catalog bytes are unusable, or null. Basic shape only; the security engine owns the full rules. The
 // reason never quotes the file.
-export function catalogShapeProblem(bytes) {
+function catalogShapeProblem(bytes) {
   let c;
   try { c = JSON.parse(bytes.toString("utf8")); } catch { return "is not valid JSON"; }
   if (!isPlainObject(c)) return "does not hold a JSON object";
@@ -374,7 +374,7 @@ export function catalogShapeProblem(bytes) {
 }
 
 // The catalog this package ships as current: { version, bytes }.
-export function readPackageCatalog() {
+function readPackageCatalog() {
   const dir = join(PLUGIN_ROOT, "catalogs");
   let index;
   try { index = JSON.parse(readFileSync(join(dir, "index.json"), "utf8")); } catch (e) {
@@ -404,7 +404,7 @@ async function securityEngine() {
 // ---------- the prepare plan ----------
 
 // Content left by the standalone prototype. prepare writes layout 2 only; migrate removes this after checking it.
-export function prototypeContent(root, project) {
+function prototypeContent(root, project) {
   const found = [];
   if (inspectPath(root, PROTOTYPE_RUNTIME_PATH).exists) found.push(`${PROTOTYPE_RUNTIME_PATH} (the copied prototype runtime)`);
   for (const rel of [...HARNESS_FILES, project.artifacts.maintain]) {
@@ -420,8 +420,8 @@ const describeSource = (source) => (source === "config" ? "named in .skilliton/c
 // command from the build files, the lane root from the folder name, the hotspots from the commit history. A key
 // already set (non-null) in config.dispatch is kept and listed; a missing or null key is drafted. Nothing is run.
 // fields: [{ key, value, source }]; kept: [key]; reasons: what was not drafted and why; test: the detected command.
-export const MIN_COMMITS_FOR_HOTSPOTS = 10;
-export function draftDispatch(root, project) {
+const MIN_COMMITS_FOR_HOTSPOTS = 10;
+function draftDispatch(root, project) {
   const dispatch = isPlainObject(project.config.dispatch) ? project.config.dispatch : {};
   const has = (key) => dispatch[key] !== undefined && dispatch[key] !== null;
   const fields = [], kept = [], reasons = [];
@@ -486,7 +486,7 @@ function configChanges(before, after, draft = { fields: [], kept: [] }) {
 // The delivery policy draft prepare writes when a test command was detected (docs/CONTRACTS.md section 14): one
 // check, the first integration branch protected, the policy paths the delivery help names. Never run until a person
 // confirms it with skilliton delivery confirm --apply.
-export function deliveryDraft(project, test) {
+function deliveryDraft(project, test) {
   return {
     schema: POLICY_SCHEMA,
     protectedBranches: [project.integrationBranches[0]],

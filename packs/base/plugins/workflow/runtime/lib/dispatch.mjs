@@ -24,10 +24,10 @@ import { renderTask, taskRel } from "./tasks.mjs";
 export const LANE_FILE = "LANES.md";
 export const BRIEF_FILE = "LANE_BRIEF.md";
 export const REPORT_FILE = "LANE_REPORT.md";
-export const MAX_PLAN_BYTES = 200000;
+const MAX_PLAN_BYTES = 200000;
 // A worktree add checks out the tree, which on a large repository is slower than a query; the journal's default
 // timeout is for queries.
-export const WORKTREE_TIMEOUT_MS = 120000;
+const WORKTREE_TIMEOUT_MS = 120000;
 
 const LANE_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,60}$/;
 const BRANCH_RE = /^(?!.*\.\.)(?!\/)(?!.*\/$)[A-Za-z0-9._/-]{1,100}$/;
@@ -73,7 +73,7 @@ function parseLaneHeading(rest, line, problems) {
 // A lane runs from its "## Lane:" heading to the next heading of level 1 or 2; deeper headings (### Brief, Items) are
 // part of the lane. A "Base commit:" line outside a lane applies to every lane after it, so a plan that appends a
 // later batch keeps each batch's own base.
-export function parseLanes(text) {
+function parseLanes(text) {
   const lines = text.split(/\r?\n/);
   const lanes = [];
   const problems = [];
@@ -132,7 +132,7 @@ function registeredWorktrees(root) {
 
 // The lane root, from the project's configuration or beside the repository. planDispatch refuses one inside the
 // repository; merge only reads it, so it resolves the same path without repeating that judgement.
-export function laneRootOf(root, project) {
+function laneRootOf(root, project) {
   return resolve(root, project.dispatch.laneRoot ?? `../${basename(root)}-lanes`);
 }
 
@@ -158,7 +158,7 @@ function excludePlan(root) {
 // The lane agent this plugin ships, read from its own definition so the brief never states a model the definition does
 // not. Anything unreadable or incomplete returns null and the brief says so instead of naming an agent that may not
 // exist.
-export function laneAgent() {
+function laneAgent() {
   let text;
   try { text = readFileSync(join(PLUGIN_ROOT, "agents", "lane.md"), "utf8"); } catch { return null; }
   const front = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
@@ -172,7 +172,7 @@ export function laneAgent() {
 
 const bullet = (items) => items.map((i) => `- ${i}`).join("\n");
 
-export function briefText(lane, ctx) {
+function briefText(lane, ctx) {
   const setup = ctx.laneSetup.map((c) => c.replaceAll("{lane}", lane.name));
   const model = lane.model ? `${lane.model} (named in ${LANE_FILE})` : `not named in ${LANE_FILE}; ask before using the most capable one, because a lane with a written spec and a gate behind it rarely needs it`;
   const ceiling = lane.ceiling ? `${lane.ceiling} (named in ${LANE_FILE})` : `not named in ${LANE_FILE}`;

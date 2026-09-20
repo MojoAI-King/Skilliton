@@ -13,7 +13,7 @@ import { GitError, runGit } from "./journal.mjs";
 
 // The detection order, for the help text. Each detector yields the lane command (a string, for
 // dispatch.laneTestCommand), the check argv (for a delivery policy check) and the source it was read from.
-export const DETECTORS = [
+const DETECTORS = [
   "package.json scripts.test", "package.json scripts.verify", "pytest (pyproject.toml, pytest.ini or conftest.py)",
   "go.mod", "Cargo.toml", "Makefile test target",
 ];

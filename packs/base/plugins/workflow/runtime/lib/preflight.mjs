@@ -34,7 +34,7 @@ import { runGit, trustDir } from "./trust.mjs";
 import { joinDir } from "./join.mjs";
 import { claudeConfigDir, codexHome } from "./verify.mjs";
 
-export const PROBE = join(PLUGIN_ROOT, "runtime", "preflight", "probe.sh");
+const PROBE = join(PLUGIN_ROOT, "runtime", "preflight", "probe.sh");
 const LS_REMOTE_TIMEOUT_MS = 45000;
 const MAX_OUTPUT = 4 * 1024 * 1024;
 // How long to wait after killing a program's process group before answering anyway.
@@ -153,7 +153,7 @@ function startOnce(file, args, timeoutMs) {
 
 // Runs the probe script by its path, the way a hook is run. Returns Map(name -> { state, exit, path, detail }), or
 // { failed } when the script itself could not run, which is itself the finding.
-export async function probeHookPrograms(names, { probe = PROBE, timeoutMs = 60000, platform = process.platform } = {}) {
+async function probeHookPrograms(names, { probe = PROBE, timeoutMs = 60000, platform = process.platform } = {}) {
   if (!names.length) return { results: new Map() };
   if (platform === "win32") {
     // Windows cannot start a .sh by its path, and Claude Code hands each hook command to Git Bash, so that is how
@@ -195,7 +195,7 @@ function parseProbe(text) {
 // A file with this name on PATH that this user may not run, or null. `which` skips such a file, so "not found" and
 // "found but not allowed to run" would otherwise look the same, and they are different problems for IT. On Windows
 // the execute bit does not exist, so this always answers null there and the distinction is not made.
-export function unrunnableOnPath(name) {
+function unrunnableOnPath(name) {
   if (process.platform === "win32") return null;
   for (const dir of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
     const candidate = join(dir, name);
@@ -211,7 +211,7 @@ export function unrunnableOnPath(name) {
 // https://code.claude.com/docs/en/hooks; without it Claude Code uses PowerShell, which cannot run these scripts).
 // This finds that bash: the variable Claude Code documents, else PATH, else the folder Git for Windows installs it in
 // beside git.exe.
-export function findWindowsBash() {
+function findWindowsBash() {
   const named = process.env.CLAUDE_CODE_GIT_BASH_PATH;
   if (named && statOrNull(named)?.isFile()) return { path: named, how: "CLAUDE_CODE_GIT_BASH_PATH" };
   const onPath = which("bash");
@@ -230,7 +230,7 @@ export function findWindowsBash() {
 // all. So the check is the file: is it on PATH, and may this user run it? A policy that lets the file be found but
 // stops it starting is therefore not caught here; `skilliton doctor` asks Claude Code for its version, and a session
 // shows it at once.
-export function probeClient(name, given) {
+function probeClient(name, given) {
   const found = "found; it is not started here, because starting a coding tool writes into its own folder";
   if (given) {
     // A path the caller already resolved (join's --claude or --codex), so a tool that is not on PATH under its own
@@ -248,7 +248,7 @@ export function probeClient(name, given) {
 }
 
 // The programs node starts itself, checked the same way: found on PATH, then started once.
-export async function probeRuntimeProgram(name, { timeoutMs = 20000 } = {}) {
+async function probeRuntimeProgram(name, { timeoutMs = 20000 } = {}) {
   const path = which(name);
   if (!path) return { state: "missing", exit: null, path: null, detail: "not found on PATH" };
   const r = await startOnce(path, ["--version"], timeoutMs);
@@ -268,7 +268,7 @@ export async function probeRuntimeProgram(name, { timeoutMs = 20000 } = {}) {
 }
 
 // `clients` is a list of names, or of { name, path } when the caller already resolved a coding tool's path.
-export async function checkPrograms({ clients = [], platform = process.platform, probe = PROBE } = {}) {
+async function checkPrograms({ clients = [], platform = process.platform, probe = PROBE } = {}) {
   const asked = clients.map((c) => (typeof c === "string" ? { name: c } : c));
   const wanted = PROGRAMS.filter((p) => (!p.platform || p.platform === platform) && (p.need !== "client" || asked.some((c) => c.name === p.name)));
   const hookPrograms = wanted.filter((p) => p.by === "hook").map((p) => p.name);
@@ -308,7 +308,7 @@ export async function checkPrograms({ clients = [], platform = process.platform,
 // ---------- folders ----------
 
 // Folders Skilliton writes on this machine, with what is written there.
-export function folders({ binDir, clients = [] } = {}) {
+function folders({ binDir, clients = [] } = {}) {
   const list = [
     { path: trustDir(), what: "the signers file that says whom this laptop trusts to sign releases", need: "required" },
     { path: joinDir(), what: "the receipt of what join added, so join --undo can take it back out", need: "required" },
@@ -355,7 +355,7 @@ function installCleanup() {
 // create it) and removed again, and one small file is written inside the folder itself and removed. The file is
 // written in the folder under test, never in a folder above it, so a rule that allows the home folder but not
 // ~/.claude is reported rather than passed. Returns { state, detail }.
-export function probeFolder(dir) {
+function probeFolder(dir) {
   const target = resolve(dir);
   const missing = [];
   let walk = target;
@@ -439,7 +439,7 @@ function removeCreated(created) {
   return kept;
 }
 
-export function checkFolders(options = {}) {
+function checkFolders(options = {}) {
   return folders(options).map((f) => {
     const r = probeFolder(f.path);
     return {
@@ -486,7 +486,7 @@ const A_LONG_RUN = /(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g;
 // letters and digits. A name has few chunks, at least one real word among them, and no chunk longer than a word or
 // a year; a secret has many short chunks, or one long unbroken one, and no word in it at all. This is the whole
 // difference between printing back what the person typed and printing back their credential.
-export function readsAsWords(run, { allowLongWords = true } = {}) {
+function readsAsWords(run, { allowLongWords = true } = {}) {
   const parts = String(run).split(/[-_]/);
   if (parts.some((part) => !part)) return false; // a doubled or trailing separator is not how names are written
   let hasAWord = false;
@@ -531,7 +531,7 @@ export function redact(value) {
 }
 
 // Asks the company's plugin repository for its branches. `marketplace` is <owner>/<repo> or a folder.
-export function checkRepository(marketplace) {
+function checkRepository(marketplace) {
   if (!marketplace) return [state("the company repository", "repository", "not checked", "no marketplace was given, so nothing was contacted", "Pass --marketplace <owner>/<repo> to check that this machine can reach it.")];
   if (!GITHUB_REPO.test(marketplace)) {
     let folder = false;
@@ -648,7 +648,7 @@ export async function runPreflight({ clients = ["claude", "codex"], marketplace,
 // working, not the setup.
 // `scope` "all" counts anything that would stop setup or a session; "setup" counts only what stops setup itself,
 // which is what join refuses on: a hook program that is missing does not stop a machine being set up.
-export function isBlocking(item, { clientOk = false, scope = "all" } = {}) {
+function isBlocking(item, { clientOk = false, scope = "all" } = {}) {
   if (item.state === "ok" || item.state === "not checked" || !item.blocks) return false;
   if (scope === "setup" && item.blocks !== "setup") return false;
   if (item.need === "client") return !clientOk;

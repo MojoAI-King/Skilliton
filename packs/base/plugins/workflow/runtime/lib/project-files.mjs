@@ -19,7 +19,7 @@ export const REPORT_REL = ".skilliton/security/REPORT.md";
 export const REPORT_MARKER = "<!-- skilliton-security-evidence-report:v1 -->";
 export const MIGRATIONS_DIR = ".skilliton/migrations";
 export const LOCK_REL = ".skilliton/prepare.lock";
-export const GITIGNORE_COMMENT = "# Skilliton setup lock and private evidence";
+const GITIGNORE_COMMENT = "# Skilliton setup lock and private evidence";
 // What preparation writes where a handoff time will go, until a session writes one. The project state reads it as
 // "no handoff yet" rather than as a time it cannot make sense of (runtime/lib/lifecycle.mjs).
 export const HANDOFF_PLACEHOLDER = "not yet assessed";

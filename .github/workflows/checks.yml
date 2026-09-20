@@ -52,6 +52,12 @@ jobs:
       - name: Lint can fail
         run: node scripts/lint.test.mjs --self-test
 
+      - name: Dead code (an export nothing reaches, a block that repeats)
+        run: node scripts/deadcode.mjs
+
+      - name: Dead code check can fail
+        run: node scripts/deadcode.mjs --self-test
+
       - name: Report card generator contract
         run: node scripts/report-card.test.mjs
 

@@ -17,9 +17,9 @@ import { createHash } from "node:crypto";
 import { closeSync, constants as fsConstants, fstatSync, lstatSync, openSync, readdirSync, readSync } from "node:fs";
 import { join } from "node:path";
 
-export const EXCLUDED_NAMES = [".DS_Store"];
-export const MAX_TREE_FILES = 20000;
-export const MAX_TREE_BYTES = 1024 * 1024 * 1024;
+const EXCLUDED_NAMES = [".DS_Store"];
+const MAX_TREE_FILES = 20000;
+const MAX_TREE_BYTES = 1024 * 1024 * 1024;
 
 const NOFOLLOW = fsConstants.O_NOFOLLOW ?? 0;
 const utf8 = new TextDecoder("utf-8", { fatal: true });
@@ -27,11 +27,11 @@ const utf8 = new TextDecoder("utf-8", { fatal: true });
 export const sha256Hex = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
 // Byte order of the UTF-8 encoding, so every implementation sorts the same way.
-export function comparePaths(a, b) {
+function comparePaths(a, b) {
   return Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }
 
-export const treeLine = (sha256, path) => `${sha256}  ${path}\n`;
+const treeLine = (sha256, path) => `${sha256}  ${path}\n`;
 
 // The tree hash of a list of { path, sha256 }, in any order.
 export function treeSha256Of(files) {

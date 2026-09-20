@@ -16,7 +16,7 @@ import { buildTeamSettings, isDir, isFile, isPlainObject, listDirNames, refuse, 
 export const CATALOG = ".claude-plugin/marketplace.json";
 export const TEAM_TEMPLATE = "templates/project-settings.json";
 export const CODEX_CATALOG = ".agents/plugins/marketplace.json";
-export const DESCRIPTION_PLACEHOLDER = "TODO(skilliton) Replace this line. Say what this plugin gives the team; people read it when they choose what to install.";
+const DESCRIPTION_PLACEHOLDER = "TODO(skilliton) Replace this line. Say what this plugin gives the team; people read it when they choose what to install.";
 // GitHub owner and repository names; a leading hyphen is refused so a name can never be read as a command option.
 const REPO_RE = /^[A-Za-z0-9_.][A-Za-z0-9_.-]*\/[A-Za-z0-9_.][A-Za-z0-9_.-]*$/;
 const LICENSE_RE = /^[A-Za-z0-9.+-]{1,64}$/;
@@ -24,7 +24,7 @@ const LICENSE_RE = /^[A-Za-z0-9.+-]{1,64}$/;
 const canonical = (value) => `${JSON.stringify(value, null, 2)}\n`;
 
 // Read a JSON object file that can be rewritten without changing anything but the keys a command sets.
-export function readCanonicalJson(repo, rel) {
+function readCanonicalJson(repo, rel) {
   const path = join(repo, rel);
   if (!isFile(path)) refuse(`${rel} not found in ${tilde(repo)}, so this is not a complete skills repository`);
   const text = readFileSync(path, "utf8");

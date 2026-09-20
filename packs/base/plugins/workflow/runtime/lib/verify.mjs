@@ -25,8 +25,8 @@ import { scanTree, treeSha256Of } from "./treehash.mjs";
 import { resolveTrust, runGit } from "./trust.mjs";
 import { LEGACY_MARKETPLACE, LEGACY_RELEASE_TAG } from "./legacy-names.mjs";
 
-export const CLIENTS = ["claude-code", "codex"];
-export const STATE_ORDER = ["VERIFIED", "TAMPERED", "UNKNOWN VERSION", "WITHDRAWN", "NOT INSTALLED"];
+const CLIENTS = ["claude-code", "codex"];
+const STATE_ORDER = ["VERIFIED", "TAMPERED", "UNKNOWN VERSION", "WITHDRAWN", "NOT INSTALLED"];
 const MAX_RECORD_BYTES = 16 * 1024 * 1024;
 
 export const claudeConfigDir = () => resolve(process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"));
@@ -151,7 +151,7 @@ function listSome(items, max = 10) {
   return items.length > max ? `${items.slice(0, max).join(", ")} and ${items.length - max} more` : items.join(", ");
 }
 
-export function diffFiles(component, scan) {
+function diffFiles(component, scan) {
   const expected = new Map(component.files.map((f) => [f.path, f.sha256]));
   const actual = new Map(scan.files.map((f) => [f.path, f.sha256]));
   return {
@@ -171,7 +171,7 @@ function describeDiff(d) {
   return parts.join("; ");
 }
 
-export function evaluateInstall(install, releases) {
+function evaluateInstall(install, releases) {
   const line = {
     state: null, plugin: install.plugin, marketplace: install.marketplace, version: install.version, scope: install.scope,
     installPath: install.installPath, release: null, detail: "", files: null, notes: [...(install.notes ?? [])],

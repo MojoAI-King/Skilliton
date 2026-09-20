@@ -10,8 +10,8 @@ Kind: Living. Batch record. Area [06-clean-code](AREA.md).
 
 ## Acceptance
 
-- [ ] scripts/deadcode.mjs lists exported symbols with no importer and near-duplicate blocks across the runtime
-- [ ] its findings are fixed, or recorded in the backlog with a reason each
+- [x] scripts/deadcode.mjs lists exported symbols with no importer and near-duplicate blocks across the runtime (evidence: it reads 397 exports across 57 runtime modules and every block of 7 meaningful lines, following the router's computed command import, lifecycle's loadOptional and prepare's securityEngine; exit 0 on 2026-09-20 and 30 of 30 self-test cases, each new case proved able to fail against two deliberately broken readers; its coverage line names the 7 dynamic imports it could not resolve and the 8 modules it holds whole, so what it cannot follow is counted rather than passed over)
+- [x] its findings are fixed, or recorded in the backlog with a reason each (evidence: 117 exports nothing imported were made module-local across 18 runtime files, and the full offline suite 47 of 47 proved no behavior change, one narrowing at a time after the rename test caught the single wrong one; the duplicate fencedLines in lib/handoff.mjs was deleted in favour of the carriage-return-tolerant copy in lib/tasks.mjs; the one remaining duplicate is B40 with its reason and an ALLOWED_DUPLICATE row naming it, and B41 records the two migration id patterns that disagree on a doubled or trailing hyphen, found on the way)
 
 ## Notes
 

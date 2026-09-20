@@ -22,8 +22,8 @@ import { refuse, selfCommand, tilde, validateName } from "./core.mjs";
 import { NO_REPOSITORY_PROGRAMS, gitEnvironment } from "./journal.mjs";
 import { legacyTrustDir } from "./legacy-names.mjs";
 
-export const TRUST_SUFFIX = ".allowed_signers";
-export const MAX_TRUST_BYTES = 64 * 1024;
+const TRUST_SUFFIX = ".allowed_signers";
+const MAX_TRUST_BYTES = 64 * 1024;
 
 // ---------- git ----------
 
@@ -31,7 +31,7 @@ export const MAX_TRUST_BYTES = 64 * 1024;
 // manifest or a tag), and run without prompts and in the C locale, so messages parse the same everywhere. The
 // settings a repository or the environment could otherwise hand git are taken out by gitEnvironment (journal.mjs),
 // except for a call a person drives, where their own configuration is the point.
-export function gitEnv({ userFacing = false, pinHome = false, home = null } = {}) {
+function gitEnv({ userFacing = false, pinHome = false, home = null } = {}) {
   const env = gitEnvironment({ keepConfig: userFacing, optionalLocks: true, pinHome, home });
   if (!userFacing) { env.GIT_TERMINAL_PROMPT = "0"; env.LC_ALL = "C"; env.GIT_NO_REPLACE_OBJECTS = "1"; }
   return env;
@@ -126,7 +126,7 @@ export function listTrusted() {
 }
 
 // Is this folder (or its nearest existing parent) inside a Git work tree? true, false, or throws when git is missing.
-export function insideGitWorkTree(dir) {
+function insideGitWorkTree(dir) {
   let cursor = resolve(dir);
   while (!existsSync(cursor)) {
     const up = dirname(cursor);

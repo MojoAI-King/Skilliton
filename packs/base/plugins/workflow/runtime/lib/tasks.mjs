@@ -116,8 +116,10 @@ export function renderCheckpointLines({ at, state, evidence, next, git }) {
 
 // ---------- parsing ----------
 
-// Which lines belong to fenced code (the fence lines included). Headings and fields inside fences are text.
-function fencedLines(lines) {
+// Which lines belong to fenced code (the fence lines included). Headings and fields inside fences are text. The
+// handoff writer reads the same markdown and used to carry its own copy of this; this one is the general of the
+// two, because it tolerates a carriage return the caller has not stripped.
+export function fencedLines(lines) {
   const fenced = new Array(lines.length).fill(false);
   let fence = null;
   for (let i = 0; i < lines.length; i++) {

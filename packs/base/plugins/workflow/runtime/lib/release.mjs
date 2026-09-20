@@ -17,11 +17,11 @@ import { NAME_RE, PLUGIN_ROOT, cmpVersion, isPlainObject, refuse, tilde } from "
 import { TreeError, filePathProblem, scanTree, sha256Hex, treeSha256Of } from "./treehash.mjs";
 import { requireGitAvailable, runGit, verifyTagSignature } from "./trust.mjs";
 
-export const MANIFEST_SCHEMA = "skilliton.release/1";
+const MANIFEST_SCHEMA = "skilliton.release/1";
 export const RELEASE_TAG = "skilliton-release/";
-export const WITHDRAWN_TAG = "skilliton-withdrawn/";
+const WITHDRAWN_TAG = "skilliton-withdrawn/";
 export const VERSION_RE = /^(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})$/;
-export const MIGRATION_ID_RE = /^\d{4}-[a-z0-9][a-z0-9-]*$/;
+const MIGRATION_ID_RE = /^\d{4}-[a-z0-9][a-z0-9-]*$/;
 const HEX64 = /^[0-9a-f]{64}$/;
 const COMMIT_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const CLAUDE_CATALOG = ".claude-plugin/marketplace.json";
@@ -31,7 +31,7 @@ const MAX_JSON_BYTES = 16 * 1024 * 1024;
 export const manifestRel = (version) => `releases/${version}.json`;
 export const short = (oid) => (typeof oid === "string" ? oid.slice(0, 12) : "unknown");
 
-export function validateVersion(version, what = "version") {
+function validateVersion(version, what = "version") {
   if (typeof version !== "string" || !VERSION_RE.test(version)) refuse(`${what} "${version}" is not a plain MAJOR.MINOR.PATCH version (for example 1.2.0)`);
 }
 
@@ -51,13 +51,13 @@ export function openRepository(input, what = "--repo") {
   return { dir, real };
 }
 
-export function headCommit(repo) {
+function headCommit(repo) {
   const r = runGit(repo, ["rev-parse", "--verify", "--quiet", "HEAD^{commit}"]);
   if (!r.ok) refuse(`${tilde(repo)} has no commits yet; commit the plugins first`);
   return r.stdout.trim();
 }
 
-export function objectFormat(repo, sampleOid) {
+function objectFormat(repo, sampleOid) {
   const r = runGit(repo, ["rev-parse", "--show-object-format"]);
   const value = r.ok ? r.stdout.trim() : "";
   if (value === "sha1" || value === "sha256") return value;
@@ -116,7 +116,7 @@ export function readCodexCatalog(repo) {
 }
 
 // A catalog source as a repository-relative folder, or a refusal: no .., no absolute paths, no links, inside the repo.
-export function componentPath(repo, source, pluginName) {
+function componentPath(repo, source, pluginName) {
   const label = `plugin "${pluginName}"`;
   if (typeof source !== "string") refuse(`${label} has a source outside this repository (${JSON.stringify(source)?.slice(0, 120)}); a release covers plugins stored in the repository only`);
   if (source.includes("\\")) refuse(`${label} has the path "${source}", which uses a backslash; write it with / separators`);
@@ -141,7 +141,7 @@ export function componentPath(repo, source, pluginName) {
 }
 
 // The plugin's version, with its Claude Code and Codex manifests checked against each other and the catalog entry.
-export function pluginVersion(repo, rel, entry) {
+function pluginVersion(repo, rel, entry) {
   const claudeLabel = `${rel}/.claude-plugin/plugin.json`;
   const claude = readJsonFile(join(repo, rel, ".claude-plugin", "plugin.json"), claudeLabel);
   if (claude === undefined) refuse(`${rel} has no .claude-plugin/plugin.json, so plugin "${entry.name}" has no version to release`);
@@ -162,7 +162,7 @@ export function pluginVersion(repo, rel, entry) {
 // Differences between a scanned folder (scanTree with blobFormat) and the same folder in the HEAD commit: files that
 // are untracked or ignored, changed, deleted, or have a changed executable bit. Compares blob ids rather than asking
 // `git status`, so files hidden from status (ignored, assume-unchanged, skip-worktree) still count.
-export function uncommittedUnder(repo, rel, scan) {
+function uncommittedUnder(repo, rel, scan) {
   const r = runGit(repo, ["--literal-pathspecs", "ls-tree", "-r", "-z", "--full-tree", "HEAD", "--", rel], { buffer: true });
   if (!r.ok) throw new Error(`git ls-tree failed for ${rel} (${r.failure}: ${r.stderr.trim()})`);
   const expected = new Map(), special = [];
@@ -204,7 +204,7 @@ function evidenceKind(rel) {
 }
 
 // One --evidence file: inside the repository, a regular file, committed exactly as it is.
-export function evidenceEntry(repo, repoReal, input, format) {
+function evidenceEntry(repo, repoReal, input, format) {
   const abs = resolve(input);
   let parentReal;
   try { parentReal = realpathSync(dirname(abs)); } catch { refuse(`--evidence ${input}: the file does not exist`); }
@@ -227,7 +227,7 @@ export function evidenceEntry(repo, repoReal, input, format) {
 
 // Migration ids for the manifest. Only the running runtime's own module is imported (runtime code never loads code
 // from outside its plugin folder), so it is used only when the running runtime is the release's workflow plugin.
-export async function releaseMigrations(repo, components) {
+async function releaseMigrations(repo, components) {
   const workflow = components.find((c) => c.name === "workflow");
   if (!workflow) return { ids: [], note: "migrations: this release has no workflow plugin, which carries the migrations, so none are recorded" };
   if (!existsSync(join(repo, workflow.path, "runtime", "lib", "migrations.mjs"))) {
@@ -340,7 +340,7 @@ export async function planRelease({ repoInput, version, evidence = [], now = new
 // ---------- validating a manifest ----------
 
 // Every problem with a parsed manifest, as sentences; [] when it is valid.
-export function validateManifest(m, expectedVersion) {
+function validateManifest(m, expectedVersion) {
   const p = [];
   if (!isPlainObject(m)) return ["the manifest is not a JSON object"];
   if (m.schema !== MANIFEST_SCHEMA) p.push(`schema is ${JSON.stringify(m.schema)}, not "${MANIFEST_SCHEMA}"`);
@@ -442,7 +442,7 @@ function taggerDate(tagger) {
 
 // Reads one release or withdrawal tag and checks it. trust null means signatures are not checked (reported as such).
 // Returns { tag, verified, unchecked, reason, commit, signer, manifestSha256, withdrawReason, date }.
-export function inspectTag(repo, ref, kind, version, trust) {
+function inspectTag(repo, ref, kind, version, trust) {
   const name = `${kind === "release" ? RELEASE_TAG : WITHDRAWN_TAG}${version}`;
   const out = { tag: name, verified: false, unchecked: false, reason: null, commit: null, signer: null, manifestSha256: null, withdrawReason: null, date: null };
   if (ref.type !== "tag") { out.reason = "it is a lightweight tag, which cannot carry a signature"; return out; }
@@ -586,7 +586,7 @@ export function planSign(repoInput, version) {
   return { repo, head, tag, manifestSha256, args: ["tag", "-s", tag, "-m", `skilliton release ${version}`, "-m", `manifest-sha256: ${manifestSha256}`, head] };
 }
 
-export function validateReason(reason) {
+function validateReason(reason) {
   if (typeof reason !== "string" || !reason.trim()) refuse("release withdraw needs --reason <text>, one line saying why");
   if (/[\x00-\x1f\x7f]/.test(reason)) refuse("--reason must be a single line without control characters");
   if (reason.length > 500) refuse(`--reason is ${reason.length} characters; keep it to 500 or fewer`);

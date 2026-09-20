@@ -22,8 +22,8 @@ import { TaskChangedError, TaskRecordError, gitLine, listTasks, pickCurrent } fr
 import { LEGACY_NAME, LEGACY_PROJECT_DIR, legacyEnvironment } from "./legacy-names.mjs";
 import { HANDOFF_PLACEHOLDER } from "./project-files.mjs";
 
-export const RESULT_SCHEMA = "skilliton.result/1";
-export const RESULTS = { 0: "complete", 1: "attention", 2: "invalid", 3: "operation-failed" };
+const RESULT_SCHEMA = "skilliton.result/1";
+const RESULTS = { 0: "complete", 1: "attention", 2: "invalid", 3: "operation-failed" };
 
 // A Git or file system operation failed (exit 3), as opposed to invalid input (Refused, exit 2).
 export class OperationFailed extends Error {}
@@ -80,7 +80,7 @@ export async function guardCommand(command, body) {
 
 // ---------- optional modules from other lanes ----------
 
-export async function loadOptional(file, exportName) {
+async function loadOptional(file, exportName) {
   const url = new URL(`./${file}`, import.meta.url);
   if (!existsSync(fileURLToPath(url))) return { available: false, failed: false, reason: `not available in this build (runtime/lib/${file} is not present)` };
   let mod;
@@ -128,7 +128,7 @@ export function parseWritten(raw) {
 }
 
 // { exists, section, written (raw text or null) }. Reads at most the first MB: "## RESUME HERE" is near the top.
-export function readHandoffRecord(root, rel) {
+function readHandoffRecord(root, rel) {
   const path = join(root, rel);
   let st;
   try { st = lstatSync(path); } catch (e) {
@@ -162,7 +162,7 @@ export function readHandoffRecord(root, rel) {
 // Without it (status cannot know which session it runs in): latest is the newest session-start, reported as ended or
 // not ended; previous is the newest session-start of another session before it. Only previous can be called
 // interrupted, because a later session started after it.
-export function sessionHistory(events, { currentSession } = {}) {
+function sessionHistory(events, { currentSession } = {}) {
   const starts = [];
   events.forEach((e, i) => { if (e.event === "session-start") starts.push({ e, i }); });
   const idOf = (s) => s.e.session ?? null;
@@ -340,7 +340,7 @@ export const WRITTEN_AHEAD_MS = 5 * 60 * 1000;
 // just written reads as older than the files the same command wrote. So a change modified within this window of the
 // end of the Written minute counts as part of that write rather than as work done after it. It is deliberately short:
 // the next real edit is minutes away, not seconds, and a longer window would hide work.
-export const HANDOFF_WRITE_WINDOW_MS = 5 * 1000;
+const HANDOFF_WRITE_WINDOW_MS = 5 * 1000;
 
 // Freshness of the shared handoff record. It is stale when its Written time is older than the latest commit, unless
 // no commit came after the last commit that changed the handoff record (committing a handoff is not a newer change),
@@ -537,7 +537,7 @@ async function securityCheck(root) {
 
 // ---------- gathering ----------
 
-export const CHECK_ORDER = ["layout", "migrations", "versions", "records", "tasks", "handoff", "sessions", "security"];
+const CHECK_ORDER = ["layout", "migrations", "versions", "records", "tasks", "handoff", "sessions", "security"];
 
 // Evaluates every check. project: the resolved project, or undefined to resolve it here (a configuration problem is
 // then recorded in report.configProblem and the checks that need it are not run). currentSession: the hook's session
@@ -613,7 +613,7 @@ export const resultObject = (command, exitCode, summary, details) => ({ schema: 
 // ---------- the session-start block ----------
 
 // Whole lines, at most maxBytes bytes in total including the truncation notice.
-export function boundLines(lines, maxBytes, notice) {
+function boundLines(lines, maxBytes, notice) {
   const text = lines.map((line) => `${line}\n`).join("");
   if (Buffer.byteLength(text) <= maxBytes) return { text, truncated: false };
   const tail = `${notice}\n`;
@@ -652,7 +652,7 @@ function taskLines(report, check) {
   return lines;
 }
 
-export const prepareOffer = () => `offer it in plain words before other work: "This project is not set up for Skilliton yet. Setting it up adds records for status, backlog, decisions, lessons and handoffs, a managed instruction block in CLAUDE.md and AGENTS.md, and a security register; it keeps any of those that already exist. Nothing is written until you say yes." On a yes, in this order: ${selfCommand()} prepare shows the change; ${selfCommand()} prepare --apply shows it again and writes it, drafting dispatch.laneTestCommand, laneRoot and hotspots and a delivery policy draft from what the repository shows; then turn the user's first request into the first task with two to six proposed criteria: ${selfCommand()} task start "<title>" --request "<the user's words>" --criteria "<criterion>" --apply`;
+const prepareOffer = () => `offer it in plain words before other work: "This project is not set up for Skilliton yet. Setting it up adds records for status, backlog, decisions, lessons and handoffs, a managed instruction block in CLAUDE.md and AGENTS.md, and a security register; it keeps any of those that already exist. Nothing is written until you say yes." On a yes, in this order: ${selfCommand()} prepare shows the change; ${selfCommand()} prepare --apply shows it again and writes it, drafting dispatch.laneTestCommand, laneRoot and hotspots and a delivery policy draft from what the repository shows; then turn the user's first request into the first task with two to six proposed criteria: ${selfCommand()} task start "<title>" --request "<the user's words>" --criteria "<criterion>" --apply`;
 
 // What a resuming session needs first comes first, because truncation keeps the top of the block.
 const BLOCK_ORDER = ["tasks", "sessions", "handoff", "layout", "migrations", "versions", "records", "security"];

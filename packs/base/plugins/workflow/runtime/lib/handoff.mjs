@@ -22,16 +22,16 @@ import { Refused } from "./core.mjs";
 import { WRITTEN_AHEAD_MS, WRITTEN_ZONES, parseWritten } from "./lifecycle.mjs";
 import { applyChanges, readPath } from "./prepare.mjs";
 import { HANDOFF_PLACEHOLDER, recordTemplate } from "./project-files.mjs";
-import { NOT_WRITTEN, itemsBetween } from "./tasks.mjs";
+import { NOT_WRITTEN, fencedLines, itemsBetween } from "./tasks.mjs";
 
 export const KEEP_EARLIER = 5;
-export const RESUME_HEADING = "## RESUME HERE";
-export const EARLIER_HEADING = "## Earlier";
-export const ARCHIVE_EMPTY_LINE = "No earlier handoffs have been archived.";
-export const HANDOFF_LABELS = ["State", "Next", "Blocked", "Watch out"];
+const RESUME_HEADING = "## RESUME HERE";
+const EARLIER_HEADING = "## Earlier";
+const ARCHIVE_EMPTY_LINE = "No earlier handoffs have been archived.";
+const HANDOFF_LABELS = ["State", "Next", "Blocked", "Watch out"];
 // Values that mean "nobody wrote this yet"; they are never carried over from one note to the next.
-export const PLACEHOLDERS = [NOT_WRITTEN, HANDOFF_PLACEHOLDER];
-export const DEFAULT_BULLETS = { Blocked: "nothing", "Watch out": "nothing known" };
+const PLACEHOLDERS = [NOT_WRITTEN, HANDOFF_PLACEHOLDER];
+const DEFAULT_BULLETS = { Blocked: "nothing", "Watch out": "nothing known" };
 
 const BOM = String.fromCharCode(0xfeff);
 const WRITTEN_RE = /^\s*(?:[-*]\s+)?(?:\*\*)?Written:(?:\*\*)?\s*(.*?)\s*$/;
@@ -43,23 +43,6 @@ function trimBlank(lines, { leading = true } = {}) {
   while (leading && from < to && blank(lines[from])) from++;
   while (to > from && blank(lines[to - 1])) to--;
   return lines.slice(from, to);
-}
-
-// Which lines sit inside fenced code, so a "## " or "### " there is text, not a heading.
-function fencedLines(lines) {
-  const fenced = new Array(lines.length).fill(false);
-  let fence = null;
-  for (let i = 0; i < lines.length; i++) {
-    const m = /^ {0,3}(`{3,}|~{3,})/.exec(lines[i]);
-    if (fence) {
-      fenced[i] = true;
-      if (m && m[1][0] === fence[0] && m[1].length >= fence.length && !lines[i].slice(m[0].length).trim()) fence = null;
-    } else if (m) {
-      fenced[i] = true;
-      fence = m[1];
-    }
-  }
-  return fenced;
 }
 
 function splitLines(text) {
@@ -108,7 +91,7 @@ const joinBlocks = (blocks, eol, bom = "") => `${bom}${blocks.filter((b) => b.le
 const entryBlock = (entry) => [`### ${entry.heading}`, ...entry.lines];
 
 // The RESUME HERE section as the session-start hook prints it (heading and block), for the size note.
-export const resumeText = (parsed) => (parsed.resume ? joinBlocks([[parsed.resume.heading], trimBlank(parsed.resume.lines)], parsed.eol) : "");
+const resumeText = (parsed) => (parsed.resume ? joinBlocks([[parsed.resume.heading], trimBlank(parsed.resume.lines)], parsed.eol) : "");
 
 export function renderHandoff(parsed) {
   const blocks = [parsed.head];
@@ -162,7 +145,7 @@ export function resolveBullets(given = {}, previous = {}) {
   return { bullets, carried, defaulted };
 }
 
-export const renderBullets = (values) => Object.entries(values).filter(([, v]) => v !== undefined && v !== null).map(([label, value]) => `- **${label}:** ${value}`);
+const renderBullets = (values) => Object.entries(values).filter(([, v]) => v !== undefined && v !== null).map(([label, value]) => `- **${label}:** ${value}`);
 
 // Refuses (nothing written) when the record has no RESUME HERE section, no Written line, an unreadable Written value
 // or one later than `at` by more than aheadMs. Returns { placeholder, writtenAt }.
