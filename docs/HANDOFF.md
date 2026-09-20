@@ -4,15 +4,22 @@ Kind: Living.
 
 ## RESUME HERE
 
-Written: 2026-09-20 13:39 EDT
+Written: 2026-09-20 15:47 EDT
 
+- **State:** Wave 6 is on main at 634da8e and green: the four headless batches built and pushed, then the maintenance pass on top of them. Evidence: Full offline suite 48 of 48 steps exit 0; scrub-check tree and history both PASS; report-card --check exit 0 at 65 of 123; CI 35532803307 (6e072b7) and 35533207494 (634da8e) both success, all 58 steps read.
+- **Next:** Wave 7 from docs/REPORT_CARD.md, planned in plan mode with the batch files under docs/areas read first
+- **Blocked:** nothing
+- **Watch out:** The dispatch suggestion ships on UserPromptSubmit, which has never been seen delivered to a plugin hook (DECISIONS.md O27); one live prompt settles it or the registration comes out
+- **Git:** main @ 634da8e, 1 uncommitted
+
+## Earlier
+
+### 2026-09-20 13:39 EDT
 - **State:** Wave 5 is published as e8dde88 and this session's maintenance is closed: two lesson entries (a070 an assertion that could not fail because the fixture made both sources agree, 3b76 a test killed by its own timeout under contention), the wave task record closed as merged, and the stale claims reconciled (the README's dispatch row and its CI list, the integration brief's coordinating paragraph, the dispatch CI step name, and a new open item O26 for the one path the lane write guard cannot see). Evidence: Nine gates, each its own step with its exit status read on its own line, all PASS after the edits: scrub-check, docs, names, packs, allowlist, lint, living-docs --check, report-card --check, backlog; node --test scripts/dispatch.test.mjs 22 of 22, which is the number the README now states instead of 14; skilliton index reports every index current after the task close rewrote the open-task list.
 - **Next:** Wave 6 from docs/REPORT_CARD.md. Carried: B38 the first real dispatch measured (owner pass), B39 a formatter or a decision that there is none, B37 the two OperationFailed classes, 04-01 item 5 measuring a 600000 window through the meter, and O26 decided after the first real dispatch
 - **Blocked:** Owner pass at the end (docs/REPORT_CARD.md): interactive checklist, maintain minutes (01-02 item 5, 05-05), the live unprepared session (02-01 item 5), Windows run including skilliton.cmd, B7 decisions, signing key, hosted repository approval, M5 participant, Codex login. Any cost statement (PLAN.md sections 6 and 8)
 - **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt
 - **Git:** main @ e8dde88, 11 uncommitted
-
-## Earlier
 
 ### 2026-09-20 13:33 EDT
 - **State:** Wave 5 is published as e8dde88: the dispatch loop is closed (each lane's task record committed by dispatch, a runnable launch line in every brief, a guardrails hook refusing a lane's writes to the integration branch's paths, and skilliton dispatch merge with three classes and exit 1 on any warning), the meter reports peak_context, and lib/core.mjs is split behind a dependency-free lint with a 600 line ceiling that ratchets. Evidence: The full offline suite 46 of 46 on the final tree, each gate its own step with its exit status on its own line; CI run 35526014298 all 56 steps success; scrub-check PASS on the tree and over 129 commits; ten acceptance items ticked so the report card reads 55 of 123, area 06 at 6 of 10, area 07 at 8 of 12; two mutations per new assertion, one of which caught a launch-line assertion that could never fail.
@@ -41,10 +48,3 @@ Written: 2026-09-20 13:39 EDT
 - **Blocked:** Owner pass at the end (docs/REPORT_CARD.md): interactive checklist, maintain minutes (01-02 item 5, 05-05), the live unprepared session (02-01 item 5), Windows run including skilliton.cmd, B7 decisions, signing key, hosted repository approval, M5 participant, Codex login. Any cost statement (PLAN.md sections 6 and 8)
 - **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt
 - **Git:** main @ 7af3b80, 8 uncommitted
-
-### 2026-09-19 01:36 EDT
-- **State:** Wave 3 is published and green as 855d545 (CI run 35423599332, 53 of 53 steps, every step read): prepare drafts the dispatch fields and a delivery policy draft, delivery confirm moves it, task start --request, the Windows launcher with its test, the path measured in a live and a fresh session (workflow 0.10.0); area 02 at 11 of 15, 38 of 123 overall. This maintenance note (two lesson entries fd48 and ee5f, the status paragraph archived, PLAN M8 second increment, portable lessons 194 and 195 outside the repo, protocol unchanged at 2.73.0) is committed after the wave. Evidence: 49-step local suite PASS, scrub tree and history PASS, CI 35423599332 success; living-docs --check and report-card --check pass on the maintained tree.
-- **Next:** 1. Wave 4 in plan mode from docs/REPORT_CARD.md: 03-01 VS Code column, 04-03 subagent hygiene, 07-01 dispatch command (03-02 Windows is the owner's); read each batch file first. 2. Next day's first session: compare the installed marketplace commit against f8a935c9b546 (01-01 item 5). 3. 04-01 item 5: measure two or three ordinary sessions at 600000 through the meter (B36). 4. Derive the task command's refusal loop from its parser table when task.mjs is next touched (lesson ee5f)
-- **Blocked:** Owner pass at the end (docs/REPORT_CARD.md): interactive checklist, maintain minutes (01-02 item 5, 05-05), the live unprepared session (02-01 item 5), Windows run including skilliton.cmd, B7 decisions, signing key, hosted repository approval, M5 participant, Codex login. Any cost statement (PLAN.md sections 6 and 8)
-- **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt
-- **Git:** main @ 855d545, 5 uncommitted

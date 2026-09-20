@@ -37,7 +37,5 @@ Read `docs/HANDOFF.md` for the next step and `docs/BACKLOG.md` for outstanding w
 <!-- skilliton:index:tasks:start -->
 Open tasks in `docs/tasks/` (every state except done-local, merged, released, verified and abandoned), sorted by ID. `skilliton index` writes this list from the task records; edit the task records, not the list.
 
-| ID | Title | State | Branch | Owner | Updated |
-|---|---|---|---|---|---|
-| [2026-09-20-wave-6-routines-the-dispatch-suggestion-0ce6](tasks/2026-09-20-wave-6-routines-the-dispatch-suggestion-0ce6.md) | Wave 6: routines, the dispatch suggestion, docs consolidation, dead code | in-progress | main | unassigned | 2026-09-20T18:00:34.702Z |
+No open tasks.
 <!-- skilliton:index:tasks:end -->
