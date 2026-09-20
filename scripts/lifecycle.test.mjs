@@ -880,6 +880,149 @@ test("stop allows when nothing changed, and before minMinutes", async () => with
   assert.equal(hook(unknown, "stop", { session_id: "another-session" }, env).out, "", "with no checkpoint and no recorded start for this session there is nothing to measure from");
 }));
 
+// A repository where a lane branch was merged back after the session started, with the working tree left clean, so the
+// merge commit is the only thing that changed. A merge moves HEAD, and HEAD is part of the fingerprint, which is why a
+// Stop reminder can be due in a tree with nothing uncommitted in it.
+function mergedFixture(dir, env) {
+  const p = stopFixture(dir, env, { change: false });
+  git(p, ["checkout", "-q", "-b", "lane"], env);
+  writeFileSync(join(p, "lane.txt"), "lane work\n");
+  commit(p, env, "lane: one item");
+  git(p, ["checkout", "-q", "main"], env);
+  git(p, ["-c", "commit.gpgsign=false", "merge", "-q", "--no-ff", "-m", "merge lane", "lane"], env);
+  return { p, merged: git(p, ["rev-parse", "--short", "HEAD"], env).trim() };
+}
+
+const stopReasonOf = (p, env, bin = BIN) => {
+  const r = hook(p, "stop", { session_id: "s1" }, env, { bin });
+  assert.equal(r.code, 0, r.all);
+  assert.notEqual(r.out, "", "the reminder is due, so there is a reason to read");
+  return JSON.parse(r.out).reason;
+};
+
+test("stop names maintain when a merge landed in the window it measures", async () => withTemp("stop-merged", async ({ dir, env }) => {
+  const { p, merged } = mergedFixture(dir, env);
+  assert.equal(git(p, ["status", "--porcelain"], env), "", "the tree is clean, so the merge alone is what the reminder saw");
+  const reason = stopReasonOf(p, env);
+  assert.ok(reason.includes(`1 merge commit landed in that window (${merged}), so a batch of work has just come in: run /workflow:maintain on an integration branch as well, which reconciles the records and the indexes against what merged.`), reason);
+  assert.ok(!reason.includes("is unknown"), "the window was readable, so the reminder reports what it found");
+}));
+
+test("stop does not name maintain for an ordinary commit in the window", async () => withTemp("stop-committed", async ({ dir, env }) => {
+  const p = stopFixture(dir, env, { change: false });
+  writeFileSync(join(p, "work.txt"), "committed\n");
+  commit(p, env, "ordinary work");
+  const reason = stopReasonOf(p, env);
+  assert.ok(!reason.includes("/workflow:maintain"), `a commit that is not a merge is not a batch coming in:\n${reason}`);
+  assert.ok(!reason.includes("is unknown"), "the window was readable");
+}));
+
+test("stop says so when it cannot tell whether a batch merged", async () => withTemp("stop-merge-unknown", async ({ dir, env }) => {
+  // A session that started before this repository had any commit: the baseline event recorded no commit id, so there
+  // is no range to count merges over. The reminder says that, rather than reading an empty list as "nothing merged".
+  const p = join(dir, "p");
+  mkdirSync(p, { recursive: true });
+  git(p, ["init", "-q"], env);
+  git(p, ["symbolic-ref", "HEAD", "refs/heads/main"], env);
+  writeConfig(p, { checkpoints: { minMinutes: 20 } });
+  assert.equal(hook(p, "session-start", { session_id: "s1" }, env).code, 0);
+  backdate(p, env, (e) => e.event === "session-start", 30);
+  writeFileSync(join(p, "README.md"), "# fixture\n");
+  commit(p, env, "first");
+  const reason = stopReasonOf(p, env);
+  assert.match(reason, /Whether a batch merged in that window is unknown: the baseline event recorded no commit id, so there is nothing to measure from\./);
+  assert.ok(!reason.includes("/workflow:maintain"), "an unreadable window is not a merge");
+}));
+
+// ---------------------------------------------------------------- the dispatch suggestion (UserPromptSubmit)
+
+const SESSION_HOOKS_LIB = async (root = PLUGIN) => import(pathToFileURL(join(root, "runtime", "lib", "session-hooks.mjs")).href);
+
+const promptHook = (cwd, prompt, env, options = {}) => hook(cwd, "user-prompt-submit", { session_id: "s1", user_prompt: prompt }, env, options);
+
+const SIX_NUMBERED = "1. Fix the login bug\n2. Add a retry\n3. Rename the module\n4. Update the docs\n5. Bump the version\n6. Run the tests";
+const SIX_BULLETED = "- fix the login bug\n- add a retry\n- rename the module\n- update the docs\n- bump the version\n- run the tests";
+const SIX_SENTENCES = "Fix the login bug. Then add a retry to the client. Please rename the module. Also update the docs. We should bump the version. Finally run the tests.";
+const FIVE_AND_PROSE = "Here is what I need.\n- fix the login bug\n- add a retry\n- rename the module\n- update the docs\n- bump the version\nAlso, run the tests when you are done.";
+const SIX_EXPLAINING = "I tried the new build. It failed on startup. The error says the port is in use. I am not sure what changed. Do you think it is the config? Something is off.";
+const FENCED = "Run this:\n```\nrun a\nrun b\nrun c\nrun d\nrun e\nrun f\n```\nwhat does it print";
+
+// The counting table: the same six tasks reach six however they are written, and six sentences of explanation are
+// not six tasks. One case per shape, because each shape is a separate rule in countPromptItems.
+test("a prompt's items are counted the same as a list and as prose", async () => {
+  const { countPromptItems } = await SESSION_HOOKS_LIB();
+  const items = (text) => countPromptItems(text).items;
+  assert.equal(items(SIX_NUMBERED), 6);
+  assert.equal(items(SIX_BULLETED), 6);
+  assert.equal(items(SIX_SENTENCES), 6);
+  assert.equal(items(FIVE_AND_PROSE), 6, "five bullets and one further instruction are six items");
+  assert.equal(items(SIX_EXPLAINING), 0, "six sentences about what went wrong are not six orders");
+  assert.equal(items("keep going"), 0);
+  assert.equal(items("how many waves do we have"), 0);
+  assert.equal(items("The android build is broken."), 0, "a word starting with a lead-in is not a lead-in");
+  assert.equal(items("- Fix the login bug. Add a retry. Run the tests."), 1, "one bullet is one item however many sentences it holds");
+  assert.equal(items(FENCED), 1, "a pasted script is not a list of tasks: only the line before the fence counts");
+  assert.equal(items(""), 0);
+  assert.equal(items(null), 0);
+});
+
+test("user-prompt-submit suggests dispatch at the threshold and says nothing below it", async () => withTemp("prompt-suggest", async ({ dir, env }) => {
+  const p = initRepo(join(dir, "p"), env);
+  writeConfig(p, { dispatch: { minItemsForLanes: 6 } });
+
+  const fired = promptHook(p, SIX_NUMBERED, env);
+  assert.equal(fired.code, 0, fired.all);
+  const payload = JSON.parse(fired.out);
+  assert.deepEqual(Object.keys(payload), ["hookSpecificOutput"], "only the documented UserPromptSubmit field is printed");
+  assert.equal(payload.hookSpecificOutput.hookEventName, "UserPromptSubmit");
+  assert.match(payload.hookSpecificOutput.additionalContext, /^\[workflow\] This prompt reads as 6 separate items \(6 numbered or bulleted lines\), at or above the dispatch threshold of 6 \(dispatch\.minItemsForLanes\)\. Before writing code, run \/workflow:dispatch to verify each item and split them into lanes/);
+  const events = readEvents(p, env).filter((e) => e.event === "dispatch-suggested");
+  assert.equal(events.length, 1, "the suggestion is recorded, so a live sighting can be filed from the journal");
+  assert.deepEqual([events[0].items, events[0].listItems, events[0].sentenceItems, events[0].promptTruncated], [6, 6, 0, false]);
+
+  for (const [label, prompt] of [["five items", SIX_NUMBERED.split("\n").slice(0, 5).join("\n")], ["an explanation", SIX_EXPLAINING], ["one task", "run the tests"], ["no prompt field", null]]) {
+    const quiet = prompt === null ? hook(p, "user-prompt-submit", { session_id: "s1" }, env) : promptHook(p, prompt, env);
+    assert.equal(quiet.code, 0, quiet.all);
+    assert.equal(quiet.out, "", `${label} adds nothing to the conversation`);
+  }
+  assert.equal(readEvents(p, env).filter((e) => e.event === "dispatch-suggested").length, 1, "only the suggestion that was given was recorded");
+  // A prompt longer than the cap is counted over the part that was read, and the journal says the text was cut.
+  const huge = promptHook(p, `${SIX_BULLETED}\n${"filler words with no orders in them. ".repeat(2000)}`, env);
+  assert.match(JSON.parse(huge.out).hookSpecificOutput.additionalContext, /reads as 6 separate items/);
+  const afterHuge = readEvents(p, env).filter((e) => e.event === "dispatch-suggested");
+  assert.equal(afterHuge.at(-1).promptTruncated, true, "the cap was reached, and the record says so");
+
+}));
+
+test("the dispatch suggestion's threshold comes from the project's configuration", async () => withTemp("prompt-threshold", async ({ dir, env }) => {
+  const three = initRepo(join(dir, "three"), env);
+  writeConfig(three, { dispatch: { minItemsForLanes: 3 } });
+  const fired = promptHook(three, "- fix the bug\n- add a retry\n- run the tests", env);
+  assert.match(JSON.parse(fired.out).hookSpecificOutput.additionalContext, /reads as 3 separate items \(3 numbered or bulleted lines\), at or above the dispatch threshold of 3/);
+
+  const twenty = initRepo(join(dir, "twenty"), env);
+  writeConfig(twenty, { dispatch: { minItemsForLanes: 20 } });
+  assert.equal(promptHook(twenty, SIX_BULLETED, env).out, "", "six items are below a threshold of twenty");
+}));
+
+test("user-prompt-submit says nothing at all outside a project, because it runs on every prompt", async () => withTemp("prompt-quiet", async ({ dir, env }) => {
+  const outside = join(dir, "not-a-repo");
+  mkdirSync(outside, { recursive: true });
+  const r = promptHook(outside, SIX_NUMBERED, env);
+  assert.equal(r.code, 0, r.all);
+  assert.equal(r.out, "", "no project state line: this hook would print it on every prompt of the session");
+
+  // The folder named in the hook JSON is gone, while the hook itself runs somewhere that exists.
+  const gone = hook(outside, "user-prompt-submit", {}, env, { raw: JSON.stringify({ cwd: join(dir, "does-not-exist"), hook_event_name: "UserPromptSubmit", session_id: "s1", user_prompt: SIX_NUMBERED }) });
+  assert.equal(gone.code, 0, gone.all);
+  assert.equal(gone.out, "");
+
+  // A repository with no configuration is a real state, and the plugin's other hooks speak there too; the note is
+  // worded so it never claims the threshold is a setting somebody made.
+  const bare = initRepo(join(dir, "bare"), env);
+  assert.match(JSON.parse(promptHook(bare, SIX_NUMBERED, env).out).hookSpecificOutput.additionalContext, /at or above the dispatch threshold of 6 \(dispatch\.minItemsForLanes\)/);
+}));
+
 // ---------------------------------------------------------------- failures and outside Git
 
 test("an internal failure exits 0 with a one-line notice and never blocks (unreadable journal)", async () => withTemp("failure", async ({ dir, env }) => {
@@ -964,9 +1107,14 @@ test("outside a git repository every hook prints one line and exits 0", async ()
     assert.equal(gone.code, 0);
     assert.equal(gone.out, `[workflow] Skilliton project state is unavailable: the folder ${join(dir, "deleted")} does not exist.\n`);
   }
-  const wrongEvent = spawnSync(BIN, ["hook", "user-prompt-submit"], { cwd: plain, env, input: "{}", encoding: "utf8" });
+  // The one hook that says nothing: it runs on every prompt, so an "unavailable" line here would repeat all session.
+  const quiet = hook(plain, "user-prompt-submit", { session_id: "s1", user_prompt: "- a\n- b\n- c\n- d\n- e\n- f" }, env);
+  assert.equal(quiet.code, 0, quiet.all);
+  assert.equal(quiet.out, "", "user-prompt-submit outside a repository adds nothing to the conversation");
+
+  const wrongEvent = spawnSync(BIN, ["hook", "pre-tool-use"], { cwd: plain, env, input: "{}", encoding: "utf8" });
   assert.equal(wrongEvent.status, 0, "an unknown event never exits 2, which would block the client");
-  assert.match(wrongEvent.stderr, /expects exactly one of session-start, stop, pre-compact, session-end/);
+  assert.match(wrongEvent.stderr, /expects exactly one of session-start, stop, pre-compact, session-end, user-prompt-submit/);
 }));
 
 // ---------------------------------------------------------------- status
@@ -1298,10 +1446,12 @@ test("hooks.json parses, keeps the handoff hook first, and every command it name
   for (const [event, arg] of [["Stop", "stop"], ["PreCompact", "pre-compact"], ["SessionEnd", "session-end"]]) {
     assert.deepEqual(commands(event), [{ type: "command", command: `"\${CLAUDE_PLUGIN_ROOT}"/bin/skilliton hook ${arg}`, shell: "bash", timeout: 15 }]);
   }
+  // A shorter budget than the others: this one runs on every prompt, and a prompt waits for it.
+  assert.deepEqual(commands("UserPromptSubmit"), [{ type: "command", command: '"${CLAUDE_PLUGIN_ROOT}"/bin/skilliton hook user-prompt-submit', shell: "bash", timeout: 10 }]);
   for (const hook of Object.values(config.hooks).flatMap((groups) => groups.flatMap((group) => group.hooks))) {
     assert.equal(hook.shell, "bash", `${hook.command} names the shell it needs`);
   }
-  assert.deepEqual(Object.keys(config.hooks).sort(), ["PreCompact", "SessionEnd", "SessionStart", "Stop"]);
+  assert.deepEqual(Object.keys(config.hooks).sort(), ["PreCompact", "SessionEnd", "SessionStart", "Stop", "UserPromptSubmit"]);
 
   const p = initRepo(join(dir, "p"), env);
   for (const [event, handlers] of Object.entries(config.hooks)) {
@@ -1516,7 +1666,7 @@ test("mutation check: without the skew bound, the written-ahead refusal does not
 // ---------------------------------------------------------------- mutation checks
 
 test("mutation check: without the once-per-fingerprint rule, the blocks-exactly-once assertion fails", async () => withTemp("mutant-once", async ({ dir, env }) => {
-  const mutant = copyPlugin(dir, (root) => mutateFile(join(root, "runtime", "lib", "lifecycle.mjs"),
+  const mutant = copyPlugin(dir, (root) => mutateFile(join(root, "runtime", "lib", "session-hooks.mjs"),
     'events.some((e) => e.event === "stop-reminded" && e.fingerprint === state.fingerprint)', "false"));
   const p = stopFixture(join(dir, "shipped"), env);
   const q = stopFixture(join(dir, "mutated"), env);
@@ -1529,12 +1679,71 @@ test("mutation check: without the once-per-fingerprint rule, the blocks-exactly-
 }));
 
 test("mutation check: without the byte bound, the session-start size assertion fails", async () => withTemp("mutant-bound", async ({ dir, env }) => {
-  const mutant = copyPlugin(dir, (root) => mutateFile(join(root, "runtime", "lib", "lifecycle.mjs"),
+  const mutant = copyPlugin(dir, (root) => mutateFile(join(root, "runtime", "lib", "session-hooks.mjs"),
     "if (Buffer.byteLength(text) <= maxBytes) return { text, truncated: false };", "return { text, truncated: false };"));
   const p = initRepo(join(dir, "p"), env);
   writeConfig(p, { handoff: { maxBytes: 300 } });
   assert.ok(Buffer.byteLength(hook(p, "session-start", { session_id: "s1" }, env).out) <= 300);
   assert.ok(Buffer.byteLength(hook(p, "session-start", { session_id: "s2" }, env, { bin: mutant.bin }).out) > 300, "the mutant exceeds the bound");
+}));
+
+test("mutation check: without the merge sentence, the maintain assertion fails", async () => withTemp("mutant-merge", async ({ dir, env }) => {
+  const mutant = copyPlugin(dir, (root) => mutateFile(join(root, "runtime", "lib", "session-hooks.mjs"),
+    '    parts.push(`${n} merge commit${n === 1 ? "" : "s"} landed in that window (${named}), so a batch of work has just come in: run /workflow:maintain on an integration branch as well, which reconciles the records and the indexes against what merged.`);', ""));
+  const shipped = mergedFixture(join(dir, "shipped"), env);
+  const broken = mergedFixture(join(dir, "mutated"), env);
+  assert.ok(stopReasonOf(shipped.p, env).includes("/workflow:maintain"));
+  assert.ok(!stopReasonOf(broken.p, env, mutant.bin).includes("/workflow:maintain"), "the mutant drops the sentence, so the assertion above can fail");
+}));
+
+test("mutation check: without --merges, the ordinary-commit assertion fails", async () => withTemp("mutant-merges-flag", async ({ dir, env }) => {
+  const mutant = copyPlugin(dir, (root) => mutateFile(join(root, "runtime", "lib", "journal.mjs"),
+    '"rev-list", "--merges", ', '"rev-list", '));
+  const commitOnly = (at) => {
+    const p = stopFixture(at, env, { change: false });
+    writeFileSync(join(p, "work.txt"), "committed\n");
+    commit(p, env, "ordinary work");
+    return p;
+  };
+  assert.ok(!stopReasonOf(commitOnly(join(dir, "shipped")), env).includes("/workflow:maintain"));
+  assert.ok(stopReasonOf(commitOnly(join(dir, "mutated")), env, mutant.bin).includes("/workflow:maintain"), "the mutant counts an ordinary commit as a merge, so the assertion above can fail");
+}));
+
+test("mutation check: without the problem field, the unknown-window assertion fails", async () => withTemp("mutant-merge-unknown", async ({ dir, env }) => {
+  const mutant = copyPlugin(dir, (root) => mutateFile(join(root, "runtime", "lib", "journal.mjs"),
+    "const none = (problem) => ({ merges: [], problem });", "const none = () => ({ merges: [], problem: null });"));
+  const noBaselineHead = (at) => {
+    const p = join(at, "p");
+    mkdirSync(p, { recursive: true });
+    git(p, ["init", "-q"], env);
+    git(p, ["symbolic-ref", "HEAD", "refs/heads/main"], env);
+    writeConfig(p, { checkpoints: { minMinutes: 20 } });
+    assert.equal(hook(p, "session-start", { session_id: "s1" }, env).code, 0);
+    backdate(p, env, (e) => e.event === "session-start", 30);
+    writeFileSync(join(p, "README.md"), "# fixture\n");
+    commit(p, env, "first");
+    return p;
+  };
+  assert.ok(stopReasonOf(noBaselineHead(join(dir, "shipped")), env).includes("is unknown"));
+  assert.ok(!stopReasonOf(noBaselineHead(join(dir, "mutated")), env, mutant.bin).includes("is unknown"), "the mutant reads an unreadable window as silence, so the assertion above can fail");
+}));
+
+test("mutation check: without the fenced-code skip, the pasted-script assertion fails", async () => withTemp("mutant-fence", async ({ dir, env }) => {
+  const mutant = copyPlugin(dir, (root) => mutateFile(join(root, "runtime", "lib", "session-hooks.mjs"),
+    'if (/^[ \\t]{0,3}(?:```|~~~)/.test(line)) { fenced = !fenced; continue; }', ""));
+  const { countPromptItems } = await SESSION_HOOKS_LIB();
+  const broken = await SESSION_HOOKS_LIB(mutant.root);
+  const fenced = "Run this:\n```\nrun a\nrun b\nrun c\nrun d\nrun e\nrun f\n```\nwhat does it print";
+  assert.equal(countPromptItems(fenced).items, 1);
+  assert.equal(broken.countPromptItems(fenced).items, 7, "the mutant counts the pasted script, so the assertion above can fail");
+}));
+
+test("mutation check: with the threshold hardcoded, the configured-threshold assertion fails", async () => withTemp("mutant-threshold", async ({ dir, env }) => {
+  const mutant = copyPlugin(dir, (root) => mutateFile(join(root, "runtime", "commands", "hook.mjs"),
+    "dispatchSuggestion(counts, project.dispatch.minItemsForLanes)", "dispatchSuggestion(counts, 6)"));
+  const three = (at) => { const p = initRepo(at, env); writeConfig(p, { dispatch: { minItemsForLanes: 3 } }); return p; };
+  assert.notEqual(promptHook(three(join(dir, "shipped")), "- fix the bug\n- add a retry\n- run the tests", env).out, "");
+  assert.equal(promptHook(three(join(dir, "mutated")), "- fix the bug\n- add a retry\n- run the tests", env, { bin: mutant.bin }).out, "", "the mutant ignores the project's threshold, so the assertion above can fail");
 }));
 
 test("this test file holds no forbidden dash characters or home paths", () => {

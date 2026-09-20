@@ -46,7 +46,6 @@ export const PINNED_LINES = [
   ["packs/base/plugins/workflow/runtime/lib/delivery.mjs", 885],
   ["packs/base/plugins/workflow/runtime/lib/security.mjs", 731],
   ["packs/base/plugins/workflow/runtime/lib/migrations.mjs", 698],
-  ["packs/base/plugins/workflow/runtime/lib/lifecycle.mjs", 677],
   ["packs/base/plugins/workflow/runtime/lib/preflight.mjs", 674],
   ["packs/base/plugins/workflow/runtime/lib/release.mjs", 614],
   ["packs/base/plugins/workflow/runtime/lib/prepare.mjs", 610],

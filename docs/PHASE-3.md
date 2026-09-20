@@ -134,11 +134,11 @@ M8 (already on the roadmap) covers the first minute in a new repository. M11 cov
 |---|---|---|
 | Opening a repository never prepared | Offer preparation in plain words, preview it, apply it on a yes, start the first task; draft a merge policy from the detected test commands for a person to confirm (M8) | SessionStart hook (measured event) |
 | Opening any prepared repository | Show where things stand and the one next step (built) | SessionStart hook (measured) |
-| A prompt with six or more separate items | Suggest splitting the work with dispatch before writing code | UserPromptSubmit hook adds a note (documented event, not yet run here) |
+| A prompt with six or more separate items | Suggest splitting the work with dispatch before writing code | UserPromptSubmit hook adds a note (built 2026-09-20 with fixture tests; the event is documented and delivery to a plugin hook is not yet seen here) |
 | Before context is compacted | Write a checkpoint snapshot (task, decisions, next step) so nothing is lost | PreCompact hook (event recorded today; the snapshot is new) |
-| After compaction | Show the task and the snapshot again | SessionStart on compaction or PostCompact (documented, not yet run here) |
+| After compaction | Show the task and the snapshot again | SessionStart with source compact (measured 2026-09-18, live rehearsal L6, headless; its Project state reached the model after the boundary) |
 | Finishing with unrecorded changes | Ask for a checkpoint (built) | Stop hook (measured) |
-| After a batch of merges or at the end of a day | Suggest maintain, then show the command | Stop hook or session start, instructed |
+| After a batch of merges or at the end of a day | Suggest maintain, then show the command | Stop hook, one rule added 2026-09-20: a merge commit in the window the reminder measures adds a sentence naming the command (built, with fixture tests) |
 | Context growing large | The company profile may set the compaction window (`autoCompactWindow`, documented); whether a smaller window costs less is measured in M14 before anyone recommends it | Managed setting |
 
 Other tools differ (documented): Cursor's stop hook cannot block, so the checkpoint request is instructed there; VS Code's hooks are in preview; Codex asks a person to trust each hook that an administrator did not set. Every routine ends its message with the one next thing to run, in plain words. Each can be turned off per project in `.skilliton/config.json`, and `status` shows which are on.

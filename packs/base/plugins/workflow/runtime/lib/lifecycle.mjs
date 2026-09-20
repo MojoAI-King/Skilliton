@@ -19,7 +19,7 @@ import { CONFIG_REL, ConfigError, DEFAULTS, LAYOUT_VERSION, ROLES, resolveProjec
 import { PLUGIN_ROOT, Refused, cmpVersion, readPluginVersion, selfCommand, tilde } from "./core.mjs";
 import { GitError, changedPaths, gitTopLevel, readGitState, readJournal, runGit } from "./journal.mjs";
 import { TaskChangedError, TaskRecordError, gitLine, listTasks, pickCurrent } from "./tasks.mjs";
-import { LEGACY_NAME, LEGACY_PROJECT_DIR, legacyEnvironment } from "./legacy-names.mjs";
+import { LEGACY_NAME, LEGACY_PROJECT_DIR } from "./legacy-names.mjs";
 import { HANDOFF_PLACEHOLDER } from "./project-files.mjs";
 
 const RESULT_SCHEMA = "skilliton.result/1";
@@ -177,75 +177,6 @@ function sessionHistory(events, { currentSession } = {}) {
   const previousStart = latestStart ? newestWhere((s) => s.i < latestStart.i && idOf(s) !== idOf(latestStart)) : null;
   const previous = describe(previousStart);
   return { mode: "status", latest: describe(latestStart), previous, interrupted: Boolean(previous && !previous.ended) };
-}
-
-// ---------- the Stop reminder rule ----------
-
-const findLast = (list, test) => { for (let i = list.length - 1; i >= 0; i--) if (test(list[i])) return list[i]; return null; };
-
-// The rule, exactly: block only when checkpoints.stopReminder is on; stop_hook_active is not true; the working tree
-// fingerprint differs from the last checkpoint event's (or, with no checkpoint, from this session's start); at least
-// checkpoints.minMinutes passed since that checkpoint (or since this session started when there is none); and no
-// stop-reminded event exists for this fingerprint. Returns { block, why, ... }.
-export function evaluateStop({ stopHookActive, checkpoints, state, events, session, now }) {
-  if (stopHookActive === true) return { block: false, why: "stop_hook_active is true" };
-  if (!checkpoints.stopReminder) return { block: false, why: "checkpoints.stopReminder is off" };
-  if (!state.fingerprint) return { block: false, why: "the working tree fingerprint could not be read" };
-  const lastCheckpoint = findLast(events, (e) => e.event === "checkpoint");
-  // This session's first start (a resume or compaction records another start with the same ID, which must not reset
-  // the baseline). Measure from whichever is later, this session's start or the last checkpoint, so changes made
-  // before this session began (a commit in a terminal, another session's work) never trigger a reminder here.
-  const sessionStart = events.find((e) => e.event === "session-start" && (e.session ?? null) === session) ?? null;
-  const baseline = lastCheckpoint && sessionStart ? (Date.parse(sessionStart.at) > Date.parse(lastCheckpoint.at) ? sessionStart : lastCheckpoint) : (lastCheckpoint ?? sessionStart);
-  const fromCheckpoint = baseline !== null && baseline === lastCheckpoint;
-  if (!baseline) return { block: false, why: "no checkpoint and no recorded start for this session, so there is nothing to measure from" };
-  if (!baseline.fingerprint) return { block: false, why: "the baseline event has no fingerprint" };
-  if (baseline.fingerprint === state.fingerprint) return { block: false, why: fromCheckpoint ? "nothing changed since the last checkpoint" : "nothing changed since this session started" };
-  const elapsedMs = now.getTime() - Date.parse(baseline.at);
-  if (elapsedMs < checkpoints.minMinutes * 60000) return { block: false, why: `less than ${checkpoints.minMinutes} minutes since the ${fromCheckpoint ? "last checkpoint" : "session started"}` };
-  if (events.some((e) => e.event === "stop-reminded" && e.fingerprint === state.fingerprint)) return { block: false, why: "a reminder was already given for this working tree state" };
-  return { block: true, why: "reminder due", baseline: fromCheckpoint ? "checkpoint" : "session-start", baselineAt: baseline.at, elapsedMinutes: Math.floor(elapsedMs / 60000) };
-}
-
-// The Stop hook's reason: what changed, and the exact command to run next.
-export function stopReason({ decision, state, current, command = selfCommand() }) {
-  const since = decision.baseline === "checkpoint"
-    ? `the last checkpoint (${decision.elapsedMinutes} minutes ago)`
-    : `this session started (${decision.elapsedMinutes} minutes ago), and no checkpoint has been recorded`;
-  const values = `--state "<what is done and what is not>" --evidence "<checks or tests you ran, with their results>" --next "<the next concrete step>" --apply`;
-  const parts = [`Skilliton checkpoint reminder: the working tree has changed since ${since}.`];
-  if (current.unreadable?.length) parts.push(`${current.unreadable.length} task record(s) could not be read: ${current.unreadable.map((u) => u.file).join(", ")}.`);
-  parts.push("This reminder is given once for this working tree state; if this work should not be recorded, tell the user why and stop.");
-  // The command comes last, so no punctuation follows it.
-  if (current.task) {
-    parts.push(`Otherwise record where task ${current.task.id} stands (each value one line) by running: ${command} checkpoint --task ${current.task.id} ${values}`);
-  } else if (current.ambiguous.length) {
-    parts.push(`Branch ${state.branch} has more than one open task (${current.ambiguous.join(", ")}); otherwise pick the one this work belongs to and run: ${command} checkpoint --task <id> ${values}`);
-  } else {
-    const where = state.branch ? `branch ${state.branch}` : "a detached HEAD";
-    const branchOption = state.branch ? "" : " --branch <branch name>";
-    const taskOption = state.branch ? "" : " --task <id printed by task start>";
-    parts.push(`No open task record matches ${where}; otherwise start one, then record a checkpoint, by running: ${command} task start "<short title of this work>" --criteria "<what done means>"${branchOption} --apply and then: ${command} checkpoint${taskOption} ${values}`);
-  }
-  return parts.join(" ");
-}
-
-// ---------- hook input ----------
-
-// The client's hook JSON. Every field is optional; a value of the wrong type is treated as missing.
-export function parseHookInput(raw) {
-  let value = null, problem = null;
-  if (typeof raw === "string" && raw.trim()) {
-    try { value = JSON.parse(raw); } catch { problem = "the hook input on stdin was not JSON"; }
-  }
-  const isObject = value !== null && typeof value === "object" && !Array.isArray(value);
-  if (value !== null && !isObject) problem = "the hook input on stdin was not a JSON object";
-  const obj = isObject ? value : {};
-  const text = (v) => (typeof v === "string" && v.length > 0 && v.length <= 4096 ? v : null);
-  return {
-    cwd: text(obj.cwd), session: text(obj.session_id), stopHookActive: obj.stop_hook_active === true,
-    source: text(obj.source), trigger: text(obj.trigger), reason: text(obj.reason), problem,
-  };
 }
 
 // ---------- checks ----------
@@ -609,69 +540,3 @@ export function statusLines(report) {
 }
 
 export const resultObject = (command, exitCode, summary, details) => ({ schema: RESULT_SCHEMA, command, result: RESULTS[exitCode], summary, details });
-
-// ---------- the session-start block ----------
-
-// Whole lines, at most maxBytes bytes in total including the truncation notice.
-function boundLines(lines, maxBytes, notice) {
-  const text = lines.map((line) => `${line}\n`).join("");
-  if (Buffer.byteLength(text) <= maxBytes) return { text, truncated: false };
-  const tail = `${notice}\n`;
-  let budget = maxBytes - Buffer.byteLength(tail);
-  let out = "";
-  for (const line of lines) {
-    const size = Buffer.byteLength(`${line}\n`);
-    if (size > budget) break;
-    out += `${line}\n`;
-    budget -= size;
-  }
-  return { text: `${out}${tail}`, truncated: true };
-}
-
-const BLOCK_LABELS = { layout: "Layout", migrations: "Pending migrations", versions: "Versions", records: "Records", handoff: "Shared handoff", sessions: "Previous session", security: "Security" };
-const WORDS = { attention: "needs attention", "not-run": "not run", failed: "failed" };
-
-function taskLines(report, check) {
-  const word = WORDS[check.status];
-  const current = report.current;
-  if (!current) return [`- Current task${word ? ` (${word})` : ""}: ${check.summary}`];
-  const lines = [];
-  const branch = report.git.branch;
-  if (current.task) {
-    const t = current.task, c = t.lastCheckpoint;
-    const last = c ? `last checkpoint ${clip(c.at, 40)}: State: ${clip(c.state, 160)}; Evidence: ${clip(c.evidence, 160)}; Next: ${clip(c.next, 160)}` : "no checkpoint recorded yet";
-    lines.push(`- Current task: ${t.id} "${clip(t.title, 100)}" (${t.state}, ${t.checkpoints} checkpoint(s)); ${last}`);
-    const h = t.handoff;
-    lines.push(`- Task handoff: ${h ? `State: ${clip(h.state, 160)}; Next: ${clip(h.next, 160)}; Blocked: ${clip(h.blocked, 120)}; Watch out: ${clip(h.watchOut, 120)}` : "not yet written"}`);
-  } else if (current.ambiguous.length) {
-    lines.push(`- Current task (needs attention): ambiguous, ${current.ambiguous.length} open tasks on branch ${branch}: ${current.ambiguous.join(", ")}; a checkpoint needs --task <id>`);
-  } else {
-    lines.push(`- Current task: none (${branch ? `no open task on branch ${branch}` : "HEAD is detached"}); to start one: ${selfCommand()} task start "<title>" --apply`);
-  }
-  if (current.unreadable.length) lines.push(`- Task records (needs attention): ${current.unreadable.length} unreadable: ${current.unreadable.map((u) => clip(u.message, 160)).join("; ")}`);
-  return lines;
-}
-
-const prepareOffer = () => `offer it in plain words before other work: "This project is not set up for Skilliton yet. Setting it up adds records for status, backlog, decisions, lessons and handoffs, a managed instruction block in CLAUDE.md and AGENTS.md, and a security register; it keeps any of those that already exist. Nothing is written until you say yes." On a yes, in this order: ${selfCommand()} prepare shows the change; ${selfCommand()} prepare --apply shows it again and writes it, drafting dispatch.laneTestCommand, laneRoot and hotspots and a delivery policy draft from what the repository shows; then turn the user's first request into the first task with two to six proposed criteria: ${selfCommand()} task start "<title>" --request "<the user's words>" --criteria "<criterion>" --apply`;
-
-// What a resuming session needs first comes first, because truncation keeps the top of the block.
-const BLOCK_ORDER = ["tasks", "sessions", "handoff", "layout", "migrations", "versions", "records", "security"];
-
-export function sessionStartBlock(report, { maxBytes, notes = [] }) {
-  const lines = ["[workflow] Project state (skilliton hook session-start):", `- Branch: ${gitLine(report.git)}`];
-  if (report.configProblem) lines.push(`- Configuration (needs attention): ${clip(report.configProblem, 300)}`);
-  const renamed = legacyEnvironment();
-  if (renamed.length) lines.push(`- Environment (needs attention): ${renamed.map((v) => `${v.name} is set but no longer read; the variable is now ${v.replacement}`).join("; ")}`);
-  for (const note of notes) lines.push(`- ${clip(note, 300)}`);
-  for (const name of BLOCK_ORDER) {
-    const check = report.checks.find((c) => c.name === name);
-    if (!check) continue;
-    if (name === "tasks") { lines.push(...taskLines(report, check)); continue; }
-    const word = WORDS[check.status];
-    lines.push(`- ${BLOCK_LABELS[name]}${word ? ` (${word})` : ""}: ${clip(check.summary, 600)}`);
-    // A never-prepared repository has no managed block to instruct the assistant, so the offer is made here, in plain
-    // words, with the commands a yes runs (PLAN.md M8, first increment).
-    if (name === "layout" && report.data?.layout?.version === null) lines.push(`- Not prepared (needs attention): ${prepareOffer()}`);
-  }
-  return boundLines(lines, maxBytes, `[workflow] Project state truncated at ${maxBytes} bytes; for all of it run: ${selfCommand()} status`);
-}

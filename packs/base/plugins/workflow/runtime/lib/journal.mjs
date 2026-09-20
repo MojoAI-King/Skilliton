@@ -20,7 +20,7 @@ import { appendFileSync, closeSync, fstatSync, mkdirSync, openSync, readSync } f
 import { userInfo } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 
-export const JOURNAL_EVENTS = ["session-start", "session-end", "pre-compact", "stop", "checkpoint", "stop-reminded"];
+export const JOURNAL_EVENTS = ["session-start", "session-end", "pre-compact", "stop", "checkpoint", "stop-reminded", "dispatch-suggested"];
 const BASE_KEYS = ["at", "event", "session", "branch", "head", "dirty", "fingerprint"];
 const MAX_READ_BYTES = 8 * 1024 * 1024;
 const MAX_EXTRA_LENGTH = 200;
@@ -220,6 +220,30 @@ export function readBranch(root) {
   if (r.status === 0) return r.stdout.replace(/\r?\n$/, "") || null;
   if (r.status === 1) return null;
   throw new GitError(`git symbolic-ref failed in ${root}: ${firstLine(r.stderr) || `exit ${r.status}`}`);
+}
+
+// The merge commits between a commit and HEAD, newest first, at most `limit` of them:
+//   { merges: [{ sha, shortSha, subject }], problem: null | text }
+// `problem` is set and `merges` is empty when the question could not be answered: no baseline commit to measure from,
+// a baseline commit this repository no longer has (a reset or a rebase throws one away), or git failing. A caller must
+// not read an empty list as "no merge happened" without looking at it, which is why the two are separate fields.
+export function mergesSince(root, baseHead, { limit = 5, timeoutMs = 10000 } = {}) {
+  const none = (problem) => ({ merges: [], problem });
+  if (!baseHead) return none("the baseline event recorded no commit id, so there is nothing to measure from");
+  let r;
+  try {
+    r = runGit(root, ["rev-list", "--merges", `--max-count=${limit}`, "--format=%H %h %s", `${baseHead}..HEAD`], { timeoutMs });
+  } catch (e) {
+    if (e instanceof GitError) return none(`the merge check could not run: ${e.message}`);
+    throw e;
+  }
+  if (r.status !== 0) return none(`the merge check could not run: ${firstLine(r.stderr) || `git rev-list exited ${r.status}`}`);
+  // `--format` makes rev-list print a "commit <sha>" header line before each formatted line; the header is dropped.
+  const merges = r.stdout.split("\n").filter((l) => l && !l.startsWith("commit ")).map((line) => {
+    const [sha, shortSha, ...rest] = line.split(" ");
+    return { sha, shortSha, subject: rest.join(" ") };
+  });
+  return { merges, problem: null };
 }
 
 export const journalPath = (root) => join(gitDir(root), "skilliton", "journal.jsonl");

@@ -8,13 +8,14 @@
 // the debug log; exit 2 from Stop or PreCompact blocks, so this command never exits 2.
 
 import { ConfigError, resolveProject } from "../lib/config.mjs";
-import { GitError, appendEvent, gitTopLevel, readGitState, readJournal } from "../lib/journal.mjs";
-import { clip, evaluateStop, gatherProjectState, parseHookInput, sessionStartBlock, stopReason } from "../lib/lifecycle.mjs";
+import { GitError, appendEvent, gitTopLevel, mergesSince, readGitState, readJournal } from "../lib/journal.mjs";
+import { clip, gatherProjectState } from "../lib/lifecycle.mjs";
+import { countPromptItems, dispatchSuggestion, evaluateStop, parseHookInput, sessionStartBlock, stopReason } from "../lib/session-hooks.mjs";
 import { currentTask } from "../lib/tasks.mjs";
 import { statSync } from "node:fs";
 
 export const help = `hook: run a Skilliton lifecycle hook. The workflow plugin's hooks.json calls these. Each reads the client's hook JSON
-on stdin (cwd, session_id, stop_hook_active, source, trigger, reason; every field optional).
+on stdin (cwd, session_id, stop_hook_active, source, trigger, reason, user_prompt; every field optional).
 
   hook session-start   print a bounded "Project state" block (at most handoff.maxBytes bytes) and record a
                        session-start event in the journal
@@ -22,15 +23,19 @@ on stdin (cwd, session_id, stop_hook_active, source, trigger, reason; every fiel
                        once for this working tree state with the exact command to run; otherwise allow silently
   hook pre-compact     record a pre-compact event
   hook session-end     record a session-end event
+  hook user-prompt-submit
+                       when a prompt reads as dispatch.minItemsForLanes or more separate items, add one note
+                       suggesting /workflow:dispatch; otherwise print nothing
 
 The project is the Git top level of the JSON cwd (else the current folder). Outside a Git repository each hook
-prints one line saying Skilliton project state is unavailable. A hook never blocks because of its own failure: it
+prints one line saying Skilliton project state is unavailable, except user-prompt-submit, which runs on every prompt
+and so says nothing at all. A hook never blocks because of its own failure: it
 prints a one-line notice on stderr (session-start also prints it on stdout, the only stream the client adds to the
 conversation) and exits 0.
 
 Exit code: always 0.`;
 
-const EVENTS = ["session-start", "stop", "pre-compact", "session-end"];
+const EVENTS = ["session-start", "stop", "pre-compact", "session-end", "user-prompt-submit"];
 
 // Reads stdin to its end, for at most timeoutMs: a client that never closes stdin must not hold the hook until the
 // client's own timeout. Input beyond maxBytes is dropped, which leaves text that is not JSON and is reported as such.
@@ -75,6 +80,43 @@ function locate(input) {
   return root;
 }
 
+// locate() for a hook that runs on every prompt: nothing reaches stdout, because stdout here is added to the
+// conversation, and a folder that is not a project would say so on every prompt for the whole session.
+function locateQuietly(input) {
+  try {
+    const dir = input.cwd ?? process.cwd();
+    if (!statSync(dir).isDirectory()) return null;
+    return gitTopLevel(dir);
+  } catch (e) {
+    console.error(`[workflow] Skilliton dispatch suggestion was not evaluated: ${clip(e?.message ?? e, 300)}`);
+    return null;
+  }
+}
+
+// Advice, never a block: this hook prints at most one note and never exits 2, so a wrong count costs a sentence.
+async function userPromptSubmit(input) {
+  const counts = countPromptItems(input.prompt);
+  if (counts.items < 1) return 0; // the common prompt, answered before any Git or configuration work
+  const root = locateQuietly(input);
+  if (!root) return 0;
+  let project;
+  try { project = resolveProject(root, { allowLegacy: true }); } catch (e) {
+    if (!(e instanceof ConfigError)) throw e;
+    console.error(`[workflow] Skilliton dispatch suggestion was not evaluated: ${clip(e.message, 300)}`);
+    return 0;
+  }
+  const note = dispatchSuggestion(counts, project.dispatch.minItemsForLanes);
+  if (!note) return 0;
+  try {
+    appendEvent(root, { event: "dispatch-suggested", session: input.session, items: counts.items, listItems: counts.listItems, sentenceItems: counts.sentenceItems, promptTruncated: input.promptTruncated });
+  } catch (e) {
+    // The note is still worth giving; only the record of it was lost, and that is said where hook notes are read.
+    console.error(`[workflow] Skilliton dispatch suggestion was not recorded in the journal: ${clip(e.message, 300)}`);
+  }
+  process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: note } })}\n`);
+  return 0;
+}
+
 async function sessionStart(input) {
   const root = locate(input);
   if (!root) return 0;
@@ -114,7 +156,9 @@ async function stop(input) {
   try { current = currentTask(project, state.branch); } catch (e) {
     current = { task: null, ambiguous: [], unreadable: [{ file: project.directories.tasks, reason: clip(e.message, 200) }] };
   }
-  const reason = stopReason({ decision, state, current });
+  // Read over the same window the reminder measures, so the two sentences cannot disagree about what "since" means.
+  const merges = mergesSince(root, decision.baselineHead);
+  const reason = stopReason({ decision, state, current, merges });
   // Recorded before the block is printed: a reminder that cannot be recorded would repeat on every stop, so a failure
   // here ends in the failure notice, and the session is allowed to stop.
   appendEvent(root, { event: "stop-reminded", session: input.session, at: now.toISOString() }, { state });
@@ -135,7 +179,7 @@ function recorder(event) {
   };
 }
 
-const HANDLERS = { "session-start": sessionStart, stop, "pre-compact": recorder("pre-compact"), "session-end": recorder("session-end") };
+const HANDLERS = { "session-start": sessionStart, stop, "pre-compact": recorder("pre-compact"), "session-end": recorder("session-end"), "user-prompt-submit": userPromptSubmit };
 
 export async function run(argv) {
   const event = argv[0];
