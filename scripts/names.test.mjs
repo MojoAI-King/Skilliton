@@ -21,7 +21,7 @@ const WORD = /skillgate/i;
 export const ALLOWED_PATHS = [
   ["evidence/", "recorded runs keep the names they ran with"],
   ["packs/base/plugins/workflow/runtime/lib/legacy-template.mjs", "the template the last release before the rename shipped, frozen so migration 0003 recognises the blocks that release wrote"],
-  ["docs/history/", "archived plans"],
+  ["docs/archive/", "archived plans"],
   ["docs/tasks/", "task records are dated history"],
   ["docs/decisions/", "decision entries are dated history"],
   ["docs/lessons/", "lesson entries are dated history"],
@@ -118,7 +118,7 @@ function selfTest() {
     { name: "a current guide naming the earlier command fails", files: [{ path: "docs/ONBOARDING.md", text: "Run skillgate join.\n" }], expect: 1 },
     { name: "an environment variable under the earlier name fails", files: [{ path: "packs/base/plugins/workflow/runtime/lib/core.mjs", text: "process.env.SKILLGATE_DEBUG\n" }], expect: 1 },
     { name: "a file named with the earlier name fails", files: [{ path: "scripts/skillgate.mjs", text: "" }], expect: 1 },
-    { name: "a history file passes", files: [{ path: "docs/history/autopilot-foundation/PLAN.md", text: "skillgate prepare\n" }], expect: 0 },
+    { name: "a history file passes", files: [{ path: "docs/archive/autopilot-foundation/PLAN.md", text: "skillgate prepare\n" }], expect: 0 },
     { name: "a catalog version passes", files: [{ path: "docs/security-catalog-sources.md", text: "catalog skillgate-baseline-2\n" }], expect: 0 },
     { name: "the former-name sentence passes where it is allowed", files: [{ path: "README.md", text: "Skilliton is the product formerly called Skillgate.\n" }], expect: 0 },
     { name: "the same sentence in another guide fails", files: [{ path: "docs/ONBOARDING.md", text: "Skilliton is the product formerly called Skillgate.\n" }], expect: 1 },

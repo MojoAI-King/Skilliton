@@ -15,7 +15,7 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 
 ## 2026-09-16 Keep all foundation material in the main working tree
 
-**Decision:** Merge the existing standalone preparation/security scripts, their tests and demo into the local main checkout. Preserve the original plan, handoff and decision under docs/history/autopilot-foundation/. Save the build-goal instructions and link every artifact from docs/AUTOPILOT_START_HERE.md.
+**Decision:** Merge the existing standalone preparation/security scripts, their tests and demo into the local main checkout. Preserve the original plan, handoff and decision under docs/archive/autopilot-foundation/. Save the build-goal instructions and link every artifact from docs/AUTOPILOT_START_HERE.md.
 **Why:** The owner wants the next assistant to read and use all work from repository files without relying on chat history or discovering a separate worktree.
 **Alternatives rejected:** Leaving code only on a local branch; replacing the aligned plan with older prototype instructions; claiming source availability completes the CLI and lifecycle integration.
 **Risk:** A reader could mistake standalone prototype commands for the production onboarding path. README, handoff and integration instructions explicitly preserve the remaining M1 seams. The imported source remains unchanged from the tested foundation snapshot.
@@ -307,4 +307,5 @@ Decision entries in `docs/decisions/`, sorted by ID. `skilliton index` writes th
 | [2026-09-20-a-dependency-free-in-repo-lint-and-a-siz-da3d](docs/decisions/2026-09-20-a-dependency-free-in-repo-lint-and-a-siz-da3d.md) | A dependency-free in-repo lint, and a size ceiling that ratchets | accepted | 2026-09-20 |
 | [2026-09-20-dispatch-creates-worktrees-and-refuses-t-2249](docs/decisions/2026-09-20-dispatch-creates-worktrees-and-refuses-t-2249.md) | Dispatch creates worktrees and refuses to reuse one, and the bound is written prose | accepted | 2026-09-20 |
 | [2026-09-20-the-merge-back-half-of-dispatch-the-lane-ef33](docs/decisions/2026-09-20-the-merge-back-half-of-dispatch-the-lane-ef33.md) | The merge-back half of dispatch: the lane's record is committed for it, and a warning is exit 1 | accepted | 2026-09-20 |
+| [2026-09-20-the-rolling-archives-stay-beside-their-l-8264](docs/decisions/2026-09-20-the-rolling-archives-stay-beside-their-l-8264.md) | The rolling archives stay beside their living file; docs/archive is for superseded documents | accepted | 2026-09-20 |
 <!-- skilliton:index:decisions:end -->

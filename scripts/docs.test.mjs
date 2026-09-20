@@ -8,6 +8,9 @@
 //     and, for a command whose --help lists verbs (such as release create), a verb it lists
 //   - every relative Markdown link in the guides resolves to a file or folder in the checkout
 //   - every Markdown file under docs/, and README.md, says its Kind near the top
+//   - every Markdown file under docs/ is reachable from docs/AUTOPILOT_START_HERE.md by following relative links, so
+//     one index reaches every document and a new document cannot be written where nothing points at it
+//   - every Markdown file under docs/archive/ says Kind: Reference, because that folder holds superseded documents
 // It does not show that a command does what the prose says; the rehearsals under scripts/rehearsals/ do that.
 //
 //   node scripts/docs.test.mjs              check this repository
@@ -72,6 +75,34 @@ function markdownFiles(dir) {
   return out;
 }
 
+// Every Markdown file a reader arrives at by starting from the index and following relative links. A link to a folder
+// counts as a link to every Markdown file under it, which is how the record folders index themselves: docs/tasks/ is
+// one file per task and the folder is the list. A link into a file this walk has not reached is still followed, so a
+// document reachable only through README.md or PLAN.md is not counted as reachable from the index by accident.
+function reachableFrom(root, startRel) {
+  const seen = new Set();
+  const queue = [join(root, startRel)];
+  while (queue.length) {
+    const file = queue.shift();
+    const rel = relative(root, file);
+    if (seen.has(rel)) continue;
+    seen.add(rel);
+    if (!file.endsWith(".md") || !existsSync(file)) continue;
+    const { prose } = parts(readFileSync(file, "utf8"));
+    for (const { text } of prose) {
+      for (const m of text.matchAll(/\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
+        const target = m[1];
+        if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith("#")) continue;
+        const path = resolve(dirname(file), decodeURIComponent(target.split("#")[0]));
+        if (!existsSync(path)) continue;
+        if (statSync(path).isDirectory()) { queue.push(...markdownFiles(path)); continue; }
+        queue.push(path);
+      }
+    }
+  }
+  return seen;
+}
+
 function check(root) {
   const failures = [], oks = [];
   let commands = 0, links = 0;
@@ -106,6 +137,26 @@ function check(root) {
     if (!/(^|\s)Kind: [A-Z][a-z]+\b/.test(head)) failures.push(`${relative(root, file)}: no Kind label in its first 8 lines (Kind: Living. or Kind: Reference.; see docs/MAINTAIN.md)`);
   }
   oks.push(`${docs.length} Markdown file(s) under docs/ and README.md checked for a Kind label`);
+
+  const INDEX = join("docs", "AUTOPILOT_START_HERE.md");
+  const docsDir = join(root, "docs");
+  if (!existsSync(join(root, INDEX))) {
+    oks.push(`reachability NOT CHECKED: this checkout has no ${INDEX}, which is this repository's index`);
+  } else {
+    const reached = reachableFrom(root, INDEX);
+    const under = existsSync(docsDir) ? markdownFiles(docsDir).map((f) => relative(root, f)) : [];
+    const lost = under.filter((p) => !reached.has(p)).sort();
+    for (const p of lost) failures.push(`${p}: nothing reaches it from ${INDEX} (link it from the index, or from a document the index already reaches; a folder link counts as a link to every Markdown file under it)`);
+    oks.push(`${under.length - lost.length} of ${under.length} Markdown file(s) under docs/ are reachable from ${INDEX}`);
+  }
+
+  const archive = join(root, "docs", "archive");
+  const archived = existsSync(archive) ? markdownFiles(archive) : [];
+  for (const file of archived) {
+    const head = readFileSync(file, "utf8").split("\n").slice(0, 8).join("\n");
+    if (!/(^|\s)Kind: Reference\b/.test(head)) failures.push(`${relative(root, file)}: under docs/archive/ but not labelled Kind: Reference (that folder holds superseded documents; a document still in use does not belong there)`);
+  }
+  oks.push(`${archived.length} archived document(s) under docs/archive/ carry a Kind: Reference label`);
   return { failures, oks };
 }
 
@@ -120,6 +171,8 @@ if (argv.includes("--self-test")) {
     ["an unknown verb", (d) => add(d, "docs/RELEASING.md", "\n```bash\nnode scripts/skilliton.mjs release publish 1.0.0\n```\n"), /release has no verb "publish"/],
     ["a broken link", (d) => add(d, "README.md", "\nSee [the missing page](docs/NOWHERE.md).\n"), /link to docs\/NOWHERE\.md does not resolve/],
     ["a missing Kind label", (d) => { const f = join(d, "docs/ONBOARDING.md"); writeFileSync(f, readFileSync(f, "utf8").replace(/Kind: [A-Z][a-z]+\./, "")); }, /ONBOARDING\.md: no Kind label/],
+    ["a document nothing links to", (d) => writeFileSync(join(d, "docs/ORPHAN.md"), "# Orphan\n\nKind: Living.\n"), /docs\/ORPHAN\.md: nothing reaches it/],
+    ["a living document filed under docs/archive/", (d) => writeFileSync(join(d, "docs/archive/STILL_LIVING.md"), "# Still living\n\nKind: Living.\n"), /STILL_LIVING\.md: under docs\/archive\/ but not labelled Kind: Reference/],
   ];
   let pass = 0;
   for (const [label, mutate, expect] of cases) {

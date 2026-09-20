@@ -17,7 +17,7 @@ The following file bytes match the foundation snapshot exactly. Git blob IDs ide
 | `scripts/prepare.test.mjs` | `af5fe7aa61cf47b756e9375f0bdd7096f5db6f06` | Exact match |
 | `scripts/security-evidence.test.mjs` | `2588039a3b0c1c83529fe4d2e7fb095fa27ac95c` | Exact match |
 
-Runtime used: Node.js `v25.8.1`. Original prototype documentation moved under docs/history/autopilot-foundation/ with explicit superseded/history labels. The current DECISIONS.md retained the aligned design and gained the import decision; the original foundation decision is preserved in that archive.
+Runtime used: Node.js `v25.8.1`. Original prototype documentation moved under docs/archive/autopilot-foundation/ with explicit superseded/history labels. The current DECISIONS.md retained the aligned design and gained the import decision; the original foundation decision is preserved in that archive.
 
 ## Executed verification
 

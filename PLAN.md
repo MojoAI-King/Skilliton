@@ -2,7 +2,7 @@
 
 Kind: Living. Canonical product direction and delivery gates. Updated 2026-09-16 after the owner aligned the parallel build sessions, and again when the owner set the Phase 3 direction (section 7; docs/PHASE-3.md).
 
-This version supersedes v3's product scope and day-by-day ordering. Earlier plans remain in Git history. Existing evidence and unresolved checks remain valid at their recorded scope; a new plan does not close them. There is one roadmap here. Original prototype plans are archived under docs/history/autopilot-foundation/ as implementation history, not competing instructions. All source material is indexed in docs/AUTOPILOT_START_HERE.md; the saved execution objective is docs/BUILD_GOAL.md.
+This version supersedes v3's product scope and day-by-day ordering. Earlier plans remain in Git history. Existing evidence and unresolved checks remain valid at their recorded scope; a new plan does not close them. There is one roadmap here. Original prototype plans are archived under docs/archive/autopilot-foundation/ as implementation history, not competing instructions. All source material is indexed in docs/AUTOPILOT_START_HERE.md; the saved execution objective is docs/BUILD_GOAL.md.
 
 ## 0. The product
 
@@ -161,4 +161,4 @@ First deliver a local-first, Git-backed system that a solo builder or small team
 
 Company device onboarding can install prerequisites and the approved tools; it cannot prove repository controls or application behavior by itself. Keep project rules in the repository and organizational authority with the company. No private client content, credential values or personal material goes into this public starter.
 
-Official platform behavior is verified per feature when implemented or changed. See the current platform documentation instead of carrying an untested list of capabilities forward from an older plan: https://code.claude.com/docs/en/plugin-marketplaces and https://developers.openai.com/codex/skills/ . Framework source/version research is preserved in docs/history/autopilot-foundation/PLAN.md and must be rechecked for catalog expansion.
+Official platform behavior is verified per feature when implemented or changed. See the current platform documentation instead of carrying an untested list of capabilities forward from an older plan: https://code.claude.com/docs/en/plugin-marketplaces and https://developers.openai.com/codex/skills/ . Framework source/version research is preserved in docs/archive/autopilot-foundation/PLAN.md and must be rechecked for catalog expansion.
