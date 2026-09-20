@@ -7,14 +7,14 @@
 // Contracts: docs/CONTRACTS.md. Exit codes, for every command: 0 complete; 1 attention (an evaluated state needs
 // action); 2 invalid or refused (nothing was written); 3 operation failed (an internal error or a failed write).
 //
-// Built-in commands live in lib/core.mjs. Every other command is a module in commands/<name>.mjs exporting
-// `run(argv)` (returning an exit code) and `help` (a string). A command listed below whose module is not there yet is
-// refused as not built, never silently skipped.
+// Every command is a module in commands/<name>.mjs exporting `run(argv)` (returning an exit code) and `help` (a
+// string); shared machinery lives in lib/. A command listed below whose module is not there yet is refused as not
+// built, never silently skipped.
 
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { Refused, say, selfCommand, cmdDoctor, cmdHarness, cmdProjectSettings, cmdNewSkill, cmdImport } from "./lib/core.mjs";
+import { Refused, say, selfCommand } from "./lib/core.mjs";
 import { legacyEnvironment } from "./lib/legacy-names.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -40,13 +40,13 @@ const GROUPS = [
   {
     title: "Company skills repository",
     commands: [
-      { name: "doctor", summary: "check Claude Code, the marketplace, base plugins, harness block, config, and hook tools (writes nothing)", run: cmdDoctor },
-      { name: "harness", summary: "show the harness block change for CLAUDE.md and AGENTS.md; --apply writes it, --undo removes it", run: cmdHarness },
+      { name: "doctor", summary: "check Claude Code, the marketplace, base plugins, harness block, config, and hook tools (writes nothing)" },
+      { name: "harness", summary: "show the harness block change for CLAUDE.md and AGENTS.md; --apply writes it, --undo removes it" },
       { name: "company", summary: "company init: give a fork its own marketplace name, owner and team settings template (--apply writes)" },
       { name: "new-plugin", summary: "create a plugin for the company's own skills and list it in the catalog and team template (--apply writes)" },
-      { name: "project-settings", summary: "show the team .claude/settings.json built from the template; --apply merges it into the project", run: cmdProjectSettings },
-      { name: "new-skill", summary: "create a SKILL.md skeleton in a plugin and bump the plugin's version", run: cmdNewSkill },
-      { name: "import", summary: "scan an existing skill folder, then copy it into a plugin and bump the plugin's version", run: cmdImport },
+      { name: "project-settings", summary: "show the team .claude/settings.json built from the template; --apply merges it into the project" },
+      { name: "new-skill", summary: "create a SKILL.md skeleton in a plugin and bump the plugin's version" },
+      { name: "import", summary: "scan an existing skill folder, then copy it into a plugin and bump the plugin's version" },
       { name: "propose", summary: "turn a project lesson into a scrubbed improvement proposal for the company skills repository" },
       { name: "release", summary: "create, list, or withdraw a company release manifest (approval is a signed tag)" },
       { name: "verify", summary: "check installed plugins against approved releases: VERIFIED, TAMPERED, UNKNOWN VERSION, WITHDRAWN" },
@@ -60,7 +60,7 @@ const GROUPS = [
 
 const COMMANDS = new Map(GROUPS.flatMap((g) => g.commands.map((c) => [c.name, c])));
 const moduleFile = (name) => join(HERE, "commands", `${name}.mjs`);
-const built = (c) => typeof c.run === "function" || existsSync(moduleFile(c.name));
+const built = (c) => existsSync(moduleFile(c.name));
 
 function helpText() {
   const width = Math.max(...[...COMMANDS.keys()].map((n) => n.length)) + 2;
@@ -91,7 +91,6 @@ async function main(argv) {
   }
   const entry = COMMANDS.get(command);
   if (!entry) throw new Refused(`unknown command "${command}". Run: ${selfCommand()} --help`);
-  if (entry.run) return entry.run(rest);
   if (!existsSync(moduleFile(command))) throw new Refused(`"${command}" is planned but not built in this version of the runtime. Run: ${selfCommand()} --help`);
   const mod = await import(pathToFileURL(moduleFile(command)).href);
   if (typeof mod.run !== "function") throw new Error(`commands/${command}.mjs does not export run()`);

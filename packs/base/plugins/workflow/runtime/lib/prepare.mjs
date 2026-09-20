@@ -22,10 +22,8 @@
 import { chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { basename, dirname, join, resolve } from "node:path";
-import {
-  PLUGIN_ROOT, HARNESS_FILES, Refused, refuse, isPlainObject, clone, sameJson, tilde, argPath, which, runProgram,
-  cmpVersion, planHarnessFile, readHarnessTemplate, HARNESS_TEMPLATE, readPluginVersion, selfCommand,
-} from "./core.mjs";
+import { PLUGIN_ROOT, Refused, refuse, isPlainObject, clone, sameJson, tilde, argPath, which, runProgram, cmpVersion, readPluginVersion, selfCommand } from "./core.mjs";
+import { HARNESS_FILES, HARNESS_TEMPLATE, planHarnessFile, readHarnessTemplate } from "./harness.mjs";
 import { CONFIG_REL, ConfigError, LAYOUT_VERSION, PROJECT_DIR, ROLES, resolveProject, templateVars, validRelPath } from "./config.mjs";
 import {
   CATALOG_REL, GITIGNORE_LINES, LOCK_REL, RECORDS_README_REL, ROLE_LABELS, SECURITY_README_REL,

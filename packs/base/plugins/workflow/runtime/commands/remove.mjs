@@ -3,7 +3,8 @@
 // record, entry, observation and receipt, saying so. Writes go through lib/prepare.mjs applyChanges.
 
 import { readdirSync } from "node:fs";
-import { HARNESS_FILES, argPath, parseArgs, planHarnessFile, refuse, resolveExistingDir, say, selfCommand, tilde } from "../lib/core.mjs";
+import { argPath, parseArgs, refuse, resolveExistingDir, say, selfCommand, tilde } from "../lib/core.mjs";
+import { HARNESS_FILES, planHarnessFile } from "../lib/harness.mjs";
 import { CONFIG_REL, ROLES } from "../lib/config.mjs";
 import { LEGACY_NAME, LEGACY_PROJECT_DIR } from "../lib/legacy-names.mjs";
 import { OperationFailed, TransactionFailed, applyChanges, describeFailure, inspectFolder, inspectPath, loadProject, readPath, resolveGitRoot } from "../lib/prepare.mjs";

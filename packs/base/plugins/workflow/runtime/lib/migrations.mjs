@@ -25,10 +25,8 @@
 
 import { lstatSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import {
-  HARNESS_FILES, HARNESS_TEMPLATE, Refused, clone, cmpVersion, detectEol, findBlock, isPlainObject, lineSpans,
-  planHarnessFile, readHarnessTemplate, refuse, removeBlockAt, renderBlock, selfCommand, templateBody, tilde,
-} from "./core.mjs";
+import { Refused, clone, cmpVersion, isPlainObject, refuse, selfCommand, tilde } from "./core.mjs";
+import { HARNESS_FILES, HARNESS_TEMPLATE, detectEol, findBlock, lineSpans, planHarnessFile, readHarnessTemplate, removeBlockAt, renderBlock, templateBody } from "./harness.mjs";
 import { CONFIG_REL, LAYOUT_VERSION, PROJECT_DIR, ROLES, templateVars, validRelPath } from "./config.mjs";
 import { OperationFailed, applyChanges, inspectFolder, inspectPath, newBackupId, readPath, sha256 } from "./prepare.mjs";
 import {

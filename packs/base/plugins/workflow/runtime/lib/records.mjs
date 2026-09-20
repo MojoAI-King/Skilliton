@@ -13,7 +13,8 @@
 
 import { lstatSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { detectEol, lineSpans, refuse } from "./core.mjs";
+import { refuse } from "./core.mjs";
+import { detectEol, lineSpans } from "./harness.mjs";
 import { isId, localDate, newId } from "./ids.mjs";
 import { OperationFailed, applyChanges, currentBranch, inspectFolder, inspectPath, readPath } from "./prepare.mjs";
 import {
