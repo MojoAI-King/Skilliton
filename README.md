@@ -8,6 +8,15 @@ Kind: Living.
 
 **New here? [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) walks through the whole path with diagrams:** fork it, make it yours, release it, install it on every machine, work in any codebase, and feed lessons back.
 
+## Two ways in
+
+There are two roles, and the first question is which one you are.
+
+- **You are the company.** Fork this repository, give the fork your name (`company init`), add your own skills, and publish signed releases (`release create`, `release sign`). Your developers join your fork, not this repository. The section "For a company maintainer" below has the commands; [docs/RELEASING.md](docs/RELEASING.md) has the whole path.
+- **You are a developer at a company that uses it.** Get two things from your company: where its skills repository lives, and its release signers file, which is handed out separately and never taken from the repository. Then, once per machine, `skilliton join --company <company> --signers <file> --apply`; and once per project, `skilliton prepare --dir <project> --apply`. [docs/ONBOARDING.md](docs/ONBOARDING.md) is written for you.
+
+Enabling Skilliton in one more repository is the second command only: a machine that has joined does not join again. `join` says so when it has.
+
 [PLAN.md](PLAN.md) is the direction and the milestone status. [docs/CONTRACTS.md](docs/CONTRACTS.md) defines every shared format and command. [docs/HANDOFF.md](docs/HANDOFF.md) says where the work stands. [docs/CLIENTS.md](docs/CLIENTS.md) says what Claude Code and Codex actually do, measured or documented.
 
 The command remains `skilliton` for compatibility with existing installations. Marketplace names, `.skilliton/` paths and other machine identifiers also retain that spelling; they refer to Skilliton. See [naming and compatibility](docs/BRANDING.md).

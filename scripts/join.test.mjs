@@ -556,3 +556,27 @@ test("a clone with no release tags joins unpinned, --no-pin says so, and the two
   assert.equal(both.code, 2, both.all);
   assert.match(both.all, /pass --release or --no-pin, not both/);
 });
+
+// Owner test, 2026-09-21: a person who guessed a company name got one refusal per missing flag and nearly set up a
+// second company on a machine that had already joined. Everything missing is named at once, with what already joined.
+test("join names every missing flag at once, says what this machine already joined, and warns before a second company", (t) => {
+  const ctx = fixture(t);
+  const bare = sg(ctx, ["join"]);
+  assert.equal(bare.code, 2, bare.all);
+  assert.match(bare.all, /--company <name>/);
+  assert.match(bare.all, /--signers <allowed_signers file>/);
+  assert.match(bare.all, /docs\/ONBOARDING\.md step 1/);
+  assert.doesNotMatch(bare.all, /already joined/);
+  const first = sg(ctx, [...joinArgs(ctx), "--apply"]); // exit 1 here: preflight attention in a fixture PATH, the receipt is still written
+  assert.equal(existsSync(join(ctx.joined, "acme.json")), true, first.all);
+  const again = sg(ctx, ["join", "--company", "acme"]);
+  assert.equal(again.code, 2, again.all);
+  assert.match(again.all, /--signers <allowed_signers file>/);
+  assert.match(again.all, /already joined acme/);
+  assert.match(again.all, /prepare --dir <project>/);
+  const other = sg(ctx, ["join", "--company", "other", "--signers", ctx.signers, "--marketplace", ctx.repo, "--bin-dir", ctx.bin]);
+  assert.match(other.all, /note: This machine already joined acme/);
+  assert.match(other.all, /Joining other as well adds a second marketplace/);
+  const same = sg(ctx, joinArgs(ctx));
+  assert.match(same.all, /note: This machine already joined acme .*adds only what is missing/);
+});

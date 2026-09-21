@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-21T21:43:57.542Z
+- **Updated:** 2026-09-21T21:47:17.759Z
 
 ## Request
 
@@ -48,9 +48,16 @@ not yet written
 - **Next:** Watch CI; surfaces 3, 5, 6; decide fixes for the per-command silence and the nested-shell ask; then the behavior review
 - **Git:** main @ 4f4be07, 0 uncommitted
 
+### 2026-09-21T21:47:17.759Z
+
+- **State:** Surface 5 done: everything under HOME that the tool wrote (trust, joined, launcher, backups, read-guard log) is on the declared list in docs/IT-ALLOWLIST.md; one pre-rename backups folder under the earlier name also exists; preflight 40 ok, 1 not checked. Surface 3: every commit since the rename is SSH-signed; main has no protection, recorded as B52 for the owner. Handoff header framing shipped as workflow 0.15.3 (71f9da2). B50 and B51 hold the two guardrail designs with the live probe each needs.
+- **Evidence:** ls of the declared folders; skilliton preflight; git log --format=%G? shows G on the last four commits; handoff-hook test 104 checks, hook-fixture, lint, docs, backlog, records tests all exit 0; CI for 4f4be07 and 71f9da2 pending
+- **Next:** Read both CI runs step by step; then the behavior review of every hook and command (Tuesday), then polish, then the stats page and the full document
+- **Git:** main @ 71f9da2, 0 uncommitted
+
 ## Handoff
 
-- **State:** Security walkthrough surfaces 1, 2 and 4 tested. Findings: a repo config lowering a guardrail is announced at session start but the allowed command itself is silent; a stranger's handoff text is shown verbatim at session start with no line saying it is a record and not an instruction, though it is size-bounded; bash -c, sh -c and eval wrapping a force-push are allowed silently, a limit the guardrails skill documents; every direct force-push form, env prefix, comment, newline and 300KB command was denied; malformed input naming git asks; the secrets collector never printed or stored a planted value. main has no branch protection and no rulesets; 2FA state not readable from this token. Two fixes shipped: verify's false TAMPERED, and join's refusal order after the first signed release. Evidence: hook runs recorded in the scratchpad; rename, join, release and lint tests exit 0 after the join fix; CI for b0dc663 and 3e89927 red at step 49 for the join order, fix pushed.
-- **Next:** Watch CI; surfaces 3, 5, 6; decide fixes for the per-command silence and the nested-shell ask; then the behavior review
+- **State:** Surface 5 done: everything under HOME that the tool wrote (trust, joined, launcher, backups, read-guard log) is on the declared list in docs/IT-ALLOWLIST.md; one pre-rename backups folder under the earlier name also exists; preflight 40 ok, 1 not checked. Surface 3: every commit since the rename is SSH-signed; main has no protection, recorded as B52 for the owner. Handoff header framing shipped as workflow 0.15.3 (71f9da2). B50 and B51 hold the two guardrail designs with the live probe each needs. Evidence: ls of the declared folders; skilliton preflight; git log --format=%G? shows G on the last four commits; handoff-hook test 104 checks, hook-fixture, lint, docs, backlog, records tests all exit 0; CI for 4f4be07 and 71f9da2 pending.
+- **Next:** Read both CI runs step by step; then the behavior review of every hook and command (Tuesday), then polish, then the stats page and the full document
 - **Blocked:** nothing
 - **Watch out:** nothing known

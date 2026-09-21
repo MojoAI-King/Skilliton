@@ -1,8 +1,9 @@
 // commands/join.mjs: `skilliton join`, which sets up this machine for a company's Skilliton in one previewable command
 // and takes that setup back out with --undo. The engine is lib/join.mjs; the contract is docs/CONTRACTS.md section 13.
 
+import { readdirSync } from "node:fs";
 import { Refused, backupFile, newStamp, parseArgs, refuse, resolveSkillsRepo, say, selfCommand, tilde } from "../lib/core.mjs";
-import { applyJoin, applyUndo, planJoin, planUndo, refuseLegacySetup } from "../lib/join.mjs";
+import { applyJoin, applyUndo, joinDir, planJoin, planUndo, refuseLegacySetup } from "../lib/join.mjs";
 import { applyPin, pinLine, planPin, readPinState } from "../lib/pin.mjs";
 import { reportLines, runPreflight } from "../lib/preflight.mjs";
 import { planTrustAdd, validateCompany, writeTrustFile } from "../lib/trust.mjs";
@@ -58,12 +59,40 @@ export async function run(argv) {
     options: ["company", "signers", "client", "marketplace", "plugins", "bin-dir", "release", "claude", "codex", "repo"],
   }, "join");
   if (o._.length) refuse(`join takes no plain arguments (got "${o._[0]}"); see: ${selfCommand()} join --help`);
-  if (o.company === undefined) refuse("join needs --company <name>, the company's short name");
-  return o.undo ? undo(o) : await join(o);
+  if (o.undo) {
+    if (o.company === undefined) refuse("join --undo needs --company <name>, the company whose setup to take back out");
+    return undo(o);
+  }
+  // Everything missing is named at once, with where each thing comes from and what this machine already has: a person
+  // who guessed a company name got one refusal per flag and nearly set up a second company (owner test, 2026-09-21).
+  const missing = [];
+  if (o.company === undefined) missing.push("--company <name>, the company's short name");
+  if (o.signers === undefined) missing.push("--signers <allowed_signers file>, the release signers file the company hands out separately, never from the repository");
+  if (missing.length) refuse(`join needs ${missing.join(", and ")}. ${joinedNote(undefined)}A developer gets both from the company (docs/ONBOARDING.md step 1); the company's maintainer makes them with company init and release sign (docs/RELEASING.md).`);
+  return await join(o);
+}
+
+// The companies that joined this machine, from the receipts in the join folder. Names only; a receipt is read for
+// its contents only by undo, which validates it first.
+function joinedCompanies() {
+  try { return readdirSync(joinDir()).filter((n) => n.endsWith(".json")).map((n) => n.slice(0, -".json".length)).sort(); } catch (e) {
+    if (e.code === "ENOENT" || e.code === "ENOTDIR") return [];
+    throw e;
+  }
+}
+
+// One sentence about existing joins, or "" when there are none: what already joined, and that a project is set up
+// with prepare, not with another join. With a company named, it says whether this run repeats or adds a second one.
+function joinedNote(company) {
+  const names = joinedCompanies();
+  if (!names.length) return "";
+  const where = tilde(joinDir());
+  if (company === undefined) return `This machine already joined ${names.join(" and ")} (receipts in ${where}); to set up a project, run ${selfCommand()} prepare --dir <project>, and join again only to change that setup. `;
+  if (names.includes(company)) return `This machine already joined ${company} (receipt in ${where}); this run reports what is in place and adds only what is missing. To set up a project, run ${selfCommand()} prepare --dir <project>. `;
+  return `This machine already joined ${names.join(" and ")} (receipts in ${where}). Joining ${company} as well adds a second marketplace, trust file and launcher; if ${names.length === 1 ? names[0] : "one of those"} is the company you meant, stop here and run ${selfCommand()} prepare --dir <project> instead. `;
 }
 
 async function join(o) {
-  if (o.signers === undefined) refuse("join needs --signers <allowed_signers file>, the release signers file your company gives you");
   if (o["bin-dir"] !== undefined && o["no-launcher"]) refuse("pass --bin-dir or --no-launcher, not both");
   if (o.release !== undefined && o["no-pin"]) refuse("pass --release or --no-pin, not both");
   const repo = resolveSkillsRepo(o.repo);
@@ -72,6 +101,8 @@ async function join(o) {
   // release must not turn that refusal into one about the tag (seen the day 0.9.0 was signed, in rename.test.mjs).
   validateCompany(o.company);
   refuseLegacySetup(o.company);
+  const joined = joinedNote(o.company);
+  if (joined) say(`note: ${joined.trim()}`);
   // The pin is decided before anything is written, against the signers file this command is about to trust, so a
   // first join on a machine that trusts nothing yet can still refuse an unsigned or moved release tag.
   const pinState = o["no-pin"] ? null : readPinState(repo, { company: o.company, trustPath: trustPlan.source });
