@@ -199,6 +199,7 @@ export const OUTSIDE_A_REPOSITORY = [
   [`${WORKFLOW}/runtime/lib/doctor.mjs`, '{ label: "~/.claude/settings.json", path: join(HOME, ".claude", "settings.json") }', "Claude Code's settings, read by doctor"],
   [`${WORKFLOW}/runtime/lib/doctor.mjs`, 'const knownPath = join(HOME, ".claude", "plugins", "known_marketplaces.json")', "Claude Code's marketplace records, read by doctor"],
   [`${WORKFLOW}/runtime/lib/doctor.mjs`, 'const installedPath = join(HOME, ".claude", "plugins", "installed_plugins.json")', "Claude Code's install records, read by doctor"],
+  [`${WORKFLOW}/runtime/lib/lifecycle.mjs`, 'const installsPath = join(HOME, ".claude", "plugins", "installed_plugins.json")', "Claude Code's install records, read by the session start so it can say whether the plugins this project enables are installed for this user"],
   [`${WORKFLOW}/runtime/lib/doctor.mjs`, 'isFile(join(HOME, ".claude.json"))', "whether Claude Code has ever run under this home folder, read by doctor"],
   ["scripts/setup.mjs", 'const SETTINGS = process.env.SKILLITON_SETTINGS ?? join(HOME, ".claude", "settings.json")', "~/.claude/settings.json, where the optional status line is set"],
   ["scripts/setup.mjs", 'const BACKUPS = process.env.SKILLITON_BACKUPS ?? join(HOME, ".claude", "backups", "skilliton")', "~/.claude/backups/skilliton/, the copy taken before the settings are changed"],

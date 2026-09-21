@@ -1164,7 +1164,8 @@ test("status exits 0 for a clean prepared project, and --json is exactly one res
     /^OK         handoff: docs\/HANDOFF\.md was written .+; no later commit or uncommitted change \(0 uncommitted path\(s\)\)$/m,
     /^NOTE       sessions: no session recorded in this worktree's journal/m,
     HAS_SECURITY ? /^NOT RUN    security: security evidence not available: no security catalog at \.skilliton\/security\/catalog\.json/m : /^NOT RUN    security: not available in this build \(runtime\/lib\/security\.mjs is not present\)$/m,
-    new RegExp("^Summary: Nothing needs attention among the checks that ran\\. Not run: " + [HAS_MIGRATIONS ? null : "migrations", "security"].filter(Boolean).join(", ") + "\\.$", "m"),
+    /^NOT RUN    enrollment: not evaluated: .*\.claude\/settings\.json enables no plugins, so there is nothing to compare/m,
+    new RegExp("^Summary: Nothing needs attention among the checks that ran\\. Not run: " + [HAS_MIGRATIONS ? null : "migrations", "enrollment", "security"].filter(Boolean).join(", ") + "\\.$", "m"),
   ]) assert.match(r.out, pattern);
 
   const j = statusJson(p, env);
@@ -1172,7 +1173,7 @@ test("status exits 0 for a clean prepared project, and --json is exactly one res
   assert.equal(j.err, "");
   assert.deepEqual(Object.keys(j.json), ["schema", "command", "result", "summary", "details"]);
   assert.deepEqual([j.json.schema, j.json.command, j.json.result], ["skilliton.result/1", "status", "complete"]);
-  assert.deepEqual(j.json.details.checks.map((c) => c.name), ["layout", "migrations", "versions", "records", "tasks", "handoff", "sessions", "security"]);
+  assert.deepEqual(j.json.details.checks.map((c) => c.name), ["layout", "migrations", "versions", "enrollment", "records", "tasks", "handoff", "sessions", "security"]);
   assert.equal(j.json.details.layout.version, 3);
   assert.equal(j.json.details.migrations.available, HAS_MIGRATIONS);
   assert.equal(j.json.details.versions.installed, INSTALLED);
@@ -1776,6 +1777,59 @@ test("mutation check: with the threshold hardcoded, the configured-threshold ass
   const three = (at) => { const p = initRepo(at, env); writeConfig(p, { dispatch: { minItemsForLanes: 3 } }); return p; };
   assert.notEqual(promptHook(three(join(dir, "shipped")), "- fix the bug\n- add a retry\n- run the tests", env).out, "");
   assert.equal(promptHook(three(join(dir, "mutated")), "- fix the bug\n- add a retry\n- run the tests", env, { bin: mutant.bin }).out, "", "the mutant ignores the project's threshold, so the assertion above can fail");
+}));
+
+test("session start says enrollment comes first when the plugins this project enables are not installed", async () => withTemp("enrollment", async ({ dir, env }) => {
+  const teamSettings = (p, enabled) => {
+    mkdirSync(join(p, ".claude"), { recursive: true });
+    writeFileSync(join(p, ".claude", "settings.json"), JSON.stringify({ enabledPlugins: enabled }, null, 2) + "\n");
+  };
+  const installRecord = (plugins) => {
+    const at = join(env.HOME, ".claude", "plugins");
+    mkdirSync(at, { recursive: true });
+    writeFileSync(join(at, "installed_plugins.json"), JSON.stringify({ plugins }, null, 2) + "\n");
+    return join(at, "installed_plugins.json");
+  };
+  const enabled = { "workflow@acme-skills": true, "guardrails@acme-skills": true };
+
+  // Nothing installed at all, which is what a machine that has never been enrolled looks like.
+  const none = preparedRepo(join(dir, "none"), env);
+  teamSettings(none, enabled);
+  const r1 = cli(none, ["status"], env);
+  assert.equal(r1.code, 1, r1.all);
+  assert.match(r1.out, /^ATTENTION  enrollment: this project enables 2 plugin\(s\) \(workflow@acme-skills, guardrails@acme-skills\) and Claude Code has no install record on this machine/m);
+  assert.match(r1.out, /Enrollment comes first: run .*skilliton\S* join --company <name> --signers <file> --apply/);
+  assert.match(r1.out, /Codex records its installs elsewhere and is not read here/);
+  assert.deepEqual(statusJson(none, env).json.details.enrollment.missing, ["workflow@acme-skills", "guardrails@acme-skills"]);
+
+  // One of the two installed: the gap is named, not rounded to either answer.
+  const recordPath = installRecord({ "workflow@acme-skills": [{ scope: "user", version: "0.15.0" }] });
+  const half = preparedRepo(join(dir, "half"), env);
+  teamSettings(half, enabled);
+  const r2 = cli(half, ["status"], env);
+  assert.equal(r2.code, 1, r2.all);
+  assert.match(r2.out, /^ATTENTION  enrollment: 1 of the 2 plugin\(s\) this project enables are not installed for this user \(guardrails@acme-skills\), so their hooks cannot run\./m);
+
+  // Both installed. It says what it did not check, because an installed plugin is not a hook that ran.
+  writeFileSync(recordPath, JSON.stringify({ plugins: { "workflow@acme-skills": [{ scope: "user" }], "guardrails@acme-skills": [{ scope: "user" }] } }) + "\n");
+  const all = preparedRepo(join(dir, "all"), env);
+  teamSettings(all, enabled);
+  const r3 = cli(all, ["status"], env);
+  assert.equal(r3.code, 0, r3.all);
+  assert.match(r3.out, /^OK         enrollment: all 2 plugin\(s\) this project enables are installed for this user .*whether a hook then ran is a separate question this does not answer$/m);
+
+  // A plugin the settings switch off is not one this project enables, so it is not missing.
+  const off = preparedRepo(join(dir, "off"), env);
+  teamSettings(off, { "workflow@acme-skills": true, "notes@acme-skills": false });
+  assert.equal(checkStatus(statusJson(off, env).json, "enrollment"), "ok");
+
+  // Unreadable is not absent: an install record that is not Claude Code's shape is NOT RUN, never a clean bill.
+  writeFileSync(recordPath, "not json at all\n");
+  const broken = preparedRepo(join(dir, "broken"), env);
+  teamSettings(broken, enabled);
+  const r4 = cli(broken, ["status"], env);
+  assert.equal(r4.code, 0, r4.all);
+  assert.match(r4.out, /^NOT RUN    enrollment: not evaluated: .*installed_plugins\.json is there but could not be read as Claude Code's install record/m);
 }));
 
 test("this test file holds no forbidden dash characters or home paths", () => {

@@ -40,7 +40,7 @@ Each of these four is kept true by `node scripts/footprint.test.mjs`, which read
 
 | Location | Written by | Contents and modes |
 |---|---|---|
-| `~/.claude/plugins/` (`known_marketplaces.json`, `installed_plugins.json`, `cache/`) and `enabledPlugins`, `extraKnownMarketplaces` in `~/.claude/settings.json` | Claude Code's own plugin commands, run by `join` | The company marketplace and installed plugins |
+| `~/.claude/plugins/` (`known_marketplaces.json`, `installed_plugins.json`, `cache/`) and `enabledPlugins`, `extraKnownMarketplaces` in `~/.claude/settings.json` | Claude Code's own plugin commands, run by `join` | The company marketplace and installed plugins. Skilliton reads `installed_plugins.json` and never writes it: `doctor` reads it, and the session start compares it with the plugins a project enables so it can say that enrollment comes first when they are not installed for this user |
 | `~/.codex/` (`config.toml` marketplaces, `plugins/cache/`) | Codex's own plugin commands, run by `join`; `join` creates `~/.codex` (0700) when missing | The same for Codex |
 | `~/.config/skilliton/trust/<company>.allowed_signers` | `join`, `trust add` | Whom this laptop trusts to sign releases; folder 0700, file 0644 |
 | `~/.config/skilliton/joined/<company>.json` | `join` | What `join` added, so `join --undo` removes exactly that; folder 0700, file 0600 |

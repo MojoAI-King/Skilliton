@@ -16,7 +16,7 @@ import { existsSync, lstatSync, closeSync, openSync, readSync, statSync } from "
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONFIG_REL, ConfigError, DEFAULTS, LAYOUT_VERSION, ROLES, resolveProject } from "./config.mjs";
-import { PLUGIN_ROOT, Refused, cmpVersion, readPluginVersion, selfCommand, tilde } from "./core.mjs";
+import { HOME, PLUGIN_ROOT, Refused, cmpVersion, isFile, isPlainObject, readJsonMaybe, readPluginVersion, selfCommand, tilde } from "./core.mjs";
 import { GitError, changedPaths, gitTopLevel, readGitState, readJournal, runGit } from "./journal.mjs";
 import { TaskChangedError, TaskRecordError, gitLine, listTasks, pickCurrent } from "./tasks.mjs";
 import { LEGACY_NAME, LEGACY_PROJECT_DIR } from "./legacy-names.mjs";
@@ -468,11 +468,36 @@ async function securityCheck(root) {
 
 // ---------- gathering ----------
 
-const CHECK_ORDER = ["layout", "migrations", "versions", "records", "tasks", "handoff", "sessions", "security"];
+const CHECK_ORDER = ["layout", "migrations", "versions", "enrollment", "records", "tasks", "handoff", "sessions", "security"];
 
 // Evaluates every check. project: the resolved project, or undefined to resolve it here (a configuration problem is
 // then recorded in report.configProblem and the checks that need it are not run). currentSession: the hook's session
 // id (string or null), or undefined for status. Returns { root, generatedAt, git, configProblem, checks, data, current }.
+// Enrollment. A project's team settings enable plugins by id; this user's Claude Code either has them installed or does
+// not. A session that starts without them gets none of the enforced behavior, and nothing else in this report would say
+// so: every other check reads the project's own files, which look the same either way. Claude Code's install record is
+// the only thing here that can tell, so this names the file it read and says Codex is not read, rather than answering
+// for a client it did not look at.
+function enrollmentCheck(root) {
+  const settingsPath = join(root, ".claude", "settings.json");
+  const installsPath = join(HOME, ".claude", "plugins", "installed_plugins.json");
+  const settings = readJsonMaybe(settingsPath, []);
+  const enabled = isPlainObject(settings?.enabledPlugins) ? Object.entries(settings.enabledPlugins).filter(([, on]) => on === true).map(([id]) => id) : [];
+  const data = { enabled, installed: [], missing: [], source: tilde(installsPath) };
+  const fix = `Enrollment comes first: run ${selfCommand()} join --company <name> --signers <file> --apply, or ask whoever set this machine up. Codex records its installs elsewhere and is not read here.`;
+  if (!enabled.length) return { status: "not-run", summary: `not evaluated: ${tilde(settingsPath)} enables no plugins, so there is nothing to compare (${selfCommand()} project-settings writes them)`, data };
+  if (!isFile(installsPath)) {
+    data.missing = enabled;
+    return { status: "attention", summary: `this project enables ${enabled.length} plugin(s) (${enabled.join(", ")}) and Claude Code has no install record on this machine (no ${tilde(installsPath)}), so none of them is installed for this user and none of their hooks can run. ${fix}`, data };
+  }
+  const record = readJsonMaybe(installsPath, []);
+  if (!isPlainObject(record?.plugins)) return { status: "not-run", summary: `not evaluated: ${tilde(installsPath)} is there but could not be read as Claude Code's install record, so whether the ${enabled.length} plugin(s) this project enables are installed is unknown`, data };
+  data.installed = Object.keys(record.plugins);
+  data.missing = enabled.filter((id) => !data.installed.includes(id));
+  if (!data.missing.length) return { status: "ok", summary: `all ${enabled.length} plugin(s) this project enables are installed for this user (${tilde(installsPath)}); whether a hook then ran is a separate question this does not answer`, data };
+  return { status: "attention", summary: `${data.missing.length} of the ${enabled.length} plugin(s) this project enables are not installed for this user (${data.missing.join(", ")}), so their hooks cannot run. ${fix}`, data };
+}
+
 export async function gatherProjectState(root, { state = null, project = undefined, currentSession = undefined, now = new Date() } = {}) {
   const report = { root, generatedAt: now.toISOString(), git: null, configProblem: null, handoffMaxBytes: DEFAULTS.handoffMaxBytes, checks: [], data: {}, current: null };
   const git = state ?? readGitState(root, { shortHead: true });
@@ -495,6 +520,7 @@ export async function gatherProjectState(root, { state = null, project = undefin
     layout: () => layoutCheck(project),
     migrations: () => migrationsCheck(project),
     versions: () => versionsCheck(project),
+    enrollment: () => enrollmentCheck(root),
     records: () => recordsCheck(project),
     tasks: () => tasksCheck(project, git, report),
     handoff: () => handoffCheck(project, git),

@@ -828,6 +828,168 @@ boxed("propose writes a scrubbed proposal only with --apply, and refuses a denyl
   assert.match(r.all, /is not a lesson entry/);
 });
 
+// ================================================================ pin: the clone follows a signed tag
+
+const headOf = (box, repo) => git(box, repo, ["rev-parse", "HEAD"]).stdout.trim();
+const pinRecord = (repo) => JSON.parse(readFileSync(join(repo, ".git", "skilliton-pin.json"), "utf8"));
+
+// One more signed release on a repository whose signing key is already configured.
+function addSignedRelease(box, repo, version) {
+  expectCode(cli(box, ["release", "create", "--version", version, "--repo", repo, "--apply"]), 0, `create ${version}`);
+  git(box, repo, ["add", `releases/${version}.json`]);
+  git(box, repo, ["commit", "-q", "-m", `release ${version} manifest`]);
+  expectCode(cli(box, ["release", "sign", version, "--repo", repo, "--apply"]), 0, `sign ${version}`);
+  return headOf(box, repo);
+}
+
+// An annotated tag with no signature: what a release looks like when somebody tags by hand.
+function unsignedReleaseTag(box, repo, version) {
+  git(box, repo, ["tag", "-a", `skilliton-release/${version}`, "-m", `skilliton release ${version}`, "-m", `manifest-sha256: ${"0".repeat(64)}`]);
+}
+
+boxed("pin: a preview changes nothing, and --apply moves the clone to the commit the signed tag names", (box) => {
+  const { repo } = signedRelease(box);
+  const approved = git(box, repo, ["rev-list", "-n", "1", "skilliton-release/1.0.0^{commit}"]).stdout.trim();
+  git(box, repo, ["commit", "-q", "--allow-empty", "-m", "work after the release"]);
+  const afterRelease = headOf(box, repo);
+
+  const preview = expectCode(cli(box, ["pin", "--repo", repo]), 0, "status");
+  assert.match(preview.out, /^pinned: not yet \(on branch main\)$/m, preview.all);
+  assert.match(preview.out, /^ {2}approved {4}1\.0\.0/m, preview.all);
+  assert.equal(headOf(box, repo), afterRelease, "the status view must change nothing");
+  assert.equal(existsSync(join(repo, ".git", "skilliton-pin.json")), false, "a status view writes no record");
+
+  expectCode(cli(box, ["pin", "--release", "1.0.0", "--repo", repo]), 0, "pin preview");
+  assert.equal(headOf(box, repo), afterRelease, "a preview must not move the clone");
+  assert.equal(existsSync(join(repo, ".git", "skilliton-pin.json")), false, "a preview writes no record");
+
+  const applied = expectCode(cli(box, ["pin", "--release", "1.0.0", "--repo", repo, "--apply"]), 0, "pin --apply");
+  assert.match(applied.out, /Done: .* is pinned to release 1\.0\.0/, applied.all);
+  assert.equal(headOf(box, repo), approved, "the clone must sit on the commit the signed tag names");
+  assert.equal(git(box, repo, ["symbolic-ref", "--quiet", "--short", "HEAD"], { ok: false }).status !== 0, true, "pinning detaches HEAD, which is what keeps it there");
+  const record = pinRecord(repo);
+  assert.equal(record.version, "1.0.0");
+  assert.equal(record.commit, approved);
+  assert.equal(record.tagObject, git(box, repo, ["rev-parse", "skilliton-release/1.0.0"]).stdout.trim());
+  assert.deepEqual(Object.keys(record.seen), ["1.0.0"], "the record carries every release tag the clone held");
+});
+
+boxed("pin: an unsigned release is refused, by name and with the clone left alone", (box) => {
+  const { repo } = signedRelease(box);
+  unsignedReleaseTag(box, repo, "2.0.0");
+  const before = headOf(box, repo);
+
+  const named = expectCode(cli(box, ["pin", "--release", "2.0.0", "--repo", repo, "--apply"]), 2, "an unsigned release by name");
+  assert.match(named.all, /release 2\.0\.0 is not approved: it has no signature/, named.all);
+  assert.match(named.all, /Nothing was changed/, named.all);
+
+  // The newest release is the unsigned one. Dropping quietly to 1.0.0 would install something the person did not
+  // ask for, so this refuses and names the older release rather than choosing it.
+  const newest = expectCode(cli(box, ["pin", "--latest", "--repo", repo, "--apply"]), 2, "the newest release unsigned");
+  assert.match(newest.all, /the newest release .* knows, 2\.0\.0, is not approved: it has no signature/, newest.all);
+  assert.match(newest.all, /--release 1\.0\.0/, newest.all);
+
+  assert.equal(headOf(box, repo), before, "a refusal must leave the clone where it was");
+  assert.equal(existsSync(join(repo, ".git", "skilliton-pin.json")), false, "a refusal writes no record");
+});
+
+boxed("pin: a release tag that moved after the clone was pinned is refused", (box) => {
+  const { repo } = signedRelease(box);
+  addSignedRelease(box, repo, "2.0.0");
+  expectCode(cli(box, ["pin", "--latest", "--repo", repo, "--apply"]), 0, "pin the newest");
+  const was = pinRecord(repo).seen["1.0.0"];
+  const parked = headOf(box, repo);
+
+  // The tag is re-made on another commit: the object id changes, which is the only thing a clone can see.
+  git(box, repo, ["tag", "-d", "skilliton-release/1.0.0"]);
+  git(box, repo, ["tag", "-s", "skilliton-release/1.0.0", `${parked}~1`, "-m", "skilliton release 1.0.0", "-m", `manifest-sha256: ${"0".repeat(64)}`]);
+  const now = git(box, repo, ["rev-parse", "skilliton-release/1.0.0"]).stdout.trim();
+  assert.notEqual(now, was, "the fixture must actually move the tag, or this proves nothing");
+
+  const moved = expectCode(cli(box, ["pin", "--latest", "--repo", repo, "--apply"]), 2, "a moved tag");
+  assert.match(moved.all, /A release tag is made once and never moves/, moved.all);
+  assert.match(moved.all, new RegExp(`skilliton-release/1\\.0\\.0 was the tag object ${was.slice(0, 12)} .* and is now ${now.slice(0, 12)}`), moved.all);
+  assert.equal(headOf(box, repo), parked, "a refusal must leave the clone where it was");
+  assert.equal(pinRecord(repo).seen["1.0.0"], was, "a refusal must not rewrite the record it refused on");
+
+  // A release tag that has been deleted counts the same way: the clone no longer holds what it was pinned against.
+  git(box, repo, ["tag", "-d", "skilliton-release/1.0.0"]);
+  const gone = expectCode(cli(box, ["pin", "--latest", "--repo", repo, "--apply"]), 2, "a deleted tag");
+  assert.match(gone.all, /skilliton-release\/1\.0\.0 was in this clone when it was pinned .* and is now gone/, gone.all);
+});
+
+boxed("pin: a changed file that git tracks is refused, because the clone would not then hold the release", (box) => {
+  const { repo } = signedRelease(box);
+  const before = headOf(box, repo);
+  appendFileSync(join(repo, "scripts", "scrub-check.sh"), "\n# a local change\n");
+  const r = expectCode(cli(box, ["pin", "--release", "1.0.0", "--repo", repo, "--apply"]), 2, "a changed tracked file");
+  assert.match(r.all, /has 1 changed file\(s\) that git tracks/, r.all);
+  assert.equal(headOf(box, repo), before);
+
+  // An untracked file is reported and not refused: no manifest names it, so it cannot change what a signed file does.
+  git(box, repo, ["checkout", "--", "scripts/scrub-check.sh"]);
+  writeFileSync(join(repo, "notes-of-my-own.txt"), "mine\n");
+  const ok = expectCode(cli(box, ["pin", "--release", "1.0.0", "--repo", repo, "--apply"]), 0, "an untracked file");
+  assert.match(ok.out, /note: 1 untracked file\(s\)/, ok.all);
+});
+
+boxed("pin: update moves between signed tags only, and never to a branch, a commit or an unapproved release", (box) => {
+  const { repo } = signedRelease(box);
+  const first = git(box, repo, ["rev-list", "-n", "1", "skilliton-release/1.0.0^{commit}"]).stdout.trim();
+  const second = addSignedRelease(box, repo, "2.0.0");
+  expectCode(cli(box, ["pin", "--release", "1.0.0", "--repo", repo, "--apply"]), 0, "pin the older release");
+  assert.equal(headOf(box, repo), first);
+
+  const up = expectCode(cli(box, ["pin", "--release", "2.0.0", "--repo", repo, "--apply"]), 0, "move up a release");
+  assert.match(up.out, /will move from release 1\.0\.0 to 2\.0\.0/, up.all);
+  assert.equal(headOf(box, repo), second, "the clone must be at the newer release");
+  assert.equal(pinRecord(repo).version, "2.0.0");
+
+  const back = expectCode(cli(box, ["pin", "--release", "1.0.0", "--repo", repo, "--apply"]), 0, "move back down");
+  assert.equal(headOf(box, repo), first, "moving back to an earlier signed release is allowed");
+  assert.match(back.out, /will move from release 2\.0\.0 to 1\.0\.0/, back.all);
+  expectCode(cli(box, ["pin", "--latest", "--repo", repo, "--apply"]), 0, "--latest");
+  assert.equal(headOf(box, repo), second);
+  expectCode(cli(box, ["pin", "--release", "2.0.0", "--repo", repo, "--apply"]), 0, "already there");
+  assert.equal(headOf(box, repo), second);
+
+  // The only thing --release takes is a version, so there is no spelling of a branch or a commit that moves a clone.
+  for (const [ref, what] of [["main", "a branch"], [first.slice(0, 12), "a commit"], ["skilliton-release/1.0.0", "a tag name"], ["1.0", "a two-part version"]]) {
+    const r = expectCode(cli(box, ["pin", "--release", ref, "--repo", repo, "--apply"]), 2, what);
+    assert.match(r.all, /is not a plain MAJOR\.MINOR\.PATCH version/, `${what}: ${r.all}`);
+    assert.match(r.all, /takes no branch, no commit and no other ref/, `${what}: ${r.all}`);
+  }
+  expectCode(cli(box, ["pin", "--release", "9.9.9", "--repo", repo, "--apply"]), 2, "a version the clone does not know");
+  const bare = expectCode(cli(box, ["pin", "--repo", repo, "--apply"]), 2, "--apply with no release named");
+  assert.match(bare.all, /--apply needs to know which release to move to/, bare.all);
+  assert.equal(headOf(box, repo), second, "none of the refusals may move the clone");
+
+  const withdrawn = expectCode(cli(box, ["release", "withdraw", "1.0.0", "--reason", "it shipped a broken hook", "--repo", repo, "--apply"]), 0, "withdraw 1.0.0");
+  assert.ok(withdrawn.code === 0);
+  const r = expectCode(cli(box, ["pin", "--release", "1.0.0", "--repo", repo, "--apply"]), 2, "a withdrawn release");
+  assert.match(r.all, /release 1\.0\.0 is not approved: it was withdrawn \(it shipped a broken hook\)/, r.all);
+  assert.equal(headOf(box, repo), second);
+});
+
+boxed("join: the install path refuses an unsigned or moved release before it touches a client", (box) => {
+  const { repo, signers } = signedRelease(box);
+  const joinArgs = ["join", "--company", "acme", "--signers", signers, "--repo", repo, "--apply"];
+
+  unsignedReleaseTag(box, repo, "2.0.0");
+  const unsigned = expectCode(cli(box, joinArgs), 2, "join with an unsigned newest release");
+  assert.match(unsigned.all, /the newest release .* knows, 2\.0\.0, is not approved: it has no signature/, unsigned.all);
+  assert.equal(existsSync(join(box.root, "claude", "plugins")), false, "the refusal must come before any client is touched");
+
+  git(box, repo, ["tag", "-d", "skilliton-release/2.0.0"]);
+  expectCode(cli(box, ["pin", "--latest", "--repo", repo, "--apply"]), 0, "pin so there is a record to move under");
+  const was = pinRecord(repo).seen["1.0.0"];
+  git(box, repo, ["tag", "-d", "skilliton-release/1.0.0"]);
+  git(box, repo, ["tag", "-s", "skilliton-release/1.0.0", "HEAD", "-m", "skilliton release 1.0.0", "-m", `manifest-sha256: ${"0".repeat(64)}`]);
+  assert.notEqual(git(box, repo, ["rev-parse", "skilliton-release/1.0.0"]).stdout.trim(), was);
+  const moved = expectCode(cli(box, joinArgs), 2, "join with a moved release tag");
+  assert.match(moved.all, /A release tag is made once and never moves/, moved.all);
+});
+
 // ================================================================ mutation checks
 
 function mutantRuntime(box, file, from, to) {

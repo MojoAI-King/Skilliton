@@ -3,6 +3,7 @@
 
 import { Refused, backupFile, newStamp, parseArgs, refuse, resolveSkillsRepo, say, selfCommand, tilde } from "../lib/core.mjs";
 import { applyJoin, applyUndo, planJoin, planUndo } from "../lib/join.mjs";
+import { applyPin, pinLine, planPin, readPinState } from "../lib/pin.mjs";
 import { reportLines, runPreflight } from "../lib/preflight.mjs";
 import { planTrustAdd, writeTrustFile } from "../lib/trust.mjs";
 import { runVerify } from "../lib/verify.mjs";
@@ -10,11 +11,22 @@ import { runVerify } from "../lib/verify.mjs";
 export const help = `join: set up this machine for a company's Skilliton, then verify it.
 
   join --company <name> --signers <allowed_signers file> [--client all|claude-code|codex] [--marketplace <owner>/<repo>|<folder>]
-       [--plugins <a,b>] [--bin-dir <folder> | --no-launcher] [--claude <path>] [--codex <path>] [--repo <clone>] [--apply]
+       [--plugins <a,b>] [--bin-dir <folder> | --no-launcher] [--release <x.y.z> | --no-pin] [--claude <path>] [--codex <path>]
+       [--repo <clone>] [--apply]
   join --undo --company <name> [--claude <path>] [--codex <path>] [--apply]
 
 Run it from a full clone of the company skills repository:
   git clone https://github.com/<owner>/<repo> && node <repo>/scripts/skilliton.mjs join --company <name> --signers <file>
+
+First it pins the clone to a signed release: the newest approved one, or the one --release names. A release is
+approved when its tag skilliton-release/<x.y.z> carries an SSH signature that verifies against the signers file
+--signers gives, its signed message names the manifest, and that manifest is the one at the commit the tag points
+at. An unsigned tag, a withdrawn one, a tag whose signature does not verify, and a release tag that has moved since
+this clone was last pinned are each refused before anything is written; so is a newest release that is not approved,
+rather than quietly installing an older one. A clone with no release tags at all is joined unpinned, with a note.
+--no-pin joins from the clone as it stands and says so. What is pinned is the clone: the runtime the skilliton
+command runs, and the catalog and manifest verify checks against; a client downloads a plugin from the marketplace
+itself and takes no tag when it does, which is why join ends with verify. skilliton pin moves it later.
 
 For each coding client found (Claude Code, Codex; --client picks one) join adds the company marketplace and installs
 the plugins the team settings template enables (--plugins overrides; workflow is required; verify expects every
@@ -42,8 +54,8 @@ plugin not VERIFIED, the launcher was not written, or undo kept something that c
 
 export async function run(argv) {
   const o = parseArgs(argv, {
-    flags: ["apply", "undo", "no-launcher"],
-    options: ["company", "signers", "client", "marketplace", "plugins", "bin-dir", "claude", "codex", "repo"],
+    flags: ["apply", "undo", "no-launcher", "no-pin"],
+    options: ["company", "signers", "client", "marketplace", "plugins", "bin-dir", "release", "claude", "codex", "repo"],
   }, "join");
   if (o._.length) refuse(`join takes no plain arguments (got "${o._[0]}"); see: ${selfCommand()} join --help`);
   if (o.company === undefined) refuse("join needs --company <name>, the company's short name");
@@ -53,17 +65,26 @@ export async function run(argv) {
 async function join(o) {
   if (o.signers === undefined) refuse("join needs --signers <allowed_signers file>, the release signers file your company gives you");
   if (o["bin-dir"] !== undefined && o["no-launcher"]) refuse("pass --bin-dir or --no-launcher, not both");
+  if (o.release !== undefined && o["no-pin"]) refuse("pass --release or --no-pin, not both");
   const repo = resolveSkillsRepo(o.repo);
   const trustPlan = planTrustAdd(o.company, o.signers);
-  const plan = planJoin({
+  // The pin is decided before anything is written, against the signers file this command is about to trust, so a
+  // first join on a machine that trusts nothing yet can still refuse an unsigned or moved release tag.
+  const pinState = o["no-pin"] ? null : readPinState(repo, { company: o.company, trustPath: trustPlan.source });
+  const pinPlan = pinState && (pinState.versions.length || o.release !== undefined) ? planPin(pinState, { version: o.release }) : null;
+  const planArgs = () => planJoin({
     repo, company: o.company, client: o.client, marketplace: o.marketplace, plugins: o.plugins,
     binDir: o["bin-dir"], noLauncher: o["no-launcher"], claude: o.claude, codex: o.codex, trustPlan,
     platform: process.env.SKILLITON_PLATFORM || process.platform,
   });
+  let plan = planArgs();
 
   say(`skilliton join${o.apply ? "" : " (preview; nothing is set up)"}`);
   say(`company: ${plan.company}`);
   say(`skills repository: ${tilde(plan.repo)} (commit ${plan.clone.head ?? "unknown"}, ${plan.clone.releaseTags} release tag(s))`);
+  say(pinPlan ? pinLine(pinState, pinPlan)
+    : o["no-pin"] ? "release: not pinned (--no-pin); the clone is joined as it stands, so what the skilliton command runs is whatever this clone holds"
+    : "release: not pinned; this clone has no release tags yet");
   say(`marketplace: ${plan.market.name} from ${plan.market.source.kind === "github" ? `GitHub ${plan.market.source.location}` : `folder ${tilde(plan.market.source.location)}`}`);
   say(`plugins: ${plan.plugins.join(", ")}`);
   say("");
@@ -108,11 +129,33 @@ async function join(o) {
   if (!plan.clone.releaseTags) say(`note: ${tilde(plan.repo)} has no release tags yet, so verify will not find an approved release until your company signs one and you fetch its tags (git -C ${tilde(plan.repo)} fetch --tags).`);
   say("");
 
+  const moving = pinPlan?.action === "checkout";
   if (!o.apply) {
-    say(work.length ? `${work.length} change(s) to make, then verify for ${plan.clients.map((c) => c.driver.label).join(" and ")}. Next: run the same command with --apply.` : "Everything is already in place; --apply only runs verify.");
+    if (moving) say("The steps above were read from the clone as it stands; --apply moves it to the release first, then reads them again.");
+    say(work.length || moving ? `${work.length} change(s) to make${moving ? ", after the move" : ""}, then verify for ${plan.clients.map((c) => c.driver.label).join(" and ")}. Next: run the same command with --apply.` : "Everything is already in place; --apply only runs verify.");
     return 0;
   }
-  if (work.length) {
+
+  // The clone moves before anything reads it again: the catalog, the team template and the runtime the launcher
+  // points at all come from the working tree, so the plan is only true of the tree it was read from.
+  if (pinPlan && pinPlan.action !== "already") {
+    const pinned = applyPin(pinState, pinPlan, { say });
+    if (pinned.failed) {
+      say("");
+      say(`FAILED: ${pinned.failed}`);
+      say("Nothing else was changed; fix the cause and run join again.");
+      return 3;
+    }
+    if (moving) {
+      const after = planArgs();
+      if (after.plugins.join(",") !== plan.plugins.join(",") || after.market.name !== plan.market.name) {
+        say(`  note: release ${pinPlan.version} names marketplace ${after.market.name} with ${after.plugins.join(", ")}, which is not what the preview above read before the move.`);
+      }
+      plan = after;
+    }
+  }
+
+  if (pending(plan)) {
     const result = applyJoin(plan, { say, writeTrust: writeTrustFile });
     if (result.failed) {
       say("");
@@ -146,11 +189,19 @@ async function join(o) {
   return allVerified && launcherOk ? 0 : 1;
 }
 
+// Whether a plan still has anything to write. work[] counts the same things while the preview prints them, but a
+// plan read again after the clone moves has no printed preview to count.
+const pending = (p) => !p.trust.present
+  || p.clients.some((c) => c.createHome || c.addMarketplace || c.installs.some((i) => !i.present))
+  || p.launcher.action === "write" || p.launcher.cmd?.action === "write";
+
 function undo(o) {
-  for (const option of ["signers", "client", "marketplace", "plugins", "bin-dir", "repo"]) {
+  for (const option of ["signers", "client", "marketplace", "plugins", "bin-dir", "release", "repo"]) {
     if (o[option] !== undefined) refuse(`join --undo takes no --${option}: it removes what the receipt records`);
   }
-  if (o["no-launcher"]) refuse("join --undo takes no --no-launcher: it removes what the receipt records");
+  for (const flag of ["no-launcher", "no-pin"]) {
+    if (o[flag]) refuse(`join --undo takes no --${flag}: it removes what the receipt records`);
+  }
   const plan = planUndo({ company: o.company, claude: o.claude, codex: o.codex });
 
   say(`skilliton join --undo${o.apply ? "" : " (preview; nothing written)"}`);

@@ -314,4 +314,5 @@ Decision entries in `docs/decisions/`, sorted by ID. `skilliton index` writes th
 | [2026-09-20-the-rolling-archives-stay-beside-their-l-8264](docs/decisions/2026-09-20-the-rolling-archives-stay-beside-their-l-8264.md) | The rolling archives stay beside their living file; docs/archive is for superseded documents | accepted | 2026-09-20 |
 | [2026-09-20-what-cursor-reads-and-what-a-skilliton-a-006f](docs/decisions/2026-09-20-what-cursor-reads-and-what-a-skilliton-a-006f.md) | What Cursor reads, and what a Skilliton adapter would have to write | accepted | 2026-09-20 |
 | [2026-09-21-one-of-four-cleanup-skills-ships-because-879a](docs/decisions/2026-09-21-one-of-four-cleanup-skills-ships-because-879a.md) | One of four cleanup skills ships, because only one beat its own baseline | accepted | 2026-09-21 |
+| [2026-09-21-pinning-pins-the-clone-because-a-client-2fa4](docs/decisions/2026-09-21-pinning-pins-the-clone-because-a-client-2fa4.md) | Pinning pins the clone, because a client's plugin download cannot be pinned | accepted | 2026-09-21 |
 <!-- skilliton:index:decisions:end -->

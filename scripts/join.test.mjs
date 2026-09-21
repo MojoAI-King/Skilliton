@@ -540,3 +540,19 @@ test("verify validates the company name before reading a receipt", (t) => {
   assert.match(r.all, /--company "\.\.\/notes" is not allowed/);
   assert.doesNotMatch(r.all, /private text/);
 });
+
+test("a clone with no release tags joins unpinned, --no-pin says so, and the two cannot be asked for together", (t) => {
+  const ctx = fixture(t, { clients: ["claude"] });
+  const applied = sg(ctx, [...joinArgs(ctx), "--apply"]);
+  assert.equal(applied.code, 1, `verify cannot approve without a signed release: ${applied.all}`);
+  assert.match(applied.out, /release: not pinned; this clone has no release tags yet/);
+  assert.equal(existsSync(join(ctx.repo, ".git", "skilliton-pin.json")), false, "there is nothing to pin to, so nothing is recorded");
+
+  const declined = sg(ctx, [...joinArgs(ctx), "--no-pin"]);
+  assert.equal(declined.code, 0, declined.all);
+  assert.match(declined.out, /release: not pinned \(--no-pin\); the clone is joined as it stands/);
+
+  const both = sg(ctx, [...joinArgs(ctx), "--no-pin", "--release", "1.0.0", "--apply"]);
+  assert.equal(both.code, 2, both.all);
+  assert.match(both.all, /pass --release or --no-pin, not both/);
+});
