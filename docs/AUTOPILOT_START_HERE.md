@@ -8,7 +8,7 @@ Everything needed to continue the build is in this repository: the direction, th
 
 1. [PLAN.md](../PLAN.md): the product, scope, and section 7's milestone table with what is proved.
 2. [HANDOFF.md](HANDOFF.md): current state and next actions.
-3. [REPORT_CARD.md](REPORT_CARD.md): the ten areas the owner grades against, the bars, the grade history and the waves; each area's batches are under [areas/](areas/).
+3. [REPORT_CARD.md](REPORT_CARD.md): the ten areas the owner grades against, the bars, the grade history and the waves; each area's batches are under [areas/](areas/). Everything only the owner can do is collected, in order, in [OWNER_WALKTHROUGH.md](OWNER_WALKTHROUGH.md); a session plans no work from it.
 4. [CONTRACTS.md](CONTRACTS.md): every shared format, command and exit code as implemented.
 5. [DECISIONS.md](../DECISIONS.md) and [LESSONS.md](LESSONS.md): choices, open items and failures to avoid.
 6. [CLIENTS.md](CLIENTS.md): what Claude Code and Codex actually do, measured or documented.
