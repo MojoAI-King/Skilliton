@@ -481,6 +481,15 @@ if [ "$RC" -eq 0 ] && [ -z "$OUT" ]; then ok "empty stdin -> allow, exit 0"; els
 OUT=$(printf '{"cwd":"%s","tool_name":"Bash","tool_input":{}}' "$R" | env CLAUDE_PROJECT_DIR="$R" "$HOOK" 2>/dev/null); RC=$?
 if [ "$RC" -eq 0 ] && [ -z "$OUT" ]; then ok "no tool_input.command -> allow, exit 0"; else bad "no tool_input.command -> exit $RC, output: $OUT"; fi
 
+# ---------------------------------------------------------------- shell strings the hook cannot read (B51, 2026-09-21)
+section "a string handed to a shell or eval that names git asks; one that does not, allows"
+expect "a shell string naming git asks: bash -c" ask "$R" "bash -c 'git push -f origin main'"
+expect "a shell string naming git asks: sh -c"   ask "$R" 'sh -c "git push --force origin main"'
+expect "a shell string naming git asks: eval"    ask "$R" "eval 'git push -f origin main'"
+reason_has "the ask says the hook cannot read inside the string" "cannot read inside such a string"
+expect "a shell string naming git asks: xargs"   ask "$R" "echo main | xargs -I{} git push -f origin {}"
+expect "a shell string without git allows"       allow "$R" "bash -c 'echo hi'"
+
 # ---------------------------------------------------------------- settings
 section "settings: .skilliton/config.json"
 write_config '{"guardrails":{"blockForcePush":false}}'

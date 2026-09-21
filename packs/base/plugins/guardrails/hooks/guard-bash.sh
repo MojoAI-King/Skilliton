@@ -25,7 +25,8 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #   quotes and backslashes, skips heredoc bodies, drops redirections, and follows cd, pushd,
 #   and git -C. It is not a shell parser: it does not expand variables, globs, aliases, or
 #   functions, and it does not look inside scripts, bash -c strings, eval, xargs, command
-#   substitution inside double quotes, or git aliases. It stops ordinary and accidental
+#   substitution inside double quotes, or git aliases; a shell, eval or xargs string that
+#   names git asks instead of allowing in silence. It stops ordinary and accidental
 #   commands, not a command someone has deliberately hidden.
 #
 # Settings: the "guardrails" section of .skilliton/config.json in the project directory
@@ -423,8 +424,18 @@ analyze_segment() {
   case "${SEGW[$k]}" in
     cd|pushd) track_cd $((k + 1)) ;;
     git|*/git) analyze_git $((k + 1)) ;;
+    sh|bash|zsh|dash|ksh|eval|xargs|*/sh|*/bash|*/zsh|*/dash|*/ksh|*/xargs) analyze_shell_string $((k + 1)) ;;
   esac
   return 0
+}
+
+analyze_shell_string() { # analyze_shell_string <index after the shell or eval word>: a string this hook cannot read
+  # The words after a shell or eval are a program this hook does not parse. When they name git, the honest answer is
+  # to ask: the earlier behaviour was to allow with no output, which read as "checked" (security walkthrough, 2026-09-21).
+  local k=$1 n=${#SEGW[@]} rest=""
+  while [ "$k" -lt "$n" ]; do rest="$rest ${SEGW[$k]}"; k=$((k + 1)); done
+  mentions_git "$rest" || return 0
+  ask "Check first: this command hands a string that names git to a shell or to eval, and guardrails cannot read inside such a string. Read it yourself and confirm only if it is what you intend; to have it checked, run the git command directly instead."
 }
 
 track_cd() { # track_cd <index of the first argument>

@@ -39,4 +39,4 @@ These throw away work that was never committed: `git reset --hard`, `git clean -
 
 ## Limits
 
-It reads the command text. It follows `&&`, `;`, pipes, `cd`, and `git -C`, and ignores text inside quotes and heredocs. It does not see inside scripts, `bash -c`, `eval`, or git aliases, and it does not cover `git push --delete`. Files over 10 MB are checked by name only. If `jq`, `node`, and `python3` are all missing, every git command asks for confirmation (in Codex, is blocked) instead of being checked.
+It reads the command text. It follows `&&`, `;`, pipes, `cd`, and `git -C`, and ignores text inside quotes and heredocs. It does not see inside scripts, git aliases, or a string handed to a shell (`bash -c`, `sh -c`), `eval` or `xargs`; when such a string names git it asks for confirmation instead of allowing in silence (guardrails 0.5.2). It does not cover `git push --delete`. Files over 10 MB are checked by name only. If `jq`, `node`, and `python3` are all missing, every git command asks for confirmation (in Codex, is blocked) instead of being checked.
