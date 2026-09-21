@@ -4,15 +4,29 @@ Kind: Living.
 
 ## RESUME HERE
 
-Written: 2026-09-21 00:20 EDT
+Written: 2026-09-21 07:26 EDT
 
+- **State:** Wave 8 is shipped and the build phase is over: main at 7779d50 plus this maintain commit, report card 81 of 123, every remaining batch owner-gated. Evidence: CI runs 35590884701, 35591036358 and 35591331918 each 63 of 63 steps read individually; 19 local gates each with its status read from the gate itself after a known-failing command proved the runner reports FAIL; scrub-check over the tree and over history exit 0; the whole-tree audit 0 findings over 544 files with 45 allowed lines.
+- **Next:** The owner pass, in the order docs/OWNER_WALKTHROUGH.md sets; no session-doable work is left outside that list except the open backlog rows B37 to B49
+- **Blocked:** Nothing on a session. Every open batch needs the owner: a live session filed as evidence, a clean macOS account, a Windows machine, a signing key, a hosted repository, a real participant, or the fifteen applicability decisions
+- **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt. B49 is an unexplained exit 2 from allowlist.test.mjs seen once and not reproduced; keep every batch gate run's full output in a file, because that one was filtered through grep and its message is gone. Two numbers written on 2026-09-21 were never measured and had to be corrected: the CI step total said 60 and is 63, and three plugin versions were set from memory
+- **Git:** main @ 7779d50, 5 uncommitted
+
+## Earlier
+
+### 2026-09-21 07:09 EDT
+- **State:** Wave 8 is shipped and the build phase is over: main at 7779d50, report card 81 of 123, every remaining batch owner-gated. Evidence: CI runs 35590884701, 35591036358 and 35591331918 each 63 of 63 steps read individually; 19 local gates each with its status read from the gate itself after a known-failing command proved the runner reports FAIL; scrub-check over the tree and over history exit 0; the whole-tree audit 0 findings over 544 files with 45 allowed lines.
+- **Next:** The owner pass, in the order docs/OWNER_WALKTHROUGH.md sets; no session-doable work is left outside that list except the open backlog rows B37 to B48
+- **Blocked:** Nothing on a session. Every open batch needs the owner: a live session filed as evidence, a clean macOS account, a Windows machine, a signing key, a hosted repository, a real participant, or the fifteen applicability decisions
+- **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt. Two numbers written on 2026-09-21 were never measured and had to be corrected in follow-up commits: the CI step total said 60 and is 63, and three plugin versions were set from memory; read a total from the run and a version from its plugin.json
+- **Git:** main @ 7779d50, 0 uncommitted
+
+### 2026-09-21 00:20 EDT
 - **State:** Wave 7 is on main at 51c38e5 and green: the audit that runs itself in three places, the supported client rule, skilliton usage, and the Codex and Cursor decisions, then this maintenance pass on top of them. Evidence: CI 35559200451 on f1a878a and 35560317702 on 51c38e5, both success, all 61 steps read one by one; the audit over the 47 files the wave changed reports 0 findings with 6 allowed lines, and over all 475 files this repository has ever changed 41 findings, every one a rule's own pattern or a planted fixture (B45); records gates each its own step, backlog, living-docs --check, docs, report-card --check, names all exit 0; scrub-check PASS on the tree and over 138 commits.
 - **Next:** Wave 8, the last build wave: 06-03's cleanup skills first, then the authorized eval run, and B45's allow markers. Then the owner pass
 - **Blocked:** The owner pass list in docs/REPORT_CARD.md: interactive checklist, maintain minutes, the live unprepared session, the Windows run, B7 decisions, signing key, hosted repository approval, M5 participant, Codex login. Any cost statement (PLAN.md sections 6 and 8)
 - **Watch out:** A repository with a delivery policy would now reject a push touching scripts/guardrails.test.sh, guard-bash.sh or scripts/preflight.test.mjs, because the audit reads their own patterns as findings; B45 marks those lines and nothing here is gated meanwhile (B43). The parallel session still owns task/promo-anatomy in ~/Desktop/Skilliton-promo: do not clean that worktree or merge that branch
 - **Git:** main @ 51c38e5, 3 uncommitted
-
-## Earlier
 
 ### 2026-09-20 17:14 EDT
 - **State:** Wave 6 is on main at c8bd045 and green; this maintenance pass added the gate list finding as a lesson and B43. Evidence: Every index current before the pass; docs, living-docs --check and backlog all exit 0 after it; the 42 scripts named in docs/MAINTAIN.md step 2 and in checks.yml were extracted and compared, and they match.
@@ -34,17 +48,3 @@ Written: 2026-09-21 00:20 EDT
 - **Blocked:** Owner pass at the end (docs/REPORT_CARD.md): interactive checklist, maintain minutes (01-02 item 5, 05-05), the live unprepared session (02-01 item 5), Windows run including skilliton.cmd, B7 decisions, signing key, hosted repository approval, M5 participant, Codex login. Any cost statement (PLAN.md sections 6 and 8)
 - **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt
 - **Git:** main @ e8dde88, 11 uncommitted
-
-### 2026-09-20 13:33 EDT
-- **State:** Wave 5 is published as e8dde88: the dispatch loop is closed (each lane's task record committed by dispatch, a runnable launch line in every brief, a guardrails hook refusing a lane's writes to the integration branch's paths, and skilliton dispatch merge with three classes and exit 1 on any warning), the meter reports peak_context, and lib/core.mjs is split behind a dependency-free lint with a 600 line ceiling that ratchets. Evidence: The full offline suite 46 of 46 on the final tree, each gate its own step with its exit status on its own line; CI run 35526014298 all 56 steps success; scrub-check PASS on the tree and over 129 commits; ten acceptance items ticked so the report card reads 55 of 123, area 06 at 6 of 10, area 07 at 8 of 12; two mutations per new assertion, one of which caught a launch-line assertion that could never fail.
-- **Next:** Wave 6 from docs/REPORT_CARD.md. Carried: B38 the first real dispatch measured (owner pass), B39 a formatter or a decision that there is none, B37 the two OperationFailed classes, and 04-01 item 5 measuring a 600000 window through the meter
-- **Blocked:** Owner pass at the end (docs/REPORT_CARD.md): interactive checklist, maintain minutes (01-02 item 5, 05-05), the live unprepared session (02-01 item 5), Windows run including skilliton.cmd, B7 decisions, signing key, hosted repository approval, M5 participant, Codex login. Any cost statement (PLAN.md sections 6 and 8)
-- **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt
-- **Git:** main @ e8dde88, 3 uncommitted
-
-### 2026-09-20 02:32 EDT
-- **State:** Wave 4 and the handoff freshness repair are published and green, and this session's maintenance is closed: two lesson entries (32a5 the minute-granularity timestamp compared against file times, 5d82 a loop that ran six checks as one-word commands and reported six PASS with none started), the stale-claims sweep and the open items reconciled with no change needed, and the two cross-project files outside this repository sharpened rather than duplicated. Evidence: CI 35492630614 on 2e5aaa3 and 35492905976 on c668317, both success with all 54 steps read one by one; scrub-check PASS on the tree and over 122 commits of history; skilliton index reports every index current; living-docs --check current; docs.test exit 0; the zsh word-splitting claim in lesson 5d82 was measured on this machine, not recalled.
-- **Next:** Wave 5 from docs/REPORT_CARD.md, in plan mode, reading the batch files under docs/areas/ first
-- **Blocked:** Owner pass at the end (docs/REPORT_CARD.md): interactive checklist, maintain minutes (01-02 item 5, 05-05), the live unprepared session (02-01 item 5), Windows run including skilliton.cmd, B7 decisions, signing key, hosted repository approval, M5 participant, Codex login. Any cost statement (PLAN.md sections 6 and 8)
-- **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt
-- **Git:** main @ 8bc9211, 1 uncommitted
