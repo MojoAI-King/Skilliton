@@ -53,7 +53,7 @@ Fork the repository on GitHub, or clone it into a private repository. This is wh
 ```text
 your-skills-repository/
   .claude-plugin/marketplace.json   the catalog people install from; its name is your marketplace
-  packs/base/plugins/               prepackaged: workflow, guardrails, context-hygiene (leave unchanged)
+  packs/base/plugins/               prepackaged: workflow, guardrails, context-hygiene, code-quality (leave unchanged)
   packs/<company>/plugins/          your own plugins and skills
   templates/project-settings.json   the settings every project of yours receives
   releases/                         release manifests; approval is a signed tag
@@ -83,6 +83,7 @@ Then keep, or leave out, what comes prepackaged:
 | **guardrails** | Blocks force-pushes to protected branches, skipped git hooks and commits that look like they hold a secret; asks before commands that throw away uncommitted work | A hook, **enforced** on Claude Code for the commands the assistant runs |
 | **context-hygiene** | A read guard that refuses a whole-file read of a non-image file over 50KB with the reason, a session-start checklist, and the rules for keeping the assistant's context small (ranges, batching, `skilliton gate` for checks, subagents) | The read guard is a hook, **enforced** on Claude Code for the Read tool; the rest is a skill, **instructed** |
 
+| **code-quality** | One skill, `split-a-file`: when a file has grown past what a person can hold in their head, it is split along the seams the code already has, and the behavior is proved unchanged afterwards | Instructed, on every client. It is the one of four cleanup skills whose eval case could tell a run with it from a run without it; the other three are recorded in [not-shipped.md](not-shipped.md) with their scores |
 Codex installs the same plugins and reads the instructions, but it does not run hooks that ship inside plugins (measured). On Codex, treat every enforced line as instructed unless your company configures Codex hooks itself. [CLIENTS.md](CLIENTS.md) has the details for each client.
 
 Proof: [the fork rehearsal](../evidence/rehearsals/2026-09-16-fork/SUMMARY.md) renames a fork, adds a company plugin with a skill, passes strict plugin validation, and installs and verifies all four plugins from the renamed marketplace on Claude Code and on Codex.
@@ -217,6 +218,7 @@ A proposal is not policy: it changes nothing until the company reviews it, tests
 | Working alongside company endpoint security (application allowlisting, endpoint detection, inspecting proxies) | [IT-ALLOWLIST.md](IT-ALLOWLIST.md) is read from the code and held to it by a test; `skilliton preflight` checks a laptop before setup and is proved against blocks made on purpose; **not tested under any product** | B29 in [BACKLOG.md](BACKLOG.md) |
 | Running on Windows | decided and built in theory (Git for Windows, one implementation of every hook); **no Windows machine has run anything** | [WINDOWS.md](WINDOWS.md), B30 |
 | Dispatching work into lane worktrees | the command, the briefs and every refusal are measured over fixture repositories; **no real dispatch has been run, no lane agent has been launched from a brief, and no lane report has been collected** | [COVERAGE.md](COVERAGE.md), the dispatch section |
+| A skills clone pinned to a signed release, and moved between releases | measured in tests: the move up, down and to the newest, and thirteen refusals including an unsigned tag, a tag re-made on another commit and a dirty clone. **A client's own plugin download cannot be pinned**: neither marketplace command takes a ref (measured 2026-09-21 on 2.1.276), and `verify` is what reports a mismatch | `scripts/release.test.mjs`; [the decision](decisions/2026-09-21-pinning-pins-the-clone-because-a-client-2fa4.md) |
 | Lifecycle hooks on Codex | not observed | [CLIENTS.md](CLIENTS.md) |
 | The GitHub delivery adapter on a hosted repository | documented, not proved | [DELIVERY.md](DELIVERY.md) |
 | A real new builder following these docs | not started (M5) | [protocol](rehearsals/NEW_BUILDER.md) |

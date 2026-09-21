@@ -2,6 +2,8 @@
 
 Kind: Living. Execution detail for PLAN.md v4, not a second roadmap. Updated 2026-09-16 after the integration.
 
+**There is no next integration to pick up.** Wave 8, on 2026-09-21, was the last build wave: every acceptance item still open in docs/REPORT_CARD.md needs an owner input, not code. A session arriving here should read [OWNER_WALKTHROUGH.md](OWNER_WALKTHROUGH.md) to see what those inputs are and plan no work from it. What is below stays as the record of how the M1 to M5 integration ran and what each milestone still leaves open.
+
 ## How the integration ran
 
 One integrating session (Claude Code) wrote integration contract v1, moved the runtime into the workflow plugin, and ran six lanes with fixed write sets and a verified base: prepare, security, lifecycle, release, delivery, and guardrails under Codex. Lanes merged one at a time; the full suite ran after every merge, and the seams it exposed were fixed on the combined tree (DECISIONS.md; docs/LESSONS.md). The prototype at `23aae41` was adapted in place; neither prototype branch was merged again.

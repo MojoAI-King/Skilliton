@@ -30,9 +30,17 @@ Double-quote the value: `description: "Check one item ... and return one verdict
 
 Then the check, in the shared `frontmatter(text, label)` reader in `scripts/packs.test.mjs`: any value that is not quoted and contains `": "` fails the test, with a message that says why ("YAML reads it as a nested mapping and the whole frontmatter is dropped; wrap the value in double quotes"). A scan of every shipped skill and agent found no other instance.
 
+## It recurred on 2026-09-21, in a file the check did not read
+
+Wave 8 wrote four eval cases for the code-quality skills. One of them, `a-test-that-cannot-fail`, never ran at all: the `description` in its `prompt.md` frontmatter carried an unquoted `": "`, the block was dropped, and the case was refused. Same field, same mechanism, one month-day later. Single-quoting it fixed it and the case then scored.
+
+The useful part is why the fix above did not stop it. That fix hardened the `frontmatter(text, label)` reader in `scripts/packs.test.mjs`, and that reader was only ever pointed at `SKILL.md` and the agent files. An eval case's `prompt.md` is the same kind of file with the same parser behind it, and nothing read it. The rule was written as "frontmatter values are quoted" and enforced over the two file types the session had in mind that day, so it was a rule about a list of paths wearing the clothes of a rule about YAML.
+
+The check now runs over every eval case's `prompt.md` as well, and the rule below is restated as a property of the file format rather than of a folder.
+
 ## The rule
 
-1. A frontmatter value containing a colon followed by a space is double-quoted. This holds for skills and agents alike, and descriptions are where it bites, because a description is the one field written as a sentence.
+1. Any unquoted YAML scalar containing a colon followed by a space is double-quoted, in every YAML this repository ships: skill and agent frontmatter, and eval case files. Descriptions and prompts are where it bites, because they are the fields written as sentences. Stating the rule as "frontmatter" is what let it recur on 2026-09-21 in a file type the check had never read.
 2. Run `claude plugin validate <plugin folder>` after changing any shipped frontmatter. Note that `--strict` is not a flag on every version; plain `validate` is. It is the only tool here that reads the file the way the client does.
 3. When a hand-rolled parser stands in for a real one in a test, it must be stricter than the real one, never more forgiving.
 

@@ -4,6 +4,10 @@ Kind: Reference. The current status is docs/STATUS.md.
 
 Superseded current-state paragraphs, newest first. Each is moved here unchanged when docs/STATUS.md gets a new one (docs/MAINTAIN.md step 6); `node scripts/living-docs.mjs --check` keeps the live paragraph under its byte limit.
 
+### 2026-09-21 (wave 8)
+
+Current state (2026-09-21, wave 7 built on main at f1a878a): the owner graded this repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, the owner pass at its end; 75 of 123 items ticked). Wave 7 built the audit that runs itself in all three places M10 named, with the merge gate as the one that refuses, the supported-client rule, `skilliton usage` over the meter, and the Codex and Cursor decisions. Measured 2026-09-21: the audit reports 0 findings over the 47 files the wave changed and 41 over the whole tree, every one a rule's own pattern or a planted fixture (B45). Next: wave 8, then the owner pass. Milestones: the table below. Open items: docs/BACKLOG.md and DECISIONS.md. Claims with evidence: docs/POSITIONING.md. Earlier: docs/STATUS_ARCHIVE.md.
+
 ### 2026-09-21 (wave 7)
 
 Current state (2026-09-20, wave 6 built on main at 6e072b7): the owner graded this repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, the owner pass at its end; 65 of 123 items ticked). Wave 6 was the four headless batches: each working routine named to the client event the hooks reference confirms, a UserPromptSubmit hook that suggests dispatch at six items, the Stop hook naming maintain when a batch has merged, one index reaching every document, and a dead code scan. Recorded and unexplained: no dispatch has run for real (B38), sessions compact nowhere near the 600000 the settings name (B36), and whether a plugin hook receives UserPromptSubmit is unverified (07-04 item 2). Next: wave 7. Milestones: the table below. Open items: docs/BACKLOG.md and DECISIONS.md. Claims with evidence: docs/POSITIONING.md. Earlier: docs/STATUS_ARCHIVE.md.
