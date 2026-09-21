@@ -1,0 +1,11 @@
+{
+  "name": "code-quality",
+  "description": "Optional cleanup skills, each one a way of changing code that is easy to get wrong and easy to claim. Splitting an oversized file without changing what it does, deleting code only once it is proved unreachable, proving a test can fail before trusting it green, and settling on one name for one concept everywhere it appears. Each skill ends in evidence a reader can check rather than a claim, and each one shipped here beat its own eval case run without it.",
+  "version": "0.1.0",
+  "author": {
+    "name": "MojoAI"
+  },
+  "homepage": "https://github.com/MojoAI-King/Skilliton",
+  "repository": "https://github.com/MojoAI-King/Skilliton",
+  "license": "MIT"
+}
