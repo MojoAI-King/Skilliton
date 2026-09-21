@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-21T21:59:22.511Z
+- **Updated:** 2026-09-21T22:06:03.366Z
 
 ## Request
 
@@ -69,9 +69,16 @@ not yet written
 - **Next:** Design the easier join and rollout flow from RELEASING, PHASE-3, IT-ALLOWLIST and company init; implement the cheapest real simplification; then the document
 - **Git:** main @ 98564c8, 0 uncommitted
 
+### 2026-09-21T22:06:03.366Z
+
+- **State:** Joining takes one file: company join-file writes skilliton.join/1 outside any working tree, join --from joins with it; the three-flag form stays. Decision entry written. The real mojoai join file exists at ~/handout/mojoai.skilliton-join.json on this Mac, made from the trust file that signed 0.9.0; where the company publishes it is still B53. Workflow plugin 0.15.5 at 441a5e3
+- **Evidence:** join.test 42 pass; lint, docs, records, scrub exit 0; company join-file preview then apply on this Mac, then join --from preview reads the file and reports the machine already joined
+- **Next:** Read CI for 441a5e3; write tonight's handoff; Tuesday: polish, the stats page and the owner document with the tech facts block first and the flow section (fork to Desktop, make it yours, add skills, roll out with the join file, or use as-is)
+- **Git:** main @ 441a5e3, 0 uncommitted
+
 ## Handoff
 
-- **State:** Behavior review done: 11 hooks x 3 inputs x 2 repos, 66 runs, every exit 0, no crash, every silence an allow; 29 commands bare and --help, nothing written without --apply, nothing silent, every --help exits 0. One low note: skilliton hook events swallow malformed input silently where guard-bash asks. Owner's new direction 2026-09-21 evening: joining must be much easier; the document leads with a tech facts block (language, stack, versions) and a flow section: fork to a Desktop folder, make it yours, add skills, roll it out to every company laptop, or use it as-is. Evidence: hook-matrix.out and cmd-matrix.out in the scratchpad; harness first failed with exit 127 on macOS timeout and was fixed before any row was believed.
-- **Next:** Design the easier join and rollout flow from RELEASING, PHASE-3, IT-ALLOWLIST and company init; implement the cheapest real simplification; then the document
+- **State:** Joining takes one file: company join-file writes skilliton.join/1 outside any working tree, join --from joins with it; the three-flag form stays. Decision entry written. The real mojoai join file exists at ~/handout/mojoai.skilliton-join.json on this Mac, made from the trust file that signed 0.9.0; where the company publishes it is still B53. Workflow plugin 0.15.5 at 441a5e3. Evidence: join.test 42 pass; lint, docs, records, scrub exit 0; company join-file preview then apply on this Mac, then join --from preview reads the file and reports the machine already joined.
+- **Next:** Read CI for 441a5e3; write tonight's handoff; Tuesday: polish, the stats page and the owner document with the tech facts block first and the flow section (fork to Desktop, make it yours, add skills, roll out with the join file, or use as-is)
 - **Blocked:** nothing
 - **Watch out:** nothing known

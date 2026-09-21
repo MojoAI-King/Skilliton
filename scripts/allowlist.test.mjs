@@ -179,6 +179,7 @@ export const OUTSIDE_A_REPOSITORY = [
   [`${WORKFLOW}/runtime/lib/legacy-names.mjs`, 'join(homedir(), ".config", OLD)', "the folder used before the rename, named in messages and never written"],
   [`${WORKFLOW}/runtime/lib/delivery.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-delivery-"))', "$TMPDIR/skilliton-delivery-*, removed when the gate finishes"],
   [`${WORKFLOW}/runtime/commands/propose.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-propose-"))', "$TMPDIR/skilliton-propose-*, removed when propose finishes"],
+  [`${WORKFLOW}/runtime/commands/join.mjs`, 'mkdtempSync(joinPath(tmpdir(), "skilliton-join-"))', "$TMPDIR/skilliton-join-*, the signers text from a join file held for the trust step and removed when join finishes"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, 'resolve(binDir ?? join(homedir(), ".local", "bin"))', "~/.local/bin, tested with a file the check removes again"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, "{ path: tmpdir(), what:", "the temporary folder, tested the same way"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-preflight-git-"))', "an empty folder in the temporary folder, so the reachability check reads no repository's configuration; removed again straight away"],
