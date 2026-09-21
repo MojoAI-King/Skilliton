@@ -31,6 +31,7 @@ Everything needed to continue the build is in this repository: the direction, th
 | Session cost | the meter [scripts/token-cost.mjs](../scripts/token-cost.mjs) and the frozen before-picture [USAGE_BASELINE.md](USAGE_BASELINE.md); PLAN.md sections 6 and 8 govern any number that leaves this repository |
 | Security catalog | `packs/base/plugins/workflow/catalogs/`, with the framework sources behind it, how each was verified and the terms they carry, in [security-catalog-sources.md](security-catalog-sources.md) |
 | What has and has not been exercised (platforms, versions, scale, signing setups, security-review cases) | [COVERAGE.md](COVERAGE.md) |
+| What was built, measured and then not shipped | [not-shipped.md](not-shipped.md): the three cleanup skills whose eval cases could not tell a run with them from a run without them, with the scores and where their text is kept |
 | Prototype history | [docs/archive/autopilot-foundation/](archive/autopilot-foundation/), [evidence/autopilot-foundation/](../evidence/autopilot-foundation/), and the byte-for-byte prototype copies in `scripts/fixtures/prototype-v1/` used to test the layout-1 migration |
 
 ## Boundaries that still hold

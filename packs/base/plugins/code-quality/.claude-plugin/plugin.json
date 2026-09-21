@@ -1,7 +1,7 @@
 {
   "name": "code-quality",
-  "description": "Optional cleanup skills, each one a way of changing code that is easy to get wrong and easy to claim. Splitting an oversized file without changing what it does, deleting code only once it is proved unreachable, proving a test can fail before trusting it green, and settling on one name for one concept everywhere it appears. Each skill ends in evidence a reader can check rather than a claim, and each one shipped here beat its own eval case run without it.",
-  "version": "0.1.1",
+  "description": "Splitting an oversized file without changing what it does: moving code rather than rewriting it, keeping every name and its callers, and ending in evidence a reader can check rather than a claim. Four cleanup skills were written for this pack and given an eval case each, run three times with the plugin and three times without it; this is the one whose runs beat their own baseline. The other three are recorded in docs/not-shipped with what was measured, because their cases could not tell the difference.",
+  "version": "0.2.0",
   "author": {
     "name": "MojoAI"
   },

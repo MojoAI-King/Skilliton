@@ -1,0 +1,1200 @@
+{
+  "kind": "skilliton eval evidence",
+  "schema": 1,
+  "commit": "1242dcbc915fcdc93a071a473a45abc21cf155b6",
+  "rawResultSha256": "91a14aa9963308d9a0b88b9ef9b896233897577a29a303f8fa78015b9ca848a2",
+  "rawResultNote": "The raw aggregate-result.json holds machine paths and model-written text, so it is kept on the machine that ran it and identified here by its hash.",
+  "claudeVersion": "2.1.276",
+  "startedAt": "2026-09-21T05:17:22.911Z",
+  "durationSeconds": 439,
+  "costUsdListPriceEstimate": 9.2868385,
+  "costNote": "List-price estimate reported by claude plugin eval for running the eval itself. Not plan usage, and not a savings figure.",
+  "partial": false,
+  "settings": {
+    "ablation": "with-without",
+    "threshold": 1,
+    "concurrency": 4
+  },
+  "plugins": [
+    {
+      "name": "code-quality",
+      "version": "0.1.0"
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 3,
+    "casesPassed": 1,
+    "overallScore": 0.9276895943562611,
+    "overallPassRate": 0.4444444444444444,
+    "meanDelta": 0.02821869488536155
+  },
+  "cases": [
+    {
+      "name": "dead-code-with-a-live-caller",
+      "runsPerCase": 3,
+      "maxTurns": 25,
+      "score": 0.8571428571428571,
+      "delta": 0.04761904761904767,
+      "arms": {
+        "with": [
+          {
+            "score": 0.8571428571428571,
+            "passed": false,
+            "turns": 20,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "channel-list-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-handler-kept",
+                "type": "file_exists",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "live-helper-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "searched-beyond-the-source",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "second-dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "unproven-named-as-unproven",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              }
+            ]
+          },
+          {
+            "score": 0.8571428571428571,
+            "passed": false,
+            "turns": 23,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "channel-list-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-handler-kept",
+                "type": "file_exists",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "live-helper-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "searched-beyond-the-source",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "second-dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "unproven-named-as-unproven",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              }
+            ]
+          },
+          {
+            "score": 0.8571428571428571,
+            "passed": false,
+            "turns": 16,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "channel-list-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-handler-kept",
+                "type": "file_exists",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "live-helper-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "searched-beyond-the-source",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "second-dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "unproven-named-as-unproven",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.7142857142857143,
+            "passed": false,
+            "turns": 7,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "channel-list-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-handler-kept",
+                "type": "file_exists",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "live-helper-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "searched-beyond-the-source",
+                "type": "llm",
+                "passed": false,
+                "scored": true,
+                "votes": [
+                  "FAIL",
+                  "FAIL",
+                  "FAIL"
+                ]
+              },
+              {
+                "name": "second-dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "unproven-named-as-unproven",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              }
+            ]
+          },
+          {
+            "score": 0.8571428571428571,
+            "passed": false,
+            "turns": 9,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "channel-list-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-handler-kept",
+                "type": "file_exists",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "live-helper-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "searched-beyond-the-source",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "second-dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "unproven-named-as-unproven",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              }
+            ]
+          },
+          {
+            "score": 0.8571428571428571,
+            "passed": false,
+            "turns": 9,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "channel-list-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-handler-kept",
+                "type": "file_exists",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "live-helper-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "searched-beyond-the-source",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "second-dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "unproven-named-as-unproven",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "one-concept-three-names",
+      "runsPerCase": 3,
+      "maxTurns": 25,
+      "score": 0.9259259259259259,
+      "delta": -0.07407407407407407,
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 29,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "boundary-explained",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "config-key-renamed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-name-gone-from-billing",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-name-gone-from-store",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-names-banned",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-checks",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "readme-updated",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "vendor-field-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "vendor-shape-unchanged",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.8888888888888888,
+            "passed": false,
+            "turns": 32,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "boundary-explained",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "config-key-renamed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-name-gone-from-billing",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-name-gone-from-store",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-names-banned",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "ran-the-checks",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "readme-updated",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "vendor-field-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "vendor-shape-unchanged",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.8888888888888888,
+            "passed": false,
+            "turns": 28,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "boundary-explained",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "config-key-renamed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-name-gone-from-billing",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-name-gone-from-store",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-names-banned",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-checks",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "readme-updated",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "vendor-field-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "vendor-shape-unchanged",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 27,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "boundary-explained",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "config-key-renamed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-name-gone-from-billing",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-name-gone-from-store",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-names-banned",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-checks",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "readme-updated",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "vendor-field-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "vendor-shape-unchanged",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 28,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "boundary-explained",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "config-key-renamed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-name-gone-from-billing",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-name-gone-from-store",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-names-banned",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-checks",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "readme-updated",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "vendor-field-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "vendor-shape-unchanged",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 25,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "boundary-explained",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "config-key-renamed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-name-gone-from-billing",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-name-gone-from-store",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "old-names-banned",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-checks",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "readme-updated",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "vendor-field-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "vendor-shape-unchanged",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "split-keeps-behavior",
+      "runsPerCase": 3,
+      "maxTurns": 25,
+      "score": 1,
+      "delta": 0.11111111111111105,
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 21,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "boundary-test-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "moved-not-rewritten",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "pin-not-raised",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-lint",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-tests",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-a-new-module",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 22,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "boundary-test-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "moved-not-rewritten",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "pin-not-raised",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-lint",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-tests",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-a-new-module",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 25,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "boundary-test-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "moved-not-rewritten",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "pin-not-raised",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-lint",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-tests",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "wrote-a-new-module",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.8333333333333334,
+            "passed": false,
+            "turns": 14,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "boundary-test-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "moved-not-rewritten",
+                "type": "llm",
+                "passed": false,
+                "scored": true,
+                "votes": [
+                  "FAIL",
+                  "FAIL",
+                  "FAIL"
+                ]
+              },
+              {
+                "name": "pin-not-raised",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-lint",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-tests",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "wrote-a-new-module",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 16,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "boundary-test-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "moved-not-rewritten",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "pin-not-raised",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-lint",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-tests",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "wrote-a-new-module",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.8333333333333334,
+            "passed": false,
+            "turns": 17,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "boundary-test-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "moved-not-rewritten",
+                "type": "llm",
+                "passed": false,
+                "scored": true,
+                "votes": [
+                  "FAIL",
+                  "FAIL",
+                  "FAIL"
+                ]
+              },
+              {
+                "name": "pin-not-raised",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-lint",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "ran-the-tests",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "wrote-a-new-module",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

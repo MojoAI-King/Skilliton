@@ -1,0 +1,430 @@
+{
+  "kind": "skilliton eval evidence",
+  "schema": 1,
+  "commit": "1242dcbc915fcdc93a071a473a45abc21cf155b6",
+  "rawResultSha256": "9c30624a8bc54b05b32475d2dd6ad251d65ff79f390caaa60929edc3180a9389",
+  "rawResultNote": "The raw aggregate-result.json holds machine paths and model-written text, so it is kept on the machine that ran it and identified here by its hash.",
+  "claudeVersion": "2.1.276",
+  "startedAt": "2026-09-21T05:37:48.530Z",
+  "durationSeconds": 124,
+  "costUsdListPriceEstimate": 2.4090860000000003,
+  "costNote": "List-price estimate reported by claude plugin eval for running the eval itself. Not plan usage, and not a savings figure.",
+  "partial": false,
+  "settings": {
+    "ablation": "with-without",
+    "threshold": 1,
+    "concurrency": 4
+  },
+  "plugins": [
+    {
+      "name": "code-quality",
+      "version": "0.1.0"
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 1,
+    "overallScore": 1,
+    "overallPassRate": 1,
+    "meanDelta": 0
+  },
+  "cases": [
+    {
+      "name": "dead-code-with-a-live-caller",
+      "runsPerCase": 3,
+      "maxTurns": 25,
+      "score": 1,
+      "delta": 0,
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 22,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "channel-list-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-handler-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-helper-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "searched-beyond-the-source",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "second-dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "unproven-named-as-unproven",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 21,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "channel-list-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-handler-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-helper-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "searched-beyond-the-source",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "second-dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "unproven-named-as-unproven",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 24,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "channel-list-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-handler-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-helper-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "searched-beyond-the-source",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "second-dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              },
+              {
+                "name": "unproven-named-as-unproven",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 18,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "channel-list-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-handler-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-helper-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "searched-beyond-the-source",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "second-dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "unproven-named-as-unproven",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 18,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "channel-list-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-handler-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-helper-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "searched-beyond-the-source",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "second-dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "unproven-named-as-unproven",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 9,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "channel-list-intact",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-handler-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "live-helper-kept",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "searched-beyond-the-source",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "second-dead-helper-removed",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "unproven-named-as-unproven",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
