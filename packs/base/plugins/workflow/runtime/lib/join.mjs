@@ -364,7 +364,7 @@ function planLauncher(company, repo, binDir, disabled, platform = process.platfo
 // A machine set up for this company before the rename has a receipt under the earlier name. Joining again would add a
 // second marketplace and launcher and record the first setup's changes as already present, so its undo could never
 // remove them. Only the release that wrote the receipt reads it, so it is named, not read.
-function refuseLegacySetup(company) {
+export function refuseLegacySetup(company) {
   const path = join(legacyJoinDir(), `${company}.json`);
   let present = false;
   try { lstatSync(path); present = true; } catch (e) { if (e.code !== "ENOENT" && e.code !== "ENOTDIR") throw e; }

@@ -2,10 +2,10 @@
 // and takes that setup back out with --undo. The engine is lib/join.mjs; the contract is docs/CONTRACTS.md section 13.
 
 import { Refused, backupFile, newStamp, parseArgs, refuse, resolveSkillsRepo, say, selfCommand, tilde } from "../lib/core.mjs";
-import { applyJoin, applyUndo, planJoin, planUndo } from "../lib/join.mjs";
+import { applyJoin, applyUndo, planJoin, planUndo, refuseLegacySetup } from "../lib/join.mjs";
 import { applyPin, pinLine, planPin, readPinState } from "../lib/pin.mjs";
 import { reportLines, runPreflight } from "../lib/preflight.mjs";
-import { planTrustAdd, writeTrustFile } from "../lib/trust.mjs";
+import { planTrustAdd, validateCompany, writeTrustFile } from "../lib/trust.mjs";
 import { runVerify } from "../lib/verify.mjs";
 
 export const help = `join: set up this machine for a company's Skilliton, then verify it.
@@ -68,6 +68,10 @@ async function join(o) {
   if (o.release !== undefined && o["no-pin"]) refuse("pass --release or --no-pin, not both");
   const repo = resolveSkillsRepo(o.repo);
   const trustPlan = planTrustAdd(o.company, o.signers);
+  // A receipt under the earlier name is about this machine, not the clone, and is judged first: the first signed
+  // release must not turn that refusal into one about the tag (seen the day 0.9.0 was signed, in rename.test.mjs).
+  validateCompany(o.company);
+  refuseLegacySetup(o.company);
   // The pin is decided before anything is written, against the signers file this command is about to trust, so a
   // first join on a machine that trusts nothing yet can still refuse an unsigned or moved release tag.
   const pinState = o["no-pin"] ? null : readPinState(repo, { company: o.company, trustPath: trustPlan.source });
