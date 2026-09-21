@@ -37,5 +37,7 @@ Read `docs/HANDOFF.md` for the next step and `docs/BACKLOG.md` for outstanding w
 <!-- skilliton:index:tasks:start -->
 Open tasks in `docs/tasks/` (every state except done-local, merged, released, verified and abandoned), sorted by ID. `skilliton index` writes this list from the task records; edit the task records, not the list.
 
-No open tasks.
+| ID | Title | State | Branch | Owner | Updated |
+|---|---|---|---|---|---|
+| [2026-09-21-wave-8-the-code-quality-pack-with-evals-ce25](tasks/2026-09-21-wave-8-the-code-quality-pack-with-evals-ce25.md) | Wave 8: the code-quality pack with evals, the audit's own allow markers, collectors in CI, pinned installs, and the owner walkthrough | in-progress | main | unassigned | 2026-09-21T05:01:35.178Z |
 <!-- skilliton:index:tasks:end -->
