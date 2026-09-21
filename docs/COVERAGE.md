@@ -10,7 +10,7 @@ Kind: Living. Where Skilliton has and has not actually been run: platforms, vers
 | Node.js | 25.8.1 locally and 22.23.2 in CI (every suite); 20.19.4 locally for the lifecycle tests only | 18, the floor that docs/ONBOARDING.md and `bin/skilliton` state | Run the suite on Node 18 in CI, or raise the stated floor to a version CI runs (docs/BACKLOG.md B11) |
 | Bash | 3.2.57 locally, 5.2.21 in CI | other shells | none planned |
 | Git | 2.51.1 locally, 2.55.0 in CI | older than 2.34, which release signing needs (releases/SCHEMA.md) | none planned |
-| Claude Code | 2.1.273: installs, updates, headless live sessions, evals | interactive sessions (O6, O7); other versions | docs/BACKLOG.md B5 |
+| Claude Code | 2.1.273 on this machine: installs, updates, headless live sessions, evals. 2.1.278 in CI, which is the client that runs strict plugin validation (run 35559200451, 2026-09-21) | interactive sessions (O6, O7); strict validation on 2.1.273, which has no `--strict` flag at all; other versions | docs/BACKLOG.md B5, B46 |
 | Codex CLI | 0.154.0-alpha.6.2: installs, verify, prompt input | lifecycle hooks in real sessions (O9) | docs/BACKLOG.md B2 |
 
 ## Scale
@@ -19,8 +19,13 @@ Kind: Living. Where Skilliton has and has not actually been run: platforms, vers
 
 ## Delivery gate
 
-- Exercised: pushes over the local file transport to a bare repository with the installed pre-receive hook (`scripts/delivery.test.mjs`, the demo), on macOS and in Linux CI.
+- Exercised: pushes over the local file transport to a bare repository with the installed pre-receive hook (`scripts/delivery.test.mjs`, the demo), on macOS and in Linux CI. Since 2026-09-20 the gate also audits the files each push changes and rejects a finding by name, with a signed policy able to turn it off.
 - Not exercised: SSH and HTTP transports; shared server accounts (`safe.directory`, file ownership); concurrent pushes; sha256 object-format repositories; submodules; file names that are not UTF-8; LFS or other content filters during archive verification; the GitHub adapter on a hosted repository (O15, docs/BACKLOG.md B4).
+
+## The self-running audit
+
+- Exercised: the six rules over planted flaws and clean look-alikes, each asserted at its exact line, with the matched text never printed (`scripts/audit.test.mjs`, and `--self-test` proving each check can fail); the merge gate rejecting a push whose changed files carry a finding and accepting the same line once it carries an allow marker (`scripts/delivery.test.mjs`); the Stop routine's sentence (`scripts/lifecycle.test.mjs`, with a mutation check that drops it); the pre-push hook installed in a fixture repository, with its refusals for a foreign hook and for `core.hooksPath`. Run against this repository on 2026-09-21: **0 findings over the 47 files wave 7 changed**, with 6 allowed lines carrying a reason, and **41 findings over all 475 files it has ever changed**, every one of them a rule's own pattern or a planted fixture (B45). That difference is the point of auditing a change rather than a tree.
+- Not exercised: any repository but this one and its fixtures; known scanners run only when installed, which is not built; the `security-audit` skill and the eval half of M10 (B17, wave 8); files in any language but the JavaScript, shell, JSON and Markdown this repository holds; a recorded observation going stale in a real project rather than a fixture.
 
 ## Releases and signing
 
