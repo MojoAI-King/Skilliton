@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-21T21:52:04.702Z
+- **Updated:** 2026-09-21T21:59:22.511Z
 
 ## Request
 
@@ -62,9 +62,16 @@ not yet written
 - **Next:** Watch CI for this commit; then the behavior review of every hook and command
 - **Git:** main @ ba73ec8, 0 uncommitted
 
+### 2026-09-21T21:59:22.511Z
+
+- **State:** Behavior review done: 11 hooks x 3 inputs x 2 repos, 66 runs, every exit 0, no crash, every silence an allow; 29 commands bare and --help, nothing written without --apply, nothing silent, every --help exits 0. One low note: skilliton hook events swallow malformed input silently where guard-bash asks. Owner's new direction 2026-09-21 evening: joining must be much easier; the document leads with a tech facts block (language, stack, versions) and a flow section: fork to a Desktop folder, make it yours, add skills, roll it out to every company laptop, or use it as-is
+- **Evidence:** hook-matrix.out and cmd-matrix.out in the scratchpad; harness first failed with exit 127 on macOS timeout and was fixed before any row was believed
+- **Next:** Design the easier join and rollout flow from RELEASING, PHASE-3, IT-ALLOWLIST and company init; implement the cheapest real simplification; then the document
+- **Git:** main @ 98564c8, 0 uncommitted
+
 ## Handoff
 
-- **State:** Owner test finding fixed: join names every missing flag at once, names existing joins, suggests prepare, warns before a second company; README opens with the two roles; B53 for the signers file; workflow 0.15.4. Evidence: join.test 41 pass; rename, lint, docs, backlog exit 0; scrub 0; CI for 4f4be07 and 71f9da2 each 63 of 63.
-- **Next:** Watch CI for this commit; then the behavior review of every hook and command
+- **State:** Behavior review done: 11 hooks x 3 inputs x 2 repos, 66 runs, every exit 0, no crash, every silence an allow; 29 commands bare and --help, nothing written without --apply, nothing silent, every --help exits 0. One low note: skilliton hook events swallow malformed input silently where guard-bash asks. Owner's new direction 2026-09-21 evening: joining must be much easier; the document leads with a tech facts block (language, stack, versions) and a flow section: fork to a Desktop folder, make it yours, add skills, roll it out to every company laptop, or use it as-is. Evidence: hook-matrix.out and cmd-matrix.out in the scratchpad; harness first failed with exit 127 on macOS timeout and was fixed before any row was believed.
+- **Next:** Design the easier join and rollout flow from RELEASING, PHASE-3, IT-ALLOWLIST and company init; implement the cheapest real simplification; then the document
 - **Blocked:** nothing
 - **Watch out:** nothing known

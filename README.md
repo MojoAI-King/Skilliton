@@ -13,7 +13,7 @@ Kind: Living.
 There are two roles, and the first question is which one you are.
 
 - **You are the company.** Fork this repository, give the fork your name (`company init`), add your own skills, and publish signed releases (`release create`, `release sign`). Your developers join your fork, not this repository. The section "For a company maintainer" below has the commands; [docs/RELEASING.md](docs/RELEASING.md) has the whole path.
-- **You are a developer at a company that uses it.** Get two things from your company: where its skills repository lives, and its release signers file, which is handed out separately and never taken from the repository. Then, once per machine, `skilliton join --company <company> --signers <file> --apply`; and once per project, `skilliton prepare --dir <project> --apply`. [docs/ONBOARDING.md](docs/ONBOARDING.md) is written for you.
+- **You are a developer at a company that uses it.** Get one file from your company, its join file (it names the company, its skills repository and the release signers; it is handed out separately and never taken from the repository). Then, once per machine, clone the repository and run `join --from <that file> --apply`; and once per project, `skilliton prepare --dir <project> --apply`. [docs/ONBOARDING.md](docs/ONBOARDING.md) is written for you.
 
 Enabling Skilliton in one more repository is the second command only: a machine that has joined does not join again. `join` says so when it has.
 
@@ -64,6 +64,7 @@ node scripts/skilliton.mjs new-plugin <plugin> --pack <company> --apply
 node scripts/skilliton.mjs new-skill <plugin> <skill> --pack <company> --description "<when to use it>"
 node scripts/skilliton.mjs release create --version 1.0.0 --apply   # then commit the manifest
 node scripts/skilliton.mjs release sign 1.0.0 --apply               # with your own signing key
+node scripts/skilliton.mjs company join-file --name <company> --signers <allowed_signers> --out ~/handout/<company>.skilliton-join.json --apply   # hand this file out, never through the repository
 ```
 
 ## For a developer
@@ -72,8 +73,9 @@ node scripts/skilliton.mjs release sign 1.0.0 --apply               # with your 
 
 ```bash
 git clone https://github.com/<company>/<skills-repo> ~/company-skills
-node ~/company-skills/scripts/skilliton.mjs join --company <company> --signers <file from your company>           # preview
-node ~/company-skills/scripts/skilliton.mjs join --company <company> --signers <file from your company> --apply   # set up, then verify
+node ~/company-skills/scripts/skilliton.mjs join --from <join file from your company>           # preview
+node ~/company-skills/scripts/skilliton.mjs join --from <join file from your company> --apply   # set up, then verify
+# or, with the two facts typed by hand: join --company <company> --signers <allowed_signers file> --apply
 skilliton prepare --dir <project>          # preview; add --apply to write
 ```
 

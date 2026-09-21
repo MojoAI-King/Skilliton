@@ -126,7 +126,7 @@ export function listTrusted() {
 }
 
 // Is this folder (or its nearest existing parent) inside a Git work tree? true, false, or throws when git is missing.
-function insideGitWorkTree(dir) {
+export function insideGitWorkTree(dir) {
   let cursor = resolve(dir);
   while (!existsSync(cursor)) {
     const up = dirname(cursor);

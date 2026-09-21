@@ -1,12 +1,14 @@
 // commands/join.mjs: `skilliton join`, which sets up this machine for a company's Skilliton in one previewable command
 // and takes that setup back out with --undo. The engine is lib/join.mjs; the contract is docs/CONTRACTS.md section 13.
 
-import { readdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join as joinPath } from "node:path";
 import { Refused, backupFile, newStamp, parseArgs, refuse, resolveSkillsRepo, say, selfCommand, tilde } from "../lib/core.mjs";
 import { applyJoin, applyUndo, joinDir, planJoin, planUndo, refuseLegacySetup } from "../lib/join.mjs";
 import { applyPin, pinLine, planPin, readPinState } from "../lib/pin.mjs";
 import { reportLines, runPreflight } from "../lib/preflight.mjs";
-import { planTrustAdd, validateCompany, writeTrustFile } from "../lib/trust.mjs";
+import { parseAllowedSigners, planTrustAdd, validateCompany, writeTrustFile } from "../lib/trust.mjs";
 import { runVerify } from "../lib/verify.mjs";
 
 export const help = `join: set up this machine for a company's Skilliton, then verify it.
@@ -18,6 +20,10 @@ export const help = `join: set up this machine for a company's Skilliton, then v
 
 Run it from a full clone of the company skills repository:
   git clone https://github.com/<owner>/<repo> && node <repo>/scripts/skilliton.mjs join --company <name> --signers <file>
+
+With --from <join file>, the company name and the signers come from one file the company hands out (made with
+company join-file): { "schema": "skilliton.join/1", "company", "repo", "signers" }, the signers being allowed_signers
+text. That file, like the signers file, never comes from the repository itself.
 
 First it pins the clone to a signed release: the newest approved one, or the one --release names. A release is
 approved when its tag skilliton-release/<x.y.z> carries an SSH signature that verifies against the signers file
@@ -56,20 +62,54 @@ plugin not VERIFIED, the launcher was not written, or undo kept something that c
 export async function run(argv) {
   const o = parseArgs(argv, {
     flags: ["apply", "undo", "no-launcher", "no-pin"],
-    options: ["company", "signers", "client", "marketplace", "plugins", "bin-dir", "release", "claude", "codex", "repo"],
+    options: ["company", "signers", "from", "client", "marketplace", "plugins", "bin-dir", "release", "claude", "codex", "repo"],
   }, "join");
   if (o._.length) refuse(`join takes no plain arguments (got "${o._[0]}"); see: ${selfCommand()} join --help`);
   if (o.undo) {
     if (o.company === undefined) refuse("join --undo needs --company <name>, the company whose setup to take back out");
     return undo(o);
   }
+  // One file the company hands out (company join-file) carries the company, its repository and the signers text, so a
+  // machine joins with one argument. The signers are written to a private temporary file for the trust step and removed.
+  let fromTmp = null;
+  if (o.from !== undefined) {
+    if (o.company !== undefined || o.signers !== undefined) refuse("pass --from <join file>, or --company and --signers, not both");
+    const jf = readJoinFile(o.from);
+    fromTmp = mkdtempSync(joinPath(tmpdir(), "skilliton-join-"));
+    o.company = jf.company;
+    o.signers = joinPath(fromTmp, "allowed_signers");
+    writeFileSync(o.signers, jf.signers, { mode: 0o600 });
+    say(`join file: ${tilde(o.from)} (company ${jf.company}, repository ${jf.repo})`);
+  }
   // Everything missing is named at once, with where each thing comes from and what this machine already has: a person
   // who guessed a company name got one refusal per flag and nearly set up a second company (owner test, 2026-09-21).
   const missing = [];
   if (o.company === undefined) missing.push("--company <name>, the company's short name");
   if (o.signers === undefined) missing.push("--signers <allowed_signers file>, the release signers file the company hands out separately, never from the repository");
-  if (missing.length) refuse(`join needs ${missing.join(", and ")}. ${joinedNote(undefined)}A developer gets both from the company (docs/ONBOARDING.md step 1); the company's maintainer makes them with company init and release sign (docs/RELEASING.md).`);
-  return await join(o);
+  if (missing.length) refuse(`join needs ${missing.join(", and ")}, or --from <join file>, the one file the company hands out that holds both. ${joinedNote(undefined)}A developer gets it from the company (docs/ONBOARDING.md step 1); the company's maintainer makes it with company join-file (docs/RELEASING.md).`);
+  try { return await join(o); } finally { if (fromTmp) rmSync(fromTmp, { recursive: true, force: true }); }
+}
+
+const JOIN_FILE_SCHEMA = "skilliton.join/1";
+const MAX_JOIN_FILE_BYTES = 64 * 1024;
+
+// The join file: { schema, company, repo, signers } with the signers as allowed_signers text. Read strictly, because
+// what it names is whom this machine will trust: a wrong shape refuses rather than guessing.
+function readJoinFile(path) {
+  let st;
+  try { st = statSync(path); } catch { refuse(`--from ${tilde(path)} does not exist`); }
+  if (!st.isFile()) refuse(`--from ${tilde(path)} is not a regular file`);
+  if (st.size > MAX_JOIN_FILE_BYTES) refuse(`--from ${tilde(path)} is larger than ${MAX_JOIN_FILE_BYTES / 1024} KB, which is not a join file`);
+  let j;
+  try { j = JSON.parse(readFileSync(path, "utf8")); } catch (e) { refuse(`--from ${tilde(path)} is not valid JSON (${e.message})`); }
+  if (!j || typeof j !== "object" || Array.isArray(j)) refuse(`--from ${tilde(path)} is not a JSON object`);
+  if (j.schema !== JOIN_FILE_SCHEMA) refuse(`--from ${tilde(path)} has schema ${JSON.stringify(j.schema)}, not ${JOIN_FILE_SCHEMA}`);
+  for (const k of ["company", "repo", "signers"]) if (typeof j[k] !== "string" || !j[k].trim()) refuse(`--from ${tilde(path)} needs a non-empty string "${k}"`);
+  validateCompany(j.company);
+  const parsed = parseAllowedSigners(j.signers);
+  if (parsed.problems.length) refuse(`--from ${tilde(path)}: "signers" is not valid allowed_signers text: ${parsed.problems.map((p) => `${p.line ? `line ${p.line}: ` : ""}${p.problem}`).join("; ")}`);
+  if (!parsed.signers.length) refuse(`--from ${tilde(path)}: "signers" lists no signers`);
+  return { company: j.company, repo: j.repo, signers: j.signers.endsWith("\n") ? j.signers : `${j.signers}\n` };
 }
 
 // The companies that joined this machine, from the receipts in the join folder. Names only; a receipt is read for

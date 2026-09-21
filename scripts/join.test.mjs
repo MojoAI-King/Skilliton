@@ -580,3 +580,38 @@ test("join names every missing flag at once, says what this machine already join
   const same = sg(ctx, joinArgs(ctx));
   assert.match(same.all, /note: This machine already joined acme .*adds only what is missing/);
 });
+
+// Decision 2026-09-21: one file the company hands out, made with company join-file, joins a machine with --from.
+test("company join-file writes the join file outside any repository, and join --from joins with it alone", (t) => {
+  const ctx = fixture(t);
+  const out = join(ctx.base, "handout", "acme.skilliton-join.json");
+  const inside = join(ctx.repo, "acme.skilliton-join.json");
+  const refused = sg(ctx, ["company", "join-file", "--name", "acme", "--signers", ctx.signers, "--out", inside, "--repo-url", "https://example.invalid/acme/skills.git", "--apply"]);
+  assert.equal(refused.code, 2, refused.all);
+  assert.match(refused.all, /inside a Git working tree/);
+  assert.equal(existsSync(inside), false);
+  const bare = sg(ctx, ["company", "join-file"]);
+  assert.equal(bare.code, 2, bare.all);
+  assert.match(bare.all, /--name <company>.*--signers <allowed_signers file>.*--out <path>/s);
+  const preview = sg(ctx, ["company", "join-file", "--name", "acme", "--signers", ctx.signers, "--out", out, "--repo-url", "https://example.invalid/acme/skills.git"]);
+  assert.equal(preview.code, 0, preview.all);
+  assert.equal(existsSync(out), false, "preview writes nothing");
+  const made = sg(ctx, ["company", "join-file", "--name", "acme", "--signers", ctx.signers, "--out", out, "--repo-url", "https://example.invalid/acme/skills.git", "--apply"]);
+  assert.equal(made.code, 0, made.all);
+  const jf = JSON.parse(readFileSync(out, "utf8"));
+  assert.equal(jf.schema, "skilliton.join/1");
+  assert.equal(jf.company, "acme");
+  assert.equal(jf.signers, readFileSync(ctx.signers, "utf8"));
+  const both = sg(ctx, ["join", "--from", out, "--company", "acme"]);
+  assert.equal(both.code, 2, both.all);
+  assert.match(both.all, /not both/);
+  const badFile = join(ctx.base, "bad.json");
+  writeFileSync(badFile, JSON.stringify({ schema: "skilliton.join/1", company: "acme", repo: "x", signers: "not a signers line" }));
+  const bad = sg(ctx, ["join", "--from", badFile]);
+  assert.equal(bad.code, 2, bad.all);
+  assert.match(bad.all, /"signers" is not valid allowed_signers text/);
+  const r = sg(ctx, ["join", "--from", out, "--marketplace", ctx.repo, "--bin-dir", ctx.bin, "--apply"]);
+  assert.match(r.all, /join file: .*acme\.skilliton-join\.json \(company acme, repository https:\/\/example\.invalid\/acme\/skills\.git\)/);
+  assert.equal(existsSync(join(ctx.joined, "acme.json")), true, r.all);
+  assert.equal(readFileSync(join(ctx.trust, "acme.allowed_signers"), "utf8"), readFileSync(ctx.signers, "utf8"), "the trust file is the signers text from the join file");
+});
