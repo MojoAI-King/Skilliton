@@ -11,6 +11,8 @@
 //   - every agents/<name>.md has frontmatter name equal to <name>, a description, and a model and an
 //     effort from the documented sets (an agent with no model runs on whatever the caller had)
 //   - no frontmatter value contains an unquoted ": " (YAML drops the whole block; found 2026-09-20)
+//   - every evals/<case>/ has a prompt.md whose frontmatter parses and names the folder, a case.yaml
+//     and at least one grader (a case whose frontmatter does not parse never runs; found 2026-09-21)
 //   - every command a hooks.json runs from ${CLAUDE_PLUGIN_ROOT} exists and is executable
 //
 //   node scripts/packs.test.mjs            check this repository
@@ -131,6 +133,44 @@ function check(root) {
       if (!failures.some((x) => x.includes(rel(apath)))) ok(`${plugin}:${name} agent frontmatter ok (model ${fm.model}, effort ${fm.effort})`);
     }
 
+    // An eval case whose prompt.md frontmatter does not parse is not reported as a failing case: the whole
+    // case never runs, and the run prints one line among the results that reads like a low score. Found
+    // 2026-09-21, when a description containing an unquoted ": " cost a case its entire run. The frontmatter
+    // reader above already refuses that shape; this is what points it at eval prompts.
+    const evalsDir = join(dir, "evals");
+    for (const name of isDir(evalsDir) ? readdirSync(evalsDir) : []) {
+      const cdir = join(evalsDir, name);
+      if (!isDir(cdir)) continue;
+      const pfile = join(cdir, "prompt.md");
+      if (!existsSync(pfile)) { fail(`${rel(cdir)}: no prompt.md`); continue; }
+      if (!existsSync(join(cdir, "case.yaml"))) fail(`${rel(cdir)}: no case.yaml`);
+      const graders = isDir(join(cdir, "graders")) ? readdirSync(join(cdir, "graders")).filter((f) => f.endsWith(".md")) : [];
+      if (!graders.length) fail(`${rel(cdir)}: no graders, so the case would run and score nothing`);
+      const fm = frontmatter(readFileSync(pfile, "utf8"), rel(pfile));
+      if (!fm) continue;
+      if (fm.name !== name) fail(`${rel(pfile)}: frontmatter name ${JSON.stringify(fm.name ?? null)} does not match its folder ${name}`);
+      if (fm.runs !== undefined && !/^[1-9][0-9]*$/.test(fm.runs)) fail(`${rel(pfile)}: runs ${fm.runs} is not a positive integer`);
+      // A file_exists grader reads the run's own file operations, not the workspace. Measured 2026-09-21
+      // with three probe cases: a file the run created reads as present, one the run deleted reads as
+      // absent, and one the fixture wrote that the run correctly left alone reads as MISSING. So
+      // `exists: true` on a path the fixture already creates is a grader that cannot pass, and it fails
+      // identically in both arms, which measures nothing. It cost this repository one case's central trap
+      // without saying so, because a grader nobody watched pass reads like a low score rather than a
+      // broken check. Ask "was it created" with file_exists; ask "did it survive" with a regex over the
+      // file, which is measured to throw and score zero when its target is gone.
+      const fixtureText = existsSync(join(cdir, "fixture.sh")) ? readFileSync(join(cdir, "fixture.sh"), "utf8") : "";
+      for (const gf of graders) {
+        const gblock = readFileSync(join(cdir, "graders", gf), "utf8").match(/^---\n([\s\S]*?)\n---/);
+        if (!gblock) { fail(`${rel(cdir)}/graders/${gf}: no frontmatter block, so the grader would not load`); continue; }
+        if (gblock[1].match(/^type:\s*(\S+)\s*$/m)?.[1] !== "file_exists") continue;
+        if (/^exists:\s*false\s*$/m.test(gblock[1])) continue;
+        const gpath = gblock[1].match(/^path:\s*"?([^"\n]+?)"?\s*$/m)?.[1];
+        if (!gpath) { fail(`${rel(cdir)}/graders/${gf}: a file_exists grader with no path`); continue; }
+        if (fixtureText.includes(gpath)) fail(`${rel(cdir)}/graders/${gf}: file_exists with exists true on ${gpath}, which fixture.sh already creates. file_exists sees only what the run itself created or deleted, so this asks whether a file survived and cannot answer; it fails in every arm and measures nothing. Use a regex over the file.`);
+      }
+      if (!failures.some((x) => x.includes(rel(cdir)))) ok(`${plugin}:${name} eval case ok (${graders.length} grader(s), runs ${fm.runs ?? "default"})`);
+    }
+
     // Every shell script shipped under hooks/ must be executable: hooks.json and setup.mjs run them by
     // path, and a test that runs them through `bash <script>` cannot see a missing executable bit.
     const hookDir = join(dir, "hooks");
@@ -162,6 +202,9 @@ if (argv.includes("--self-test")) {
   const repo = resolve(here, "..");
   const tmp = mkdtempSync(join(tmpdir(), "packs-selftest-"));
   const cases = [
+    ["eval prompt with an unquoted colon-space", (d) => { const f = join(d, "packs/base/plugins/code-quality/evals/split-keeps-behavior/prompt.md"); writeFileSync(f, readFileSync(f, "utf8").replace(/^description: .*$/m, "description: a split: a move")); }, /contains ": " and is not quoted/],
+    ["file_exists asking whether a file survived", (d) => { writeFileSync(join(d, "packs/base/plugins/code-quality/evals/dead-code-with-a-live-caller/graders/live-handler-kept.md"), '---\ntype: file_exists\npath: "handlers/webhook.js"\narm: both\n---\nPASS: kept.\n'); }, /which fixture\.sh already creates/],
+    ["eval case with no graders", (d) => { rmSync(join(d, "packs/base/plugins/code-quality/evals/split-keeps-behavior/graders"), { recursive: true, force: true }); }, /no graders/],
     ["skill without name", (d) => { const f = join(d, "packs/base/plugins/workflow/skills/review/SKILL.md"); writeFileSync(f, readFileSync(f, "utf8").replace(/^name: review\n/m, "")); }, /has no name/],
     ["description over 1024", (d) => { const f = join(d, "packs/base/plugins/workflow/skills/review/SKILL.md"); writeFileSync(f, readFileSync(f, "utf8").replace(/^description: /m, "description: " + "x".repeat(1100) + " ")); }, /limit is 1024/],
     ["unlisted plugin", (d) => { mkdirSync(join(d, "packs/acme/plugins/extra/.claude-plugin"), { recursive: true }); writeFileSync(join(d, "packs/acme/plugins/extra/.claude-plugin/plugin.json"), '{"name":"extra","version":"0.1.0","description":"x","license":"MIT"}'); }, /not listed/],
