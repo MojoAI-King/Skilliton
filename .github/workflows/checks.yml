@@ -167,6 +167,15 @@ jobs:
       - name: Trusted delivery gate
         run: node scripts/delivery.test.mjs
 
+      - name: The self-running audit (six rules, planted flaws, the pre-push hook)
+        run: node scripts/audit.test.mjs
+
+      - name: The self-running audit can fail on each of its checks
+        run: node scripts/audit.test.mjs --self-test
+
+      - name: The meter as a command (windows per merged batch, a stubbed meter)
+        run: node scripts/usage.test.mjs
+
       - name: End-to-end demo (disposable project, no model, no network)
         run: node scripts/autopilot-demo.mjs
 

@@ -793,6 +793,62 @@ test("a .gitattributes export rule cannot hide files from the checks", async () 
 
 // The Node script inside templates/github/skilliton-delivery.yml, with the block's indentation removed, as bash's
 // quoted heredoc hands it to node. Running it here is a local simulation, not a hosted rehearsal.
+// ---------------------------------------------------------------- acceptance: the audit
+
+// Written in pieces so this file does not itself carry the shape it plants: the repository audits its own changed
+// files, and a test fixture that trips it would teach everyone to ignore the finding.
+const plant = (...parts) => parts.join("");
+const SHELL_TRUE = plant("shell", ": true");
+const FLAW = (path) => `${APP["lib/greet.mjs"]}\n// ${path} builds a command for the shell.\nconst options = { ${SHELL_TRUE} };\n`;
+const MARKED = `${FLAW("lib/greet.mjs").trimEnd()} // skilliton-audit: allow ${plant("shell-", "true")} nothing here is ever run; the fixture proves the marker reaches the gate\n`;
+
+test("the audit rejects a push carrying a planted flaw, accepts the same line once it carries a marker, and is off when the policy says so", async () => {
+  await withSandbox("audit", async (sb) => {
+    const s = sharedRepo(sb);
+    const c = clone(sb, s.bare, "c");
+
+    // A flaw in a file this push changed rejects it, named by file, line, rule and control. The checks never run:
+    // there is no reason to spend ten minutes on a test suite before saying something that was known immediately.
+    writeFiles(c, { "lib/greet.mjs": FLAW("lib/greet.mjs") });
+    commit(sb, c, "Build a command for the shell");
+    const flawed = push(sb, c, "origin", "main");
+    assert.notEqual(flawed.code, 0, flawed.all);
+    assert.match(flawed.all, /skilliton delivery: rejected refs\/heads\/main: the audit found 1 finding\(s\) in the 1 file\(s\) this push changed/);
+    assert.match(flawed.all, /lib\/greet\.mjs:4: shell-true \(SG-COMMAND-INJECTION\)/);
+    assert.doesNotMatch(flawed.all, /check "tests"/, "the audit runs before the checks");
+    assert.match(flawed.all, /pre-receive hook declined/);
+    assert.equal(tip(sb, s.bare, "main"), s.seed);
+
+    // The same line with a marker and a reason is accepted, and the gate says which line it allowed and why. The
+    // marker is added as a second commit, so this also shows the audit reading the result of the push rather than
+    // each commit in it: the flawed commit is still in the history being pushed.
+    writeFiles(c, { "lib/greet.mjs": MARKED });
+    const marked = commit(sb, c, "Say why the option is there");
+    const allowed = push(sb, c, "origin", "main");
+    assert.equal(allowed.code, 0, allowed.all);
+    assert.match(allowed.all, /skilliton delivery: audit: allowed lib\/greet\.mjs:4 shell-true: nothing here is ever run/);
+    assert.match(allowed.all, /skilliton delivery: audit: nothing found in the 1 file\(s\) this push changed/);
+    assert.match(allowed.all, /skilliton delivery: accepted refs\/heads\/main: 1 check\(s\) passed \(tests\)/);
+    assert.equal(tip(sb, s.bare, "main"), marked);
+
+    // Turning the audit off is a policy change like any other: it needs an approver's signature, and it governs the
+    // pushes that come after it, because the policy that decides an update is the one at the tip being pushed onto.
+    writeFiles(c, { [POLICY_FILE]: { ...POLICY, audit: { enabled: false } } });
+    commit(sb, c, "Turn the audit off in the delivery policy", { sign: s.approver });
+    const off = push(sb, c, "origin", "main");
+    assert.equal(off.code, 0, off.all);
+    assert.match(off.all, /skilliton delivery: audit: nothing found in the 1 file\(s\) this push changed/);
+
+    writeFiles(c, { "lib/spawner.mjs": FLAW("lib/spawner.mjs") });
+    const past = commit(sb, c, "Add a second flaw, with the audit off");
+    const unaudited = push(sb, c, "origin", "main");
+    assert.equal(unaudited.code, 0, unaudited.all);
+    assert.doesNotMatch(unaudited.all, /delivery: audit/, "with the audit off the gate says nothing about it and reads no file");
+    assert.match(unaudited.all, /skilliton delivery: accepted refs\/heads\/main: 1 check\(s\) passed \(tests\)/);
+    assert.equal(tip(sb, s.bare, "main"), past);
+  });
+});
+
 function templateScript() {
   const lines = readFileSync(join(here, "..", "templates", "github", "skilliton-delivery.yml"), "utf8").split("\n");
   const start = lines.findIndex((l) => l.trim() === "node --input-type=module - <<'SKILLITON_DELIVERY'");

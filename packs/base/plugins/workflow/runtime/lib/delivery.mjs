@@ -24,34 +24,25 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import {
-  accessSync, chmodSync, constants as fsConstants, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync,
-  readlinkSync, realpathSync, renameSync, rmSync, statSync, writeFileSync,
-} from "node:fs";
+import { lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join, resolve, sep } from "node:path";
-import { argPath, backupFile, isDir, isPlainObject, newStamp, refuse, runProgram } from "./core.mjs";
+import { join, resolve, sep } from "node:path";
+import { isDir, refuse } from "./core.mjs";
 import { NO_REPOSITORY_PROGRAMS } from "./journal.mjs";
-import { LEGACY_DELIVERY_CONFIG_KEYS, LEGACY_DELIVERY_HOOK_MARKER, LEGACY_POLICY_FILE, LEGACY_POLICY_SCHEMA } from "./legacy-names.mjs";
+import { auditFiles, findingLine } from "./audit.mjs";
+import { readWorking } from "./audit-run.mjs";
+import { LEGACY_POLICY_FILE } from "./legacy-names.mjs";
+import {
+  CURRENT_FORMAT, LEGACY_FORMAT, POLICY_FILE, matchPolicyPath, parsePolicyText, readApproversFile, validBranchName,
+} from "./delivery-policy.mjs";
 
-export const POLICY_FILE = ".skilliton/delivery.json";
-export const DRAFT_FILE = ".skilliton/delivery.draft.json";
-export const POLICY_SCHEMA = "skilliton.delivery/1";
-export const DEFAULT_TIMEOUT_SECONDS = 600;
-const MAX_TIMEOUT_SECONDS = 86400;
 const TAIL_LINES = 20;
-const HOOK_MARKER = "# skilliton:delivery-hook v1";
-const HOOK_MARKER_RE = /^# skilliton:delivery-hook v\d+[ \t]*$/m;
 const MAX_POLICY_BYTES = 256 * 1024;
-const MAX_APPROVERS_BYTES = 1024 * 1024;
 const GIT_MAX_BUFFER = 512 * 1024 * 1024;
-const POLICY_KEYS = ["schema", "protectedBranches", "checks", "policyPaths"];
-const CHECK_KEYS = ["name", "command", "timeoutSeconds"];
-const CHECK_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 ._:+/-]{0,63}$/;
 
 // An error the gate cannot turn into a policy decision (git failed, a file could not be written). The gate reports it
 // as a rejection with its reason; the command line exits 3.
-class DeliveryError extends Error {}
+export class DeliveryError extends Error {}
 
 const short = (id) => String(id).slice(0, 12);
 const isZeroId = (id) => /^0+$/.test(id);
@@ -60,200 +51,11 @@ function lastLines(text, n) {
   return String(text ?? "").replace(/\r/g, "").split("\n").map((l) => l.trimEnd()).filter(Boolean).slice(-n);
 }
 
-// ---------- policy ----------
-
-// A plain branch name as a policy lists it: "main", "release/2.x". No "refs/" prefix, wildcards or spaces.
-function validBranchName(name) {
-  if (typeof name !== "string" || name.length === 0 || name.length > 200) return false;
-  if (name === "HEAD" || name === "@" || name.startsWith("refs/") || name.startsWith("-")) return false;
-  if (name.startsWith("/") || name.endsWith("/") || name.endsWith(".") || name.includes("..") || name.includes("@{")) return false;
-  if (/[\x00-\x20\x7f~^:?*[\\]/.test(name)) return false;
-  return name.split("/").every((part) => part.length > 0 && !part.startsWith(".") && !part.endsWith(".lock"));
-}
-
-// A policy path: a repository-relative file path, or a folder when it ends with "/".
-function validPolicyPath(entry) {
-  if (typeof entry !== "string" || entry.length === 0 || entry.length > 400) return false;
-  if (entry.startsWith("/") || entry.includes("\\") || /[\x00-\x1f\x7f]/.test(entry)) return false;
-  const body = entry.endsWith("/") ? entry.slice(0, -1) : entry;
-  return body.length > 0 && body.split("/").every((part) => part.length > 0 && part !== "." && part !== "..");
-}
-
-// The policy entry that covers a changed path, or null. An entry covers its exact path and everything below it.
-function matchPolicyPath(path, policyPaths) {
-  for (const entry of policyPaths) {
-    const body = entry.endsWith("/") ? entry.slice(0, -1) : entry;
-    if (path === body || path.startsWith(body + "/")) return entry;
-  }
-  return null;
-}
-
-// The policy file and schema this runtime writes, and the ones a shared branch may still carry from before the rename.
-const CURRENT_FORMAT = { file: POLICY_FILE, schema: POLICY_SCHEMA };
-const LEGACY_FORMAT = { file: LEGACY_POLICY_FILE, schema: LEGACY_POLICY_SCHEMA };
-
-// Every problem with a parsed policy value, in plain words. An empty list means the policy is valid.
-function policyProblems(value, { file = POLICY_FILE, schema = POLICY_SCHEMA } = CURRENT_FORMAT) {
-  if (!isPlainObject(value)) return ["the file must hold a JSON object"];
-  const problems = [];
-  for (const key of Object.keys(value)) {
-    if (!POLICY_KEYS.includes(key)) problems.push(`unknown key "${key}" (allowed: ${POLICY_KEYS.join(", ")})`);
-  }
-  if (value.schema !== schema) {
-    problems.push(`"schema" must be "${schema}" (${value.schema === undefined ? "missing" : `found ${JSON.stringify(value.schema)}`})`);
-  }
-
-  if (!Array.isArray(value.protectedBranches)) problems.push(`"protectedBranches" must be an array of branch names, for example ["main"]`);
-  else {
-    const seen = new Set();
-    value.protectedBranches.forEach((branch, i) => {
-      if (!validBranchName(branch)) problems.push(`"protectedBranches"[${i}] ${JSON.stringify(branch)} is not a plain branch name (for example "main": no "refs/" prefix, spaces or wildcards)`);
-      else if (seen.has(branch)) problems.push(`"protectedBranches" lists "${branch}" more than once`);
-      seen.add(branch);
-    });
-  }
-
-  if (!Array.isArray(value.checks)) problems.push(`"checks" must be an array of checks (it may be empty)`);
-  else {
-    const names = new Set();
-    value.checks.forEach((check, i) => {
-      const at = `"checks"[${i}]`;
-      if (!isPlainObject(check)) { problems.push(`${at} must be an object with "name", "command" and optionally "timeoutSeconds"`); return; }
-      for (const key of Object.keys(check)) {
-        if (!CHECK_KEYS.includes(key)) problems.push(`${at} has unknown key "${key}" (allowed: ${CHECK_KEYS.join(", ")})`);
-      }
-      if (typeof check.name !== "string" || !CHECK_NAME_RE.test(check.name)) problems.push(`${at} "name" must be 1 to 64 letters, digits, spaces or . _ : + / - characters, starting with a letter or digit`);
-      else if (names.has(check.name)) problems.push(`${at} "name" "${check.name}" is used by more than one check`);
-      else names.add(check.name);
-      if (!Array.isArray(check.command) || check.command.length === 0) problems.push(`${at} "command" must be a non-empty array of strings: an argument list, never a shell string`);
-      else if (!check.command.every((arg) => typeof arg === "string" && !arg.includes("\0"))) problems.push(`${at} "command" must hold only strings`);
-      else if (check.command[0].trim() === "") problems.push(`${at} "command"[0] must name the program to run`);
-      if (check.timeoutSeconds !== undefined && !(Number.isInteger(check.timeoutSeconds) && check.timeoutSeconds >= 1 && check.timeoutSeconds <= MAX_TIMEOUT_SECONDS)) {
-        problems.push(`${at} "timeoutSeconds" must be a whole number from 1 to ${MAX_TIMEOUT_SECONDS}`);
-      }
-    });
-  }
-
-  if (!Array.isArray(value.policyPaths) || value.policyPaths.length === 0) problems.push(`"policyPaths" must be a non-empty array of repository paths (a trailing "/" means a folder)`);
-  else {
-    value.policyPaths.forEach((entry, i) => {
-      if (!validPolicyPath(entry)) problems.push(`"policyPaths"[${i}] ${JSON.stringify(entry)} is not a repository-relative path`);
-    });
-    if (value.policyPaths.every(validPolicyPath) && !matchPolicyPath(file, value.policyPaths)) {
-      problems.push(`"policyPaths" must cover ${file} itself; otherwise a change to the policy would need no approval`);
-    }
-  }
-  return problems;
-}
-
-// Parse policy text: { policy } with defaults filled in, or { problems }.
-export function parsePolicyText(text, format = CURRENT_FORMAT) {
-  const body = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
-  let value;
-  try { value = JSON.parse(body); } catch (e) { return { problems: [`not valid JSON (${e.message})`] }; }
-  const problems = policyProblems(value, format);
-  if (problems.length) return { problems };
-  return {
-    policy: {
-      schema: value.schema,
-      protectedBranches: [...value.protectedBranches],
-      checks: value.checks.map((c) => ({ name: c.name, command: [...c.command], timeoutSeconds: c.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS })),
-      policyPaths: [...value.policyPaths],
-    },
-  };
-}
-
-// ---------- the draft prepare writes (docs/CONTRACTS.md section 14) ----------
-
-// A draft is a policy prepare wrote from what the repository shows; no gate runs it. Confirming it moves the file to
-// POLICY_FILE. planConfirm reads nothing but the two files: { root, draftPath, policyPath, draftText, policy }.
-// Refused (nothing written) when there is no draft, when the policy already exists, or when the draft is not valid.
-export function planConfirm(root) {
-  const draftPath = join(root, DRAFT_FILE), policyPath = join(root, POLICY_FILE);
-  if (existsSync(policyPath)) refuse(`${POLICY_FILE} already exists, so there is nothing to confirm${existsSync(draftPath) ? `; remove ${DRAFT_FILE} by hand if it is stale` : ""}. Nothing was written`);
-  if (!existsSync(draftPath)) refuse(`no draft to confirm: ${DRAFT_FILE} does not exist (prepare writes it when a test command is detected). Write ${POLICY_FILE} by hand instead; the format is in: delivery --help. Nothing was written`);
-  let text;
-  try { text = readFileSync(draftPath, "utf8"); } catch (e) { refuse(`${DRAFT_FILE} could not be read (${e.code ?? e.message}). Nothing was written`); }
-  const parsed = parsePolicyText(text);
-  if (parsed.problems) refuse(`${DRAFT_FILE} is not a valid delivery policy, so it cannot be confirmed: ${parsed.problems.join("; ")}. Fix the draft, or remove it and write ${POLICY_FILE} by hand. Nothing was written`);
-  return { root, draftPath, policyPath, draftText: text, policy: parsed.policy };
-}
-
-// The lines a preview prints for a policy: what would be protected, run and guarded.
-export function describePolicy(policy) {
-  const lines = [`protected branches: ${policy.protectedBranches.join(", ")}`];
-  for (const c of policy.checks) lines.push(`check "${c.name}": ${c.command.join(" ")} (timeout ${c.timeoutSeconds}s)`);
-  lines.push(`policy paths (a change needs an approver signature once the gate is installed): ${policy.policyPaths.join(", ")}`);
-  return lines;
-}
-
-// Moves the draft to the policy path. The policy is rechecked immediately before the move; a file that appeared
-// meanwhile is never replaced.
-export function applyConfirm(plan) {
-  if (existsSync(plan.policyPath)) refuse(`${POLICY_FILE} appeared before the draft was confirmed; nothing was written`);
-  renameSync(plan.draftPath, plan.policyPath);
-  return { policyPath: plan.policyPath };
-}
-
-// ---------- approvers file (ssh allowed_signers format) ----------
-
-const KEY_TYPE_RE = /^(ssh-ed25519|ssh-rsa|ssh-dss|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)$/;
-
-function splitSignersLine(line) {
-  const tokens = [];
-  let current = "", quoted = false, started = false;
-  for (const ch of line) {
-    if (ch === "\"") { quoted = !quoted; current += ch; started = true; continue; }
-    if (!quoted && (ch === " " || ch === "\t")) {
-      if (started) { tokens.push(current); current = ""; started = false; }
-      continue;
-    }
-    current += ch;
-    started = true;
-  }
-  if (started) tokens.push(current);
-  return tokens;
-}
-
-// Problems with allowed_signers text: each line is "<principals> [options] <key type> <base64 key>".
-function approversProblems(text) {
-  if (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(text)) {
-    return ["holds a private key; an approvers file lists public keys only, in ssh allowed_signers format"];
-  }
-  const problems = [];
-  let keys = 0;
-  text.split("\n").forEach((raw, i) => {
-    const line = raw.replace(/\r$/, "").trim();
-    if (!line || line.startsWith("#")) return;
-    const tokens = splitSignersLine(line);
-    const at = tokens.findIndex((token, k) => k > 0 && KEY_TYPE_RE.test(token));
-    if (at < 1 || !/^[A-Za-z0-9+/]+={0,3}$/.test(tokens[at + 1] ?? "")) {
-      problems.push(`line ${i + 1} is not "<principals> [options] <key type> <base64 public key>"`);
-      return;
-    }
-    keys++;
-  });
-  if (!problems.length && keys === 0) problems.push("lists no keys");
-  return problems;
-}
-
-// Read and check an approvers file: { text } or { problems } (each problem reads after the file's path).
-function readApproversFile(path) {
-  let st;
-  try { st = statSync(path); } catch (e) { return { problems: [e.code === "ENOENT" ? "does not exist" : `cannot be read (${e.code ?? e.message})`] }; }
-  if (!st.isFile()) return { problems: ["is not a regular file"] };
-  if (st.size > MAX_APPROVERS_BYTES) return { problems: [`is ${st.size} bytes; the limit is ${MAX_APPROVERS_BYTES}`] };
-  let text;
-  try { text = readFileSync(path, "utf8"); } catch (e) { return { problems: [`cannot be read (${e.code ?? e.message})`] }; }
-  const problems = approversProblems(text);
-  return problems.length ? { problems } : { text };
-}
-
 // ---------- git ----------
 
 // A git runner bound to one repository: where is ["--git-dir", <bare repository>] or ["-C", <working tree>]. The
 // environment passes through unchanged, so inside a pre-receive hook git still sees the quarantined pushed objects.
-function gitRunner(where, env = process.env) {
+export function gitRunner(where, env = process.env) {
   const git = (args, { allowExit = [0], buffer = false } = {}) => {
     const r = spawnSync("git", [...where, ...NO_REPOSITORY_PROGRAMS, ...args], {
       env, encoding: buffer ? "buffer" : "utf8", maxBuffer: GIT_MAX_BUFFER, stdio: ["ignore", "pipe", "pipe"],
@@ -299,7 +101,7 @@ function readPolicyAt(git, commit) {
 
 // Where branch tips and the default branch come from. The gate reads the bare repository's own refs; `delivery check`
 // reads a working repository's remote-tracking refs for one remote.
-function bareView(git) {
+export function bareView(git) {
   return {
     defaultBranch() {
       const r = git(["symbolic-ref", "-q", "HEAD"], { allowExit: [0, 1] });
@@ -323,7 +125,7 @@ function remoteView(git, remote) {
 }
 
 // Which branch names are protected: { names: Set, defaultBranch, basis } or { error }.
-function protectionFor(git, view) {
+export function protectionFor(git, view) {
   const def = view.defaultBranch();
   if (!def) return { error: "the repository's HEAD does not name a default branch, so the protected branches cannot be determined" };
   const tip = view.tip(def);
@@ -589,8 +391,24 @@ async function evaluateUpdate(ctx, update) {
     if (next.state === "invalid") return reject(`the delivery policy in the pushed commit ${short(newId)} is invalid (${next.problems.join("; ")}); accepting it would reject every later push to this branch`);
   }
 
-  if (!policy.checks.length) {
-    say(`checking ${update.ref} at ${short(newId)} with ${source}: it lists no checks, so nothing was run`);
+  // The audit reads the files this push changed, at the pushed tip (docs/CONTRACTS.md section 14). It reads them out
+  // of the archive the gate already extracted and matched against the commit, so it sees exactly the bytes the checks
+  // run on, and it reads the whole of each changed file rather than the added lines alone: a file you touched is a
+  // file you are answering for. A line that is meant to be there carries a "skilliton-audit: allow <rule> <why>"
+  // marker, and a project that wants none of this sets "audit": {"enabled": false} in the policy, which is a policy
+  // change and so needs an approver's signature.
+  //
+  // It is not read through the runtime's usual git helper, and must not be: that helper clears GIT_OBJECT_DIRECTORY
+  // and GIT_ALTERNATE_OBJECT_DIRECTORIES, which is where git keeps the objects of a push it has not yet accepted, so
+  // inside pre-receive the pushed commit would not be found at all.
+  //
+  // Creating a protected branch is the one update it skips, and says so: there is no previous tip to compare with,
+  // auditing the whole tree would reject the push that installs the gate over code that was already there, and that
+  // push already needs an approver's signature on its tip.
+  const auditing = policy.audit.enabled && !isZeroId(oldId);
+  if (policy.audit.enabled && isZeroId(oldId)) say(`audit: not run for the push that creates ${branch}, which has no previous tip to compare with`);
+  if (!policy.checks.length && !auditing) {
+    say(`checking ${update.ref} at ${short(newId)} with ${source}: it lists no checks${policy.audit.enabled ? "" : " and the audit is off"}, so nothing was run`);
     return { verdict: "accepted", checks: [], notChecked };
   }
   const work = mkdtempSync(join(tmpdir(), "skilliton-delivery-"));
@@ -599,12 +417,29 @@ async function evaluateUpdate(ctx, update) {
     const home = join(work, "home");
     mkdirSync(tree);
     mkdirSync(home);
-    say(`checking ${update.ref} at ${short(newId)} with ${source}: ${policy.checks.length} check(s)`);
+    const doing = [policy.checks.length ? `${policy.checks.length} check(s)` : null, auditing ? "the audit" : null].filter(Boolean).join(" and ");
+    say(`checking ${update.ref} at ${short(newId)} with ${source}: ${doing}`);
     await extractArchive(git, newId, tree);
     const differences = treeDifferences(git, newId, tree);
     if (differences.length) {
       const shown = differences.slice(0, 3).join("; ");
       return reject(`the archive of ${short(newId)} does not match the commit (${shown}${differences.length > 3 ? `; ${differences.length} differences in all` : ""}). A .gitattributes export rule or a content filter changed it, and checks run only on exactly the committed files`);
+    }
+    if (auditing) {
+      // A deletion is left out: there is nothing to read, and the file is gone from the result this push produces.
+      const paths = git(["diff", "--name-only", "-z", "--diff-filter=d", oldId, newId, "--"]).stdout.split("\0").filter(Boolean);
+      const { files, skipped } = readWorking(tree, paths, "it is not in the pushed commit");
+      const result = auditFiles(files);
+      for (const s of [...result.skipped, ...skipped]) say(`audit: not read ${s.path}: ${s.why}`);
+      for (const a of result.allowed) say(`audit: allowed ${a.path}:${a.line} ${a.rule}: ${a.allowedBecause}`);
+      if (result.findings.length) {
+        return reject(
+          `the audit found ${result.findings.length} finding(s) in the ${files.length} file(s) this push changed. Fix each one, mark the line with "skilliton-audit: allow <rule> <why it is allowed here>", or turn the audit off with "audit": {"enabled": false} in the policy, which needs an approver signature like any policy change`,
+          result.findings.slice(0, TAIL_LINES).map(findingLine),
+        );
+      }
+      say(`audit: nothing found in the ${files.length} file(s) this push changed`);
+      if (!policy.checks.length) return { verdict: "accepted", checks: [], notChecked };
     }
     const passed = [];
     for (const check of policy.checks) {
@@ -665,7 +500,7 @@ export async function runGate({ bare, input, print = (line) => console.log(line)
         accepted.push(`accepted ${update.ref} without checks: not a protected branch`);
         continue;
       }
-      const result = await evaluateUpdate({ git, approvers: approvers.path, say }, { ...update, branch });
+      const result = await evaluateUpdate({ git, dir: bare, approvers: approvers.path, say }, { ...update, branch });
       if (result.verdict !== "accepted") {
         say(`rejected ${update.ref}: ${result.reason}`);
         for (const line of result.tail ?? []) print(`  | ${line}`);
@@ -726,7 +561,7 @@ export async function runLocalCheck({ repo, ref, remote = "origin", approvers, p
   if (protection.error) { say(`would be rejected: ${protection.error}`); return 1; }
   if (!protection.names.has(branch)) { say(`${branch} is not a protected branch (${protection.basis}); a push to it would be accepted without checks`); return 0; }
 
-  const result = await evaluateUpdate({ git, approvers: approversPath, say }, { ref: `refs/heads/${branch}`, branch, oldId: old ?? zeroIdLike(head), newId: head });
+  const result = await evaluateUpdate({ git, dir: repo, approvers: approversPath, say }, { ref: `refs/heads/${branch}`, branch, oldId: old ?? zeroIdLike(head), newId: head });
   if (result.verdict !== "accepted") {
     say(`would be rejected: ${result.reason}`);
     for (const line of result.tail ?? []) print(`  | ${line}`);
@@ -738,148 +573,4 @@ export async function runLocalCheck({ repo, ref, remote = "origin", approvers, p
   }
   say(`would be accepted: ${checkSummary(result.checks)}`);
   return 0;
-}
-
-// ---------- install ----------
-
-// The pre-receive hook. It reads the runtime path from the repository's git config at push time and fails closed.
-function hookScript() {
-  return [
-    "#!/bin/sh",
-    HOOK_MARKER,
-    "# Written by `skilliton delivery install`; run install again instead of editing this file. Git runs this hook before",
-    "# it updates any ref in this repository, with one \"<old> <new> <ref>\" line per update on standard input. The lines",
-    "# go to the Skilliton delivery gate, and the hook exits with the gate's status: anything but 0 rejects the whole",
-    "# push. It fails closed: when the runtime, its setting or node is missing, the push is rejected.",
-    "",
-    "reject() {",
-    "  printf 'skilliton delivery: rejected: %s\\n' \"$1\"",
-    "  exit 1",
-    "}",
-    "repo=$(cd \"${GIT_DIR:-.}\" 2>/dev/null && pwd -P) || reject \"cannot resolve the repository folder\"",
-    "runtime=$(git config --get skilliton.runtime 2>/dev/null) || runtime=",
-    "[ -n \"$runtime\" ] || reject \"skilliton.runtime is not set in this repository's git config; run skilliton delivery install again\"",
-    "[ -f \"$runtime\" ] && [ -x \"$runtime\" ] || reject \"the delivery runtime $runtime is missing or not executable\"",
-    "command -v node >/dev/null 2>&1 || reject \"node was not found on PATH, so the delivery checks cannot run\"",
-    "\"$runtime\" delivery gate --bare \"$repo\"",
-    "status=$?",
-    "if [ \"$status\" -ne 0 ]; then",
-    "  [ \"$status\" -eq 1 ] || printf 'skilliton delivery: rejected: the delivery gate exited with status %s\\n' \"$status\"",
-    "  exit \"$status\"",
-    "fi",
-    "exit 0",
-    "",
-  ].join("\n");
-}
-
-function lstatOrNull(path) {
-  try { return lstatSync(path); } catch (e) { if (e.code === "ENOENT" || e.code === "ENOTDIR") return null; throw e; }
-}
-
-function canonicalFile(path) {
-  try { return join(realpathSync(dirname(path)), basename(path)); } catch { return resolve(path); }
-}
-
-function configValue(git, key) {
-  const r = git(["config", "--get", key], { allowExit: [0, 1] });
-  return r.status === 0 ? r.stdout.replace(/\n$/, "") : null;
-}
-
-// Everything install would do, checked before anything is written. Throws Refused (exit 2) for any refusal.
-export function planInstall({ bare, approvers, runtime, defaultRuntime }) {
-  if (!bare) refuse("--bare <repo.git> is required: the shared bare repository to protect");
-  if (!approvers) refuse("--approvers <file> is required: an ssh allowed_signers file with the keys that may approve policy changes");
-  const bareDir = resolve(bare);
-  if (!isDir(bareDir)) refuse(`--bare ${bareDir} is not an existing folder`);
-  const git = gitRunner(["--git-dir", bareDir]);
-  const isBare = git(["rev-parse", "--is-bare-repository"], { allowExit: "any" });
-  if (isBare.status !== 0 || isBare.stdout.trim() !== "true") refuse(`${bareDir} is not a bare git repository`);
-
-  const hookPath = join(bareDir, "hooks", "pre-receive");
-  const effective = resolve(bareDir, git(["rev-parse", "--git-path", "hooks/pre-receive"]).stdout.trim());
-  if (canonicalFile(effective) !== canonicalFile(hookPath)) {
-    refuse(`git runs this repository's hooks from ${dirname(effective)} (core.hooksPath is set), so a hook written to ${dirname(hookPath)} would never run. Unset core.hooksPath for this repository, then run install again.`);
-  }
-  const head = bareView(git).defaultBranch();
-  if (!head) refuse(`the repository's HEAD does not name a default branch; set it first, for example: git --git-dir ${argPath(bareDir)} symbolic-ref HEAD refs/heads/main`);
-
-  const approversPath = resolve(approvers);
-  const found = readApproversFile(approversPath);
-  if (found.problems) refuse(`the approvers file ${approversPath} ${found.problems.join("; ")}`);
-
-  const runtimePath = resolve(runtime ?? defaultRuntime);
-  const rst = lstatOrNull(runtimePath) && statSync(runtimePath, { throwIfNoEntry: false });
-  if (!rst || !rst.isFile()) refuse(`the runtime ${runtimePath} is not a file (--runtime names the bin/skilliton launcher of the workflow plugin)`);
-  try { accessSync(runtimePath, fsConstants.X_OK); } catch { refuse(`the runtime ${runtimePath} is not executable`); }
-  const probe = runProgram(runtimePath, ["delivery", "--help"], 60000);
-  if (!probe.ok) refuse(`the runtime ${runtimePath} failed to run "delivery --help" (${probe.failure}); a hook using it would reject every push`);
-
-  const hookText = hookScript();
-  const existing = lstatOrNull(hookPath);
-  let hookAction = "create";
-  if (existing) {
-    if (!existing.isFile()) refuse(`${hookPath} exists but is not a regular file; it was left untouched`);
-    const text = readFileSync(hookPath, "utf8");
-    if (!HOOK_MARKER_RE.test(text) && LEGACY_DELIVERY_HOOK_MARKER.test(text)) {
-      refuse(`${hookPath} was written by delivery install before the rename to Skilliton; it was left untouched, because it runs the runtime named in the git settings ${LEGACY_DELIVERY_CONFIG_KEYS.join(" and ")}. To replace it: move the hook out of the hooks folder, remove those two settings (git config --unset ${LEGACY_DELIVERY_CONFIG_KEYS[0]}; git config --unset ${LEGACY_DELIVERY_CONFIG_KEYS[1]}), then run install again. Until then the shared branch keeps the earlier gate.`);
-    }
-    if (!HOOK_MARKER_RE.test(text)) {
-      refuse(`${hookPath} already exists and was not written by skilliton delivery install (it has no "${HOOK_MARKER}" line); it was left untouched. Combine the two hooks by hand or move the existing one away, then run install again.`);
-    }
-    hookAction = text === hookText && (existing.mode & 0o111) === 0o111 ? "unchanged" : "replace";
-  }
-
-  const config = [["skilliton.approvers", approversPath], ["skilliton.runtime", runtimePath]]
-    .map(([key, to]) => ({ key, from: configValue(git, key), to }));
-
-  const notes = [];
-  const protection = protectionFor(git, bareView(git));
-  if (protection.error) notes.push(`attention: ${protection.error}. Every push will be rejected until the policy on ${head} is fixed outside the gate.`);
-  else if (!bareView(git).tip(head)) notes.push(`the default branch ${head} does not exist yet: the push that creates it must contain ${POLICY_FILE} and have its tip commit signed by an approver`);
-  else if (!protection.policy) notes.push(`attention: the default branch ${head} has no ${POLICY_FILE}, so every push to ${head} will be rejected ("no delivery policy on the protected branch"). The gate accepts a new policy only on a branch it creates; add the policy to ${head} before installing the hook.`);
-  else {
-    const p = protection.policy;
-    notes.push(`the policy on ${head} protects ${p.protectedBranches.length ? p.protectedBranches.join(", ") : "no branches"}; checks: ${p.checks.length ? p.checks.map((c) => c.name).join(", ") : "none"}`);
-  }
-  return { bare: bareDir, hookPath, hookText, hookAction, config, notes, defaultBranch: head };
-}
-
-export function describeInstall(plan) {
-  const lines = [];
-  const hookWords = { create: "create", replace: "replace (the current file is backed up first)", unchanged: "already current, unchanged" };
-  lines.push(`hook:   ${plan.hookPath}: ${hookWords[plan.hookAction]}`);
-  for (const c of plan.config) {
-    lines.push(`config: ${c.key} = ${c.to}${c.from === c.to ? " (unchanged)" : c.from === null ? " (not set before)" : ` (was ${c.from})`}`);
-  }
-  for (const note of plan.notes) lines.push(`policy: ${note}`);
-  return lines;
-}
-
-// Writes the plan. The hook is checked again right before it is replaced, and written last, so a failure part way
-// leaves either no new hook or a hook that rejects pushes, never an unprotected half state.
-export function applyInstall(plan, { stamp = newStamp() } = {}) {
-  const now = lstatOrNull(plan.hookPath);
-  let backup = null;
-  if (plan.hookAction !== "unchanged") {
-    if (now && (!now.isFile() || !HOOK_MARKER_RE.test(readFileSync(plan.hookPath, "utf8")))) {
-      refuse(`${plan.hookPath} changed after it was checked and is no longer a hook written by install; nothing was written`);
-    }
-    if (!now && plan.hookAction === "replace") refuse(`${plan.hookPath} disappeared after it was checked; nothing was written. Run install again.`);
-    if (now && plan.hookAction === "create") refuse(`${plan.hookPath} appeared after it was checked; nothing was written. Run install again.`);
-  }
-  const git = gitRunner(["--git-dir", plan.bare]);
-  if (now && plan.hookAction === "replace") backup = backupFile("delivery", plan.hookPath, stamp);
-  for (const c of plan.config) if (c.from !== c.to) git(["config", c.key, c.to]);
-  if (plan.hookAction !== "unchanged") {
-    mkdirSync(dirname(plan.hookPath), { recursive: true });
-    const temp = join(dirname(plan.hookPath), `.pre-receive.skilliton-${process.pid}`);
-    writeFileSync(temp, plan.hookText, { mode: 0o755 });
-    chmodSync(temp, 0o755);
-    renameSync(temp, plan.hookPath);
-  }
-  const written = statSync(plan.hookPath);
-  if ((written.mode & 0o111) !== 0o111 || readFileSync(plan.hookPath, "utf8") !== plan.hookText) {
-    throw new DeliveryError(`${plan.hookPath} was written but does not read back as the executable hook`);
-  }
-  return { backup };
 }

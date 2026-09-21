@@ -48,7 +48,12 @@ export function evaluateStop({ stopHookActive, checkpoints, state, events, sessi
 // more sentence in an existing reminder and never a block of its own: a merge with nothing else changed does not reach
 // this function, because evaluateStop decides that. A window the merge check could not read says so rather than
 // reading an empty list as "no merge happened".
-export function stopReason({ decision, state, current, merges = null, command = selfCommand() }) {
+//
+// `audit` is { result } from auditScope over the working tree, or { problem } when it could not run. A clean tree says
+// nothing: a reminder that announced "no findings" every time would train everyone to skip the whole reminder, and the
+// sentence would stop being read on the day it mattered. A run that failed does get a sentence, because silence there
+// is indistinguishable from a clean tree.
+export function stopReason({ decision, state, current, merges = null, audit = null, command = selfCommand() }) {
   const since = decision.baseline === "checkpoint"
     ? `the last checkpoint (${decision.elapsedMinutes} minutes ago)`
     : `this session started (${decision.elapsedMinutes} minutes ago), and no checkpoint has been recorded`;
@@ -61,6 +66,14 @@ export function stopReason({ decision, state, current, merges = null, command = 
     parts.push(`${n} merge commit${n === 1 ? "" : "s"} landed in that window (${named}), so a batch of work has just come in: run /workflow:maintain on an integration branch as well, which reconciles the records and the indexes against what merged.`);
   } else if (merges?.problem) {
     parts.push(`Whether a batch merged in that window is unknown: ${merges.problem}.`);
+  }
+  if (audit?.result?.findings.length) {
+    const files = [...new Set(audit.result.findings.map((f) => f.path))];
+    const named = files.slice(0, 3).join(", ");
+    const more = files.length > 3 ? `, and ${files.length - 3} more` : "";
+    parts.push(`The audit found ${audit.result.findings.length} finding(s) in ${files.length} of the file(s) this tree changed (${named}${more}); read each one with its line and rule by running: ${command} audit. This is a report and not a block: the shared repository's delivery gate is what refuses a push.`);
+  } else if (audit?.problem) {
+    parts.push(`Whether those files carry anything worth attention is unknown: the audit did not run (${audit.problem}).`);
   }
   parts.push("This reminder is given once for this working tree state; if this work should not be recorded, tell the user why and stop.");
   // The command comes last, so no punctuation follows it.

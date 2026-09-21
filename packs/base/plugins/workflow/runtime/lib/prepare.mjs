@@ -31,7 +31,7 @@ import {
 } from "./project-files.mjs";
 import { NO_REPOSITORY_PROGRAMS, gitEnvironment } from "./journal.mjs";
 import { DEFAULT_SKIP, detectStack, hotspots } from "./stack.mjs";
-import { DEFAULT_TIMEOUT_SECONDS, DRAFT_FILE, POLICY_FILE, POLICY_SCHEMA } from "./delivery.mjs";
+import { DEFAULT_TIMEOUT_SECONDS, DRAFT_FILE, POLICY_FILE, POLICY_SCHEMA } from "./delivery-policy.mjs";
 import { PROTOTYPE_RUNTIME_PATH } from "./prototype-v1.mjs";
 import { LEGACY_CONFIG_REL, LEGACY_NAME, LEGACY_PROJECT_DIR } from "./legacy-names.mjs";
 

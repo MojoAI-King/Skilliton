@@ -55,12 +55,20 @@ export function toolVersions() {
   return { node: process.version, git, plugin: pluginVersion() };
 }
 
-function runGit(root, args, maxBuffer = 16 * 1024 * 1024) {
+// input: text written to git's standard input, for the commands that take a list there (cat-file --batch). Exported
+// because the audit reads its scope with the same hardening; a second git runner would be a second thing to drift.
+// The third argument is an object rather than two bare values, because that is the shape scripts/git-config.test.mjs
+// reads at a call site: a caller handing a buffer size and an input positionally is one that gate cannot read at all.
+export function runGit(root, args, { maxBuffer = 16 * 1024 * 1024, input = null } = {}) {
   // The same environment every other git call in the runtime gets: no repository chosen by a variable (git itself
   // sets GIT_DIR and GIT_INDEX_FILE inside a hook), and no settings handed in from outside a configuration file.
   // Without this, GIT_INDEX_FILE alone decides which files a secret scan reads, and the record would say it scanned
   // a repository it never opened.
-  const r = spawnSync('git', ['-C', root, ...NO_REPOSITORY_PROGRAMS, ...args], { timeout: 120000, maxBuffer, stdio: ['ignore', 'pipe', 'pipe'], env: gitEnvironment() });
+  // Two calls, each with its options written out, rather than one with a spread or a variable: scripts/footprint.test.mjs
+  // reads exactly these lines to say that nothing is left running, and a spread arrives as an object it cannot read.
+  let r;
+  if (input === null) r = spawnSync('git', ['-C', root, ...NO_REPOSITORY_PROGRAMS, ...args], { timeout: 120000, maxBuffer, stdio: ['ignore', 'pipe', 'pipe'], env: gitEnvironment() });
+  else r = spawnSync('git', ['-C', root, ...NO_REPOSITORY_PROGRAMS, ...args], { timeout: 120000, maxBuffer, stdio: ['pipe', 'pipe', 'pipe'], env: gitEnvironment(), input });
   if (r.error?.code === 'ENOENT') fail('GIT_NOT_FOUND');
   if (r.error) fail('GIT_FAILED', `git ${args[0]} did not finish (${r.error.code ?? 'error'})`);
   return { status: r.status, stdout: r.stdout };
@@ -302,7 +310,7 @@ export function collectSecrets(root, { control, reviewer, apply = false } = {}) 
   let topReal;
   try { topReal = realpathSync(top.stdout.toString('utf8').replace(/\r?\n$/, '')); } catch { fail('GIT_FAILED', 'git named a repository root that could not be resolved'); }
   if (topReal !== root) fail('NOT_REPOSITORY_ROOT');
-  const listing = runGit(root, ['ls-files', '-z'], 256 * 1024 * 1024);
+  const listing = runGit(root, ['ls-files', '-z'], { maxBuffer: 256 * 1024 * 1024 });
   if (listing.status !== 0) fail('GIT_FAILED', 'git ls-files did not succeed');
   const tracked = listing.stdout.toString('utf8').split('\0').filter(Boolean);
   const plan = { controlId, trackedFiles: tracked.length, rules: SECRET_SHAPES.map((s) => s.rule) };

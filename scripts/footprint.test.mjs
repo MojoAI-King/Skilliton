@@ -91,6 +91,7 @@ export const DYNAMIC_IMPORTS = [
   [`${PLUGINS}/workflow/runtime/lib/prepare.mjs`, 1, "a migration module from the runtime's own folder"],
   [`${PLUGINS}/workflow/runtime/lib/release.mjs`, 1, "the migrations module beside it"],
   [`${PLUGINS}/workflow/runtime/commands/migrate.mjs`, 1, "the collectors module beside it"],
+  [`${PLUGINS}/workflow/runtime/commands/hook.mjs`, 1, "the audit's scope reader, loaded only on the stop that audits, so the other hook events do not pay for it"],
 ];
 const RUNTIME_CODE_PATTERNS = [
   [/(?<![\w.])eval\s*\(|globalThis\s*\.\s*eval\b/, "eval"],

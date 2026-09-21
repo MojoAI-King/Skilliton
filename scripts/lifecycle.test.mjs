@@ -934,6 +934,38 @@ test("stop says so when it cannot tell whether a batch merged", async () => with
   assert.ok(!reason.includes("/workflow:maintain"), "an unreadable window is not a merge");
 }));
 
+// The planted shape is written in pieces, so this test file does not carry the shape it plants: the repository audits
+// its own changed files, and a fixture that trips its own gate teaches everyone to ignore the finding.
+const FLAW = `const options = { ${["shell", ": true"].join("")} };\n`;
+
+test("stop names the audit when a file this tree changed carries a finding, and says nothing when none does", async () => withTemp("stop-audit", async ({ dir, env }) => {
+  const p = stopFixture(dir, env, { change: false });
+  writeFileSync(join(p, "runner.mjs"), FLAW);
+  const found = stopReasonOf(p, env);
+  assert.ok(found.includes("The audit found 1 finding(s) in 1 of the file(s) this tree changed (runner.mjs)"), found);
+  assert.ok(found.includes("skilliton audit"), `the reminder names the command that shows each finding:\n${found}`);
+  assert.ok(found.includes("This is a report and not a block"), found);
+  assert.ok(!found.includes("the audit did not run"), "the audit ran, so nothing is unknown");
+
+  // The same tree with the line marked: allowed is not found, and a reminder over a clean tree carries no audit
+  // sentence at all. An announcement on every stop is how a sentence stops being read.
+  writeFileSync(join(p, "runner.mjs"), `${FLAW.trimEnd()} // skilliton-audit: allow ${["shell-", "true"].join("")} a fixture line that is never run\n`);
+  writeFileSync(join(p, "work.txt"), "changed\n"); // a second change, so the reminder is due for a new tree state
+  const clean = stopReasonOf(p, env);
+  assert.ok(!clean.includes("The audit found"), `a tree with nothing to report says nothing:\n${clean}`);
+  assert.ok(!clean.includes("the audit did not run"), clean);
+}));
+
+test("mutation check: without the audit sentence, the assertion above fails", async () => withTemp("mutant-audit", async ({ dir, env }) => {
+  const mutant = copyPlugin(dir, (root) => mutateFile(join(root, "runtime", "lib", "session-hooks.mjs"),
+    "  if (audit?.result?.findings.length) {", "  if (false) {"));
+  const shipped = stopFixture(join(dir, "shipped"), env, { change: false });
+  const broken = stopFixture(join(dir, "mutated"), env, { change: false });
+  for (const p of [shipped, broken]) writeFileSync(join(p, "runner.mjs"), FLAW);
+  assert.ok(stopReasonOf(shipped, env).includes("The audit found"));
+  assert.ok(!stopReasonOf(broken, env, mutant.bin).includes("The audit found"), "the mutant drops the sentence, so the assertion above can fail");
+}));
+
 // ---------------------------------------------------------------- the dispatch suggestion (UserPromptSubmit)
 
 const SESSION_HOOKS_LIB = async (root = PLUGIN) => import(pathToFileURL(join(root, "runtime", "lib", "session-hooks.mjs")).href);

@@ -3,7 +3,9 @@
 
 import { join } from "node:path";
 import { PLUGIN_ROOT, parseArgs, refuse, resolveExistingDir, say, selfCommand, tilde } from "../lib/core.mjs";
-import { DRAFT_FILE, POLICY_FILE, applyConfirm, applyInstall, describeInstall, describePolicy, planConfirm, planInstall, runGate, runLocalCheck } from "../lib/delivery.mjs";
+import { runGate, runLocalCheck } from "../lib/delivery.mjs";
+import { applyInstall, describeInstall, planInstall } from "../lib/delivery-install.mjs";
+import { DRAFT_FILE, POLICY_FILE, applyConfirm, describePolicy, planConfirm } from "../lib/delivery-policy.mjs";
 import { resolveGitRoot } from "../lib/prepare.mjs";
 
 export const help = `delivery: trusted delivery checks for a shared branch (docs/DELIVERY.md).

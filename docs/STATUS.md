@@ -37,5 +37,7 @@ Read `docs/HANDOFF.md` for the next step and `docs/BACKLOG.md` for outstanding w
 <!-- skilliton:index:tasks:start -->
 Open tasks in `docs/tasks/` (every state except done-local, merged, released, verified and abandoned), sorted by ID. `skilliton index` writes this list from the task records; edit the task records, not the list.
 
-No open tasks.
+| ID | Title | State | Branch | Owner | Updated |
+|---|---|---|---|---|---|
+| [2026-09-20-wave-7-the-self-running-audit-the-client-66a7](tasks/2026-09-20-wave-7-the-self-running-audit-the-client-66a7.md) | Wave 7: the self-running audit, the client policy, the meter as a command, and two decisions | in-progress | main | unassigned | 2026-09-21T03:26:24.279Z |
 <!-- skilliton:index:tasks:end -->

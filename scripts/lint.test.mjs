@@ -43,7 +43,6 @@ export const RUNTIME_MAX_LINES = 600;
 // count it had that day: it may shrink, and the row is deleted once it is under the ceiling, but it may not grow.
 // Do not raise a number here. Raising one is how a ceiling stops being one.
 export const PINNED_LINES = [
-  ["packs/base/plugins/workflow/runtime/lib/delivery.mjs", 885],
   ["packs/base/plugins/workflow/runtime/lib/security.mjs", 731],
   ["packs/base/plugins/workflow/runtime/lib/migrations.mjs", 698],
   ["packs/base/plugins/workflow/runtime/lib/preflight.mjs", 674],

@@ -35,6 +35,8 @@ const GROUPS = [
       { name: "security", summary: "project security evidence: status, record, applicability, collect, findings" },
       { name: "hook", summary: "run a lifecycle hook (session-start, stop, pre-compact, session-end); called by the plugin's hooks" },
       { name: "gate", summary: "run the project's checks (delivery policy, or npm run verify, or --cmd) and return a verdict with the full output in a log" },
+      { name: "audit", summary: "read the files a change touches and report what is worth a person's attention; --record writes it as scoped security evidence" },
+      { name: "usage", summary: "what this machine's transcripts say the work cost, one row per merged batch, read through the project's own meter" },
     ],
   },
   {

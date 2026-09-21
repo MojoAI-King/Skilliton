@@ -158,7 +158,22 @@ async function stop(input) {
   }
   // Read over the same window the reminder measures, so the two sentences cannot disagree about what "since" means.
   const merges = mergesSince(root, decision.baselineHead);
-  const reason = stopReason({ decision, state, current, merges });
+  // Only the files this tree changed, and only on a stop that is already being blocked, so a session that is keeping
+  // its checkpoints up to date never pays for a read. Anything that stops the audit is said in the reminder rather
+  // than swallowed: a missing sentence and a clean tree would otherwise look the same.
+  //
+  // Imported here and not at the top of the file, deliberately. Every hook in this file shares one module, so a
+  // top-level import would load the audit's rules, the collectors and the security register on a SessionEnd whose
+  // whole budget in Claude Code is about a second and a half, and on every stop that allows silently.
+  let audit;
+  try {
+    const { auditScope } = await import("../lib/audit-run.mjs");
+    const { result } = auditScope(root, { range: null });
+    audit = { result };
+  } catch (e) {
+    audit = { problem: clip(e?.message ?? String(e), 200) };
+  }
+  const reason = stopReason({ decision, state, current, merges, audit });
   // Recorded before the block is printed: a reminder that cannot be recorded would repeat on every stop, so a failure
   // here ends in the failure notice, and the session is allowed to stop.
   appendEvent(root, { event: "stop-reminded", session: input.session, at: now.toISOString() }, { state });

@@ -26,6 +26,10 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const CLI = join(here, "skilliton.mjs");
 const GUIDES = ["README.md", "docs/HOW-IT-WORKS.md", "docs/ONBOARDING.md", "docs/RELEASING.md"];
+// The assistant clients this repository could plausibly be read as claiming. Hand-kept and short on purpose: the point
+// is to catch a name arriving in README.md ahead of the evidence, not to recognize every tool that exists. Add a name
+// here when it becomes one this repository might be read as supporting.
+const CLIENT_NAMES = ["Claude Code", "Codex", "Cursor", "Windsurf", "Zed", "GitHub Copilot", "Copilot", "Gemini CLI", "Aider", "JetBrains"];
 const argv = process.argv.slice(2);
 const rootArg = argv.includes("--root") ? argv[argv.indexOf("--root") + 1] : null;
 if (argv.includes("--root") && (!rootArg || rootArg.startsWith("--"))) { console.error("--root needs a folder; nothing was checked"); process.exit(2); }
@@ -157,6 +161,41 @@ function check(root) {
     if (!/(^|\s)Kind: Reference\b/.test(head)) failures.push(`${relative(root, file)}: under docs/archive/ but not labelled Kind: Reference (that folder holds superseded documents; a document still in use does not belong there)`);
   }
   oks.push(`${archived.length} archived document(s) under docs/archive/ carry a Kind: Reference label`);
+
+  // The supported-client rule (docs/CLIENTS.md, batch 03-05). README.md is the page a reader believes, so a client
+  // named there must have a column in the matrix. The rule's other half, at least one measured row, is read by a
+  // person: this check reports which columns have one and does not decide for them, because "measured" is a judgement
+  // about evidence and a test that guessed at it would be the wrong kind of certain.
+  const clientsFile = join(root, "docs", "CLIENTS.md");
+  if (!existsSync(clientsFile)) failures.push(`docs/CLIENTS.md: missing, so no client column can be read and the supported-client rule cannot be checked`);
+  else {
+    const clientsText = readFileSync(clientsFile, "utf8");
+    const rows = clientsText.split("\n").filter((l) => l.trimStart().startsWith("|"));
+    const header = rows.find((l) => /^\|\s*Behavior\b/.test(l.trim()));
+    if (!header) failures.push(`docs/CLIENTS.md: no matrix header row starting "| Behavior" was found, so the client columns could not be read`);
+    else {
+      const columns = header.split("|").slice(2, -1).map((c) => c.trim()).filter(Boolean);
+      // "not measured" and "never measured" are how a cell says it holds no evidence, so a column whose every cell
+      // says that has no measured row. The negations come out before the word is looked for, or a client nobody has
+      // ever run would be counted as one that has been, which is the exact claim this rule exists to stop.
+      const hasMeasured = (cell) => /measured/i.test(String(cell ?? "").replace(/\b(?:not|never|no)\s+(?:\w+\s+){0,2}measured\b/gi, ""));
+      const measured = columns.filter((_, i) => rows.some((r) => hasMeasured(r.split("|").slice(2, -1)[i])));
+      const carried = (name) => columns.some((c) => c.toLowerCase().includes(name.toLowerCase()));
+      const readme = join(root, "README.md");
+      let named = 0;
+      if (!existsSync(readme)) failures.push(`README.md: missing, so the clients it names could not be read`);
+      else {
+        readFileSync(readme, "utf8").split("\n").forEach((text, i) => {
+          for (const name of CLIENT_NAMES) {
+            if (!new RegExp(`(^|[^\\w-])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^\\w-]|$)`, "i").test(text)) continue;
+            named++;
+            if (!carried(name)) failures.push(`README.md:${i + 1}: names the client "${name}", which docs/CLIENTS.md does not carry a column for (its columns are ${columns.join("; ")}). A client is supported only with a column and at least one measured row: add the column with what is actually known, or do not name it here`);
+          }
+        });
+      }
+      oks.push(`${named} client mention(s) in README.md name a client docs/CLIENTS.md carries: ${columns.length} column(s), ${measured.length} with a measured row (${measured.join("; ") || "none"})`);
+    }
+  }
   return { failures, oks };
 }
 
@@ -173,6 +212,7 @@ if (argv.includes("--self-test")) {
     ["a missing Kind label", (d) => { const f = join(d, "docs/ONBOARDING.md"); writeFileSync(f, readFileSync(f, "utf8").replace(/Kind: [A-Z][a-z]+\./, "")); }, /ONBOARDING\.md: no Kind label/],
     ["a document nothing links to", (d) => writeFileSync(join(d, "docs/ORPHAN.md"), "# Orphan\n\nKind: Living.\n"), /docs\/ORPHAN\.md: nothing reaches it/],
     ["a living document filed under docs/archive/", (d) => writeFileSync(join(d, "docs/archive/STILL_LIVING.md"), "# Still living\n\nKind: Living.\n"), /STILL_LIVING\.md: under docs\/archive\/ but not labelled Kind: Reference/],
+    ["a client README claims but the matrix does not carry", (d) => add(d, "README.md", "\nSkilliton also runs in Windsurf.\n"), /names the client "Windsurf", which docs\/CLIENTS\.md does not carry a column for/],
   ];
   let pass = 0;
   for (const [label, mutate, expect] of cases) {
