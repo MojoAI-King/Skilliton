@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-21T21:47:17.759Z
+- **Updated:** 2026-09-21T21:52:04.702Z
 
 ## Request
 
@@ -55,9 +55,16 @@ not yet written
 - **Next:** Read both CI runs step by step; then the behavior review of every hook and command (Tuesday), then polish, then the stats page and the full document
 - **Git:** main @ 71f9da2, 0 uncommitted
 
+### 2026-09-21T21:52:04.702Z
+
+- **State:** Owner test finding fixed: join names every missing flag at once, names existing joins, suggests prepare, warns before a second company; README opens with the two roles; B53 for the signers file; workflow 0.15.4
+- **Evidence:** join.test 41 pass; rename, lint, docs, backlog exit 0; scrub 0; CI for 4f4be07 and 71f9da2 each 63 of 63
+- **Next:** Watch CI for this commit; then the behavior review of every hook and command
+- **Git:** main @ ba73ec8, 0 uncommitted
+
 ## Handoff
 
-- **State:** Surface 5 done: everything under HOME that the tool wrote (trust, joined, launcher, backups, read-guard log) is on the declared list in docs/IT-ALLOWLIST.md; one pre-rename backups folder under the earlier name also exists; preflight 40 ok, 1 not checked. Surface 3: every commit since the rename is SSH-signed; main has no protection, recorded as B52 for the owner. Handoff header framing shipped as workflow 0.15.3 (71f9da2). B50 and B51 hold the two guardrail designs with the live probe each needs. Evidence: ls of the declared folders; skilliton preflight; git log --format=%G? shows G on the last four commits; handoff-hook test 104 checks, hook-fixture, lint, docs, backlog, records tests all exit 0; CI for 4f4be07 and 71f9da2 pending.
-- **Next:** Read both CI runs step by step; then the behavior review of every hook and command (Tuesday), then polish, then the stats page and the full document
+- **State:** Owner test finding fixed: join names every missing flag at once, names existing joins, suggests prepare, warns before a second company; README opens with the two roles; B53 for the signers file; workflow 0.15.4. Evidence: join.test 41 pass; rename, lint, docs, backlog exit 0; scrub 0; CI for 4f4be07 and 71f9da2 each 63 of 63.
+- **Next:** Watch CI for this commit; then the behavior review of every hook and command
 - **Blocked:** nothing
 - **Watch out:** nothing known
