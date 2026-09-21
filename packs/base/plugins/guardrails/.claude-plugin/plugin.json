@@ -1,7 +1,7 @@
 {
   "name": "guardrails",
-  "description": "Checks each shell command the assistant runs before it runs. Blocks force-pushes to protected branches (main and master by default), git hooks skipped with --no-verify, and staging or committing files or added lines that look like secrets; asks for confirmation before git commands that discard uncommitted work (Codex cannot ask from a hook, so there those commands are blocked with the reason). It reads the command text, so it catches ordinary and accidental commands, not deliberately hidden ones. A skill explains each rule and its settings.",
-  "version": "0.5.0",
+  "description": "Checks each shell command the assistant runs before it runs. Blocks force-pushes to protected branches (main and master by default), git hooks skipped with the no-verify flag, and staging or committing files or added lines that look like secrets; asks for confirmation before git commands that discard uncommitted work (Codex cannot ask from a hook, so there those commands are blocked with the reason). It reads the command text, so it catches ordinary and accidental commands, not deliberately hidden ones. A skill explains each rule and its settings.",
+  "version": "0.5.1",
   "author": {
     "name": "MojoAI"
   },

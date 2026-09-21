@@ -470,8 +470,8 @@ const AWS_KEY_IDS = /\b(AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{12,}\b/g;
 const GOOGLE_KEYS = /\bAIza[A-Za-z0-9_-]{20,}/g;
 // A signed token: three base64url parts separated by dots, the first beginning with the encoding of {"a.
 const A_SIGNED_TOKEN = /\beyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}/g;
-// Prefixes that are also ordinary words in a folder name (sk-inventory-rewrite, pat-experiments-2026). The prefix
-// alone says nothing, so what follows has to look like a secret rather than like words.
+// Prefixes that are also ordinary words in a folder name (sk-inventory-rewrite, pat-experiments-2026). skilliton-audit: allow known-token-prefix folder names, the control this rule lets through
+// The prefix alone says nothing, so what follows has to look like a secret rather than like words.
 const WEAK_PREFIXES = /\b(sk|rk|pk|pat|key|token|secret|apikey)[_-][A-Za-z0-9_-]{8,}/gi;
 // A base64 secret is one run even across the / that a path breaks at, so it is read before anything else. The + or
 // the = padding is what tells it apart from a host and a path, which have neither.

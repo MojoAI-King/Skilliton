@@ -305,14 +305,14 @@ expect "git push --force origin main:feature"         allow "$R" 'git push --for
 
 # ---------------------------------------------------------------- rule 2: skipping hooks
 section "deny: skipping git hooks"
-expect "git commit --no-verify -m x"                  deny "$R" 'git commit --no-verify -m "x"'
+expect "git commit --no-verify -m x"                  deny "$R" 'git commit --no-verify -m "x"' # skilliton-audit: allow verification-off a test case that runs the flag at the guard
 reason_has "no-verify reason ends with what to do instead" "instead of skipping it."
 expect "git commit -n -m x"                           deny "$R" 'git commit -n -m "x"'
 expect "git commit -nm x (combined)"                  deny "$R" 'git commit -nm "x"'
 expect "git commit -anm x (combined)"                 deny "$R" 'git commit -anm "x"'
 expect "git commit --no-veri -m x (abbreviation git accepts)" deny "$R" 'git commit --no-veri -m "x"'
-expect "git push --no-verify origin feature"          deny "$R" 'git push --no-verify origin feature'
-expect "cd repo && git commit --no-verify -m x"       deny "$TMP" 'cd repo && git commit --no-verify -m "x"'
+expect "git push --no-verify origin feature"          deny "$R" 'git push --no-verify origin feature' # skilliton-audit: allow verification-off a test case that runs the flag at the guard
+expect "cd repo && git commit --no-verify -m x"       deny "$TMP" 'cd repo && git commit --no-verify -m "x"' # skilliton-audit: allow verification-off a test case that runs the flag at the guard
 # ---------------------------------------------------------------- the shell's own startup file
 # BASH_ENV names a file the shell runs before the first line of any script it starts, including this hook. A careless
 # setting is reported; a deliberate one cannot be, because the file it names runs first and can end the shell. Both
@@ -321,16 +321,16 @@ expect "cd repo && git commit --no-verify -m x"       deny "$TMP" 'cd repo && gi
 section "the shell's own startup file"
 printf ': ordinary\n' > "$TMP/bashenv-ordinary.sh"
 printf 'exit 0\n' > "$TMP/bashenv-quiet.sh"
-expect "BASH_ENV set: a command that would be denied asks instead" ask "$R" 'git commit --no-verify -m "x"' "BASH_ENV=$TMP/bashenv-ordinary.sh"
+expect "BASH_ENV set: a command that would be denied asks instead" ask "$R" 'git commit --no-verify -m "x"' "BASH_ENV=$TMP/bashenv-ordinary.sh" # skilliton-audit: allow verification-off a test case that runs the flag at the guard
 reason_has "the reason names the variable" "BASH_ENV"
-expect "known limit: BASH_ENV naming a file that ends the shell silences the hook" allow "$R" 'git commit --no-verify -m "x"' "BASH_ENV=$TMP/bashenv-quiet.sh"
-expect "known limit: SHELLOPTS=noexec silences the hook, and cannot be reported" allow "$R" 'git commit --no-verify -m "x"' "SHELLOPTS=noexec"
+expect "known limit: BASH_ENV naming a file that ends the shell silences the hook" allow "$R" 'git commit --no-verify -m "x"' "BASH_ENV=$TMP/bashenv-quiet.sh" # skilliton-audit: allow verification-off a test case that runs the flag at the guard
+expect "known limit: SHELLOPTS=noexec silences the hook, and cannot be reported" allow "$R" 'git commit --no-verify -m "x"' "SHELLOPTS=noexec" # skilliton-audit: allow verification-off a test case that runs the flag at the guard
 # ENV is read by an interactive shell only, so it has no power over a hook and must not change a decision here: a
 # refusal that a powerless variable can turn into a question is a way to be allowed past this check.
-expect "ENV set: a command that would be denied is still denied" deny "$R" 'git commit --no-verify -m "x"' "ENV=$TMP/bashenv-quiet.sh"
+expect "ENV set: a command that would be denied is still denied" deny "$R" 'git commit --no-verify -m "x"' "ENV=$TMP/bashenv-quiet.sh" # skilliton-audit: allow verification-off a test case that runs the flag at the guard
 # A function exported into the environment is imported before the first line of the hook and can replace a program
 # it uses. Unlike BASH_ENV it can be seen from inside, so it is reported rather than only written down.
-expect "an exported shell function: a command that would be denied asks instead" ask "$R" 'git commit --no-verify -m "x"' 'BASH_FUNC_jq%%=() { true; }'
+expect "an exported shell function: a command that would be denied asks instead" ask "$R" 'git commit --no-verify -m "x"' 'BASH_FUNC_jq%%=() { true; }' # skilliton-audit: allow verification-off a test case that runs the flag at the guard
 reason_has "the reason names what was found" "exports shell functions"
 
 section "allow: flags that only look similar (negative controls)"
@@ -449,9 +449,9 @@ expect "git status"                                   allow "$R" 'git status'
 expect "ls -la"                                       allow "$R" 'ls -la'
 expect "echo \"remember to git push --force origin main\"" allow "$R" 'echo "remember to git push --force origin main"'
 expect "echo \"a; git push --force origin main\" (separator inside quotes)" allow "$R" 'echo "a; git push --force origin main"'
-expect "echo 'git commit --no-verify' single quotes"  allow "$R" "echo 'git commit --no-verify'"
+expect "echo 'git commit --no-verify' single quotes"  allow "$R" "echo 'git commit --no-verify'" # skilliton-audit: allow verification-off a test that the guard does not fire on the flag inside a quoted string
 expect "grep -rn \"git reset --hard\" docs/"          allow "$R" 'grep -rn "git reset --hard" docs/'
-expect "heredoc body mentioning a force-push"         allow "$R" $'cat <<\'EOF\' > notes.md\ngit push --force origin main\ngit commit --no-verify\nEOF'
+expect "heredoc body mentioning a force-push"         allow "$R" $'cat <<\'EOF\' > notes.md\ngit push --force origin main\ngit commit --no-verify\nEOF' # skilliton-audit: allow verification-off a test that the guard does not fire on the flag inside a heredoc body
 expect "heredoc body, then a real force-push after it" deny "$R" $'cat <<EOF > notes.md\nhello\nEOF\ngit push --force origin main'
 expect "# comment mentioning git push -f origin main" allow "$R" 'ls # git push -f origin main'
 expect "git log --oneline | grep force"               allow "$R" 'git log --oneline | grep force'
@@ -485,10 +485,10 @@ if [ "$RC" -eq 0 ] && [ -z "$OUT" ]; then ok "no tool_input.command -> allow, ex
 section "settings: .skilliton/config.json"
 write_config '{"guardrails":{"blockForcePush":false}}'
 expect "blockForcePush false: git push -f origin main" allow "$RCFG" 'git push -f origin main'
-expect "blockForcePush false: --no-verify still blocked" deny "$RCFG" 'git commit --no-verify -m "x"'
+expect "blockForcePush false: --no-verify still blocked" deny "$RCFG" 'git commit --no-verify -m "x"' # skilliton-audit: allow verification-off a test case that runs the flag at the guard
 write_config '{"guardrails":{"blockNoVerify":false}}'
-expect "blockNoVerify false: git commit --no-verify"   allow "$RCFG" 'git commit --no-verify -m "x"'
-expect "blockNoVerify false: git push --no-verify origin feature" allow "$RCFG" 'git push --no-verify origin feature'
+expect "blockNoVerify false: git commit --no-verify"   allow "$RCFG" 'git commit --no-verify -m "x"' # skilliton-audit: allow verification-off a test case that runs the flag at the guard
+expect "blockNoVerify false: git push --no-verify origin feature" allow "$RCFG" 'git push --no-verify origin feature' # skilliton-audit: allow verification-off a test case that runs the flag at the guard
 expect "blockNoVerify false: force-push still blocked" deny "$RCFG" 'git push -f origin main'
 write_config '{"guardrails":{"blockSecretFiles":false}}'
 expect "blockSecretFiles false: git add .env"          allow "$RCFG" 'git add .env'
@@ -497,7 +497,7 @@ expect "protectedBranches [release/*]: push -f origin main" allow "$RCFG" 'git p
 expect "protectedBranches [release/*]: push -f origin release/1.0" deny "$RCFG" 'git push -f origin release/1.0'
 write_config '{"guardrails":{"blockForcePush":"no","blockNoVerify":0}}'
 expect "non-boolean values leave rules on (force-push)" deny "$RCFG" 'git push -f origin main'
-expect "non-boolean values leave rules on (--no-verify)" deny "$RCFG" 'git commit -n -m "x"'
+expect "non-boolean values leave rules on (--no-verify)" deny "$RCFG" 'git commit -n -m "x"' # skilliton-audit: allow verification-off a test case name for the abbreviated form of the flag
 write_config '{"guardrails":{"blockForcePush":false,"blockNoVerify":false,"blockSecretFiles":false}}'
 expect "every rule off: ask rules still ask"           ask "$RCFG" 'git reset --hard'
 write_config '{"handoff":{"file":"docs/HANDOFF.md"}}'
@@ -517,8 +517,8 @@ expect "unset again: git push --force origin main"     deny "$R" 'git push --for
 
 # ---------------------------------------------------------------- SessionStart line
 section "SessionStart line"
-HEALTHY='[guardrails] on: force-push to protected branches, --no-verify, and secret files are blocked.'
-OFFLINE='[guardrails] OFF for this session (SKILLITON_GUARDRAILS=off). Force-push, --no-verify, and secret-file checks are not running.'
+HEALTHY='[guardrails] on: force-push to protected branches, --no-verify, and secret files are blocked.' # skilliton-audit: allow verification-off the expected status line text, which names the checks
+OFFLINE='[guardrails] OFF for this session (SKILLITON_GUARDRAILS=off). Force-push, --no-verify, and secret-file checks are not running.' # skilliton-audit: allow verification-off the expected status line text, which names the checks
 ss() { # ss <project dir> [VAR=value...]: runs the SessionStart hook by path; sets OUT and RC
   local dir=$1; shift
   OUT=$(printf '{"hook_event_name":"SessionStart","source":"startup","session_id":"t","cwd":%s}' "$(jstr "$dir")" \
@@ -530,13 +530,13 @@ ss "$R" SKILLITON_GUARDRAILS=off
 if [ "$RC" -eq 0 ] && [ "$OUT" = "$OFFLINE" ]; then ok "SKILLITON_GUARDRAILS=off: exactly the OFF line"; else bad "off: exit $RC, got: $OUT"; fi
 write_config '{"guardrails":{"blockForcePush":false}}'
 ss "$RCFG"
-if [ "$OUT" = "[guardrails] on. Blocked: --no-verify and secret files. Turned off in .skilliton/config.json: force-push to protected branches." ]; then
+if [ "$OUT" = "[guardrails] on. Blocked: --no-verify and secret files. Turned off in .skilliton/config.json: force-push to protected branches." ]; then # skilliton-audit: allow verification-off the expected status line text, which names the checks
   ok "a rule turned off in the config is named in the line"
 else bad "rule turned off not reported as expected: $OUT"; fi
 # Codex-shaped SessionStart input (a model key) and no CLAUDE_PROJECT_DIR: the project comes from the input cwd
 printf '{"session_id":"t","transcript_path":null,"cwd":%s,"hook_event_name":"SessionStart","model":"guardrails-test-model","source":"startup"}' "$(jstr "$RCFG")" > "$TMP/ss-codex.json"
 OUT=$("$SS" < "$TMP/ss-codex.json" 2>/dev/null); RC=$?
-if [ "$RC" -eq 0 ] && [ "$OUT" = "[guardrails] on. Blocked: --no-verify and secret files. Turned off in .skilliton/config.json: force-push to protected branches." ]; then
+if [ "$RC" -eq 0 ] && [ "$OUT" = "[guardrails] on. Blocked: --no-verify and secret files. Turned off in .skilliton/config.json: force-push to protected branches." ]; then # skilliton-audit: allow verification-off the expected status line text, which names the checks
   ok "Codex-shaped SessionStart input: the config is found from the input cwd"
 else bad "Codex-shaped SessionStart input with a config: exit $RC, got: $OUT"; fi
 printf '{"session_id":"t","transcript_path":null,"cwd":%s,"hook_event_name":"SessionStart","model":"guardrails-test-model","source":"startup"}' "$(jstr "$R")" > "$TMP/ss-codex.json"

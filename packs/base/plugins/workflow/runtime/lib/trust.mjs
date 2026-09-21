@@ -142,7 +142,7 @@ function insideGitWorkTree(dir) {
 
 const KEY_TYPES = new Set([
   "ssh-ed25519", "ssh-rsa", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521",
-  "sk-ssh-ed25519@openssh.com", "sk-ecdsa-sha2-nistp256@openssh.com",
+  "sk-ssh-ed25519@openssh.com", "sk-ecdsa-sha2-nistp256@openssh.com", // skilliton-audit: allow known-token-prefix SSH key type names, which are public and head every allowed_signers line
 ]);
 
 // Split on spaces and tabs outside double quotes; null when a quote is left open.
@@ -179,7 +179,7 @@ function blobFields(blob) {
 // size of an ed25519 key.
 const FIELD_COUNTS = {
   "ssh-ed25519": 2, "sk-ssh-ed25519@openssh.com": 3, "ssh-rsa": 3,
-  "ecdsa-sha2-nistp256": 3, "ecdsa-sha2-nistp384": 3, "ecdsa-sha2-nistp521": 3, "sk-ecdsa-sha2-nistp256@openssh.com": 4,
+  "ecdsa-sha2-nistp256": 3, "ecdsa-sha2-nistp384": 3, "ecdsa-sha2-nistp521": 3, "sk-ecdsa-sha2-nistp256@openssh.com": 4, // skilliton-audit: allow known-token-prefix SSH key type names, which are public and head every allowed_signers line
 };
 
 function keyBlobProblem(blob, keyType) {
