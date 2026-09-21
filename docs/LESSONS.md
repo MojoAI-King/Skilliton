@@ -232,4 +232,5 @@ Lesson entries in `docs/lessons/`, sorted by ID. `skilliton index` writes this l
 | [2026-09-21-an-audit-finds-its-own-rules-written-dow-cc3f](lessons/2026-09-21-an-audit-finds-its-own-rules-written-dow-cc3f.md) | An audit finds its own rules written down | accepted | 2026-09-21 |
 | [2026-09-21-an-exit-status-read-after-a-pipe-is-the-c869](lessons/2026-09-21-an-exit-status-read-after-a-pipe-is-the-c869.md) | An exit status read after a pipe is the pipe's, so every gate reported success | accepted | 2026-09-21 |
 | [2026-09-21-the-tool-said-so-on-its-second-line-and-0a35](lessons/2026-09-21-the-tool-said-so-on-its-second-line-and-0a35.md) | The tool said so on its second line and its last line, and the table between them was read instead | accepted | 2026-09-21 |
+| [2026-09-21-verify-called-every-plugin-in-use-tamper-3e4a](lessons/2026-09-21-verify-called-every-plugin-in-use-tamper-3e4a.md) | verify called every plugin in use TAMPERED, because the client writes a marker into the folder it verifies | accepted | 2026-09-21 |
 <!-- skilliton:index:lessons:end -->

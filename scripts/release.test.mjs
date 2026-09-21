@@ -214,7 +214,7 @@ function flipByte(path) {
 function shellTreeHash(dir) {
   const tool = ["sha256sum", "shasum -a 256"].find((t) => spawnSync("bash", ["-c", `command -v ${t.split(" ")[0]}`]).status === 0);
   if (!tool) return null;
-  const script = `find . -type f ! -name .DS_Store | sed 's|^\\./||' | LC_ALL=C sort | while IFS= read -r f; do ${tool} "$f"; done | ${tool}`;
+  const script = `find . -type f ! -name .DS_Store ! -path './.in_use' ! -path './.in_use/*' | sed 's|^\\./||' | LC_ALL=C sort | while IFS= read -r f; do ${tool} "$f"; done | ${tool}`;
   const r = spawnSync("bash", ["-c", script], { cwd: dir, encoding: "utf8" });
   assert.equal(r.status, 0, r.stderr);
   return r.stdout.trim().split(/\s+/)[0];
@@ -552,12 +552,18 @@ boxed("verify says TAMPERED and names the files after a one-byte change, an adde
   assert.equal(json.result, "attention");
   assert.deepEqual(json.details.plugins.find((p) => p.plugin === "guardrails").files.changed, ["hooks/guard-bash.sh"]);
 
+  // Claude Code's own in-use marker (.in_use/<pid>, observed on 2.1.278) is not an added file: still VERIFIED.
+  mkdirSync(join(paths.workflow, ".in_use"));
+  writeFileSync(join(paths.workflow, ".in_use", "24477"), '{"pid":24477,"procStart":"Mon Sep 21 19:47:53 2026"}');
+  r = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"]), 1, "in-use marker");
+  assert.equal(verifyLine(r.out, "workflow").state, "VERIFIED", verifyLine(r.out, "workflow").line);
   writeFileSync(join(paths.workflow, "extra.sh"), "echo extra\n");
   const removed = readdirSync(join(paths["context-hygiene"], "hooks")).sort()[0];
   unlinkSync(join(paths["context-hygiene"], "hooks", removed));
   symlinkSync("SKILL.md", join(paths.workflow, "skills", "review", "link.md"));
   r = expectCode(cli(box, ["verify", "--source", repo, "--company", "acme"]), 1, "added, missing and linked");
   assert.match(verifyLine(r.out, "workflow").line, /added: extra\.sh/);
+  assert.doesNotMatch(verifyLine(r.out, "workflow").line, /in_use/);
   assert.match(verifyLine(r.out, "workflow").line, /skills\/review\/link\.md \(a symbolic link\)/);
   assert.match(verifyLine(r.out, "context-hygiene").line, new RegExp(`missing: hooks/${removed.replace(/\./g, "\\.")}`));
 });

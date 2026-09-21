@@ -47,14 +47,14 @@ Written by `skilliton release create --version <x.y.z> [--repo <skills repo>] [-
 | `evidence` | each `--evidence` file: `kind` (`release` under `evidence/releases/`, `rehearsal` under `evidence/rehearsals/`, `skill-evaluation` under `evidence/<commit>/`, else `other`), repository path and sha256 |
 | `notes` | an addition beyond CONTRACTS section 13: statements the manifest cannot express as data, such as the missing migrations module |
 
-Validation (used by `release sign`, `release list` and `verify`) rejects: a wrong schema or version; a sourceCommit that is not a full commit id; an unparseable `createdAt`; component or file paths that are absolute, contain `..`, `.`, empty parts, a backslash or control characters; duplicate names or paths; a component path inside another; a `.DS_Store` entry; a `treeSha256` that does not equal the hash of its own file list; migration ids that are not `NNNN-slug`; evidence without kind, path and sha256.
+Validation (used by `release sign`, `release list` and `verify`) rejects: a wrong schema or version; a sourceCommit that is not a full commit id; an unparseable `createdAt`; component or file paths that are absolute, contain `..`, `.`, empty parts, a backslash or control characters; duplicate names or paths; a component path inside another; a `.DS_Store` entry or a top-level `.in_use` entry; a `treeSha256` that does not equal the hash of its own file list; migration ids that are not `NNNN-slug`; evidence without kind, path and sha256.
 
 ## The tree hash
 
-`treeSha256` is the sha256 of the lines `<sha256>  <path>\n` (two spaces), one per regular file in the plugin folder, sorted by the UTF-8 bytes of the path, with `/` separators and `.DS_Store` files left out. It is the output format of `sha256sum`, so it can be reproduced without Skilliton:
+`treeSha256` is the sha256 of the lines `<sha256>  <path>\n` (two spaces), one per regular file in the plugin folder, sorted by the UTF-8 bytes of the path, with `/` separators, `.DS_Store` files left out, and a top-level `.in_use` entry (a file or a folder of `<pid>` files) left out, because Claude Code writes `.in_use/<pid>` into a cached plugin's version folder while a session runs it (observed on 2.1.278, 2026-09-21; not documented) and a marker the client writes is not part of the package. It is the output format of `sha256sum`, so it can be reproduced without Skilliton:
 
 ```
-cd <plugin folder> && find . -type f ! -name .DS_Store | sed 's|^\./||' | LC_ALL=C sort \
+cd <plugin folder> && find . -type f ! -name .DS_Store ! -path './.in_use' ! -path './.in_use/*' | sed 's|^\./||' | LC_ALL=C sort \
   | while IFS= read -r f; do sha256sum "$f"; done | sha256sum        # shasum -a 256 on macOS
 ```
 

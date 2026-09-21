@@ -374,7 +374,7 @@ function validateManifest(m, expectedVersion) {
         const fp = typeof f.path === "string" ? filePathProblem(f.path) : "not text";
         if (fp) { p.push(`${fat}.path is ${fp}`); filesOk = false; }
         else if (seen.has(f.path)) { p.push(`${fat}.path "${f.path}" appears twice`); filesOk = false; }
-        else if (f.path.split("/").pop() === ".DS_Store") { p.push(`${fat}.path is a .DS_Store file, which the tree hash leaves out`); filesOk = false; }
+        else if (f.path.split("/").pop() === ".DS_Store" || f.path === ".in_use" || f.path.startsWith(".in_use/")) { p.push(`${fat}.path is a .DS_Store file or under a top-level .in_use entry, which the tree hash leaves out`); filesOk = false; }
         else seen.add(f.path);
         if (typeof f.sha256 !== "string" || !HEX64.test(f.sha256)) { p.push(`${fat}.sha256 is not a sha256`); filesOk = false; }
         if (typeof f.executable !== "boolean") p.push(`${fat}.executable is not true or false`);

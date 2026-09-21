@@ -1,11 +1,14 @@
 // treehash.mjs: the canonical tree hash of a plugin folder (docs/CONTRACTS.md section 13).
 //
 // treeSha256 is the sha256 of the lines "<sha256>  <path>\n", one per regular file in the folder, sorted by the
-// UTF-8 bytes of the path (the order of `LC_ALL=C sort`), with "/" between folder names and .DS_Store files left
-// out. That is the output format of `sha256sum`, so the hash can be reproduced without Skilliton:
+// UTF-8 bytes of the path (the order of `LC_ALL=C sort`), with "/" between folder names, .DS_Store files left out,
+// and a top-level `.in_use` entry left out: Claude Code writes `.in_use/<pid>` marker files into a cached plugin's
+// version folder while a session runs it (observed on 2.1.278, 2026-09-21; not documented), and without this
+// exclusion `verify` reports every plugin in use as TAMPERED. That is the output format of `sha256sum`, so the hash
+// can be reproduced without Skilliton:
 //
-//   cd <plugin> && find . -type f ! -name .DS_Store | sed 's|^\./||' | LC_ALL=C sort \
-//     | while IFS= read -r f; do sha256sum "$f"; done | sha256sum        (shasum -a 256 on macOS)
+//   cd <plugin> && find . -type f ! -name .DS_Store ! -path './.in_use' ! -path './.in_use/*' | sed 's|^\./||' \
+//     | LC_ALL=C sort | while IFS= read -r f; do sha256sum "$f"; done | sha256sum        (shasum -a 256 on macOS)
 //
 // Symbolic links, and anything else that is not a regular file or a folder, are refused: a link can point outside
 // the folder, so the bytes it stands for are not part of the package. The executable bit is recorded per file and is
@@ -18,6 +21,7 @@ import { closeSync, constants as fsConstants, fstatSync, lstatSync, openSync, re
 import { join } from "node:path";
 
 const EXCLUDED_NAMES = [".DS_Store"];
+const EXCLUDED_TOP_LEVEL = [".in_use"]; // the client's own in-use marker, a file or a folder of pid files
 const MAX_TREE_FILES = 20000;
 const MAX_TREE_BYTES = 1024 * 1024 * 1024;
 
@@ -99,6 +103,7 @@ export function scanTree(dir, options = {}) {
     for (const { ent, name } of named) {
       if (tooMany) return;
       const path = rel ? `${rel}/${name}` : name;
+      if (!rel && EXCLUDED_TOP_LEVEL.includes(name)) continue;
       const bad = filePathProblem(path);
       if (bad) { problems.push({ path: JSON.stringify(path), problem: bad }); continue; }
       const full = join(abs, name);
