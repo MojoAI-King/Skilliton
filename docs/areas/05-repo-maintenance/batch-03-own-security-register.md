@@ -11,7 +11,7 @@ Kind: Living. Batch record. Area [05-repo-maintenance](AREA.md).
 ## Acceptance
 
 - [ ] applicability decisions recorded for every control the register lists as needing attention
-- [x] the collectors run in CI as evidence, with the step named in checks.yml (evidence: the step "Security collectors over this repository, recorded as evidence" in .github/workflows/checks.yml, green as step 54 of 60 on run 35589180170 at commit 18b8fd0; both collectors record gap on this repository by construction and the whole-tree audit beside it is step 53, 0 findings over 544 files)
+- [x] the collectors run in CI as evidence, with the step named in checks.yml (evidence: the step "Security collectors over this repository, recorded as evidence" in .github/workflows/checks.yml, green as step 54 of 63 on run 35589180170 at commit 18b8fd0; both collectors record gap on this repository by construction and the whole-tree audit beside it is step 53, 0 findings over 544 files)
 
 ## Notes
 
