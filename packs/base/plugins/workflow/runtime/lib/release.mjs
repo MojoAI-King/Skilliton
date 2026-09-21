@@ -21,7 +21,7 @@ const MANIFEST_SCHEMA = "skilliton.release/1";
 export const RELEASE_TAG = "skilliton-release/";
 const WITHDRAWN_TAG = "skilliton-withdrawn/";
 export const VERSION_RE = /^(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})$/;
-const MIGRATION_ID_RE = /^\d{4}-[a-z0-9][a-z0-9-]*$/;
+import { MIGRATION_ID_RE } from "./migrations.mjs";
 const HEX64 = /^[0-9a-f]{64}$/;
 const COMMIT_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const CLAUDE_CATALOG = ".claude-plugin/marketplace.json";

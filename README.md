@@ -6,7 +6,7 @@ Kind: Living.
 
 **Skilliton is a forkable development autopilot for teams using AI coding tools.** A company decides once how it builds software: its records, habits, reviews, security evidence and checks. Every contributor, technical or not, then works inside that arrangement. They describe what they need, the assistant carries the work through the team's workflow, progress survives interruptions, and company-approved improvements arrive without anyone copying skills by hand.
 
-**New here? [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) walks through the whole path with diagrams:** fork it, make it yours, release it, install it on every machine, work in any codebase, and feed lessons back.
+**New here? [docs/OWNER_GUIDE.md](docs/OWNER_GUIDE.md) answers the first questions (what it is written in, how a company takes it to every laptop); [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) walks through the whole path with diagrams:** fork it, make it yours, release it, install it on every machine, work in any codebase, and feed lessons back.
 
 ## Two ways in
 

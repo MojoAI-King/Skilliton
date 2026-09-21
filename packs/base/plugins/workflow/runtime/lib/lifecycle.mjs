@@ -21,12 +21,13 @@ import { GitError, changedPaths, gitTopLevel, readGitState, readJournal, runGit 
 import { TaskChangedError, TaskRecordError, gitLine, listTasks, pickCurrent } from "./tasks.mjs";
 import { LEGACY_NAME, LEGACY_PROJECT_DIR } from "./legacy-names.mjs";
 import { HANDOFF_PLACEHOLDER } from "./project-files.mjs";
+import { OperationFailed } from "./prepare.mjs";
 
 const RESULT_SCHEMA = "skilliton.result/1";
 const RESULTS = { 0: "complete", 1: "attention", 2: "invalid", 3: "operation-failed" };
 
 // A Git or file system operation failed (exit 3), as opposed to invalid input (Refused, exit 2).
-export class OperationFailed extends Error {}
+export { OperationFailed } from "./prepare.mjs"; // one class for both engines (B37), so a catch of one is a catch of both
 
 const flat = (text) => String(text ?? "").replace(/\s*\n\s*/g, " ").trim();
 export const clip = (text, max = 200) => {

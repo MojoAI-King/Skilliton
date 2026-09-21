@@ -46,7 +46,7 @@ import {
 
 const RECEIPT_SCHEMA = "skilliton.migration-receipt/1";
 const INSTRUCTIONS_PREFIX = "0100-instructions-";
-const MIGRATION_ID_RE = /^\d{4}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const MIGRATION_ID_RE = /^\d{4}-[a-z0-9]+(?:-[a-z0-9]+)*$/; // the one pattern; release.mjs imports it (B41)
 const BACKUP_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 const SHA_RE = /^[0-9a-f]{64}$/;
 const ID_0002 = "0002-integrated-layout";

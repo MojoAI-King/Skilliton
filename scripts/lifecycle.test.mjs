@@ -1837,3 +1837,12 @@ test("this test file holds no forbidden dash characters or home paths", () => {
   assert.equal(text.includes(String.fromCharCode(0x2014)) || text.includes(String.fromCharCode(0x2013)), false);
   assert.equal(new RegExp(["/Us", "ers/[A-Za-z0-9._-]+/|/ho", "me/[A-Za-z0-9._-]+/"].join("")).test(text), false);
 });
+
+// B37: one OperationFailed for both engines, so guardCommand's catch of the lifecycle one is a catch of prepare's too.
+test("OperationFailed is one class, imported by lifecycle from prepare", async () => {
+  const lib = (f) => new URL(`../packs/base/plugins/workflow/runtime/lib/${f}`, import.meta.url);
+  const a = await import(lib("prepare.mjs"));
+  const b = await import(lib("lifecycle.mjs"));
+  assert.equal(a.OperationFailed, b.OperationFailed, "two classes of the same name would let one engine's failure fall through the other's catch");
+  assert.equal(new a.OperationFailed("x") instanceof b.OperationFailed, true);
+});

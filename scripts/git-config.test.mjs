@@ -221,7 +221,7 @@ test("every git call in the runtime takes its environment from gitEnvironment, o
       // is the same thing one level in: both were used to hand GIT_DIR straight through.
       const given = (start.all[2] ?? "").trim();
       if (given && !given.startsWith("{") && !start.ownWrapper) {
-        found.push(`${start.file}:${start.line}: hands the git wrapper options this check cannot read (${given.slice(0, 40)}); write them where they can be read, or name the call in WRAPPER_EXCEPTIONS with its reason`);
+        found.push(`${start.file}:${start.line}: hands the git wrapper options this check cannot read (${given.slice(0, 40)}); write them where they can be read, as an object literal; this branch has no exception list`);
         continue;
       }
       // Read the NAMES it hands in, not the text it hands them in as. `extraEnv: { GIT_DIR, GIT_INDEX_FILE }` names

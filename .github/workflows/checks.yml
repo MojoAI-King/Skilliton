@@ -96,7 +96,8 @@ jobs:
 
       - name: Plugin and marketplace validation (Claude Code CLI)
         run: |
-          npm install --global @anthropic-ai/claude-code
+          # Pinned (B46): the version that runs plugin validate --strict changes the verdict; bump on purpose, with the local run recorded in docs/COVERAGE.md.
+          npm install --global @anthropic-ai/claude-code@2.1.278
           claude --version
           claude plugin validate --strict .
           for p in packs/*/plugins/*/; do claude plugin validate --strict "$p"; done
