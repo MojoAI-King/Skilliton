@@ -226,6 +226,6 @@ Lesson entries in `docs/lessons/`, sorted by ID. `skilliton index` writes this l
 | [2026-09-20-an-unquoted-colon-space-in-frontmatter-d-0f41](lessons/2026-09-20-an-unquoted-colon-space-in-frontmatter-d-0f41.md) | An unquoted colon-space in frontmatter drops the whole block | accepted | 2026-09-20 |
 | [2026-09-21-a-check-that-looks-for-a-word-also-finds-d128](lessons/2026-09-21-a-check-that-looks-for-a-word-also-finds-d128.md) | A check that looks for a word also finds its negation | accepted | 2026-09-21 |
 | [2026-09-21-a-gate-reads-the-shape-of-a-call-not-wha-dcd7](lessons/2026-09-21-a-gate-reads-the-shape-of-a-call-not-wha-dcd7.md) | A gate reads the shape of a call, not what it means | accepted | 2026-09-21 |
-| [2026-09-21-a-not-run-on-this-machine-can-be-a-versi-1f6b](lessons/2026-09-21-a-not-run-on-this-machine-can-be-a-versi-1f6b.md) | A NOT RUN on this machine can be a version gap, not a missing check | accepted | 2026-09-21 |
+| [2026-09-21-a-not-run-on-this-machine-can-be-a-versi-1f6b](lessons/2026-09-21-a-not-run-on-this-machine-can-be-a-versi-1f6b.md) | A NOT RUN was the wrong binary, not a version gap | accepted | 2026-09-21 |
 | [2026-09-21-an-audit-finds-its-own-rules-written-dow-cc3f](lessons/2026-09-21-an-audit-finds-its-own-rules-written-dow-cc3f.md) | An audit finds its own rules written down | accepted | 2026-09-21 |
 <!-- skilliton:index:lessons:end -->

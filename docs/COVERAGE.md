@@ -10,7 +10,7 @@ Kind: Living. Where Skilliton has and has not actually been run: platforms, vers
 | Node.js | 25.8.1 locally and 22.23.2 in CI (every suite); 20.19.4 locally for the lifecycle tests only | 18, the floor that docs/ONBOARDING.md and `bin/skilliton` state | Run the suite on Node 18 in CI, or raise the stated floor to a version CI runs (docs/BACKLOG.md B11) |
 | Bash | 3.2.57 locally, 5.2.21 in CI | other shells | none planned |
 | Git | 2.51.1 locally, 2.55.0 in CI | older than 2.34, which release signing needs (releases/SCHEMA.md) | none planned |
-| Claude Code | 2.1.273 on this machine: installs, updates, headless live sessions, evals. 2.1.278 in CI, which is the client that runs strict plugin validation (run 35559200451, 2026-09-21) | interactive sessions (O6, O7); strict validation on 2.1.273, which has no `--strict` flag at all; other versions | docs/BACKLOG.md B5, B46 |
+| Claude Code | 2.1.273 on this machine for the installs, updates, headless live sessions and evals recorded below. 2.1.276, the editor's own client, for strict plugin validation of the marketplace and all three plugins, four targets each exit 0 (measured 2026-09-21). 2.1.278 in CI, which validates strictly on every push (run 35559200451) | interactive sessions (O6, O7); strict validation on 2.1.92, the version PATH resolves here, which has no `--strict` flag; other versions | docs/BACKLOG.md B5, B46 |
 | Codex CLI | 0.154.0-alpha.6.2: installs, verify, prompt input | lifecycle hooks in real sessions (O9) | docs/BACKLOG.md B2 |
 
 ## Scale
