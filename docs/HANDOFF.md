@@ -4,15 +4,22 @@ Kind: Living.
 
 ## RESUME HERE
 
-Written: 2026-09-20 17:14 EDT
+Written: 2026-09-21 00:20 EDT
 
+- **State:** Wave 7 is on main at 51c38e5 and green: the audit that runs itself in three places, the supported client rule, skilliton usage, and the Codex and Cursor decisions, then this maintenance pass on top of them. Evidence: CI 35559200451 on f1a878a and 35560317702 on 51c38e5, both success, all 61 steps read one by one; the audit over the 47 files the wave changed reports 0 findings with 6 allowed lines, and over all 475 files this repository has ever changed 41 findings, every one a rule's own pattern or a planted fixture (B45); records gates each its own step, backlog, living-docs --check, docs, report-card --check, names all exit 0; scrub-check PASS on the tree and over 138 commits.
+- **Next:** Wave 8, the last build wave: 06-03's cleanup skills first, then the authorized eval run, and B45's allow markers. Then the owner pass
+- **Blocked:** The owner pass list in docs/REPORT_CARD.md: interactive checklist, maintain minutes, the live unprepared session, the Windows run, B7 decisions, signing key, hosted repository approval, M5 participant, Codex login. Any cost statement (PLAN.md sections 6 and 8)
+- **Watch out:** A repository with a delivery policy would now reject a push touching scripts/guardrails.test.sh, guard-bash.sh or scripts/preflight.test.mjs, because the audit reads their own patterns as findings; B45 marks those lines and nothing here is gated meanwhile (B43). The parallel session still owns task/promo-anatomy in ~/Desktop/Skilliton-promo: do not clean that worktree or merge that branch
+- **Git:** main @ 51c38e5, 3 uncommitted
+
+## Earlier
+
+### 2026-09-20 17:14 EDT
 - **State:** Wave 6 is on main at c8bd045 and green; this maintenance pass added the gate list finding as a lesson and B43. Evidence: Every index current before the pass; docs, living-docs --check and backlog all exit 0 after it; the 42 scripts named in docs/MAINTAIN.md step 2 and in checks.yml were extracted and compared, and they match.
 - **Next:** Wave 7 from docs/REPORT_CARD.md, planned in plan mode with the batch files under docs/areas read first
 - **Blocked:** nothing
 - **Watch out:** A parallel session owns task/promo-anatomy in the sibling worktree ~/Desktop/Skilliton-promo, five commits ahead of main with uncommitted work and a site/ tree that is not on main: do not clean those worktrees or merge that branch
 - **Git:** main @ c8bd045, 4 uncommitted
-
-## Earlier
 
 ### 2026-09-20 15:47 EDT
 - **State:** Wave 6 is on main at 634da8e and green: the four headless batches built and pushed, then the maintenance pass on top of them. Evidence: Full offline suite 48 of 48 steps exit 0; scrub-check tree and history both PASS; report-card --check exit 0 at 65 of 123; CI 35532803307 (6e072b7) and 35533207494 (634da8e) both success, all 58 steps read.
@@ -41,10 +48,3 @@ Written: 2026-09-20 17:14 EDT
 - **Blocked:** Owner pass at the end (docs/REPORT_CARD.md): interactive checklist, maintain minutes (01-02 item 5, 05-05), the live unprepared session (02-01 item 5), Windows run including skilliton.cmd, B7 decisions, signing key, hosted repository approval, M5 participant, Codex login. Any cost statement (PLAN.md sections 6 and 8)
 - **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt
 - **Git:** main @ 8bc9211, 1 uncommitted
-
-### 2026-09-20 01:53 EDT
-- **State:** The handoff freshness defect CI found on 3896fcb is fixed and published as 2e5aaa3 (workflow 0.11.1): a minute-granularity Written line compared against millisecond file times reported the checkpoint's own index write as later work, so a change within five seconds of the end of the Written minute now counts as part of that write. Evidence: CI run 35492630614 on 2e5aaa3 is success with all 54 steps read one by one, including step 38 Tasks, checkpoints, status and lifecycle hooks, the step that failed on run 35491126289; the new test at scripts/lifecycle.test.mjs reproduced the CI assertion before the fix and passes after; the offline suite 50 of 50 with no failures; scrub-check PASS on the tree and over the history.
-- **Next:** Wave 5 from docs/REPORT_CARD.md, read the batch files under docs/areas/ first
-- **Blocked:** Owner pass at the end (docs/REPORT_CARD.md): interactive checklist, maintain minutes (01-02 item 5, 05-05), the live unprepared session (02-01 item 5), Windows run including skilliton.cmd, B7 decisions, signing key, hosted repository approval, M5 participant, Codex login. Any cost statement (PLAN.md sections 6 and 8)
-- **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt
-- **Git:** main @ 2e5aaa3, 0 uncommitted
