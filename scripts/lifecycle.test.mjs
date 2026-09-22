@@ -749,6 +749,70 @@ test("a record or the configuration removed by hand is named at session start wi
   assert.equal(existsSync(join(p, ".skilliton")), false, "the hook restores nothing itself");
 }));
 
+test("on a joined machine, session start prepares a repository that is not prepared, once, and says so; the offer setting, both opt-out files and SKILLITON_AUTO_PREPARE=off leave it alone and say why; the stop reminder is silent in an unprepared repository", async () => withTemp("auto-prepare", async ({ dir, env }) => {
+  const joined = join(dir, "joined");
+  mkdirSync(joined);
+  const receipt = (extra = {}) => writeFileSync(join(joined, "acme.json"), JSON.stringify({ schema: "skilliton.join/1", company: "acme", source: dir, ...extra }));
+  const jenv = { ...env, SKILLITON_JOIN_DIR: joined };
+  const start = (p, id, e = jenv) => hook(p, "session-start", { session_id: id, source: "startup" }, e);
+
+  // Not joined: the offer, and nothing written.
+  const p = initRepo(join(dir, "p"), env);
+  const offer = start(p, "a0", env);
+  assert.match(offer.out, /^- Not prepared \(needs attention\): offer it/m);
+  assert.equal(existsSync(join(p, ".skilliton")), false);
+
+  // Joined: prepared at session start, the block describes the prepared project, the files are left uncommitted.
+  receipt();
+  const first = start(p, "a1");
+  assert.equal(first.code, 0, first.all);
+  assert.match(first.out, /^- Prepared just now \(this machine joined acme\): \d+ file\(s\) written, uncommitted: the records, \.skilliton\/config\.json, the managed block in CLAUDE\.md and AGENTS\.md, the security register\. Commit them with your next commit; an empty \.skilliton-off at the root keeps a repository out\.$/m);
+  assert.doesNotMatch(first.out, /Not prepared \(needs attention\)/);
+  assert.match(first.out, /^- Layout: layout 3 \(current for this runtime\)$/m);
+  assert.match(first.out, /^- Records: all 9 present$/m);
+  assert.match(first.out, /^- Branch: main @ [0-9a-f]{7,}, [1-9]\d* uncommitted$/m);
+  assert.ok(existsSync(join(p, ".skilliton", "config.json")) && existsSync(join(p, "docs", "HANDOFF.md")), "the prepared files exist");
+  assert.match(readFileSync(join(p, "CLAUDE.md"), "utf8"), /<!-- skilliton:harness:start/);
+  const second = start(p, "a2");
+  assert.equal(second.code, 0, second.all);
+  assert.doesNotMatch(second.out, /Prepared just now/, "a prepared project is not prepared again");
+
+  // The opt-out at the root: left alone, said so, and no offer either.
+  const q = initRepo(join(dir, "q"), env);
+  writeFileSync(join(q, ".skilliton-off"), "");
+  const opted = start(q, "b1");
+  assert.match(opted.out, /^- Not prepared on purpose: \.skilliton-off is present at the repository root, so this repository is left as it is \(delete that file to have it prepared at the next session start\)$/m);
+  assert.doesNotMatch(opted.out, /Not prepared \(needs attention\)/);
+  assert.equal(existsSync(join(q, ".skilliton")), false);
+  rmSync(join(q, ".skilliton-off"));
+
+  // The opt-out inside the Git folder, for a repository that must carry nothing of ours.
+  writeFileSync(join(gitDir(q, env), "skilliton-off"), "");
+  const inGit = start(q, "b2");
+  assert.match(inGit.out, /^- Not prepared on purpose: skilliton-off is present inside the Git folder/m);
+  assert.equal(existsSync(join(q, ".skilliton")), false);
+  // The stop reminder says nothing in an unprepared repository, even when a reminder would otherwise be due.
+  writeFileSync(join(q, "notes.md"), "changed\n");
+  backdate(q, env, (e) => e.event === "session-start" && e.session === "b2", 30);
+  const stop = hook(q, "stop", { session_id: "b2" }, jenv);
+  assert.equal(stop.code, 0, stop.all);
+  assert.equal(stop.out, "", "no block and no text in an unprepared repository");
+  rmSync(join(gitDir(q, env), "skilliton-off"));
+
+  // Off for the session: said so, the offer stands.
+  const off = start(q, "b3", { ...jenv, SKILLITON_AUTO_PREPARE: "off" });
+  assert.match(off.out, /^- Auto-prepare: off for this session \(SKILLITON_AUTO_PREPARE\), so the offer below stands$/m);
+  assert.match(off.out, /Not prepared \(needs attention\)/);
+  assert.equal(existsSync(join(q, ".skilliton")), false);
+
+  // The join file said offer: said so, the offer stands.
+  receipt({ prepare: "offer" });
+  const offered = start(q, "b4");
+  assert.match(offered.out, /^- Not prepared, and auto-prepare is off for acme \(its join file said "offer"\), so the offer below stands$/m);
+  assert.match(offered.out, /Not prepared \(needs attention\)/);
+  assert.equal(existsSync(join(q, ".skilliton")), false);
+}));
+
 test("session-start shows the current task, its last checkpoint and its handoff", async () => withTemp("session-task", async ({ dir, env }) => {
   const p = preparedRepo(join(dir, "p"), env);
   const { id, file } = startTask(p, env, "Resume me");

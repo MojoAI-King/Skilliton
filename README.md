@@ -44,13 +44,13 @@ node ~/company-skills/scripts/skilliton.mjs join --from <join file>           # 
 node ~/company-skills/scripts/skilliton.mjs join --from <join file> --apply   # set up, then verify
 ```
 
-Once per repository:
+Then every repository a session opens on that machine is prepared at its first session start, with the files left for the next commit and the block saying what was written; nobody runs a per-repository step. To do it by hand, or on a machine that has not joined:
 
 ```bash
 skilliton prepare --dir <project>          # preview; add --apply to write
 ```
 
-`join` puts a `skilliton` command in `~/.local/bin`; inside a Claude Code session the workflow plugin also puts it on the shell path. A machine that has joined does not join again, and `join` says so. [docs/ONBOARDING.md](docs/ONBOARDING.md) is the developer's page.
+An empty `.skilliton-off` file at a repository's root, or a `skilliton-off` file inside its `.git` folder, keeps that repository out. `join` puts a `skilliton` command in `~/.local/bin`; inside a Claude Code session the workflow plugin also puts it on the shell path. A machine that has joined does not join again, and `join` says so. [docs/ONBOARDING.md](docs/ONBOARDING.md) is the developer's page.
 
 ### A company's path
 

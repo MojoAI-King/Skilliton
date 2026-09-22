@@ -240,7 +240,7 @@ const prepareOffer = () => `offer it in plain words before other work: "This pro
 // What a resuming session needs first comes first, because truncation keeps the top of the block.
 const BLOCK_ORDER = ["tasks", "sessions", "handoff", "layout", "migrations", "versions", "records", "security"];
 
-export function sessionStartBlock(report, { maxBytes, notes = [] }) {
+export function sessionStartBlock(report, { maxBytes, notes = [], skipOffer = false }) {
   const lines = ["[workflow] Project state (skilliton hook session-start):", `- Branch: ${gitLine(report.git)}`];
   if (report.configProblem) lines.push(`- Configuration (needs attention): ${clip(report.configProblem, 300)}`);
   const renamed = legacyEnvironment();
@@ -254,8 +254,9 @@ export function sessionStartBlock(report, { maxBytes, notes = [] }) {
     lines.push(`- ${BLOCK_LABELS[name]}${word ? ` (${word})` : ""}: ${clip(check.summary, 600)}`);
     // A never-prepared repository has no managed block to instruct the assistant, so the offer is made here, in plain
     // words, with the commands a yes runs (PLAN.md M8, first increment).
-    // A project whose files were removed by hand gets the layout line's restore command instead of this offer.
-    if (name === "layout" && report.data?.layout?.version === null && !report.data.layout.removed) lines.push(`- Not prepared (needs attention): ${prepareOffer()}`);
+    // A project whose files were removed by hand gets the layout line's restore command instead of this offer, and a
+    // repository the person kept out on purpose (skipOffer, lib/auto-prepare.mjs) is not offered either.
+    if (name === "layout" && report.data?.layout?.version === null && !report.data.layout.removed && !skipOffer) lines.push(`- Not prepared (needs attention): ${prepareOffer()}`);
   }
   return boundLines(lines, maxBytes, `[workflow] Project state truncated at ${maxBytes} bytes; for all of it run: ${selfCommand()} status`);
 }

@@ -92,6 +92,7 @@ export const DYNAMIC_IMPORTS = [
   [`${PLUGINS}/workflow/runtime/lib/release.mjs`, 1, "the migrations module beside it"],
   [`${PLUGINS}/workflow/runtime/commands/migrate.mjs`, 1, "the collectors module beside it"],
   [`${PLUGINS}/workflow/runtime/commands/hook.mjs`, 1, "the audit's scope reader, loaded only on the stop that audits, so the other hook events do not pay for it"],
+  [`${PLUGINS}/workflow/runtime/lib/auto-prepare.mjs`, 2, "the prepare engine and the join module beside it, loaded on the session start that prepares, so a build missing one of their modules costs one note in the block rather than a hook that fails to load"],
 ];
 const RUNTIME_CODE_PATTERNS = [
   [/(?<![\w.])eval\s*\(|globalThis\s*\.\s*eval\b/, "eval"],

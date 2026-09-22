@@ -64,7 +64,7 @@ function receiptProblem(r, company) {
   if (l !== null && !(isPlainObject(l) && typeof l.path === "string" && isAbsolute(l.path) && basename(l.path) === LAUNCHER_NAME && typeof l.createdFolder === "boolean")) return "launcher is not null or { path to a file named skilliton, createdFolder }";
   const lc = r.launcherCmd;
   if (lc !== undefined && lc !== null && !(isPlainObject(lc) && typeof lc.path === "string" && isAbsolute(lc.path) && basename(lc.path) === LAUNCHER_CMD_NAME && typeof lc.createdFolder === "boolean")) return "launcherCmd is not absent, null or { path to a file named skilliton.cmd, createdFolder }";
-  if (!isPlainObject(r.clients)) return "clients is not an object";
+  if (r.prepare !== undefined && !["auto", "offer"].includes(r.prepare)) return 'prepare is not "auto" or "offer"'; if (!isPlainObject(r.clients)) return "clients is not an object";
   for (const [id, c] of Object.entries(r.clients)) {
     if (!Object.hasOwn(DRIVERS, id)) return `clients names an unknown client ${JSON.stringify(id)}`;
     const ok = isPlainObject(c) && typeof c.home === "string" && isAbsolute(c.home) && typeof c.marketplaceAdded === "boolean"
@@ -372,7 +372,7 @@ export function refuseLegacySetup(company) {
   refuse(`company ${company} was set up on this machine before the rename to Skilliton (its receipt is ${tilde(path)}). Remove that setup first with the release that wrote it: in a clone of the company skills repository checked out at a commit from before the rename, run node scripts/${LEGACY_COMMAND}.mjs join --undo --company ${company} --apply, then run join here again. Nothing was changed.`);
 }
 
-export function planJoin({ repo, company, client = "all", marketplace, plugins, binDir, noLauncher, claude, codex, trustPlan, platform = process.platform }) {
+export function planJoin({ repo, company, client = "all", marketplace, plugins, binDir, noLauncher, claude, codex, trustPlan, prepare, platform = process.platform }) {
   validateCompany(company);
   refuseLegacySetup(company);
   if (!["all", ...Object.keys(DRIVERS)].includes(client)) refuse(`--client must be all, claude-code or codex (got "${client}")`);
@@ -416,7 +416,7 @@ export function planJoin({ repo, company, client = "all", marketplace, plugins, 
   }
   if (!clients.length) refuse("neither Claude Code nor Codex was found on PATH; install one, or pass --claude <path> or --codex <path>. Nothing was changed.");
 
-  return { company, repo, clone, market, plugins: pluginList, clients, previous, trust: trustPlan, launcher, receipt: receiptPath(company) };
+  return { company, repo, clone, market, plugins: pluginList, clients, previous, trust: trustPlan, launcher, prepare, receipt: receiptPath(company) };
 }
 
 // Applies a join plan step by step. After every change the receipt is rewritten, so a failure part way leaves an
@@ -425,7 +425,7 @@ export function applyJoin(plan, { say, writeTrust }) {
   const receipt = plan.previous ?? {
     schema: RECEIPT_SCHEMA, company: plan.company, source: plan.repo, joinedAt: new Date().toISOString(),
     marketplace: { name: plan.market.name, kind: plan.market.source.kind, location: plan.market.source.location },
-    trust: null, clients: {}, launcher: null, launcherCmd: null,
+    trust: null, clients: {}, launcher: null, launcherCmd: null, prepare: plan.prepare ?? "auto",
   };
   writeReceipt(receipt);
   say(`recorded ${tilde(plan.receipt)}`);

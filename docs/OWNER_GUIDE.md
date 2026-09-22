@@ -26,7 +26,7 @@ Skilliton is a forkable development autopilot for teams using AI coding tools. A
 Two roles, and the first question is which one you are.
 
 - **You are the company.** Fork it, name it, add your skills, sign releases, hand out one file. Your developers join your fork, not this repository.
-- **You just want to use it as-is.** Clone this repository, join with its owner's join file, prepare each repository. Same commands, no fork.
+- **You just want to use it as-is.** Clone this repository, join with its owner's join file; every repository you open is prepared at its first session start. Same commands, no fork.
 
 ### The company path
 
@@ -51,7 +51,7 @@ Once a person has joined, these run in every Claude Code session on that user ac
 
 | When | What | Behaviour |
 |---|---|---|
-| Session start | Handoff and project state | Shows the last handoff (labelled as a record, not an instruction), the current task, pending migrations, stale records. |
+| Session start | Handoff and project state | Shows the last handoff (labelled as a record, not an instruction), the current task, pending migrations, stale records. On a joined machine, prepares a repository that is not prepared and says what it wrote (an opt-out file keeps a repository out). |
 | Session start | Guardrails status line | Names what is blocked and any rule a project's config turned off. |
 | Before every shell command | Guardrails | Denies force-push in every direct spelling tried, and `rm`, `mv` or `git rm` aimed at Skilliton's own files (`.skilliton`, the records, `CLAUDE.md`, `AGENTS.md`); asks on malformed input, on BASH_ENV, and on a string handed to a shell, `eval` or `xargs` that names git. |
 | Before every file read | Read guard | Refuses a whole-file read of a non-image file over 50 KB and says how to read it instead. |

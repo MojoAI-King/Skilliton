@@ -27,12 +27,14 @@ Preview by default; --apply backs up each changed file under $SKILLITON_BACKUPS/
 again with the same values changes nothing. A JSON file laid out differently from two-space JSON is refused, not
 reformatted. --repo defaults to the skills repository this copy of skilliton is in.
 
-  company join-file --name <company> --signers <allowed_signers file> --out <path> [--repo-url <url>] [--repo <skills repo>] [--apply]
+  company join-file --name <company> --signers <allowed_signers file> --out <path> [--repo-url <url>] [--repo <skills repo>] [--prepare auto|offer] [--apply]
 
 Writes the one file a developer's machine joins with (skilliton join --from <file>): the company name, the fork's
 repository URL (default: the GitHub repository ${TEAM_TEMPLATE} names) and the signers text. It is refused inside any
 Git working tree, because whom a machine trusts must never arrive through a pull; hand it out through device management
-or an internal page, the same channel as the signers file. Preview prints the file; --apply writes it (mode 0644).
+or an internal page, the same channel as the signers file. --prepare says what a joined machine does with a repository
+that is not prepared when a session opens it: "auto" (the default, and the file's meaning when the field is absent)
+prepares it then and there; "offer" only offers. Preview prints the file; --apply writes it (mode 0644).
 Exit codes: 0 complete (or nothing to change); 2 refused, nothing written; 3 a write failed.`;
 
 export function run(argv) {
@@ -84,7 +86,8 @@ export function run(argv) {
 const JOIN_FILE_SCHEMA = "skilliton.join/1";
 
 function joinFile(argv) {
-  const o = parseArgs(argv, { flags: ["apply"], options: ["name", "signers", "out", "repo-url", "repo"] }, "company join-file");
+  const o = parseArgs(argv, { flags: ["apply"], options: ["name", "signers", "out", "repo-url", "repo", "prepare"] }, "company join-file");
+  if (o.prepare !== undefined && o.prepare !== "auto" && o.prepare !== "offer") refuse(`--prepare must be auto or offer (got "${o.prepare}")`);
   if (o._.length) refuse(`company join-file takes no plain arguments (got "${o._[0]}")`);
   const missing = [];
   if (o.name === undefined) missing.push("--name <company>, the company's short name");
@@ -110,11 +113,12 @@ function joinFile(argv) {
     } catch (e) { if (e.code !== "ENOENT") throw e; }
     if (!repoUrl) refuse(`no repository URL: pass --repo-url <url>, or run company init first so ${TEAM_TEMPLATE} names the fork`);
   }
-  const body = `${JSON.stringify({ schema: JOIN_FILE_SCHEMA, company: o.name, repo: repoUrl, signers: text.endsWith("\n") ? text : `${text}\n` }, null, 2)}\n`;
+  const body = `${JSON.stringify({ schema: JOIN_FILE_SCHEMA, company: o.name, repo: repoUrl, signers: text.endsWith("\n") ? text : `${text}\n`, ...(o.prepare === "offer" ? { prepare: "offer" } : {}) }, null, 2)}\n`;
   say(`skilliton company join-file${o.apply ? "" : " (preview; nothing written)"}`);
   say(`company: ${o.name}`);
   say(`repository: ${repoUrl}`);
   say(`signers: ${parsed.signers.length} from ${tilde(signersPath)}`);
+  say(`prepare: ${o.prepare === "offer" ? "offer (a joined machine offers to prepare a repository it opens)" : "auto (a joined machine prepares a repository at its first session start)"}`);
   say(`file: ${tilde(out)}`);
   say("");
   if (!o.apply) { process.stdout.write(body); say(""); say("Next: run the same command with --apply, then hand the file out outside the repository. A machine joins with: skilliton join --from <file> --apply"); return 0; }

@@ -7,12 +7,15 @@
 // stop_hook_active when it is already continuing because of a Stop hook; stderr from a hook that exits 0 goes only to
 // the debug log; exit 2 from Stop or PreCompact blocks, so this command never exits 2.
 
-import { ConfigError, resolveProject } from "../lib/config.mjs";
+import { CONFIG_REL, ConfigError, resolveProject } from "../lib/config.mjs";
 import { GitError, appendEvent, gitTopLevel, mergesSince, readGitState, readJournal } from "../lib/journal.mjs";
 import { clip, gatherProjectState } from "../lib/lifecycle.mjs";
 import { countPromptItems, dispatchSuggestion, evaluateStop, parseHookInput, sessionStartBlock, stopReason } from "../lib/session-hooks.mjs";
 import { currentTask } from "../lib/tasks.mjs";
-import { statSync } from "node:fs";
+import { selfCommand } from "../lib/core.mjs";
+import { autoPrepare } from "../lib/auto-prepare.mjs";
+import { existsSync, statSync } from "node:fs";
+import { join } from "node:path";
 
 export const help = `hook: run a Skilliton lifecycle hook. The workflow plugin's hooks.json calls these. Each reads the client's hook JSON
 on stdin (cwd, session_id, stop_hook_active, source, trigger, reason, user_prompt; every field optional).
@@ -121,17 +124,25 @@ async function sessionStart(input) {
   const root = locate(input);
   if (!root) return 0;
   const now = new Date();
-  const state = readGitState(root, { shortHead: true });
-  const report = await gatherProjectState(root, { state, currentSession: input.session, now });
   const notes = [];
   if (input.problem) notes.push(`Hook input (not usable): ${input.problem}, so the current folder was used`);
+  // On a joined machine a repository with no configuration is prepared here, before the state is read, so the block
+  // describes the prepared project and the uncommitted count includes what was just written (lib/auto-prepare.mjs).
+  let auto = null;
+  try { auto = await autoPrepare(root); } catch (e) {
+    notes.push(`Auto-prepare (failed): ${clip(e.message, 300)}; to prepare by hand: ${selfCommand()} prepare --apply`);
+    console.error(`[workflow] Skilliton auto-prepare: ${clip(e.message, 300)}`);
+  }
+  if (auto?.note) notes.push(auto.note);
+  const state = readGitState(root, { shortHead: true });
+  const report = await gatherProjectState(root, { state, currentSession: input.session, now });
   try {
     appendEvent(root, { event: "session-start", session: input.session, source: input.source ?? undefined, at: now.toISOString() }, { state });
   } catch (e) {
     notes.push(`Journal (failed): this session start was not recorded (${e.message}), so the next session cannot tell whether this one was interrupted`);
     console.error(`[workflow] Skilliton session-start hook: ${clip(e.message, 300)}`);
   }
-  process.stdout.write(sessionStartBlock(report, { maxBytes: report.handoffMaxBytes, notes }).text);
+  process.stdout.write(sessionStartBlock(report, { maxBytes: report.handoffMaxBytes, notes, skipOffer: auto?.skipOffer === true }).text);
   return 0;
 }
 
@@ -147,6 +158,11 @@ async function stop(input) {
     return 0;
   }
   if (!project.checkpoints.stopReminder) return 0;
+  // A repository with no configuration at all has no task record and no records to checkpoint into, so a reminder
+  // there could only be declined, once per stop (measured in a client repository, 2026-09-22). The session-start
+  // block already says the repository is not prepared; the stop says nothing. A configuration without a layout
+  // version (a project that set its own checkpoint rules) still gets the reminder it asked for.
+  if (project.layoutVersion === null && !existsSync(join(root, CONFIG_REL))) { console.error("[workflow] Skilliton checkpoint reminder not given: this repository is not prepared"); return 0; }
   const state = readGitState(root);
   const journal = readJournal(root);
   const now = new Date();

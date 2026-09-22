@@ -39,7 +39,7 @@ The first level is the convenience. The third level is the control.
 
 ## How it gets onto every computer
 
-Once per computer, one file from the company and one command. The file says who the company is, where its rulebook lives, and whose signatures to trust. After that, the rulebook applies to every project that developer opens. Removing it is one command too.
+Once per computer, one file from the company and one command. The file says who the company is, where its rulebook lives, and whose signatures to trust. After that, the rulebook applies to every project that developer opens: the first time a project is opened, its notes and its rules are set up on the spot and the developer is told so; nobody runs a setup step per project. A project that must stay untouched is marked once, and removing it all is one command too.
 
 For a company with an IT department, that file and command are what an endpoint management tool (the kind that already pushes settings to every laptop) would run at login. That integration is designed and written up; it has not yet been built. Today a developer runs the two commands themselves.
 

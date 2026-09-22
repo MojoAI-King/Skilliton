@@ -7,7 +7,8 @@ Kind: Living. Every entry here was hit by a real person or a real session and ha
 | What you see | Cause | What to do |
 |---|---|---|
 | No `[guardrails] on: ...` line and no project state block at the top of a new session | The session started before the plugins were installed or updated. Claude Code loads plugins at session start. | Restart the session (close and reopen the editor's chat, or `/exit` and start `claude` again). Every plugin update ends with "Restart to apply changes" for this reason. |
-| The guardrails line is there but no project state block, or the block says the repository is not prepared | The machine has joined but this repository has not been prepared. Joining is once per machine; preparing is once per repository. | `skilliton prepare --dir <repo>` to see what it would write, then the same with `--apply`, then restart the session. |
+| The block says "Prepared just now" and the branch shows uncommitted files | On a joined machine a repository that was not prepared is prepared at its first session start (workflow 0.18.0) | Nothing to fix: commit the files with your next commit. To keep a repository out, an empty `.skilliton-off` at its root or a `skilliton-off` file inside `.git`. |
+| The block still offers to prepare | The machine has not joined, the join file said `offer`, an opt-out file is present, or `SKILLITON_AUTO_PREPARE=off` is set; the block names which | Say yes to the offer, or `skilliton prepare --dir <repo> --apply` by hand, then restart the session. |
 | `/` shows no `workflow:` or `guardrails:` skills | The plugins are not enabled for this account, or the client is not Claude Code | `claude plugin list` to see what is installed and at which scope. In Codex the skills show but no plugin hooks run; in Cursor nothing runs (docs/CLIENTS.md). |
 | The state block says `Previous session: interrupted` | The last session ended without a session-end event (a crash, a killed terminal, a machine that slept) | Nothing to fix. It is information: check `git status` for work that session left, and the task record for its last checkpoint. |
 | The state block says the handoff is older than the latest commit | Someone committed after the last handoff was written | Read the commits since; write a checkpoint with `--handoff` when you finish. It is a note, not a fault. |
@@ -56,7 +57,7 @@ Kind: Living. Every entry here was hit by a real person or a real session and ha
 | What you see | Cause | What to do |
 |---|---|---|
 | "Whole-file reads of non-image files over 50KB are refused" | The read guard; the rule exists so one read does not fill the context | Read a range, grep, or summarise with a script. Images and PDFs are never refused. |
-| The stop hook asks for a checkpoint | The working tree changed since the last checkpoint and none was recorded; it asks once per tree state | Record the checkpoint it prints, or say why the work should not be recorded. |
+| The stop hook asks for a checkpoint | The working tree changed since the last checkpoint and none was recorded; it asks once per tree state, and never in a repository that is not prepared (workflow 0.18.0) | Record the checkpoint it prints, or say why the work should not be recorded. |
 | A check passes on its own and fails through a runner | The runner's shell or environment differs (a login shell sources profile files) | Compare the shell flags and the starting environment first. `scripts/checks.mjs` uses a plain shell for this reason. |
 | The session compacted far below the configured window | The window in `.claude/settings.json` is set but the client's own limit applied first; not explained (O25) | Nothing to fix; write a checkpoint before long stretches so a compaction loses nothing. |
 

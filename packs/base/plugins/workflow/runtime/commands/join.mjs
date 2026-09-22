@@ -22,8 +22,11 @@ Run it from a full clone of the company skills repository:
   git clone https://github.com/<owner>/<repo> && node <repo>/scripts/skilliton.mjs join --company <name> --signers <file>
 
 With --from <join file>, the company name and the signers come from one file the company hands out (made with
-company join-file): { "schema": "skilliton.join/1", "company", "repo", "signers" }, the signers being allowed_signers
-text. That file, like the signers file, never comes from the repository itself.
+company join-file): { "schema": "skilliton.join/1", "company", "repo", "signers", "prepare" }, the signers being
+allowed_signers text and "prepare" (optional) "auto" or "offer". That file, like the signers file, never comes from
+the repository itself. Once joined, every repository a session opens on this machine is prepared at its first session
+start ("auto", the default) or offered for preparation ("offer"); an empty .skilliton-off file at a repository's root,
+or a skilliton-off file inside its .git folder, keeps that repository out.
 
 First it pins the clone to a signed release: the newest approved one, or the one --release names. A release is
 approved when its tag skilliton-release/<x.y.z> carries an SSH signature that verifies against the signers file
@@ -77,6 +80,7 @@ export async function run(argv) {
     const jf = readJoinFile(o.from);
     fromTmp = mkdtempSync(joinPath(tmpdir(), "skilliton-join-"));
     o.company = jf.company;
+    o.prepare = jf.prepare;
     o.signers = joinPath(fromTmp, "allowed_signers");
     writeFileSync(o.signers, jf.signers, { mode: 0o600 });
     say(`join file: ${tilde(o.from)} (company ${jf.company}, repository ${jf.repo})`);
@@ -105,11 +109,12 @@ function readJoinFile(path) {
   if (!j || typeof j !== "object" || Array.isArray(j)) refuse(`--from ${tilde(path)} is not a JSON object`);
   if (j.schema !== JOIN_FILE_SCHEMA) refuse(`--from ${tilde(path)} has schema ${JSON.stringify(j.schema)}, not ${JOIN_FILE_SCHEMA}`);
   for (const k of ["company", "repo", "signers"]) if (typeof j[k] !== "string" || !j[k].trim()) refuse(`--from ${tilde(path)} needs a non-empty string "${k}"`);
+  if (j.prepare !== undefined && j.prepare !== "auto" && j.prepare !== "offer") refuse(`--from ${tilde(path)}: "prepare" must be "auto" or "offer" (got ${JSON.stringify(j.prepare)})`);
   validateCompany(j.company);
   const parsed = parseAllowedSigners(j.signers);
   if (parsed.problems.length) refuse(`--from ${tilde(path)}: "signers" is not valid allowed_signers text: ${parsed.problems.map((p) => `${p.line ? `line ${p.line}: ` : ""}${p.problem}`).join("; ")}`);
   if (!parsed.signers.length) refuse(`--from ${tilde(path)}: "signers" lists no signers`);
-  return { company: j.company, repo: j.repo, signers: j.signers.endsWith("\n") ? j.signers : `${j.signers}\n` };
+  return { company: j.company, repo: j.repo, signers: j.signers.endsWith("\n") ? j.signers : `${j.signers}\n`, prepare: j.prepare };
 }
 
 // The companies that joined this machine, from the receipts in the join folder. Names only; a receipt is read for
@@ -127,7 +132,7 @@ function joinedNote(company) {
   const names = joinedCompanies();
   if (!names.length) return "";
   const where = tilde(joinDir());
-  if (company === undefined) return `This machine already joined ${names.join(" and ")} (receipts in ${where}); to set up a project, run ${selfCommand()} prepare --dir <project>, and join again only to change that setup. `;
+  if (company === undefined) return `This machine already joined ${names.join(" and ")} (receipts in ${where}); a repository is prepared at its first session start on this machine (or by hand: ${selfCommand()} prepare --dir <project>), and join again only to change that setup. `;
   if (names.includes(company)) return `This machine already joined ${company} (receipt in ${where}); this run reports what is in place and adds only what is missing. To set up a project, run ${selfCommand()} prepare --dir <project>. `;
   return `This machine already joined ${names.join(" and ")} (receipts in ${where}). Joining ${company} as well adds a second marketplace, trust file and launcher; if ${names.length === 1 ? names[0] : "one of those"} is the company you meant, stop here and run ${selfCommand()} prepare --dir <project> instead. `;
 }
@@ -149,7 +154,7 @@ async function join(o) {
   const pinPlan = pinState && (pinState.versions.length || o.release !== undefined) ? planPin(pinState, { version: o.release }) : null;
   const planArgs = () => planJoin({
     repo, company: o.company, client: o.client, marketplace: o.marketplace, plugins: o.plugins,
-    binDir: o["bin-dir"], noLauncher: o["no-launcher"], claude: o.claude, codex: o.codex, trustPlan,
+    binDir: o["bin-dir"], noLauncher: o["no-launcher"], claude: o.claude, codex: o.codex, trustPlan, prepare: o.prepare,
     platform: process.env.SKILLITON_PLATFORM || process.platform,
   });
   let plan = planArgs();
