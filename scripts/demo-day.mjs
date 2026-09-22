@@ -137,7 +137,7 @@ const init = cli(["company", "init", "--name", COMPANY, "--marketplace-name", MA
 showsLine(init.out, /marketplace/i, "company init");
 const plugin = cli(["new-plugin", "review-rules", "--pack", COMPANY, "--description", "The review rules this company expects every change to follow.", "--repo", dirs.company, "--apply"]);
 showsLine(plugin.out, /plugin\.json|created/i, "new-plugin");
-const skill = cli(["new-skill", "review-rules", "billing-review", "--pack", COMPANY, "--description", "How this company reviews a change that touches billing.", "--repo", dirs.company]);
+const skill = cli(["new-skill", "review-rules", "billing-review", "--pack", COMPANY, "--description", "How this company reviews a change that touches billing.", "--repo", dirs.company, "--apply"]);
 const skillFile = join(dirs.company, "packs", COMPANY, "plugins", "review-rules", "skills", "billing-review", "SKILL.md");
 if (!existsSync(skillFile)) stop("new-skill did not write the skill", skill.out);
 shows(`new-skill: created packs/${COMPANY}/plugins/review-rules/skills/billing-review/SKILL.md`);

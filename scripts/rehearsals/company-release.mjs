@@ -313,7 +313,7 @@ await R.step("S1", "a skill folder holding a secret-shaped value is refused at i
   const src = join(ws, "leaky-skill");
   mkdirSync(src, { recursive: true });
   writeFileSync(join(src, "SKILL.md"), `---\nname: leaky-skill\ndescription: rehearsal\n---\n\nkey: ${"AKIA"}${"REHEARSALFAKE0001"}\n`);
-  const r = sg(["import", src, "--into", "workflow"], { cwd: fork });
+  const r = sg(["import", src, "--into", "workflow", "--apply"], { cwd: fork });
   return { ok: r.code === 2 && !r.all.includes("REHEARSALFAKE0001"), detail: `import exit ${r.code}; the value was not printed` };
 }, { requires: ["F1"] });
 

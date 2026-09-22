@@ -56,7 +56,13 @@ PreToolUse:Read hook error: read-guard: <home>/Desktop/Skilliton/scripts/release
 
    The assistant then read the parts it needed by range and by grep, which is the behaviour the rule exists for.
 
-6. **The stop hook asks for a checkpoint when the session ends with changes and none recorded: not observed in this session.** Every stop in this session followed a checkpoint or a commit, so the condition never held. Still open.
+6. **The stop hook asks for a checkpoint when the session ends with changes and none recorded: seen.** Later the same evening (2026-09-22T02:02:33Z), the assistant finished a turn with the working tree changed and no checkpoint for twenty minutes, and the client showed this as the stop hook's feedback, pasted from the session transcript:
+
+```
+Skilliton checkpoint reminder: the working tree has changed since the last checkpoint (20 minutes ago). This reminder is given once for this working tree state; if this work should not be recorded, tell the user why and stop. Otherwise record where task 2026-09-21-build-complete-checkpoint-install-update-81ba stands (each value one line) by running: skilliton checkpoint --task 2026-09-21-build-complete-checkpoint-install-update-81ba --state "<what is done and what is not>" --evidence "<checks or tests you ran, with their results>" --next "<the next concrete step>" --apply
+```
+
+   The assistant recorded the checkpoint it asked for, and the next stop passed without the reminder, which is the once-per-tree-state rule working.
 
 7. **Compaction under the project's window: not observed.** The session did not compact.
 
@@ -74,8 +80,8 @@ The verdict came from the exit status, the tree it ran on is named, and the full
 
 ## Batch 03-01: hooks in the extension
 
-The session start hooks (workflow handoff, workflow project state, guardrails status, context-hygiene checklist) fired in the extension as pasted above; the read guard fired on a Read (item 5). The stop hook's ask was not observed (item 6). The status line the batch names is the personal one, not a plugin's; it is not claimed here.
+The session start hooks (workflow handoff, workflow project state, guardrails status, context-hygiene checklist) fired in the extension as pasted above; the read guard fired on a Read (item 5), and the stop hook's ask arrived as hook feedback (item 6). The status line the batch names is the personal one, not a plugin's; it is not claimed here.
 
 ## Not claimed
 
-Anything a headless run measured is not repeated here as live. The two open items (the confirmation prompt, the stop hook's ask) need one short owner session: make a scratch change, ask the assistant to run `git checkout -- .`, answer no; then end the session without a checkpoint.
+Anything a headless run measured is not repeated here as live. The one open item (the confirmation prompt) needs one short owner session: make a scratch change, ask the assistant to run `git checkout -- .`, answer no.

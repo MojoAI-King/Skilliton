@@ -67,12 +67,12 @@ Leave `packs/base/` as it is, so upstream improvements merge cleanly. The one ba
 ```bash
 node scripts/skilliton.mjs company init --name <company> --marketplace-repo <owner>/<repo> --apply
 node scripts/skilliton.mjs new-plugin <plugin> --pack <company> --apply
-node scripts/skilliton.mjs new-skill <plugin> <skill> --pack <company> --description "<what it does and when to use it>"
+node scripts/skilliton.mjs new-skill <plugin> <skill> --pack <company> --description "<what it does and when to use it>" --apply
 ```
 
 - **`company init`** names your marketplace, sets its owner, and points the team settings template at your fork. Without it, projects would keep installing the upstream plugins instead of yours.
 - **`new-plugin`** creates a plugin in your pack, lists it in the catalog so people can install it, and turns it on in the team settings.
-- **`new-skill`** writes a skill skeleton for you to fill in. To bring in a skill you already have, use `node scripts/skilliton.mjs import <folder> --into <plugin> --pack <company>`, which first scans it for names, secrets and home paths.
+- **`new-skill`** writes a skill skeleton for you to fill in. To bring in a skill you already have, use `node scripts/skilliton.mjs import <folder> --into <plugin> --pack <company> --apply`, which first scans it for names, secrets and home paths. Both commands preview without `--apply` and write nothing.
 - `company init` and `new-plugin` show their change and write nothing until you add `--apply`. `new-skill` creates the skill straight away.
 
 Then keep, or leave out, what comes prepackaged:

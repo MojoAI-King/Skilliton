@@ -14,7 +14,7 @@ Kind: Living. Batch record. Area [01-autopilot-loop](AREA.md).
 - [x] one real session in this repository shows the Project state block and the RESUME HERE note at session start, filed as evidence/live/session-start.md with the date and client version (evidence: evidence/live/2026-09-21-owner-machine-session.md, item 1, in the VS Code extension 2.1.278 on 2026-09-21; filed under that name rather than session-start.md, beside the other live checks)
 - [ ] the guardrails confirmation prompt is seen live on a command that throws away uncommitted work (B5), filed with what was typed and what the client showed
 - [x] the read guard refuses a whole-file Read of a file over 50KB in the live session (B34), filed with the refusal text (evidence: evidence/live/2026-09-21-owner-machine-session.md, item 5)
-- [ ] the stop hook asks for a checkpoint when the session ends with changes and no recent checkpoint, filed
+- [x] the stop hook asks for a checkpoint when the session ends with changes and no recent checkpoint, filed (evidence: evidence/live/2026-09-21-owner-machine-session.md item 6; the reminder's full text as the extension showed it on 2026-09-22T02:02:33Z, the checkpoint recorded, the next stop quiet)
 - [x] docs/CLIENTS.md and docs/COVERAGE.md say measured on this client for each row the session covered, with the date (evidence: the extension column's rows for plugin hooks and plugin skills read measured 2026-09-21 from evidence/live/2026-09-21-owner-machine-session.md; COVERAGE.md names the session)
 
 ## Notes

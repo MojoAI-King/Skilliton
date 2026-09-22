@@ -61,7 +61,7 @@ Fork this repository, give the fork its own name, add your skills beside `packs/
 ```bash
 node scripts/skilliton.mjs company init --name <company> --marketplace-repo <owner>/<repo> --apply
 node scripts/skilliton.mjs new-plugin <plugin> --pack <company> --apply
-node scripts/skilliton.mjs new-skill <plugin> <skill> --pack <company> --description "<when to use it>"
+node scripts/skilliton.mjs new-skill <plugin> <skill> --pack <company> --description "<when to use it>" --apply
 node scripts/skilliton.mjs release create --version 1.0.0 --apply   # then commit the manifest
 node scripts/skilliton.mjs release sign 1.0.0 --apply               # with your own signing key
 node scripts/skilliton.mjs company join-file --name <company> --signers <allowed_signers> --out ~/handout/<company>.skilliton-join.json --apply   # hand this file out, never through the repository

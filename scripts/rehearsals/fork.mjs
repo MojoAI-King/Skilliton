@@ -73,7 +73,7 @@ await R.step("K1", "company init renames the fork: preview writes nothing, apply
 
 await R.step("K2", "new-plugin and new-skill add a company plugin with a skill; packaging checks and strict validation pass", () => {
   const plugin = sg(["new-plugin", PLUGIN, "--pack", COMPANY, "--description", "Acme's own review rules.", "--apply"]);
-  const skill = sg(["new-skill", PLUGIN, SKILL, "--pack", COMPANY, "--description", "Use when a change touches billing or invoices: check rounding, currency and repeated charges."]);
+  const skill = sg(["new-skill", PLUGIN, SKILL, "--pack", COMPANY, "--description", "Use when a change touches billing or invoices: check rounding, currency and repeated charges.", "--apply"]);
   const skillFile = join(fork, "packs", COMPANY, "plugins", PLUGIN, "skills", SKILL, "SKILL.md");
   writeFileSync(skillFile, readFileSync(skillFile, "utf8").replace(/TODO\(skilliton\)[^\n]*/g, "Check amounts are rounded once, in the invoice currency, and that a retried request cannot charge twice."));
   const packs = run(process.execPath, [join(fork, "scripts", "packs.test.mjs"), "--root", fork], { env });

@@ -86,7 +86,7 @@ await R.step("J1", "a company fork with its own name, a company plugin and signe
   const steps = [
     sgFork(["company", "init", "--name", COMPANY, "--marketplace-repo", "acme/skills", "--marketplace-name", MARKET, "--apply"]),
     sgFork(["new-plugin", PLUGIN, "--pack", COMPANY, "--description", "Acme's own review rules.", "--apply"]),
-    sgFork(["new-skill", PLUGIN, "billing-check", "--pack", COMPANY, "--description", "Use when a change touches billing or invoices."]),
+    sgFork(["new-skill", PLUGIN, "billing-check", "--pack", COMPANY, "--description", "Use when a change touches billing or invoices.", "--apply"]),
   ];
   git(fork, ["add", "-A"], { env });
   git(fork, ["commit", "-q", "-m", "Acme identity and plugin"], { env });
