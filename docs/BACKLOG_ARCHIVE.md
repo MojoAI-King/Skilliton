@@ -6,6 +6,7 @@ Each closed item keeps its ID, outcome, closure date and evidence.
 
 | ID | Outcome | Closed | Evidence |
 |---|---|---|---|
+| B55 | `dispatch` names a plan line shaped like an item whose ID is not `N<digits>` as a problem with its line and lane, and refuses; nothing is dropped without a word | 2026-09-22 | workflow 0.15.9; `runtime/lib/dispatch.mjs` NEAR_ITEM_RE; scripts/dispatch.test.mjs 23 of 23 |
 | B38 | The first real dispatch: two lanes launched from their briefs, each lane's peak context under its ceiling by the meter's definition, both merged back to main the same evening | 2026-09-21 | `evidence/live/2026-09-21-dispatch.md`; batch 07-02 items 1 and 3; merges 22d98a7 and efb136a |
 | B54 | `import` and `new-skill` preview by default and write only with `--apply`; their tests cover both paths and every guide example passes `--apply` | 2026-09-21 | lane/preview-0921 merged at efb136a (workflow 0.15.7); scripts/skilliton.test.mjs; README.md, docs/HOW-IT-WORKS.md, docs/OWNER_GUIDE.md, docs/CONTRACTS.md |
 | B47 | The sweep of every `--apply` form with no target is a committed test: exit 2 and an unchanged tree for each form missing an argument, exit 0 and an unchanged tree for harness, index, migrate and prepare | 2026-09-21 | lane/sweep-0921 merged at 22d98a7; scripts/prepare.test.mjs (42 tests) |

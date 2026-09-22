@@ -35,6 +35,9 @@ const LANE_HEADING_RE = /^##\s+Lane:\s*(\S.*?)\s*$/;
 const OTHER_HEADING_RE = /^#{1,2}\s+\S/;
 const BASE_RE = /^\s*(?:[-*]\s*)?(?:\*\*)?base(?:\s+commit)?(?:\*\*)?\s*:\s*`?([0-9a-fA-F]{7,40})`?\s*$/i;
 const ITEM_RE = /^\s*(?:[-*]\s*)?(N\d+)\.\s+(\S.*?)\s*$/;
+// A line shaped like an item whose ID is not N<digits> (P1., S2., item3.) is named as a problem, never dropped: the
+// first real dispatch lost two items that way without a word (docs/BACKLOG.md B55).
+const NEAR_ITEM_RE = /^\s*(?:[-*]\s*)?([A-Za-z]{1,8}\d+)\.\s+\S/;
 const FIELD_RE = /^([A-Za-z][A-Za-z ]*?)\s*:\s*(\S.*)$/;
 const FIELD_KEYS = ["branch", "model", "context ceiling"];
 
@@ -97,7 +100,9 @@ function parseLanes(text) {
       continue;
     }
     const item = ITEM_RE.exec(line);
-    if (item) current.items.push({ ref: item[1], text: item[2], line: n });
+    if (item) { current.items.push({ ref: item[1], text: item[2], line: n }); continue; }
+    const near = NEAR_ITEM_RE.exec(line);
+    if (near) problems.push(`${LANE_FILE} line ${n}: "${near[1]}." is not an item ID, so this line would not reach lane ${current.name}. Items are N followed by digits (N1., N2., ...); renumber it`);
   }
   return { lanes, problems };
 }

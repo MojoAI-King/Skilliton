@@ -217,6 +217,15 @@ test("a lane whose model is a sentence falls back to the agent definition's mode
   assert.match(brief, new RegExp(`^cd .* --model ${declaredBy("model")} --effort`, "m"), "but the runnable line carries a model and not a sentence");
 });
 
+test("an item whose ID is not N<digits> is named and refused, never dropped (B55)", (t) => {
+  const ctx = fixture(t);
+  lanePlan(ctx, TWO_LANES.replace("N3. [FEATURE] Add a filter", "P3. [FEATURE] Add a filter"));
+  const r = sg(ctx, ["dispatch"]);
+  assert.equal(r.code, 2, `expected a refusal (exit 2), got ${r.code}: ${r.err || r.out}`);
+  assert.match(r.err, /LANES\.md line 12: "P3\." is not an item ID, so this line would not reach lane reviews\. Items are N followed by digits/, r.err);
+  assertNothingCreated(ctx, r);
+});
+
 test("a lane whose branch already exists is refused, and nothing is created", (t) => {
   const ctx = fixture(t);
   lanePlan(ctx, TWO_LANES);
