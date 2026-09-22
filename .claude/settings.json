@@ -11,7 +11,8 @@
   "enabledPlugins": {
     "context-hygiene@skilliton": true,
     "workflow@skilliton": true,
-    "guardrails@skilliton": true
+    "guardrails@skilliton": true,
+    "code-quality@skilliton": true
   },
   "autoCompactWindow": 600000,
   "bashOutputMaxChars": 30000,

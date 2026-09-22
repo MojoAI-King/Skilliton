@@ -66,7 +66,7 @@ rolling archives.
 ## Evidence
 
 `node scripts/docs.test.mjs` exit 0 on 2026-09-20, reporting 160 of 160 Markdown files under `docs/` reachable from
-`docs/AUTOPILOT_START_HERE.md`; the same measurement before the index rows read 126 of 160.
+`docs/README.md`; the same measurement before the index rows read 126 of 160.
 
 `node scripts/docs.test.mjs --self-test` exit 0, six cases. The two new ones were each proved able to fail against a
 mutant with that rule disabled, and each mutant killed only its own case: with the reachability failure suppressed, only

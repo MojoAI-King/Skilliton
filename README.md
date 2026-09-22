@@ -13,7 +13,7 @@ It is four Claude Code plugins and one command, `skilliton`, in a repository a c
 | Language | JavaScript (Node.js, ES modules) and Bash. Commands are Node; the hooks that must start in under a second are Bash. |
 | Runtime floor | Node.js 18 or later, and git. Exercised on Node 22 and 25; Node 18 itself has not been run ([docs/COVERAGE.md](docs/COVERAGE.md)). |
 | Dependencies | None. No `package.json`, no `node_modules`, no build step, no network code of its own. |
-| Size | About 40,000 lines of runtime, hooks and tests. 63 checks run in CI on every push. |
+| Size | About 40,000 lines of runtime, hooks and tests. 58 check steps run in CI on every push; `node scripts/checks.mjs` runs the same list locally. |
 | Shape | Plugins `workflow`, `guardrails`, `context-hygiene`, `code-quality` under `packs/base/plugins/`; the `skilliton` command ships inside `workflow`. |
 | Clients | Claude Code, measured (terminal and VS Code extension). Codex installs the plugins and sees the skills but runs no plugin hooks. Cursor is documented, not run ([docs/CLIENTS.md](docs/CLIENTS.md)). |
 | Platforms | macOS and Linux exercised. Windows has a written first run ([docs/WINDOWS.md](docs/WINDOWS.md)), not yet tried. |
@@ -31,7 +31,7 @@ It prepares a disposable project, turns a request into a task with a checkpoint,
 
 ## Two ways in
 
-- **Use it as it is.** Clone this repository, join with its join file, prepare each repository you work in. No fork.
+- **Use it as it is.** Clone this repository, join with the join file its maintainer hands out (where that file is published is still the maintainer's open decision, docs/BACKLOG.md B53; until then `join --company <name> --signers <file>` with a signers file obtained from the maintainer does the same), then prepare each repository you work in. No fork.
 - **Make it your company's.** Fork it, name it, add your own skills beside the base pack, sign releases, hand out one join file. Your developers join your fork, not this repository.
 
 ### A developer's two commands
@@ -109,7 +109,7 @@ Each is recorded in [docs/BACKLOG.md](docs/BACKLOG.md) or [DECISIONS.md](DECISIO
 |---|---|
 | `packs/base/plugins/` | The shipped product: four plugins, each with its hooks, skills, agents and a `.claude-plugin/plugin.json`. `workflow/runtime/` is the `skilliton` command (`commands/`, `lib/`). |
 | `scripts/` | Every check CI runs, the demo, the rehearsals, the meter and the release tooling. `scripts/skilliton.mjs` runs the command from a checkout. |
-| `docs/` | The living records (status, backlog, handoff, decisions, lessons, contracts) and the guides. Every document says its Kind near the top: Living is kept current, Reference is a record that no longer changes. [docs/AUTOPILOT_START_HERE.md](docs/AUTOPILOT_START_HERE.md) is the index; every file under `docs/` is reachable from it, and a test says so. |
+| `docs/` | The living records (status, backlog, handoff, decisions, lessons, contracts) and the guides. Every document says its Kind near the top: Living is kept current, Reference is a record that no longer changes. [docs/README.md](docs/README.md) is the index; every file under `docs/` is reachable from it, and a test says so. |
 | `evidence/` | What was measured, by date: live sessions under `live/`, scripted rehearsals under `rehearsals/`, skill evaluations by commit. |
 | `releases/` | Signed release manifests and their schema. |
 | `templates/` | The GitHub workflow for the hosted delivery check and the team settings template. |
@@ -117,7 +117,7 @@ Each is recorded in [docs/BACKLOG.md](docs/BACKLOG.md) or [DECISIONS.md](DECISIO
 
 ## Checks
 
-Credential-free checks run in [CI](.github/workflows/checks.yml) on every push and pull request; [docs/MAINTAIN.md](docs/MAINTAIN.md) lists each command, and a test keeps the two lists equal. They cover packaging and strict plugin validation, the lint that holds the runtime's shape (a 600-line ceiling with pinned exceptions that may only shrink, unused imports, no console logging in a runtime), dead code, the command, prepare and migrate, dispatch, lifecycle, security evidence, releases, the delivery gate, guardrails, hooks, the meter, the guides' commands and links, the endpoint allow list, the small-footprint rules, the whole-tree audit, the name scrub, the record relationships, the demo and the offline project rehearsal. Most checks carry a `--self-test` that proves they can fail.
+`node scripts/checks.mjs` runs every check locally, one step at a time with a verdict per step, reading the list from [CI](.github/workflows/checks.yml) so there is one list; [docs/MAINTAIN.md](docs/MAINTAIN.md) names each command with what it holds, and a test keeps that list equal to CI's. [CONTRIBUTING.md](CONTRIBUTING.md) says what a change needs. They cover packaging and strict plugin validation, the lint that holds the runtime's shape (a 600-line ceiling with pinned exceptions that may only shrink, unused imports, no console logging in a runtime), dead code, the command, prepare and migrate, dispatch, lifecycle, security evidence, releases, the delivery gate, guardrails, hooks, the meter, the guides' commands and links, the endpoint allow list, the small-footprint rules, the whole-tree audit, the name scrub, the record relationships, the demo and the offline project rehearsal. Most checks carry a `--self-test` that proves they can fail. The dead-code check names the modules it could not follow (dynamic imports) and counts them rather than passing over them.
 
 Checks that use an account and cost usage run by hand and write under `evidence/`: `scripts/live-capability-probe.sh`, `scripts/live-guardrails-probe.sh`, `scripts/rehearsals/live-clients.mjs`, `scripts/rehearsals/company-release.mjs --with-eval`, and `claude plugin eval`.
 

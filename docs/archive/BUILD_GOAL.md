@@ -11,7 +11,7 @@ Build Skilliton into the working development autopilot defined by PLAN.md v4. Co
 ## Read first
 
 - PLAN.md
-- docs/AUTOPILOT_START_HERE.md
+- docs/README.md
 - docs/HANDOFF.md
 - docs/CONTRACTS.md
 - docs/archive/AUTOPILOT_INTEGRATION.md

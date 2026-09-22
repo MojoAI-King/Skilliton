@@ -9,7 +9,7 @@ Kind: Living. Written 2026-09-21 at the end of the build, for the person who own
 | Language | JavaScript (Node.js, ES modules) and Bash. The runtime and every command are Node; the hooks that must start in under a second are Bash. |
 | Runtime floor | Node.js 18 or later, and git. The checks have run on Node 22 and 25; Node 18 itself has not been run (docs/COVERAGE.md). |
 | Dependencies | Zero. No `package.json`, no `node_modules`, no build step, and no network code of its own. |
-| Size | About 38,800 lines of runtime, hooks and tests; 63 checks run in CI on every commit. |
+| Size | About 40,000 lines of runtime, hooks and tests; 58 check steps run in CI on every commit. |
 | Shape | Four Claude Code plugins (workflow, guardrails, context-hygiene, code-quality) and one command, `skilliton`, which ships inside the workflow plugin. |
 | Clients | Claude Code, measured. Codex installs the plugins and sees the skills but runs no plugin hooks, so every enforced behaviour is instructed there. Cursor is documented only, never run (docs/CLIENTS.md). |
 | Platforms | macOS and Linux exercised. Windows has a written first run (docs/WINDOWS.md) and has not been tried. |
@@ -64,7 +64,7 @@ Not covered, and said so: commands a person types in their own terminal, other t
 
 The report card (docs/REPORT_CARD.md) has 123 acceptance items across ten areas; the ticked count is on its first bar. Everything still open needs something only the owner can supply (docs/OWNER_WALKTHROUGH.md).
 
-**Measured:** fork, rename, company plugin, signed release, install and verify on Claude Code and Codex; update, downgrade and removal in a clean Claude Code configuration; every guardrail deny and ask path; the merge gate rejecting a planted flaw and accepting a clean push against a local bare repository; layout migrations with preview, receipt and rollback; the meter reproducing a known window; 63 CI checks per commit.
+**Measured:** fork, rename, company plugin, signed release, install and verify on Claude Code and Codex; update, downgrade and removal in a clean Claude Code configuration; every guardrail deny and ask path; the merge gate rejecting a planted flaw and accepting a clean push against a local bare repository; layout migrations with preview, receipt and rollback; the meter reproducing a known window; 58 CI check steps per commit.
 
 **Not yet:** a real team using it (one two-lane dispatch has run for real, on 2026-09-21, both lanes under their context ceiling; no new builder onboarded from the documents alone); Windows, a clean macOS account, a Codex session in a prepared project; the enrollment scripts; Cursor beyond its documentation; and any saving, which the repository forbids claiming unless the meter produced it and the owner cross-checked it against the Usage screen (PLAN.md sections 6 and 8).
 

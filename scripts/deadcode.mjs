@@ -625,7 +625,7 @@ function main() {
   console.log(`allow list: ${ALLOWED_UNIMPORTED.length} export(s), ${ALLOWED_DUPLICATE.length} block(s)`);
   console.log(findings.length
     ? `deadcode FAILED: ${findings.length} finding(s). Fix each one, or record it in docs/BACKLOG.md with a reason and add its row to the allow list in scripts/deadcode.mjs naming that backlog id.`
-    : `deadcode passed: every export is reached, and no block of ${DUPLICATE_LINES} meaningful lines repeats`);
+    : `deadcode passed for the modules it could follow: every export is reached, and no block of ${DUPLICATE_LINES} meaningful lines repeats (the coverage lines above name what was held whole or imported dynamically)`);
   return findings.length ? 1 : 0;
 }
 

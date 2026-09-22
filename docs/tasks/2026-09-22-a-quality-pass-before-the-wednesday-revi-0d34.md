@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T04:22:24.958Z
+- **Updated:** 2026-09-22T04:46:14.083Z
 
 ## Request
 
@@ -40,9 +40,16 @@ not yet written
 - **Next:** CI for this commit; second cold review by a fresh subagent on the new tree; then B50 live probe, B55, B43 folding, handoff
 - **Git:** main @ 0cada16, 0 uncommitted
 
+### 2026-09-22T04:46:14.083Z
+
+- **State:** Second cold review in (README B+, organisation B, habits B+, tests B, docs B-). Uncommitted on the tree, verified piecewise: scripts/checks.mjs runs checks.yml's 58 steps locally (56 run here, verdict per step, logs under .git/skilliton/checks); CONTRIBUTING.md, SECURITY.md, CHANGELOG.md; docs index renamed docs/README.md with 17 references updated; README numbers corrected to 58 steps and the use-as-is path made honest; dead-code summary says what it covered; code-quality enabled at project scope and in the template; B50 row carries the docs finding. Deferred: B50 implementation, B43 folding (the runner reads one list; the MAINTAIN copy stays under its equality test)
+- **Evidence:** docs, docs --self-test, lint, names, scrub, backlog, deadcode, setup exit 0; runner steps Preflight, Plugin validation and Scrub self-test pass after three runner fixes (plain shell not login shell, install lines dropped, RUNNER_TEMP provided); the full 58-step run through the runner is in progress
+- **Next:** Read the full run; commit and push the batch; CI; handoff; the owner's keyboard checks; 1.0.0 Wednesday morning
+- **Git:** main @ bf94373, 26 uncommitted
+
 ## Handoff
 
-- **State:** Review item 7 done: lib/security.mjs split along the file-layer seam into lib/security-io.mjs (250 lines) and the engine (498 lines, under the ceiling, pin row deleted); workflow 0.15.8; contracts history entry. Items 1 to 6, 11 and 12 shipped earlier tonight; 8, 9, 10 deferred as B57 to B59 with reasons; the second cold review is next. Evidence: Byte-identical move proven against git show HEAD; security-evidence and collectors 52 of 52, lifecycle 55 of 55, prepare and migrate 56 of 56, audit, skilliton, lint and self-test, deadcode, footprint, allowlist, packs, plugin validate, demo all pass; docs, scrub, names exit 0; CI for 28ad475 was 63 of 63.
-- **Next:** CI for this commit; second cold review by a fresh subagent on the new tree; then B50 live probe, B55, B43 folding, handoff
+- **State:** Second cold review in (README B+, organisation B, habits B+, tests B, docs B-). Uncommitted on the tree, verified piecewise: scripts/checks.mjs runs checks.yml's 58 steps locally (56 run here, verdict per step, logs under .git/skilliton/checks); CONTRIBUTING.md, SECURITY.md, CHANGELOG.md; docs index renamed docs/README.md with 17 references updated; README numbers corrected to 58 steps and the use-as-is path made honest; dead-code summary says what it covered; code-quality enabled at project scope and in the template; B50 row carries the docs finding. Deferred: B50 implementation, B43 folding (the runner reads one list; the MAINTAIN copy stays under its equality test). Evidence: docs, docs --self-test, lint, names, scrub, backlog, deadcode, setup exit 0; runner steps Preflight, Plugin validation and Scrub self-test pass after three runner fixes (plain shell not login shell, install lines dropped, RUNNER_TEMP provided); the full 58-step run through the runner is in progress.
+- **Next:** Read the full run; commit and push the batch; CI; handoff; the owner's keyboard checks; 1.0.0 Wednesday morning
 - **Blocked:** nothing
 - **Watch out:** nothing known

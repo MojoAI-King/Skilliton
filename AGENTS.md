@@ -2,7 +2,7 @@
 
 Kind: Living.
 
-All preparation/security source, tests, demo, verification and archived design notes are in this checkout. Read docs/AUTOPILOT_START_HERE.md for the material index and docs/archive/BUILD_GOAL.md for the full execution objective; no earlier chat or sibling worktree is required.
+All preparation/security source, tests, demo, verification and archived design notes are in this checkout. Read docs/README.md for the material index and docs/archive/BUILD_GOAL.md for the full execution objective; no earlier chat or sibling worktree is required.
 
 Read PLAN.md v4 (canonical product direction), docs/HANDOFF.md (current work), docs/CONTRACTS.md (implemented versus target contracts), DECISIONS.md and docs/LESSONS.md. docs/archive/AUTOPILOT_INTEGRATION.md guides the next milestone; docs/MAINTAIN.md holds this repository's maintenance steps.
 

@@ -29,4 +29,4 @@ Easy. Nothing is built, and a later decision can bring any part of it into Skill
 
 ## Evidence
 
-The owner's note in this session, 2026-09-17 around 00:50 EDT. Only documentation changed: docs/MULTIPLAYER.md (since removed), docs/PHASE-3.md ("Where Skilliton stops"), PLAN.md section 9, docs/AUTOPILOT_START_HERE.md.
+The owner's note in this session, 2026-09-17 around 00:50 EDT. Only documentation changed: docs/MULTIPLAYER.md (since removed), docs/PHASE-3.md ("Where Skilliton stops"), PLAN.md section 9, docs/README.md.

@@ -39,5 +39,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner | Updated |
 |---|---|---|---|---|---|
-| [2026-09-22-a-quality-pass-before-the-wednesday-revi-0d34](tasks/2026-09-22-a-quality-pass-before-the-wednesday-revi-0d34.md) | A-quality pass before the Wednesday review: cold review, README, docs map, code habits | in-progress | main | unassigned | 2026-09-22T04:22:24.958Z |
+| [2026-09-22-a-quality-pass-before-the-wednesday-revi-0d34](tasks/2026-09-22-a-quality-pass-before-the-wednesday-revi-0d34.md) | A-quality pass before the Wednesday review: cold review, README, docs map, code habits | in-progress | main | unassigned | 2026-09-22T04:46:14.083Z |
 <!-- skilliton:index:tasks:end -->

@@ -28,6 +28,9 @@ jobs:
           for t in jq git bash python3 ssh-keygen tar; do command -v "$t" >/dev/null || { echo "missing: $t"; exit 1; }; done
           echo "jq $(jq --version), node $(node --version), git $(git --version)"
 
+      - name: The local check runner reads this list
+        run: node scripts/checks.mjs --list
+
       - name: Packaging (marketplace, manifests, skill frontmatter, executable hooks)
         run: node scripts/packs.test.mjs
 

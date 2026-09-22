@@ -8,7 +8,7 @@
 //     and, for a command whose --help lists verbs (such as release create), a verb it lists
 //   - every relative Markdown link in the guides resolves to a file or folder in the checkout
 //   - every Markdown file under docs/, and README.md, says its Kind near the top
-//   - every Markdown file under docs/ is reachable from docs/AUTOPILOT_START_HERE.md by following relative links, so
+//   - every Markdown file under docs/ is reachable from docs/README.md by following relative links, so
 //     one index reaches every document and a new document cannot be written where nothing points at it
 //   - every Markdown file under docs/archive/ says Kind: Reference, because that folder holds superseded documents
 // It does not show that a command does what the prose says; the rehearsals under scripts/rehearsals/ do that.
@@ -158,7 +158,7 @@ function check(root) {
     oks.push("check-list agreement NOT CHECKED: docs/MAINTAIN.md or .github/workflows/checks.yml is absent in this checkout");
   }
 
-  const INDEX = join("docs", "AUTOPILOT_START_HERE.md");
+  const INDEX = join("docs", "README.md");
   const docsDir = join(root, "docs");
   if (!existsSync(join(root, INDEX))) {
     oks.push(`reachability NOT CHECKED: this checkout has no ${INDEX}, which is this repository's index`);

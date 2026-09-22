@@ -15,7 +15,7 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 
 ## 2026-09-16 Keep all foundation material in the main working tree
 
-**Decision:** Merge the existing standalone preparation/security scripts, their tests and demo into the local main checkout. Preserve the original plan, handoff and decision under docs/archive/autopilot-foundation/. Save the build-goal instructions and link every artifact from docs/AUTOPILOT_START_HERE.md.
+**Decision:** Merge the existing standalone preparation/security scripts, their tests and demo into the local main checkout. Preserve the original plan, handoff and decision under docs/archive/autopilot-foundation/. Save the build-goal instructions and link every artifact from docs/README.md.
 **Why:** The owner wants the next assistant to read and use all work from repository files without relying on chat history or discovering a separate worktree.
 **Alternatives rejected:** Leaving code only on a local branch; replacing the aligned plan with older prototype instructions; claiming source availability completes the CLI and lifecycle integration.
 **Risk:** A reader could mistake standalone prototype commands for the production onboarding path. README, handoff and integration instructions explicitly preserve the remaining M1 seams. The imported source remains unchanged from the tested foundation snapshot.
