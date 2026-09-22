@@ -238,5 +238,6 @@ Lesson entries in `docs/lessons/`, sorted by ID. `skilliton index` writes this l
 | [2026-09-21-the-tool-said-so-on-its-second-line-and-0a35](lessons/2026-09-21-the-tool-said-so-on-its-second-line-and-0a35.md) | The tool said so on its second line and its last line, and the table between them was read instead | accepted | 2026-09-21 |
 | [2026-09-21-verify-called-every-plugin-in-use-tamper-3e4a](lessons/2026-09-21-verify-called-every-plugin-in-use-tamper-3e4a.md) | verify called every plugin in use TAMPERED, because the client writes a marker into the folder it verifies | accepted | 2026-09-21 |
 | [2026-09-22-a-check-runner-that-starts-a-login-shell-1367](lessons/2026-09-22-a-check-runner-that-starts-a-login-shell-1367.md) | A check runner that starts a login shell changes what the tests control | accepted | 2026-09-22 |
+| [2026-09-22-a-guard-judges-paths-against-the-root-th-a324](lessons/2026-09-22-a-guard-judges-paths-against-the-root-th-a324.md) | A guard judges paths against the root the client names, spelled as the input spelled it | accepted | 2026-09-22 |
 | [2026-09-22-a-rewrite-over-every-file-walks-the-work-0230](lessons/2026-09-22-a-rewrite-over-every-file-walks-the-work-0230.md) | A rewrite over every file walks the worktrees nested inside the repository | accepted | 2026-09-22 |
 <!-- skilliton:index:lessons:end -->

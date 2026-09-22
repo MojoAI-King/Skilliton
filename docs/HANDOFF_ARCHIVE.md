@@ -4,6 +4,13 @@ Kind: Reference. The current handoff is `docs/HANDOFF.md`.
 
 Superseded RESUME HERE notes, newest first. Moved here from docs/HANDOFF.md on 2026-09-16.
 
+### 2026-09-21 07:26 EDT
+- **State:** Wave 8 is shipped and the build phase is over: main at 7779d50 plus this maintain commit, report card 81 of 123, every remaining batch owner-gated. Evidence: CI runs 35590884701, 35591036358 and 35591331918 each 63 of 63 steps read individually; 19 local gates each with its status read from the gate itself after a known-failing command proved the runner reports FAIL; scrub-check over the tree and over history exit 0; the whole-tree audit 0 findings over 544 files with 45 allowed lines.
+- **Next:** The owner pass, in the order docs/OWNER_WALKTHROUGH.md sets; no session-doable work is left outside that list except the open backlog rows B37 to B49
+- **Blocked:** Nothing on a session. Every open batch needs the owner: a live session filed as evidence, a clean macOS account, a Windows machine, a signing key, a hosted repository, a real participant, or the fifteen applicability decisions
+- **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt. B49 is an unexplained exit 2 from allowlist.test.mjs seen once and not reproduced; keep every batch gate run's full output in a file, because that one was filtered through grep and its message is gone. Two numbers written on 2026-09-21 were never measured and had to be corrected: the CI step total said 60 and is 63, and three plugin versions were set from memory
+- **Git:** main @ 7779d50, 5 uncommitted
+
 ### 2026-09-21 07:09 EDT
 - **State:** Wave 8 is shipped and the build phase is over: main at 7779d50, report card 81 of 123, every remaining batch owner-gated. Evidence: CI runs 35590884701, 35591036358 and 35591331918 each 63 of 63 steps read individually; 19 local gates each with its status read from the gate itself after a known-failing command proved the runner reports FAIL; scrub-check over the tree and over history exit 0; the whole-tree audit 0 findings over 544 files with 45 allowed lines.
 - **Next:** The owner pass, in the order docs/OWNER_WALKTHROUGH.md sets; no session-doable work is left outside that list except the open backlog rows B37 to B48

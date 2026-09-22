@@ -39,5 +39,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner | Updated |
 |---|---|---|---|---|---|
-| [2026-09-22-b61-skilliton-s-files-persist-against-th-ce38](tasks/2026-09-22-b61-skilliton-s-files-persist-against-th-ce38.md) | B61: Skilliton's files persist against the assistant and the shared branch, and a removal by a person is named at session start | in-progress | main | unassigned | 2026-09-22T08:47:14.904Z |
+| [2026-09-22-b61-skilliton-s-files-persist-against-th-ce38](tasks/2026-09-22-b61-skilliton-s-files-persist-against-th-ce38.md) | B61: Skilliton's files persist against the assistant and the shared branch, and a removal by a person is named at session start | in-progress | main | unassigned | 2026-09-22T16:28:22.606Z |
 <!-- skilliton:index:tasks:end -->
