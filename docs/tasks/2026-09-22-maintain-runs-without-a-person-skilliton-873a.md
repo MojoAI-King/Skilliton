@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-22-maintain-runs-without-a-person-skilliton-873a
-- **State:** in-progress
+- **State:** done-local
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T19:06:56.470Z
+- **Updated:** 2026-09-22T20:08:02.832Z
 
 ## Request
 

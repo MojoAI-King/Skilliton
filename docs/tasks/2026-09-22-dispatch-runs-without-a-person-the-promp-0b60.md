@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-22-dispatch-runs-without-a-person-the-promp-0b60
-- **State:** in-progress
+- **State:** done-local
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T19:31:57.256Z
+- **Updated:** 2026-09-22T20:08:02.179Z
 
 ## Request
 
