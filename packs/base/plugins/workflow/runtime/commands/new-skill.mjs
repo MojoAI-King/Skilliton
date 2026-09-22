@@ -8,7 +8,7 @@ import { BASE_NOTE, findPlugin, planVersionBump, writeVersionBump } from "../lib
 
 export const help = `new-skill: create a skill inside a plugin, and bump the plugin's version.
 
-  new-skill <plugin> <skill> [--pack <pack>] [--description "<text>"] [--repo <skills repo>]
+  new-skill <plugin> <skill> [--pack <pack>] [--description "<text>"] [--repo <skills repo>] [--apply]
 
 Creates packs/<pack>/plugins/<plugin>/skills/<skill>/SKILL.md with frontmatter (name, description) and a short body
 to fill in (When to use, Steps, What done looks like), then bumps the patch number of "version" in the plugin's
@@ -16,7 +16,8 @@ to fill in (When to use, Steps, What done looks like), then bumps the patch numb
 Names use lowercase letters, digits, and hyphens. Without --description the description is a TODO(skilliton)
 placeholder; replace it, because Claude reads that line to decide when to use the skill.
 --pack picks between plugins with the same name in different packs. --repo defaults to the repo this script is in.
-Refuses (exit 2), changing nothing, if the skill already exists or a name is not allowed.`;
+Preview by default: shows the SKILL.md that would be created and the version bump, and writes nothing. Pass --apply
+to write them. Refuses (exit 2), changing nothing, if the skill already exists or a name is not allowed.`;
 
 const DESCRIPTION_PLACEHOLDER = "TODO(skilliton) Replace this line. Say what this skill does and exactly when Claude should use it; Claude reads this line to decide whether to load the skill.";
 
@@ -60,7 +61,7 @@ function skillSkeleton(name, description) {
 }
 
 export async function run(argv) {
-  const o = parseArgs(argv, { flags: [], options: ["pack", "description", "repo"] }, "new-skill");
+  const o = parseArgs(argv, { flags: ["apply"], options: ["pack", "description", "repo"] }, "new-skill");
   if (o.help) { say(help); return 0; }
   if (o._.length !== 2) refuse(`new-skill needs exactly two names, the plugin and the new skill: new-skill <plugin> <skill> (got ${o._.length})`);
   const [pluginName, skillName] = o._;
@@ -72,13 +73,21 @@ export async function run(argv) {
   const skillDir = join(plugin.dir, "skills", skillName);
   if (existsSync(skillDir)) refuse(`${skillRel} already exists; nothing was changed. Choose another name, or edit the existing skill.`);
   const bump = planVersionBump(plugin.manifest, plugin.manifestRel);
+  const skeleton = skillSkeleton(skillName, o.description);
 
-  say(`new-skill: in ${tilde(repo)}`);
+  say(`new-skill${o.apply ? "" : " (preview; nothing written)"}: in ${tilde(repo)}`);
   say(`  will create ${skillRel}/SKILL.md`);
   say(`  will bump   ${plugin.manifestRel} version ${bump.from} -> ${bump.to}`);
   if (plugin.pack === "base") say(BASE_NOTE);
+  if (!o.apply) {
+    say("");
+    process.stdout.write(skeleton);
+    say("");
+    say("Next: run the same command with --apply.");
+    return 0;
+  }
   mkdirSync(skillDir, { recursive: true });
-  writeFileSync(join(skillDir, "SKILL.md"), skillSkeleton(skillName, o.description), { flag: "wx" });
+  writeFileSync(join(skillDir, "SKILL.md"), skeleton, { flag: "wx" });
   say(`created ${skillRel}/SKILL.md`);
   writeVersionBump("new-skill", plugin, bump);
   say("");
