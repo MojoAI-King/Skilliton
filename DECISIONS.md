@@ -316,4 +316,5 @@ Decision entries in `docs/decisions/`, sorted by ID. `skilliton index` writes th
 | [2026-09-21-joining-a-machine-takes-one-file-the-com-53bd](docs/decisions/2026-09-21-joining-a-machine-takes-one-file-the-com-53bd.md) | Joining a machine takes one file the company hands out, not three facts typed by hand | accepted | 2026-09-21 |
 | [2026-09-21-one-of-four-cleanup-skills-ships-because-879a](docs/decisions/2026-09-21-one-of-four-cleanup-skills-ships-because-879a.md) | One of four cleanup skills ships, because only one beat its own baseline | accepted | 2026-09-21 |
 | [2026-09-21-pinning-pins-the-clone-because-a-client-2fa4](docs/decisions/2026-09-21-pinning-pins-the-clone-because-a-client-2fa4.md) | Pinning pins the clone, because a client's plugin download cannot be pinned | accepted | 2026-09-21 |
+| [2026-09-22-a-cold-review-gates-the-release-and-one-6ef8](docs/decisions/2026-09-22-a-cold-review-gates-the-release-and-one-6ef8.md) | A cold review gates the release, and one check list is read by a local runner | accepted | 2026-09-22 |
 <!-- skilliton:index:decisions:end -->
