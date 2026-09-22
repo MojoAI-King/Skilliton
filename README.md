@@ -63,7 +63,7 @@ node scripts/skilliton.mjs release sign 1.0.0 --apply               # with your 
 node scripts/skilliton.mjs company join-file --name <company> --signers <allowed_signers> --out ~/handout/<company>.skilliton-join.json --apply
 ```
 
-Every writing command previews without `--apply` and writes nothing. [docs/RELEASING.md](docs/RELEASING.md) walks the fork, the lesson-to-release loop, verification, withdrawal and rollback; [docs/DELIVERY.md](docs/DELIVERY.md) sets up the merge check; [docs/OWNER_GUIDE.md](docs/OWNER_GUIDE.md) answers the questions a meeting asks; [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) has the whole path with diagrams.
+Every writing command previews without `--apply` and writes nothing. [docs/RELEASING.md](docs/RELEASING.md) walks the fork, the lesson-to-release loop, verification, withdrawal and rollback; [docs/DELIVERY.md](docs/DELIVERY.md) sets up the merge check; [docs/OWNER_GUIDE.md](docs/OWNER_GUIDE.md) answers the questions a meeting asks; [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) has the whole path with diagrams. When something does not work, [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) has every case a real session has hit, with the cause. [docs/WHITE_PAPER.md](docs/WHITE_PAPER.md) is the technical white paper; [docs/PLAIN_GUIDE.md](docs/PLAIN_GUIDE.md) explains it to someone who does not code.
 
 ## What runs in a session, and what makes it happen
 

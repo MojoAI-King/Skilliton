@@ -18,6 +18,8 @@ Every document says its Kind near the top. **Living** is kept current and is saf
 | What has and has not been exercised: platforms, versions, signing setups | [COVERAGE.md](COVERAGE.md) |
 | Run it on Windows for the first time | [WINDOWS.md](WINDOWS.md) |
 | Demonstrate it: what to run, what to say, what not to claim | [DEMO.md](DEMO.md), [ONE-PAGER.md](ONE-PAGER.md), [POSITIONING.md](POSITIONING.md) |
+| Read the technical white paper, or the plain-language guide for someone who signs off but does not code | [WHITE_PAPER.md](WHITE_PAPER.md), [PLAIN_GUIDE.md](PLAIN_GUIDE.md) |
+| Something is not working: not seeing it, join refusals, prepare refusals, a denied command, verify reports TAMPERED | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | The company-wide plan beyond this build: device management, routines, more tools | [PHASE-3.md](PHASE-3.md) |
 
 ## The product's own records (Living)
