@@ -4,6 +4,13 @@ Kind: Reference. The current handoff is `docs/HANDOFF.md`.
 
 Superseded RESUME HERE notes, newest first. Moved here from docs/HANDOFF.md on 2026-09-16.
 
+### 2026-09-20 15:47 EDT
+- **State:** Wave 6 is on main at 634da8e and green: the four headless batches built and pushed, then the maintenance pass on top of them. Evidence: Full offline suite 48 of 48 steps exit 0; scrub-check tree and history both PASS; report-card --check exit 0 at 65 of 123; CI 35532803307 (6e072b7) and 35533207494 (634da8e) both success, all 58 steps read.
+- **Next:** Wave 7 from docs/REPORT_CARD.md, planned in plan mode with the batch files under docs/areas read first
+- **Blocked:** nothing
+- **Watch out:** The dispatch suggestion ships on UserPromptSubmit, which has never been seen delivered to a plugin hook (DECISIONS.md O27); one live prompt settles it or the registration comes out
+- **Git:** main @ 634da8e, 1 uncommitted
+
 ### 2026-09-20 13:39 EDT
 - **State:** Wave 5 is published as e8dde88 and this session's maintenance is closed: two lesson entries (a070 an assertion that could not fail because the fixture made both sources agree, 3b76 a test killed by its own timeout under contention), the wave task record closed as merged, and the stale claims reconciled (the README's dispatch row and its CI list, the integration brief's coordinating paragraph, the dispatch CI step name, and a new open item O26 for the one path the lane write guard cannot see). Evidence: Nine gates, each its own step with its exit status read on its own line, all PASS after the edits: scrub-check, docs, names, packs, allowlist, lint, living-docs --check, report-card --check, backlog; node --test scripts/dispatch.test.mjs 22 of 22, which is the number the README now states instead of 14; skilliton index reports every index current after the task close rewrote the open-task list.
 - **Next:** Wave 6 from docs/REPORT_CARD.md. Carried: B38 the first real dispatch measured (owner pass), B39 a formatter or a decision that there is none, B37 the two OperationFailed classes, 04-01 item 5 measuring a 600000 window through the meter, and O26 decided after the first real dispatch

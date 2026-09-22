@@ -39,7 +39,7 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner | Updated |
 |---|---|---|---|---|---|
-| [2026-09-21-build-complete-checkpoint-install-update-81ba](tasks/2026-09-21-build-complete-checkpoint-install-update-81ba.md) | Build-complete checkpoint: install update, tag, security and behavior walkthrough, stats and the full document | in-progress | main | unassigned | 2026-09-22T02:02:49.572Z |
+| [2026-09-21-build-complete-checkpoint-install-update-81ba](tasks/2026-09-21-build-complete-checkpoint-install-update-81ba.md) | Build-complete checkpoint: install update, tag, security and behavior walkthrough, stats and the full document | in-progress | main | unassigned | 2026-09-22T02:29:39.837Z |
 | [2026-09-21-lane-apply-sweep-test-1000](tasks/2026-09-21-lane-apply-sweep-test-1000.md) | Lane apply-sweep-test | in-progress | lane/sweep-0921 | unassigned | 2026-09-22T02:08:27.510Z |
 | [2026-09-21-lane-preview-before-write-0e4a](tasks/2026-09-21-lane-preview-before-write-0e4a.md) | Lane preview-before-write | in-progress | lane/preview-0921 | unassigned | 2026-09-22T02:08:55.028Z |
 <!-- skilliton:index:tasks:end -->

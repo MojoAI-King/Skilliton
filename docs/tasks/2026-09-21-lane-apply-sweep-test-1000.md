@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-21-lane-apply-sweep-test-1000
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/sweep-0921
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T02:08:27.510Z
+- **Updated:** 2026-09-22T02:30:19.759Z
 
 ## Request
 

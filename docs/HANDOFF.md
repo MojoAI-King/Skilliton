@@ -4,15 +4,22 @@ Kind: Living.
 
 ## RESUME HERE
 
-Written: 2026-09-21 21:42 EDT
+Written: 2026-09-21 22:29 EDT
 
+- **State:** The first real dispatch is merged: lane/sweep-0921 (B47) and lane/preview-0921 (B54, workflow 0.15.7) rebased and merged serially at 22d98a7 and efb136a, then 3140cbd fixed the four callers of new-skill and import the full suite caught (demo-day and three rehearsals) with the guides and contract rows; B38, B47, B54 closed into the archive, B55 opened (dispatch drops a mis-numbered LANES.md item without a word); batch 07-02 items 1 and 3 and 01-01 item 6 ticked with evidence/live/2026-09-21-dispatch.md and the stop hook's live text; report card 95 of 123; lesson recorded that a lane's test is its own file and the integrating gate is the whole suite. Evidence: Lane one: skilliton.test 197 checks and lint PASS through the gate, 0 dashes, preview by hand wrote nothing. Lane two: prepare.test 42 tests and lint PASS. Full suite on the merged tree 56 of 57 (demo-day red, fixed), then demo-day, docs, skilliton, lint, names, scrub, projects rehearsal, enrollment self-test, backlog, records, report-card check and test, living-docs, evidence all exit 0. Per-lane peak context 107161 and 115485 under 120000 by the meter's definition over each lane transcript. CI 35679609193 for 3140cbd in progress.
+- **Next:** Read CI 35679609193 step by step; update the installed plugins to 0.15.7; republish the scorecard page with 95 of 123; Tuesday polish: B50 live probe, B55, B43 folding, decide extra skills only after evals; 1.0.0 release Wednesday morning before 11:00
+- **Blocked:** B53: where the company's join file is published is the owner's call; the fifteen security applicability decisions; every walkthrough step that needs another machine or a real person
+- **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt. B49 is an unexplained exit 2 from allowlist.test.mjs seen once and not reproduced; keep every batch gate run's full output in a file, because that one was filtered through grep and its message is gone. Two numbers written on 2026-09-21 were never measured and had to be corrected: the CI step total said 60 and is 63, and three plugin versions were set from memory
+- **Git:** main @ 3140cbd, 0 uncommitted
+
+## Earlier
+
+### 2026-09-21 21:42 EDT
 - **State:** The checkpoint evening is complete: main at 84707da, every CI run 63 of 63 (two reds this evening, both fixed the same hour). Release 0.9.0 is signed, approved and verified from a fresh GitHub clone; installed plugins match the repo; a ruleset protects main. Joining is one file: company join-file writes skilliton.join/1 outside any working tree and join --from joins with it; join names every missing flag and what the machine already joined. Security walkthrough done over six surfaces with four fixes shipped (verify in-use markers 0.15.1, join refusal order 0.15.2, handoff header framing 0.15.3, shell strings naming git ask 0.5.2). Behavior review: 66 hook runs and 29 commands bare, nothing silent, nothing written without --apply. Report card 83 of 123. The owner guide (docs/OWNER_GUIDE.md and a private page) and the scorecard page are published for the owner; the meter figure on the scorecard is unverified until the owner checks the Usage screen. Evidence: CI runs for b0dc663 through 84707da read step by step; guardrails 549 checks; join 42 tests; release 27; rename, lifecycle 55, prepare, migrate 14, docs with self-test, backlog, records, allowlist, lint, scrub all exit 0; hook-matrix.out, cmd-matrix.out and apply-sweep.out kept in the scratchpad; verify --source on a fresh clone reads 7 of 7 VERIFIED.
 - **Next:** Tuesday: polish (B54 import and new-skill preview; B50 needs a live probe of systemMessage on PreToolUse; B43 folding; B47 as a test), decide on extra skills only after evals, then a 1.0.0 release Wednesday morning before the 11:00 meeting
 - **Blocked:** B53: where the company's join file is published is the owner's call; the fifteen security applicability decisions; every walkthrough step that needs another machine or a real person
 - **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt. B49 is an unexplained exit 2 from allowlist.test.mjs seen once and not reproduced; keep every batch gate run's full output in a file, because that one was filtered through grep and its message is gone. Two numbers written on 2026-09-21 were never measured and had to be corrected: the CI step total said 60 and is 63, and three plugin versions were set from memory
 - **Git:** main @ 84707da, 0 uncommitted
-
-## Earlier
 
 ### 2026-09-21 07:26 EDT
 - **State:** Wave 8 is shipped and the build phase is over: main at 7779d50 plus this maintain commit, report card 81 of 123, every remaining batch owner-gated. Evidence: CI runs 35590884701, 35591036358 and 35591331918 each 63 of 63 steps read individually; 19 local gates each with its status read from the gate itself after a known-failing command proved the runner reports FAIL; scrub-check over the tree and over history exit 0; the whole-tree audit 0 findings over 544 files with 45 allowed lines.
@@ -41,10 +48,3 @@ Written: 2026-09-21 21:42 EDT
 - **Blocked:** nothing
 - **Watch out:** A parallel session owns task/promo-anatomy in the sibling worktree ~/Desktop/Skilliton-promo, five commits ahead of main with uncommitted work and a site/ tree that is not on main: do not clean those worktrees or merge that branch
 - **Git:** main @ c8bd045, 4 uncommitted
-
-### 2026-09-20 15:47 EDT
-- **State:** Wave 6 is on main at 634da8e and green: the four headless batches built and pushed, then the maintenance pass on top of them. Evidence: Full offline suite 48 of 48 steps exit 0; scrub-check tree and history both PASS; report-card --check exit 0 at 65 of 123; CI 35532803307 (6e072b7) and 35533207494 (634da8e) both success, all 58 steps read.
-- **Next:** Wave 7 from docs/REPORT_CARD.md, planned in plan mode with the batch files under docs/areas read first
-- **Blocked:** nothing
-- **Watch out:** The dispatch suggestion ships on UserPromptSubmit, which has never been seen delivered to a plugin hook (DECISIONS.md O27); one live prompt settles it or the registration comes out
-- **Git:** main @ 634da8e, 1 uncommitted
