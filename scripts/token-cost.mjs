@@ -59,9 +59,19 @@ const [fromArg, toArg] = argv.filter((a, i) => !a.startsWith("--") && !valueArgs
 // (5m write 1.25x input, 1h write 2x input, read 0.1x input; Fable 5.1 reads are 0.025x, $0.25).
 // Re-verify against the live pricing page before quoting any dollar figure.
 // Claude Fable 5 read rate assumed 0.1x (the 0.025x exception is documented for 5.1 only): UNVERIFIED.
+//
+// claude-opus-5-5 added B63 (2026-09-22): the local transcripts carry 727 requests under this model
+// with no price, which marked every window that touched it INCOMPLETE. Retrieved 2026-09-22 from
+// https://claude.com/pricing (https://www.anthropic.com/pricing redirects there) and, for the 1h
+// cache-write figure the pricing page states only as a multiplier, from
+// https://platform.claude.com/docs/en/build-with-claude/prompt-caching (docs.claude.com redirects
+// there). Opus 5.5's cache read is 0.05x input (a second, lower-than-usual exception, distinct from
+// Fable 5.1's 0.025x): $0.20/MTok against a $4 input rate. 5m write $5 (1.25x) and 1h write $8 (2x)
+// both match the standard formula.
 const PRICING = {
   "claude-fable-5-1":          { input: 10, output: 50, cache_read: 0.25, cache_write_5m: 12.5, cache_write_1h: 20 },
   "claude-fable-5":            { input: 10, output: 50, cache_read: 1.0,  cache_write_5m: 12.5, cache_write_1h: 20 },
+  "claude-opus-5-5":           { input: 4,  output: 20, cache_read: 0.2,  cache_write_5m: 5,    cache_write_1h: 8  },
   "claude-opus-5":             { input: 5,  output: 25, cache_read: 0.5,  cache_write_5m: 6.25, cache_write_1h: 10 },
   "claude-opus-4-8":           { input: 5,  output: 25, cache_read: 0.5,  cache_write_5m: 6.25, cache_write_1h: 10 },
   "claude-opus-4-6":           { input: 5,  output: 25, cache_read: 0.5,  cache_write_5m: 6.25, cache_write_1h: 10 },

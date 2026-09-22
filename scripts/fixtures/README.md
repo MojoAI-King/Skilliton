@@ -23,6 +23,9 @@ Removing the dedup line, pricing every record at one model, or keeping the first
 
 `peak_context` is the one field that is a maximum rather than a sum, so it has its own two mutations: summing the records inside a bucket reports 12010 where the hand computation says 12000, and summing the day buckets in `byScope` reports 15010. Both turn the test red, the second on two assertions (checked 2026-09-20 on a scratch copy).
 
+## `transcripts-models/proj-c` (a newly-priced model, B63)
+A separate root from `transcripts/`, read by `scripts/token-cost-models.test.mjs` and no other file, so adding a project here never changes the hand-computed totals above. Holds one `claude-opus-5-5` request: before that model was added to `PRICING` in `token-cost.mjs` (2026-09-22), this fixture reported `incomplete: true`, matching what the real transcripts showed for 727 requests under that model. The test asserts `incomplete: false` and the hand-computed cost at the model's published rates.
+
 ## Field names
 They mirror the Claude Code JSONL shape as measured on real transcripts on 2026-09-16: top-level `requestId`, `timestamp`, `isSidechain`; `message.id`, `message.model`, `message.usage` with `cache_creation.ephemeral_5m_input_tokens` and `ephemeral_1h_input_tokens`. `usage.iterations` is a per-message breakdown and is not summed separately.
 
