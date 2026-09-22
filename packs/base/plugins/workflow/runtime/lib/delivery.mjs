@@ -145,31 +145,37 @@ export function protectionFor(git, view) {
 
 // ---------- signatures ----------
 
-// The signature header of a raw commit object, or null when it has none.
-function commitSignature(raw) {
+// Every signature header of a raw commit object (gpgsig and gpgsig-sha256, in order); [] when it has none.
+function commitSignatures(raw) {
   const end = raw.indexOf("\n\n");
   const lines = (end < 0 ? raw : raw.slice(0, end)).split("\n");
+  const found = [];
   for (let i = 0; i < lines.length; i++) {
     const m = /^(gpgsig|gpgsig-sha256) (.*)$/.exec(lines[i]);
     if (!m) continue;
     const parts = [m[2]];
     while (i + 1 < lines.length && lines[i + 1].startsWith(" ")) parts.push(lines[++i].slice(1));
-    return parts.join("\n");
+    found.push(parts.join("\n"));
   }
-  return null;
+  return found;
 }
+
+// git picks the verifier from the shape of the header it reads (gpgsig in a SHA-1 repository, gpgsig-sha256 in a
+// SHA-256 one), and gpg.program and gpg.x509.program come from the server's configuration, so both point at a program
+// that does not exist, as lib/trust.mjs does for release tags. The approvers file and ssh-keygen decide, or nothing does.
+const SSH_KEYGEN_ONLY = ["-c", "gpg.ssh.program=ssh-keygen", "-c", "gpg.program=skilliton-refuses-any-verifier-but-ssh-keygen", "-c", "gpg.x509.program=skilliton-refuses-any-verifier-but-ssh-keygen"];
 
 // { state: "verified", detail } | { state: "unverified", reason } | { state: "not-checked" } (no approvers file).
 function signatureStatus(ctx, commit) {
   if (!ctx.approvers) return { state: "not-checked" };
-  const signature = commitSignature(ctx.git(["cat-file", "commit", commit]).stdout);
-  if (!signature) return { state: "unverified", reason: "the commit is not signed" };
-  // Only SSH signatures are accepted: an OpenPGP or X.509 signature would be judged by whatever keyring the server
-  // happens to have, not by the approvers file.
-  if (!signature.startsWith("-----BEGIN SSH SIGNATURE-----")) {
+  const signatures = commitSignatures(ctx.git(["cat-file", "commit", commit]).stdout);
+  if (!signatures.length) return { state: "unverified", reason: "the commit is not signed" };
+  // Only SSH signatures are accepted, in every header: an OpenPGP or X.509 one would be judged by whatever keyring the
+  // server happens to have, not by the approvers file, and the header git reads need not be the first.
+  if (signatures.some((s) => !s.startsWith("-----BEGIN SSH SIGNATURE-----"))) {
     return { state: "unverified", reason: "the commit carries a non-SSH signature, which the approvers file cannot verify" };
   }
-  const r = ctx.git(["-c", `gpg.ssh.allowedSignersFile=${ctx.approvers}`, "verify-commit", commit], { allowExit: "any" });
+  const r = ctx.git(["-c", `gpg.ssh.allowedSignersFile=${ctx.approvers}`, ...SSH_KEYGEN_ONLY, "verify-commit", commit], { allowExit: "any" });
   if (r.status === 0) return { state: "verified", detail: lastLines(r.stderr, 1)[0] ?? "good signature" };
   return { state: "unverified", reason: `its signature is not from a key in the approvers file (${lastLines(r.stderr, 1)[0] ?? `verify-commit exit ${r.status}`})` };
 }

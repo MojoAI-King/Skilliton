@@ -14,7 +14,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -251,6 +251,54 @@ test("N23: a check that appends to the pre-receive hook, or adds a key to the ap
     assert.notEqual(second.code, 0, second.all);
     assert.match(second.all, /rejected refs\/heads\/main: the checks changed the gate itself: the approvers file [^;]*approvers\. /);
     assert.doesNotMatch(second.all, /the pre-receive hook/, "only what changed during this push is named");
+    assert.equal(tip(sb, s.bare, "refs/heads/main"), s.seed);
+  });
+});
+
+// ---------------------------------------------------------------- N24: which verifier judges a signature
+
+// A stand-in gpg that calls every signature good, the way a server keyring an attacker has reached would. git runs
+// gpg.program (default "gpg", found on PATH) for a header that looks like an OpenPGP signature.
+function acceptingGpg(sb) {
+  const bin = sb.path("fake-bin");
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(join(bin, "gpg"), [
+    "#!/bin/sh",
+    "cat >/dev/null",
+    "echo '[GNUPG:] NEWSIG'",
+    "echo '[GNUPG:] GOODSIG 0123456789ABCDEF Stand-in <stand-in@example.test>'",
+    "echo '[GNUPG:] VALIDSIG 0123456789ABCDEF0123456789ABCDEF01234567 2026-09-22 1789500000 0 4 0 1 10 00 0123456789ABCDEF0123456789ABCDEF01234567'",
+    "echo '[GNUPG:] TRUST_ULTIMATE 0 pgp'",
+    "exit 0",
+    "",
+  ].join("\n"));
+  chmodSync(join(bin, "gpg"), 0o755);
+  return [bin, sb.env.PATH].join(delimiter);
+}
+
+const header = (name, block) => `${name} ${block.split("\n").join("\n ")}`;
+
+test("N24: a commit whose first signature header is SSH but whose other one is OpenPGP is not accepted as signed", async () => {
+  await withSandbox("signature", async (sb) => {
+    const s = sharedRepo(sb);
+    const a = clone(sb, s.bare, "a");
+    writeFiles(a, { CODEOWNERS: "* @someone\n" });
+    commit(sb, a, "Change a policy path");
+    const raw = gitOk(sb, a, "cat-file", "commit", "HEAD");
+    const cut = raw.indexOf("\n\n");
+    const ssh = header("gpgsig-sha256", "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQ==\n-----END SSH SIGNATURE-----");
+    const pgp = header("gpgsig", "-----BEGIN PGP SIGNATURE-----\n\nbm90IGEgcmVhbCBzaWduYXR1cmU=\n-----END PGP SIGNATURE-----");
+    const forged = run(sb, "git", ["hash-object", "-t", "commit", "-w", "--stdin"], { cwd: a, input: `${raw.slice(0, cut)}\n${ssh}\n${pgp}${raw.slice(cut)}\n` });
+    assert.equal(forged.code, 0, forged.all);
+    const id = forged.stdout.trim();
+    const PATH = acceptingGpg(sb);
+
+    // The fixture: plain git, with the stand-in gpg on PATH, calls this commit good.
+    assert.equal(run(sb, "git", ["verify-commit", id], { cwd: a, env: { PATH } }).code, 0, "the fixture needs git itself to accept the forged signature");
+
+    const pushed = run(sb, "git", ["push", "origin", `${id}:refs/heads/main`], { cwd: a, env: { PATH } });
+    assert.notEqual(pushed.code, 0, pushed.all);
+    assert.match(pushed.all, /skilliton delivery: rejected refs\/heads\/main: commit [0-9a-f]{12} changes the policy path CODEOWNERS without an approver signature: the commit carries a non-SSH signature/);
     assert.equal(tip(sb, s.bare, "refs/heads/main"), s.seed);
   });
 });
