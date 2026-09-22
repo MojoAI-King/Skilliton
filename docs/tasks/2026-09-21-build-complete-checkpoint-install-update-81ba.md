@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T03:39:22.402Z
+- **Updated:** 2026-09-22T04:00:14.979Z
 
 ## Request
 
@@ -111,9 +111,16 @@ not yet written
 - **Next:** Wait for the owner's go-ahead on the cold review and their keyboard results; start the README reorder and the docs map meanwhile
 - **Git:** main @ b4e98ee, 0 uncommitted
 
+### 2026-09-22T04:00:14.979Z
+
+- **State:** A second real repository on the owner's machine is prepared (layout 3, six records adopted, ten created, harness block appended to CLAUDE.md and AGENTS.md, delivery draft inert); the owner restarted the editor and sees the .skilliton folder; the session-start blocks there are the owner's next check. B56 filed and pushed at 987799d: prepare refused the root spelled in another letter case on APFS. Nothing else changed in this tree; the reminder fired on the B56 commit
+- **Evidence:** prepare preview then --apply in the other repository; skilliton status there reads layout 3, migrations none, records all 9 present, one open task; backlog test and scrub exit 0 before 987799d
+- **Next:** Owner confirms the three session-start blocks in the other repository and commits the prepared files there; then the eight keyboard checks; this session waits for the go-ahead on the cold judge-style review and starts the README reorder and docs map
+- **Git:** main @ 987799d, 0 uncommitted
+
 ## Handoff
 
-- **State:** Nothing changed in the tree since b4e98ee; the reminder fired because that commit moved HEAD. Tuesday plan agreed in conversation: the owner tests eight things at the keyboard in one of their own repos (first screen, a real task through task start and gate, the confirmation prompt on git checkout -- . which is B5, the read guard, the stop hook, the next-morning where-did-we-leave-off question, /review, /maintain) and reports which they would pay for; the session asks for a go-ahead on a cold judge-style review by a fresh subagent, rewrites the README in the judge's reading order, adds a one-screen docs map with archived material under docs/archive, works the delivery.mjs pin, then B50, B55, B43, then 1.0.0 Wednesday morning. Evidence: git status clean at b4e98ee; CI 35679893771 success 63 of 63; no checks run since.
-- **Next:** Wait for the owner's go-ahead on the cold review and their keyboard results; start the README reorder and the docs map meanwhile
+- **State:** A second real repository on the owner's machine is prepared (layout 3, six records adopted, ten created, harness block appended to CLAUDE.md and AGENTS.md, delivery draft inert); the owner restarted the editor and sees the .skilliton folder; the session-start blocks there are the owner's next check. B56 filed and pushed at 987799d: prepare refused the root spelled in another letter case on APFS. Nothing else changed in this tree; the reminder fired on the B56 commit. Evidence: prepare preview then --apply in the other repository; skilliton status there reads layout 3, migrations none, records all 9 present, one open task; backlog test and scrub exit 0 before 987799d.
+- **Next:** Owner confirms the three session-start blocks in the other repository and commits the prepared files there; then the eight keyboard checks; this session waits for the go-ahead on the cold judge-style review and starts the README reorder and docs map
 - **Blocked:** B53: where the company's join file is published is the owner's call; the fifteen security applicability decisions; every walkthrough step that needs another machine or a real person
 - **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt. B49 is an unexplained exit 2 from allowlist.test.mjs seen once and not reproduced; keep every batch gate run's full output in a file, because that one was filtered through grep and its message is gone. Two numbers written on 2026-09-21 were never measured and had to be corrected: the CI step total said 60 and is 63, and three plugin versions were set from memory
