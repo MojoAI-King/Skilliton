@@ -11,9 +11,10 @@ import { BASE_NOTE, findPlugin, planVersionBump, writeVersionBump } from "../lib
 
 export const help = `import: copy an existing skill folder into a plugin, after scanning it.
 
-  import <skill-dir> --into <plugin> [--pack <pack>] [--name <skill>] [--repo <skills repo>]
+  import <skill-dir> --into <plugin> [--pack <pack>] [--name <skill>] [--repo <skills repo>] [--apply]
 
-Before anything is copied, every file in <skill-dir> is scanned twice:
+Preview by default: the scan runs and the files that would be copied are listed, but nothing is written.
+Pass --apply to copy them. Before anything is copied (in either mode), every file in <skill-dir> is scanned twice:
   1. scripts/scrub-check.sh --path <skill-dir>: denylisted names, em or en dashes, home-directory paths.
      The name scan needs a denylist (SKILLITON_DENYLIST, default ~/.config/skilliton/denylist). Without one the
      import is refused, because a scan that did not run is not a pass. A denylist holding only comments is
@@ -88,7 +89,7 @@ function planSkillFrontmatter(text, name) {
 }
 
 export async function run(argv) {
-  const o = parseArgs(argv, { flags: [], options: ["into", "pack", "name", "repo"] }, "import");
+  const o = parseArgs(argv, { flags: ["apply"], options: ["into", "pack", "name", "repo"] }, "import");
   if (o.help) { say(help); return 0; }
   if (o._.length !== 1) refuse(`import needs exactly one skill folder: import <skill-dir> --into <plugin> (got ${o._.length})`);
   if (o.into === undefined) refuse("import needs --into <plugin>, the plugin that will hold the skill");
@@ -108,7 +109,7 @@ export async function run(argv) {
   const bump = planVersionBump(plugin.manifest, plugin.manifestRel);
   const frontmatter = planSkillFrontmatter(readBytes(join(src, "SKILL.md")), skillName);
 
-  say(`import: ${tilde(src)} -> ${destRel} (in ${tilde(repo)})`);
+  say(`import${o.apply ? "" : " (preview; nothing written)"}: ${tilde(src)} -> ${destRel} (in ${tilde(repo)})`);
   say(`scanning all ${files.length} file(s) before copying anything`);
   const scrub = runScrubCheck(src, repo);
   say("  scrub check (names, dashes, home paths):");
@@ -130,6 +131,18 @@ export async function run(argv) {
   else if (scrub.scanned !== files.length) reasons.push(`the scrub check scanned ${scrub.scanned ?? "an unknown number of"} file(s) but import would copy ${files.length}, so a file would be copied unscanned`);
   if (secrets.hits.length) reasons.push(`${secrets.hits.length} secret-shaped or home-path line(s) (listed above)`);
   if (reasons.length) refuse(`import stopped before copying anything: ${reasons.join("; ")}. Fix the source folder, then run again.`);
+
+  if (!o.apply) {
+    say("");
+    say(`would copy ${files.length} file(s) to ${destRel}:`);
+    for (const rel of files) say(`  ${rel}`);
+    for (const note of frontmatter.notes) say(note);
+    say(`would bump ${plugin.manifestRel} version ${bump.from} -> ${bump.to}`);
+    if (plugin.pack === "base") say(BASE_NOTE);
+    say("");
+    say("Next: run the same command with --apply.");
+    return 0;
+  }
 
   for (const rel of files) {
     const to = join(dest, rel);
