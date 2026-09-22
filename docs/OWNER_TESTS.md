@@ -110,7 +110,7 @@ This repository's register lists 15 controls, and every one is undecided. For ea
 ### 8. Two decisions only you can make (5 minutes)
 
 - **Where the join file is published (B53).** A developer of your company needs the join file to run `skilliton join --from <file> --apply`. It holds the company name, the skills repository's address and the public signing keys, and no secret. Choose one: committed in the company's fork, attached to its releases, or handed out by IT. Tell the next session which.
-- **Release 1.0.0.** The session that prepared it stopped before signing, as the goal asked. When tests 1 to 3 have passed, say "sign and push 1.0.0". If a test found something, say "fix it first".
+- **Release 1.0.0.** Every precondition was checked on 2026-09-22 at commit 9ff92ef, and the manifest preview listed workflow 0.21.0, guardrails 0.7.0, context-hygiene 0.3.0 (unchanged, same tree hash as 0.9.0) and code-quality 0.2.1, with seven evidence files. Nothing was written, because the manifest commit and its signed tag must be pushed together, and main was to stay pushed tonight. Two things stand open: this repository's 15 security controls are undecided (test 4), and that is yours to accept for 1.0.0 or not. When tests 1 to 3 have passed, say "sign and push 1.0.0" and a session runs `/workflow:release` from its manifest step. That is about five minutes, and your SSH key signs it. If a test found something, say "fix it first".
 
 ### 9. The report card grades (10 minutes, last)
 
