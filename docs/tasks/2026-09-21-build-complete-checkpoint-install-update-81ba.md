@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T02:29:39.837Z
+- **Updated:** 2026-09-22T02:53:54.217Z
 
 ## Request
 
@@ -97,9 +97,16 @@ not yet written
 - **Next:** Read CI 35679609193 step by step; update the installed plugins to 0.15.7; republish the scorecard page with 95 of 123; Tuesday polish: B50 live probe, B55, B43 folding, decide extra skills only after evals; 1.0.0 release Wednesday morning before 11:00
 - **Git:** main @ 3140cbd, 0 uncommitted
 
+### 2026-09-22T02:53:54.217Z
+
+- **State:** Dispatch follow-up complete and pushed: main at 8750c8c, CI 63 of 63 on 3140cbd and 8750c8c; installed plugins at 0.15.7 and 0.5.2 at user and project scope (restart applies them); scorecard page republished with 95 of 123; the owner deleted the two throwaway repositories and the two lane worktrees and branches, confirmed by gh repo list, git worktree list and git branch
+- **Evidence:** gh repo list MojoAI-King shows no throwaway repository; git worktree list and git branch show no lane entries; CI runs 35679609193 and 35679893771 read as success with 63 steps and 0 failures
+- **Next:** Tuesday polish: B50 live probe of systemMessage on PreToolUse, B55 dispatch names a dropped LANES.md item, B43 folding; extra skills only after evals; 1.0.0 release Wednesday morning before 11:00
+- **Git:** main @ 8750c8c, 0 uncommitted
+
 ## Handoff
 
-- **State:** The first real dispatch is merged: lane/sweep-0921 (B47) and lane/preview-0921 (B54, workflow 0.15.7) rebased and merged serially at 22d98a7 and efb136a, then 3140cbd fixed the four callers of new-skill and import the full suite caught (demo-day and three rehearsals) with the guides and contract rows; B38, B47, B54 closed into the archive, B55 opened (dispatch drops a mis-numbered LANES.md item without a word); batch 07-02 items 1 and 3 and 01-01 item 6 ticked with evidence/live/2026-09-21-dispatch.md and the stop hook's live text; report card 95 of 123; lesson recorded that a lane's test is its own file and the integrating gate is the whole suite. Evidence: Lane one: skilliton.test 197 checks and lint PASS through the gate, 0 dashes, preview by hand wrote nothing. Lane two: prepare.test 42 tests and lint PASS. Full suite on the merged tree 56 of 57 (demo-day red, fixed), then demo-day, docs, skilliton, lint, names, scrub, projects rehearsal, enrollment self-test, backlog, records, report-card check and test, living-docs, evidence all exit 0. Per-lane peak context 107161 and 115485 under 120000 by the meter's definition over each lane transcript. CI 35679609193 for 3140cbd in progress.
-- **Next:** Read CI 35679609193 step by step; update the installed plugins to 0.15.7; republish the scorecard page with 95 of 123; Tuesday polish: B50 live probe, B55, B43 folding, decide extra skills only after evals; 1.0.0 release Wednesday morning before 11:00
+- **State:** Dispatch follow-up complete and pushed: main at 8750c8c, CI 63 of 63 on 3140cbd and 8750c8c; installed plugins at 0.15.7 and 0.5.2 at user and project scope (restart applies them); scorecard page republished with 95 of 123; the owner deleted the two throwaway repositories and the two lane worktrees and branches, confirmed by gh repo list, git worktree list and git branch. Evidence: gh repo list MojoAI-King shows no throwaway repository; git worktree list and git branch show no lane entries; CI runs 35679609193 and 35679893771 read as success with 63 steps and 0 failures.
+- **Next:** Tuesday polish: B50 live probe of systemMessage on PreToolUse, B55 dispatch names a dropped LANES.md item, B43 folding; extra skills only after evals; 1.0.0 release Wednesday morning before 11:00
 - **Blocked:** B53: where the company's join file is published is the owner's call; the fifteen security applicability decisions; every walkthrough step that needs another machine or a real person
 - **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt. B49 is an unexplained exit 2 from allowlist.test.mjs seen once and not reproduced; keep every batch gate run's full output in a file, because that one was filtered through grep and its message is gone. Two numbers written on 2026-09-21 were never measured and had to be corrected: the CI step total said 60 and is 63, and three plugin versions were set from memory
