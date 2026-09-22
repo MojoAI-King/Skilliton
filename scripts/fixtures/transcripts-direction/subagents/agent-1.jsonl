@@ -1,0 +1,1 @@
+{"requestId":"r3","uuid":"u-r3","timestamp":"2026-09-17T15:05:00Z","type":"assistant","message":{"id":"m3","model":"claude-haiku-4-5-20251001","usage":{"input_tokens":5,"output_tokens":1,"cache_read_input_tokens":10}}}
