@@ -1292,8 +1292,43 @@ main_pretooluse() {
     emit_decision deny "$DENY_REASON$note"
   elif [ -n "$ASK_REASON" ]; then
     emit_decision ask "$ASK_REASON$note"
+  else
+    report_turned_off
   fi
   exit 0
+}
+
+# report_turned_off: a command that passes only because the project turned a rule off says so (B50). Each rule that
+# is off is run once more with only itself on; when it would have refused the command, a systemMessage names the
+# setting. A systemMessage decides nothing: measured 2026-09-22 on Claude Code 2.1.278, a PreToolUse hook's
+# systemMessage arrives as a notice reading "PreToolUse:Bash says: ..." and the command still runs. Under Codex its
+# display is unverified; it can only be ignored there, never read as a decision.
+report_turned_off() {
+  local fp=$CFG_FP nv=$CFG_NV sf=$CFG_SF pr=$CFG_PR rule hits=""
+  for rule in FP NV SF PR; do
+    CFG_FP=false; CFG_NV=false; CFG_SF=false; CFG_PR=false
+    case $rule in
+      FP) [ "$fp" = false ] || continue; CFG_FP=true ;;
+      NV) [ "$nv" = false ] || continue; CFG_NV=true ;;
+      SF) [ "$sf" = false ] || continue; CFG_SF=true ;;
+      PR) [ "$pr" = false ] || continue; CFG_PR=true ;;
+    esac
+    DENY_REASON=""; ASK_REASON=""
+    walk_segments
+    if [ -n "$DENY_REASON" ]; then
+      case $rule in
+        FP) hits="$hits${hits:+, }\"blockForcePush\": false" ;;
+        NV) hits="$hits${hits:+, }\"blockNoVerify\": false" ;;
+        SF) hits="$hits${hits:+, }\"blockSecretFiles\": false" ;;
+        PR) hits="$hits${hits:+, }\"protectRecords\": false" ;;
+      esac
+    fi
+  done
+  CFG_FP=$fp; CFG_NV=$nv; CFG_SF=$sf; CFG_PR=$pr; DENY_REASON=""; ASK_REASON=""
+  [ -n "$hits" ] || return 0
+  json_escape "[guardrails] Let through only because $hits under guardrails in $CFG_FILE turned that rule off; with the rule on, this command would be blocked."
+  printf '{"systemMessage":"%s"}\n' "$ESCAPED"
+  GUARD_EMITTED=1
 }
 
 join_list() { # join_list <item>...: sets REASON to "a", "a and b", or "a, b, and c"

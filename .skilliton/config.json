@@ -1,7 +1,8 @@
 {
   "handoff": {
     "file": "docs/HANDOFF.md",
-    "maxBytes": 6000
+    "maxBytes": 6000,
+    "keepEarlier": 0
   },
   "maintain": {
     "teamLessonsFile": null

@@ -142,8 +142,8 @@ function check(root) {
   }
   oks.push(`${docs.length} Markdown file(s) under docs/ and README.md checked for a Kind label`);
 
-  // B43: the two hand-kept copies of the offline check list, docs/MAINTAIN.md step 2 and .github/workflows/checks.yml,
-  // are held equal here. Adding a script is exactly when they diverge; this is the check that says so.
+  // B43: the offline check list lives in .github/workflows/checks.yml only; scripts/checks.mjs and CI both read it.
+  // docs/MAINTAIN.md step 2 points at it and names no check script, because a second copy is how the lists forked.
   const maintainPath = join(root, "docs", "MAINTAIN.md"), ciPath = join(root, ".github", "workflows", "checks.yml");
   if (existsSync(maintainPath) && existsSync(ciPath)) {
     const scriptsIn = (text) => new Set([...text.matchAll(/scripts\/[a-z0-9-]+\.(?:test\.)?(?:mjs|sh)\b/g)].map((m) => m[0]));
@@ -151,9 +151,10 @@ function check(root) {
     const from = lines.findIndex((l) => /^2\. /.test(l)), to = lines.findIndex((l, i) => i > from && /^3\. /.test(l));
     const step2 = from >= 0 ? scriptsIn(lines.slice(from, to > from ? to : undefined).join("\n")) : new Set();
     const ci = scriptsIn(readFileSync(ciPath, "utf8"));
-    for (const s of ci) if (!step2.has(s)) failures.push(`.github/workflows/checks.yml runs ${s}, which docs/MAINTAIN.md step 2 does not list`);
-    for (const s of step2) if (!ci.has(s)) failures.push(`docs/MAINTAIN.md step 2 lists ${s}, which .github/workflows/checks.yml does not run`);
-    oks.push(`docs/MAINTAIN.md step 2 and checks.yml name the same ${ci.size} check script(s)`);
+    // The runner that reads the list and this test that holds it to one copy are named on purpose.
+    for (const s of step2) if (s !== "scripts/checks.mjs" && s !== "scripts/docs.test.mjs") failures.push(`docs/MAINTAIN.md step 2 names ${s}; the check list is .github/workflows/checks.yml alone, so name the file, not the scripts in it`);
+    if (!/\.github\/workflows\/checks\.yml/.test(lines.slice(from, to > from ? to : undefined).join("\n"))) failures.push("docs/MAINTAIN.md step 2 does not point at .github/workflows/checks.yml, the one list of offline checks");
+    oks.push(`docs/MAINTAIN.md step 2 points at checks.yml, the one list (${ci.size} check script(s) in it)`);
   } else {
     oks.push("check-list agreement NOT CHECKED: docs/MAINTAIN.md or .github/workflows/checks.yml is absent in this checkout");
   }
@@ -229,7 +230,8 @@ if (argv.includes("--self-test")) {
     ["a document nothing links to", (d) => writeFileSync(join(d, "docs/ORPHAN.md"), "# Orphan\n\nKind: Living.\n"), /docs\/ORPHAN\.md: nothing reaches it/],
     ["a living document filed under docs/archive/", (d) => writeFileSync(join(d, "docs/archive/STILL_LIVING.md"), "# Still living\n\nKind: Living.\n"), /STILL_LIVING\.md: under docs\/archive\/ but not labelled Kind: Reference/],
     ["a client README claims but the matrix does not carry", (d) => add(d, "README.md", "\nSkilliton also runs in Windsurf.\n"), /names the client "Windsurf", which docs\/CLIENTS\.md does not carry a column for/],
-    ["a check CI runs that MAINTAIN step 2 does not list", (d) => add(d, ".github/workflows/checks.yml", "\n      - run: node scripts/phantom.test.mjs\n"), /checks\.yml runs scripts\/phantom\.test\.mjs, which docs\/MAINTAIN\.md step 2 does not list/],
+    ["MAINTAIN step 2 naming a check script again", (d) => { const f = join(d, "docs/MAINTAIN.md"); writeFileSync(f, readFileSync(f, "utf8").replace(/^2\. (.*)$/m, "2. $1 Also run `node scripts/phantom.test.mjs`.")); }, /MAINTAIN\.md step 2 names scripts\/phantom\.test\.mjs; the check list is/],
+    ["MAINTAIN step 2 no longer pointing at checks.yml", (d) => { const f = join(d, "docs/MAINTAIN.md"); writeFileSync(f, readFileSync(f, "utf8").replace(/^2\. .*$/m, "2. **Run the offline checks.**")); }, /step 2 does not point at \.github\/workflows\/checks\.yml/],
   ];
   let pass = 0;
   for (const [label, mutate, expect] of cases) {

@@ -7,7 +7,7 @@ Kind: Living. Written 2026-09-21 at the end of the build, for the person who own
 | Question | Answer |
 |---|---|
 | Language | JavaScript (Node.js, ES modules) and Bash. The runtime and every command are Node; the hooks that must start in under a second are Bash. |
-| Runtime floor | Node.js 18 or later, and git. The checks have run on Node 22 and 25; Node 18 itself has not been run (docs/COVERAGE.md). |
+| Runtime floor | Node.js 22 or later, and git. Every check runs on Node 22 in CI and on 25 locally (docs/COVERAGE.md). |
 | Dependencies | Zero. No `package.json`, no `node_modules`, no build step, and no network code of its own. |
 | Size | About 40,000 lines of runtime, hooks and tests; 58 check steps run in CI on every commit. |
 | Shape | Four Claude Code plugins (workflow, guardrails, context-hygiene, code-quality) and one command, `skilliton`, which ships inside the workflow plugin. |

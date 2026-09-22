@@ -8,7 +8,8 @@
 //
 // Five rules, each with its own allowlist of [pattern, reason] pairs below:
 //
-//   size            a plugin runtime file may not pass RUNTIME_MAX_LINES; the files already past it are pinned at
+//   size            a plugin runtime file, or a check or tool under scripts/ (B59, 2026-09-22), may not pass
+//                   RUNTIME_MAX_LINES; the files already past it are pinned at
 //                   their exact count and may not grow by one line (the ratchet). A pin is deleted, not raised, when
 //                   the file drops under the ceiling.
 //   unused-import   a name in an import { ... } list that appears nowhere else in the file. Only an import that
@@ -37,6 +38,8 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 // A file shipped inside a plugin's runtime. The ceiling and the console rule apply to these.
 const RUNTIME_RE = /^packs\/[^/]+\/plugins\/[^/]+\/runtime\/.*\.mjs$/;
+// The repository's own checks and tools, under the same ceiling and ratchet (B59). Fixtures are sample input, not code.
+const SCRIPTS_RE = /^scripts\/(?!fixtures\/).*\.(?:mjs|sh)$/;
 const COMMAND_RE = /^packs\/[^/]+\/plugins\/[^/]+\/runtime\/commands\/([a-z][a-z-]*)\.mjs$/;
 const ROUTER_RE = /^packs\/[^/]+\/plugins\/[^/]+\/runtime\/skilliton\.mjs$/;
 
@@ -47,6 +50,20 @@ export const RUNTIME_MAX_LINES = 600;
 // Do not raise a number here. Raising one is how a ceiling stops being one.
 export const PINNED_LINES = [
   ["packs/base/plugins/workflow/runtime/lib/migrations.mjs", 698],
+  // scripts/, pinned 2026-09-22 when the ceiling was extended to them (B59). The real fix for the longest is a split by
+  // subject, following the split-a-file skill.
+  ["scripts/lifecycle.test.mjs", 2098],
+  ["scripts/delivery.test.mjs", 1081],
+  ["scripts/release.test.mjs", 1039],
+  ["scripts/guardrails.test.sh", 1027],
+  ["scripts/allowlist.test.mjs", 1006],
+  ["scripts/security-evidence.test.mjs", 785],
+  ["scripts/skilliton.test.mjs", 708],
+  ["scripts/inventory.mjs", 688],
+  ["scripts/prepare.test.mjs", 667],
+  ["scripts/deadcode.mjs", 634],
+  ["scripts/preflight.test.mjs", 622],
+  ["scripts/join.test.mjs", 617],
   ["packs/base/plugins/workflow/runtime/lib/preflight.mjs", 674],
   ["packs/base/plugins/workflow/runtime/lib/release.mjs", 614],
   ["packs/base/plugins/workflow/runtime/lib/prepare.mjs", 610],
@@ -72,14 +89,14 @@ const pinOf = (path) => PINNED_LINES.find(([p]) => p === path);
 
 function ruleSize(files, violations) {
   for (const { path, text } of files) {
-    if (!RUNTIME_RE.test(path)) continue;
+    if (!RUNTIME_RE.test(path) && !SCRIPTS_RE.test(path)) continue;
     const n = lineCount(text);
     const pin = pinOf(path);
     if (pin) {
       if (n > pin[1]) violations.push({ rule: "size", path, line: n, text: `${n} lines, pinned at ${pin[1]}; this file is already over the ${RUNTIME_MAX_LINES} line ceiling and may not grow. Move code out, or split it; do not raise the pin in scripts/lint.test.mjs` });
       continue;
     }
-    if (n > RUNTIME_MAX_LINES) violations.push({ rule: "size", path, line: n, text: `${n} lines, over the ${RUNTIME_MAX_LINES} line ceiling for a plugin runtime file. Split it, following runtime/commands/gate.mjs: a thin command and an engine in runtime/lib/` });
+    if (n > RUNTIME_MAX_LINES) violations.push({ rule: "size", path, line: n, text: `${n} lines, over the ${RUNTIME_MAX_LINES} line ceiling for ${SCRIPTS_RE.test(path) ? "a check or tool under scripts/. Split it by subject, following the split-a-file skill" : "a plugin runtime file. Split it, following runtime/commands/gate.mjs: a thin command and an engine in runtime/lib/"}` });
   }
 }
 
@@ -199,7 +216,9 @@ function selfTest() {
     { name: "a runtime file at the ceiling passes", files: [{ path: "packs/base/plugins/workflow/runtime/lib/new.mjs", text: `x\n`.repeat(RUNTIME_MAX_LINES) }], expect: 0 },
     { name: "a pinned file one line longer than its pin fails", files: [{ path: PINNED_LINES[0][0], text: `x\n`.repeat(PINNED_LINES[0][1] + 1) }], expect: 1 },
     { name: "a pinned file at its pin passes", files: [{ path: PINNED_LINES[0][0], text: `x\n`.repeat(PINNED_LINES[0][1]) }], expect: 0 },
-    { name: "a long file outside a plugin runtime passes", files: [{ path: "scripts/big.mjs", text: `x\n`.repeat(RUNTIME_MAX_LINES + 50) }], expect: 0 },
+    { name: "a long file outside the runtime and scripts/ passes", files: [{ path: "docs/big.mjs", text: `x\n`.repeat(RUNTIME_MAX_LINES + 50) }], expect: 0 },
+    { name: "a script over the ceiling fails (B59)", files: [{ path: "scripts/big.mjs", text: `x\n`.repeat(RUNTIME_MAX_LINES + 1) }], expect: 1 },
+    { name: "a fixture under scripts/ is not held to the ceiling", files: [{ path: "scripts/fixtures/big.mjs", text: `x\n`.repeat(RUNTIME_MAX_LINES + 50) }], expect: 0 },
     { name: "an unused named import fails", files: [{ path: "scripts/a.mjs", text: 'import { join, basename } from "node:path";\njoin("a");\n' }], expect: 1 },
     { name: "every imported name used passes", files: [{ path: "scripts/a.mjs", text: 'import { join } from "node:path";\njoin("a");\n' }], expect: 0 },
     { name: "a renamed import counts its local name", files: [{ path: "scripts/a.mjs", text: 'import { join as j } from "node:path";\nj("a");\n' }], expect: 0 },

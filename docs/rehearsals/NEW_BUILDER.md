@@ -10,7 +10,7 @@ Kind: Living. The protocol for PLAN.md milestone M5: a real person who has not u
 
 ## What the facilitator prepares
 
-1. A machine account where Claude Code is installed and logged in, with Node.js 18 or later and git. The builder uses their normal terminal or editor.
+1. A machine account where Claude Code is installed and logged in, with Node.js 22 or later and git. The builder uses their normal terminal or editor.
 2. A practice company skills repository: a clone of this repository with a release signed by a practice key (see docs/RELEASING.md once it exists; until then the release rehearsal script shows the commands), and the practice trust file.
 3. A small practice application repository with a working test command, a delivery policy (`.skilliton/delivery.json`), and a shared bare repository with the delivery gate installed, so pushes to `main` are checked.
 4. A one-page task card for the builder in plain language, for example: "People should be able to mark a to-do item as done, and done items should show with a strike-through. Keep the existing tests passing." Write the acceptance criteria the facilitator will score against before the session, and do not show them to the builder.

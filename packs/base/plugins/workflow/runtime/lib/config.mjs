@@ -43,6 +43,7 @@ export const RESERVED_PATHS = ["AGENTS.md", "CLAUDE.md", "README.md", "docs/task
 
 export const DEFAULTS = {
   handoffMaxBytes: 6000,
+  handoffKeepEarlier: 5,
   integrationBranches: ["main", "master"],
   checkpoints: { stopReminder: true, minMinutes: 20 },
   security: { maxAgeDays: null },
@@ -163,6 +164,7 @@ export function configProblems(config) {
   const handoff = isObject(config.handoff) ? config.handoff : {};
   if (handoff.file !== undefined && (!validRelPath(handoff.file) || !handoff.file.endsWith(".md"))) problems.push("handoff.file must be a repository-relative .md path");
   if (handoff.maxBytes !== undefined && !(Number.isInteger(handoff.maxBytes) && handoff.maxBytes >= 200 && handoff.maxBytes <= 100000)) problems.push("handoff.maxBytes must be a whole number from 200 to 100000");
+  if (handoff.keepEarlier !== undefined && !(Number.isInteger(handoff.keepEarlier) && handoff.keepEarlier >= 0 && handoff.keepEarlier <= 20)) problems.push("handoff.keepEarlier must be a whole number from 0 to 20");
   const checkpoints = isObject(config.checkpoints) ? config.checkpoints : {};
   if (checkpoints.stopReminder !== undefined && typeof checkpoints.stopReminder !== "boolean") problems.push("checkpoints.stopReminder must be true or false");
   if (checkpoints.minMinutes !== undefined && !(Number.isInteger(checkpoints.minMinutes) && checkpoints.minMinutes >= 0 && checkpoints.minMinutes <= 1440)) problems.push("checkpoints.minMinutes must be a whole number from 0 to 1440");
@@ -250,7 +252,7 @@ export function resolveProject(rootInput, { allowLegacy = false } = {}) {
     artifactSource: source,
     directories,
     integrationBranches: prepare.integrationBranches ?? DEFAULTS.integrationBranches,
-    handoff: { file: artifacts.handoff, maxBytes: handoffSection.maxBytes ?? DEFAULTS.handoffMaxBytes },
+    handoff: { file: artifacts.handoff, maxBytes: handoffSection.maxBytes ?? DEFAULTS.handoffMaxBytes, keepEarlier: handoffSection.keepEarlier ?? DEFAULTS.handoffKeepEarlier },
     checkpoints: { ...DEFAULTS.checkpoints, ...(isObject(config.checkpoints) ? config.checkpoints : {}) },
     security: { ...DEFAULTS.security, ...(isObject(config.security) ? config.security : {}) },
     dispatch: { ...DISPATCH_DEFAULTS, ...(isObject(config.dispatch) ? config.dispatch : {}) },

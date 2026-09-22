@@ -67,7 +67,7 @@ export const ALLOWED_UNIMPORTED = [];
 // file.
 export const ALLOWED_DUPLICATE = [
   ["packs/base/plugins/workflow/runtime/lib/delivery.mjs",
-    "B40. The end of a checked subprocess, repeated in lib/gate.mjs: clear both timers, destroy the two streams, keep "
+    "B40, kept by decision 2026-09-22-the-subprocess-teardown-stays-copied-in-a0d3. The end of a checked subprocess, repeated in lib/gate.mjs: clear both timers, destroy the two streams, keep "
     + "what the partial buffers hold, and read the elapsed seconds. Every one of those lines reads or writes a local of "
     + "the caller, so a shared helper would take seven arguments to save seven lines. The fix that would earn its keep "
     + "is one shared subprocess supervisor, which is a larger change than this scanner should force."],

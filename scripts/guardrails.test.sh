@@ -94,10 +94,11 @@ payload_codex() {
     "$TRANSCRIPT_JSON" "$(jstr "$1")" "$(jstr "$2")"
 }
 
-read_result() { # sets DECISION and REASON_TEXT from OUT
-  DECISION=allow; REASON_TEXT=""
+read_result() { # sets DECISION, REASON_TEXT and NOTICE_TEXT (a systemMessage, which decides nothing) from OUT
+  DECISION=allow; REASON_TEXT=""; NOTICE_TEXT=""
   case "$OUT" in
     '') DECISION=allow ;;
+    '{"systemMessage":'*) DECISION=allow; NOTICE_TEXT=$(printf '%s' "$OUT" | jq -r '.systemMessage // empty' 2>/dev/null) ;;
     *'"permissionDecision":"deny"'*) DECISION=deny ;;
     *'"permissionDecision":"ask"'*) DECISION=ask ;;
     *) DECISION="unrecognized output" ;;
@@ -127,8 +128,9 @@ hook_file() { # hook_file [VAR=value...]: runs the hook by path on $TMP/payload.
   read_result
 }
 
-valid_decision_json() { # empty output, or exactly one well-formed deny or ask object
+valid_decision_json() { # empty output, exactly one well-formed deny or ask object, or exactly one notice
   [ -n "$OUT" ] || return 0
+  printf '%s' "$OUT" | jq -e -s 'length == 1 and (.[0] | keys == ["systemMessage"]) and ((.[0].systemMessage | type) == "string") and ((.[0].systemMessage | length) > 0)' >/dev/null 2>&1 && return 0
   printf '%s' "$OUT" | jq -e -s 'length == 1 and (.[0] | keys == ["hookSpecificOutput"])
     and (.[0].hookSpecificOutput.hookEventName == "PreToolUse")
     and (.[0].hookSpecificOutput.permissionDecision == "deny" or .[0].hookSpecificOutput.permissionDecision == "ask")
@@ -169,6 +171,8 @@ expect() {
   return 0
 }
 reason_has()   { case "$REASON_TEXT" in *"$2"*) verdict claude pass "$1" ;; *) verdict claude fail "$1 [reason: $REASON_TEXT]" ;; esac; }
+notice_has()   { case "$NOTICE_TEXT" in *"$2"*) verdict claude pass "$1" ;; *) verdict claude fail "$1 [notice: $NOTICE_TEXT]" ;; esac; }
+notice_none()  { if [ -z "$NOTICE_TEXT" ]; then verdict claude pass "$1"; else verdict claude fail "$1 [notice: $NOTICE_TEXT]"; fi; }
 reason_lacks() { case "$OUT" in *"$2"*) verdict claude fail "$1" ;; *) verdict claude pass "$1" ;; esac; }   # never prints the needle
 
 new_repo() { # new_repo <dir>: branch main with one commit (README.md, deploy.key) and a feature branch
@@ -497,13 +501,18 @@ expect "a shell string without git allows"       allow "$R" "bash -c 'echo hi'"
 section "settings: .skilliton/config.json"
 write_config '{"guardrails":{"blockForcePush":false}}'
 expect "blockForcePush false: git push -f origin main" allow "$RCFG" 'git push -f origin main'
+notice_has "  and the command it lets through says the setting let it through (B50)" '"blockForcePush": false under guardrails in .skilliton/config.json'
+expect "blockForcePush false: an ordinary push" allow "$RCFG" 'git push origin feature'
+notice_none "  says nothing, because no rule would have refused it"
 expect "blockForcePush false: --no-verify still blocked" deny "$RCFG" 'git commit --no-verify -m "x"' # skilliton-audit: allow verification-off a test case that runs the flag at the guard
 write_config '{"guardrails":{"blockNoVerify":false}}'
 expect "blockNoVerify false: git commit --no-verify"   allow "$RCFG" 'git commit --no-verify -m "x"' # skilliton-audit: allow verification-off a test case that runs the flag at the guard
+notice_has "  and says the setting let it through" '"blockNoVerify": false'
 expect "blockNoVerify false: git push --no-verify origin feature" allow "$RCFG" 'git push --no-verify origin feature' # skilliton-audit: allow verification-off a test case that runs the flag at the guard
 expect "blockNoVerify false: force-push still blocked" deny "$RCFG" 'git push -f origin main'
 write_config '{"guardrails":{"blockSecretFiles":false}}'
 expect "blockSecretFiles false: git add .env"          allow "$RCFG" 'git add .env'
+notice_has "  and says the setting let it through" '"blockSecretFiles": false'
 write_config '{"guardrails":{"protectedBranches":["release/*"]}}'
 expect "protectedBranches [release/*]: push -f origin main" allow "$RCFG" 'git push -f origin main'
 expect "protectedBranches [release/*]: push -f origin release/1.0" deny "$RCFG" 'git push -f origin release/1.0'
@@ -573,6 +582,7 @@ expect "  but a .skilliton folder is protected wherever it is" deny "$R" 'rm -rf
 write_config '{"version":1,"guardrails":{"protectRecords":false}}'
 expect "protectRecords false: rm -rf docs"          allow "$RCFG" 'rm -rf docs'
 expect "protectRecords false: rm -rf .skilliton"    allow "$RCFG" 'rm -rf .skilliton'
+notice_has "  and says the setting let it through" '"protectRecords": false'
 expect "protectRecords false: force-push still blocked" deny "$RCFG" 'git push -f origin main'
 write_config '{"version":1,"prepare":{"artifacts":{"status":"notes/STATE.md"},"directories":{"tasks":"work/tasks"}}}'
 expect "a record the project moved is protected where it is" deny "$RCFG" 'rm notes/STATE.md'

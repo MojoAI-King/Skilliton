@@ -220,7 +220,8 @@ export function planSharedHandoff(project, { at, state, next, given = {}, git = 
   const values = { State: state, Next: next, ...resolved };
   const written = formatWritten(at);
   const lines = renderBullets({ ...values, ...(git ? { Git: git } : {}) }).map(toLatin1);
-  const { parsed: nextParsed, rotated, dropped, archived } = rotateHandoff(parsed, { written: toLatin1(written), bullets: lines });
+  const keep = Number.isInteger(project.handoff?.keepEarlier) ? project.handoff.keepEarlier : KEEP_EARLIER;
+  const { parsed: nextParsed, rotated, dropped, archived } = rotateHandoff(parsed, { written: toLatin1(written), bullets: lines, keep });
   const after = renderHandoff(nextParsed);
   const changes = [];
   if (after !== text || created) changes.push({ path: rel, before: bytes, after: Buffer.from(after, "latin1") });

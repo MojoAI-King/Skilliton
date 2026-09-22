@@ -11,7 +11,7 @@ It is four Claude Code plugins and one command, `skilliton`, in a repository a c
 | Question | Answer |
 |---|---|
 | Language | JavaScript (Node.js, ES modules) and Bash. Commands are Node; the hooks that must start in under a second are Bash. |
-| Runtime floor | Node.js 18 or later, and git. Exercised on Node 22 and 25; Node 18 itself has not been run ([docs/COVERAGE.md](docs/COVERAGE.md)). |
+| Runtime floor | Node.js 22 or later, and git. Every suite runs on Node 22 in CI and on 25 locally ([docs/COVERAGE.md](docs/COVERAGE.md)). |
 | Dependencies | None. No `package.json`, no `node_modules`, no build step, no network code of its own. |
 | Size | About 40,000 lines of runtime, hooks and tests. 58 check steps run in CI on every push; `node scripts/checks.mjs` runs the same list locally. |
 | Shape | Plugins `workflow`, `guardrails`, `context-hygiene`, `code-quality` under `packs/base/plugins/`; the `skilliton` command ships inside `workflow`. |

@@ -142,7 +142,7 @@ jobs:
         run: node scripts/skilliton.test.mjs
 
       - name: Prepare, migrate, remove, records and indexes
-        run: node --test scripts/prepare.test.mjs scripts/migrate.test.mjs scripts/records.test.mjs
+        run: node --test scripts/prepare.test.mjs scripts/migrate.test.mjs scripts/records.test.mjs scripts/root-and-handoff-settings.test.mjs
 
       - name: Tasks, checkpoints, status and lifecycle hooks
         run: node scripts/lifecycle.test.mjs

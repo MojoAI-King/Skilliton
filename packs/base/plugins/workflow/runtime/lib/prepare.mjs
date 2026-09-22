@@ -67,14 +67,14 @@ const errorCode = (e) => e?.code ?? (e instanceof Error ? e.message : String(e))
 // The Git repository whose root is dirInput. Refused unless it is the root; backups need its Git folder.
 export function resolveGitRoot(dirInput) {
   let root;
-  try { root = realpathSync(resolve(dirInput)); } catch { refuse(`the folder ${argPath(resolve(dirInput))} does not exist or cannot be opened`); }
+  try { root = realpathSync.native(resolve(dirInput)); /* the stored letter case, so APFS roots compare (B56) */ } catch { refuse(`the folder ${argPath(resolve(dirInput))} does not exist or cannot be opened`); }
   if (!lstatSync(root).isDirectory()) refuse(`${argPath(root)} is not a folder`);
   if (!which("git")) throw new OperationFailed("git is not on PATH. Skilliton needs it to confirm the repository root and to keep backups in the Git folder; install git, then run again. Nothing was written");
   const r = runProgram("git", ["-C", root, ...NO_REPOSITORY_PROGRAMS, "rev-parse", "--show-toplevel", "--absolute-git-dir"], 15000, { env: gitEnvironment() });
   if (!r.ok) refuse(`${argPath(root)} is not a Git repository (git rev-parse ${r.failure}${r.stderr.trim() ? `: ${r.stderr.trim().split("\n")[0]}` : ""}). Skilliton works on a Git repository root, because its backups live in the Git folder`);
   const [top, gitDir] = r.stdout.split("\n");
   let topReal;
-  try { topReal = realpathSync(top); } catch { refuse(`git reported the repository root ${argPath(top)}, which cannot be opened`); }
+  try { topReal = realpathSync.native(top); } catch { refuse(`git reported the repository root ${argPath(top)}, which cannot be opened`); }
   if (topReal !== root) refuse(`${argPath(root)} is inside the Git repository ${argPath(topReal)} but is not its root. Run again with --dir ${argPath(topReal)}`);
   let gitReal = null;
   try { gitReal = realpathSync(gitDir); } catch { /* reported below */ }

@@ -107,7 +107,7 @@ The repository is prepared with its own product and runs 58 check steps in CI on
 
 | Question | Answer |
 |---|---|
-| Language | JavaScript (Node.js 18 or later, ES modules) for commands and engines; Bash for the hooks that must start in under a second |
+| Language | JavaScript (Node.js 22 or later, the version CI runs; ES modules) for commands and engines; Bash for the hooks that must start in under a second |
 | Dependencies | None; no build step; no network code of its own |
 | Size | About 40,000 lines of runtime, hooks and tests; 58 check steps in CI |
 | Clients | Claude Code, measured (terminal and VS Code extension). Codex: installs, sees skills, runs no plugin hooks. Cursor: documented only |
