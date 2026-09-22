@@ -240,4 +240,5 @@ Lesson entries in `docs/lessons/`, sorted by ID. `skilliton index` writes this l
 | [2026-09-22-a-check-runner-that-starts-a-login-shell-1367](lessons/2026-09-22-a-check-runner-that-starts-a-login-shell-1367.md) | A check runner that starts a login shell changes what the tests control | accepted | 2026-09-22 |
 | [2026-09-22-a-guard-judges-paths-against-the-root-th-a324](lessons/2026-09-22-a-guard-judges-paths-against-the-root-th-a324.md) | A guard judges paths against the root the client names, spelled as the input spelled it | accepted | 2026-09-22 |
 | [2026-09-22-a-rewrite-over-every-file-walks-the-work-0230](lessons/2026-09-22-a-rewrite-over-every-file-walks-the-work-0230.md) | A rewrite over every file walks the worktrees nested inside the repository | accepted | 2026-09-22 |
+| [2026-09-22-a-self-test-that-builds-its-fixture-from-662b](lessons/2026-09-22-a-self-test-that-builds-its-fixture-from-662b.md) | A self-test that builds its fixture from the live record breaks the day the record gains the feature | accepted | 2026-09-22 |
 <!-- skilliton:index:lessons:end -->
