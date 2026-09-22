@@ -145,10 +145,17 @@ script("Nothing here is ours. It is their marketplace name, their plugin, their 
 
 git(dirs.company, "add", "-A");
 git(dirs.company, "commit", "-q", "-m", "the company's own review rules");
-const release = cli(["release", "create", "--version", "1.0.0", "--repo", dirs.company, "--apply"]);
-showsLine(release.out, /releases\/1\.0\.0\.json|manifest/i, "release create");
+// The company copy carries this repository's own release manifests, so the demonstration's release is the next minor
+// version above the newest of them: a fixed number collides the day this repository ships it (1.0.0 did, 2026-09-22).
+const shipped = readdirSync(join(dirs.company, "releases")).map((f) => /^(\d+)\.(\d+)\.(\d+)\.json$/.exec(f)).filter(Boolean)
+  .map((m) => [Number(m[1]), Number(m[2])]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+const [major, minor] = shipped.at(-1) ?? [0, 0];
+const VERSION = `${major}.${minor + 1}.0`;
+const VERSION_RE = VERSION.replace(/\./g, "\\.");
+const release = cli(["release", "create", "--version", VERSION, "--repo", dirs.company, "--apply"]);
+showsLine(release.out, new RegExp(`releases/${VERSION_RE}\\.json|manifest`, "i"), "release create");
 git(dirs.company, "add", "-A");
-git(dirs.company, "commit", "-q", "-m", "release 1.0.0");
+git(dirs.company, "commit", "-q", "-m", `release ${VERSION}`);
 
 run("ssh-keygen", ["-q", "-t", "ed25519", "-N", "", "-C", "approver@example.invalid", "-f", join(dirs.keys, "approver")]);
 const pub = readFileSync(join(dirs.keys, "approver.pub"), "utf8").trim().split(/\s+/).slice(0, 2).join(" ");
@@ -156,11 +163,12 @@ writeFileSync(join(dirs.keys, "allowed_signers"), `approver@example.invalid name
 git(dirs.company, "config", "gpg.format", "ssh");
 git(dirs.company, "config", "user.signingkey", join(dirs.keys, "approver"));
 cli(["trust", "add", "--company", COMPANY, "--signers", join(dirs.keys, "allowed_signers"), "--apply"]);
-const sign = cli(["release", "sign", "1.0.0", "--repo", dirs.company, "--apply"]);
+const sign = cli(["release", "sign", VERSION, "--repo", dirs.company, "--apply"]);
 showsLine(sign.out, /signed|tag/i, "release sign");
 const list = cli(["release", "list", "--company", COMPANY, "--repo", dirs.company]);
-if (!/^\s*approved\s+1\.0\.0\b/m.test(list.out)) stop("release list does not show 1.0.0 as approved", list.out);
-showsLine(list.out, /^\s*approved\s+1\.0\.0\b/, "release list");
+const approvedRe = new RegExp(`^\\s*approved\\s+${VERSION_RE}\\b`, "m");
+if (!approvedRe.test(list.out)) stop(`release list does not show ${VERSION} as approved`, list.out);
+showsLine(list.out, approvedRe, "release list");
 script("A release is approved by a signature, not by a message in a chat.");
 if (stepNumber >= LAST_STEP) finish();
 

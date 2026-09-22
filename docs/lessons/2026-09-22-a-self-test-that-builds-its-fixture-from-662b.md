@@ -18,10 +18,12 @@ The self-test copies the live `docs/BACKLOG.md` into a temporary folder and appe
 
 `scripts/backlog.test.mjs`, the case "a findings block in the backlog still passes": the mutation strips any existing block between the two markers before appending its own (commit 12c6ab2).
 
+The same day it happened a second time. `scripts/demo-day.mjs` copies this repository as its sample company and cut a release numbered 1.0.0; once this repository shipped 1.0.0, the copy already held `releases/1.0.0.json` and `release create` refused, so the release commit itself went red in CI. The demo now takes the next minor version above the newest manifest its copy holds.
+
 ## The rule
 
 A self-test fixture built from a live record must first normalize away the feature it is about to add, or be built from a fixed text instead. Whichever is chosen, say in a comment which live feature the case assumes absent.
 
 ## What now enforces it
 
-The case itself, which now runs against the repository's own backlog with its real block present; `scripts/checks.mjs` runs it on every push. Nothing checks the other self-tests for the same shape; the next one that copies a live record should follow this entry.
+The two cases themselves (the backlog self-test and the demonstration's derived version), which now runs against the repository's own backlog with its real block present; `scripts/checks.mjs` runs it on every push. Nothing checks the other self-tests for the same shape; the next one that copies a live record should follow this entry.

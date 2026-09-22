@@ -25,7 +25,7 @@ Show the fork with its own marketplace name, one company plugin and skill, and a
 > "This is their copy. Everything a developer's machine runs comes from here, and a release is approved by a
 > signature, not by a message in a chat."
 
-Show `skilliton release list`: 1.0.0, approved. Then open the signers file and say who holds that key at their
+Show `skilliton release list`: the demonstration's own release, the next minor version above this repository's newest (1.1.0 after 1.0.0), approved. Then open the signers file and say who holds that key at their
 company.
 
 ### 2. A new laptop (3 minutes)
