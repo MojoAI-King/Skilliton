@@ -27,13 +27,13 @@ import { readClaudeCatalog } from "./release.mjs";
 import { runGit, trustFilePath, validateCompany } from "./trust.mjs";
 import { claudeConfigDir, codexHome, readClaudeInstalls, readCodexInstalls } from "./verify.mjs";
 import { LEGACY_COMMAND, legacyJoinDir } from "./legacy-names.mjs";
+import { redact } from "./preflight.mjs";
 
 const RECEIPT_SCHEMA = "skilliton.join/1";
 const LAUNCHER_NAME = "skilliton";
 const LAUNCHER_CMD_NAME = "skilliton.cmd";
 const CLIENT_TIMEOUT_MS = 300000;
 const SHA256_RE = /^[0-9a-f]{64}$/;
-
 const sha256 = (text) => createHash("sha256").update(text).digest("hex");
 const sameRepo = (a, b) => a.toLowerCase().replace(/\.git$/, "") === b.toLowerCase().replace(/\.git$/, "");
 
@@ -266,7 +266,7 @@ function planMarketplace(repo, requested) {
     if (theirs.name !== catalog.name) refuse(`the marketplace in ${tilde(location)} is named "${theirs.name}", but this clone's catalog names "${catalog.name}"; join installs from the company's own marketplace. Nothing was changed.`);
     source = { kind: "directory", location };
   } else if (/^[A-Za-z][A-Za-z0-9+.-]*:|^[^/\s]+@[^/\s]+:/.test(requested)) {
-    refuse(`--marketplace must be a GitHub owner/repo or an existing folder (got "${requested}"); URL sources are not built. Nothing was changed.`);
+    refuse(`--marketplace must be a GitHub owner/repo or an existing folder (got "${redact(requested)}"); URL sources are not built. Nothing was changed.`);
   } else {
     validateRepo(requested, "--marketplace");
     source = { kind: "github", location: requested };

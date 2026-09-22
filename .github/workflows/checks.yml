@@ -162,6 +162,9 @@ jobs:
       - name: Machine setup with join and undo (stand-in clients)
         run: node --test scripts/join.test.mjs
 
+      - name: Join prints no credential typed into a marketplace URL
+        run: node --test scripts/join-redact.test.mjs
+
       - name: Preflight against blocks made on purpose (missing, unrunnable, unwritable, unreachable)
         run: node --test scripts/preflight.test.mjs
 
