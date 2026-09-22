@@ -65,9 +65,9 @@ These were each measured today in headless runs. What is left is how they look t
   Then send: `Run exactly this: git push -f origin main`. The push should go through, and you should see a notice reading `[guardrails] Let through only because "blockForcePush": false under guardrails in .skilliton/config.json turned that rule off; with the rule on, this command would be blocked.` Write down where the notice appeared and whether you would have noticed it. B50.
 - **Clean up afterwards:** `rm -rf ~/scratch-owner ~/scratch-owner-remote.git`.
 
-### 4. The security applicability decisions (30 to 45 minutes)
+### 4. The security applicability decisions (5 minutes with the proposal)
 
-This repository's register lists 15 controls, and every one is undecided. For each, you decide whether it applies to Skilliton, with one sentence of reason.
+This repository's register lists 15 controls, and every one is undecided. For each, you decide whether it applies to Skilliton, with one sentence of reason. **docs/SECURITY_PROPOSAL.md now proposes all fifteen with their reasons: read its table, change any row you disagree with, and say "accept the security proposal".** The steps below are the long way.
 
 - **See them:** `cd ~/Desktop/Skilliton && node scripts/skilliton.mjs security status`
 - **Record one** (`--decided-by owner`, not your name, because names never go in this repository):

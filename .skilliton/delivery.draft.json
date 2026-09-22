@@ -1,0 +1,8 @@
+{
+  "schema": "skilliton.delivery/1",
+  "protectedBranches": ["main"],
+  "checks": [
+    { "name": "checks", "command": ["node", "scripts/checks.mjs"], "timeoutSeconds": 1800 }
+  ],
+  "policyPaths": [".skilliton/delivery.json", ".github/workflows/", ".github/CODEOWNERS", "CODEOWNERS"]
+}

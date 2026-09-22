@@ -37,3 +37,4 @@ PLAN.private*
 # Skilliton setup lock and private evidence
 /.skilliton/prepare.lock
 /.skilliton/private-evidence/
+LANES.md
