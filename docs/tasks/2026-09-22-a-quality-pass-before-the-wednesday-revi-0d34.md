@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T06:39:47.775Z
+- **Updated:** 2026-09-22T07:31:23.515Z
 
 ## Request
 
@@ -68,9 +68,16 @@ not yet written
 - **Next:** Owner tonight: test on another device and on already-active repositories (join once per machine, prepare once per repository, restart the session), read docs/TROUBLESHOOTING.md when something is not seen. Tuesday: code polish toward the judge's read (B57 to B59 candidates, the five remaining pins), the release skill with 1.0.0 as its first run Tuesday evening, the clean-machine README path, the unprepared-repo message at session start, the meter cross-checked against the Usage screen for one quantifiable figure; 1.0.0 before Wednesday 11:00
 - **Git:** main @ 6b1b97b, 0 uncommitted
 
+### 2026-09-22T07:31:23.515Z
+
+- **State:** B61 filed and pushed at 40d1e70: the owner's request that Skilliton's files persist, designed as three layers (assistant denied by the guardrails and write guard, a removal refused at the merge gate as a policy path, a person's removal named at session start with the restoring command, never restored silently). Nothing else changed since the night handoff
+- **Evidence:** backlog test and scrub exit 0 on the new row
+- **Next:** Tuesday: B61 first among the code work, since it is the owner's ask; then the release skill and 1.0.0 Tuesday evening; the clean-machine README path; the unprepared-repo message; the Usage screen cross-check
+- **Git:** main @ 40d1e70, 0 uncommitted
+
 ## Handoff
 
-- **State:** Night's work complete on main at 6b1b97b: the A-quality pass (two cold reviews acted on), maintain done (decision and two lessons recorded, protocol gate promoted outside the repo), and three documents written as repository sources with PDFs built outside the repository under the owner's Desktop handout folder: the technical white paper, the plain-language guide for someone who signs off, and troubleshooting from real cases. Installed plugins match the repo at both scopes; restart applies them. No prompt-rewrite skill; release and commit skills proposed and awaiting the owner's choice. Evidence: docs, scrub, names, living-docs exit 0 on the three new documents; PDFs rendered and read back (title once, tables intact); CI 64 of 64 on d35a9a8; full suite through scripts/checks.mjs 56 pass 0 fail 2 skipped.
-- **Next:** Owner tonight: test on another device and on already-active repositories (join once per machine, prepare once per repository, restart the session), read docs/TROUBLESHOOTING.md when something is not seen. Tuesday: code polish toward the judge's read (B57 to B59 candidates, the five remaining pins), the release skill with 1.0.0 as its first run Tuesday evening, the clean-machine README path, the unprepared-repo message at session start, the meter cross-checked against the Usage screen for one quantifiable figure; 1.0.0 before Wednesday 11:00
+- **State:** B61 filed and pushed at 40d1e70: the owner's request that Skilliton's files persist, designed as three layers (assistant denied by the guardrails and write guard, a removal refused at the merge gate as a policy path, a person's removal named at session start with the restoring command, never restored silently). Nothing else changed since the night handoff. Evidence: backlog test and scrub exit 0 on the new row.
+- **Next:** Tuesday: B61 first among the code work, since it is the owner's ask; then the release skill and 1.0.0 Tuesday evening; the clean-machine README path; the unprepared-repo message; the Usage screen cross-check
 - **Blocked:** B53: where the company's join file is published is the owner's call; the fifteen security applicability decisions; every walkthrough step that needs another machine or a real person
 - **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt. B49 is an unexplained exit 2 from allowlist.test.mjs seen once and not reproduced; keep every batch gate run's full output in a file, because that one was filtered through grep and its message is gone. Two numbers written on 2026-09-21 were never measured and had to be corrected: the CI step total said 60 and is 63, and three plugin versions were set from memory
