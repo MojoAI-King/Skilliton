@@ -26,10 +26,13 @@ export function restoreAdvice(root, paths, data) {
   const never = paths.filter((p) => !deleted.includes(p));
   data.removed = removed;
   data.never = never;
-  const one = (list) => list.length === 1;
+  // The missing ones were just listed, so a group that is all of them is named as such rather than listed again.
+  const all = paths.length;
+  const name = (list) => (list.length === all && all > 1 ? (all === 2 ? "both" : "all of them") : listOf(list));
+  const verb = (list, singular, plural) => (list.length === 1 ? singular : plural);
   const parts = [];
-  if (removed.length) parts.push(`${listOf(removed)} ${one(removed) ? "is" : "are"} tracked in Git and missing from the working tree, so ${one(removed) ? "it was" : "they were"} removed here by hand; restore ${one(removed) ? "it" : "them"} with: git checkout -- ${removed.join(" ")}`);
-  if (never.length) parts.push(`${listOf(never)} ${one(never) ? "is" : "are"} not in Git; ${selfCommand()} prepare --apply recreates ${one(never) ? "it" : "them"} and leaves every record that exists as it is`);
+  if (removed.length) parts.push(`${name(removed)} ${verb(removed, "is", "are")} tracked in Git and missing from the working tree, so ${verb(removed, "it was", "they were")} removed here by hand; restore ${verb(removed, "it", "them")} with: git checkout -- ${removed.join(" ")}`);
+  if (never.length) parts.push(`${never.length === all && all > 1 ? "none of them is" : `${name(never)} ${verb(never, "is", "are")} not`} in Git; ${selfCommand()} prepare --apply creates ${verb(never, "it", "them")} and leaves every record that exists as it is`);
   return parts.join("; ");
 }
 

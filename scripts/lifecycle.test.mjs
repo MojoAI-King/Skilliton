@@ -680,7 +680,7 @@ test("session-start names every missing piece and stays within handoff.maxBytes"
   expectLine(/^- Not prepared \(needs attention\): offer it in plain words before other work: "This project is not set up for Skilliton yet\. .*Nothing is written until you say yes\." On a yes, in this order: skilliton prepare shows the change; skilliton prepare --apply shows it again and writes it, drafting dispatch\.laneTestCommand, laneRoot and hotspots and a delivery policy draft from what the repository shows; then turn the user's first request into the first task with two to six proposed criteria: skilliton task start "<title>" --request "<the user's words>" --criteria "<criterion>" --apply$/);
   expectLine(HAS_MIGRATIONS ? /^- Pending migrations: none pending \(layout unknown, target 3\)$/ : /^- Pending migrations \(not run\): not available in this build \(runtime\/lib\/migrations\.mjs is not present\)$/);
   expectLine(new RegExp(`^- Versions: workflow runtime ${escape(INSTALLED)} installed; the project names no minimum version`));
-  expectLine(/^- Records \(needs attention\): 9 of 9 missing: docs\/STATUS\.md \(status\), /);
+  expectLine(/^- Records \(needs attention\): 9 of 9 missing: docs\/STATUS\.md \(status\), .*\(maintain\); none of them is in Git; skilliton prepare --apply creates them and leaves every record that exists as it is$/);
   expectLine(/^- Current task: none \(no open task on branch main\); to start one: skilliton task start "<title>" --apply$/);
   expectLine(/^- Shared handoff: docs\/HANDOFF\.md is missing \(see records\)$/);
   expectLine(/^- Previous session: none recorded in this worktree's journal$/);
@@ -725,7 +725,7 @@ test("a record or the configuration removed by hand is named at session start wi
   rmSync(join(p, "docs", "HANDOFF.md"));
   const two = start("r1");
   assert.equal(two.code, 0, two.all);
-  assert.match(two.out, /^- Records \(needs attention\): 2 of 9 missing: docs\/STATUS\.md \(status\), docs\/HANDOFF\.md \(handoff\); docs\/STATUS\.md and docs\/HANDOFF\.md are tracked in Git and missing from the working tree, so they were removed here by hand; restore them with: git checkout -- docs\/STATUS\.md docs\/HANDOFF\.md$/m);
+  assert.match(two.out, /^- Records \(needs attention\): 2 of 9 missing: docs\/STATUS\.md \(status\), docs\/HANDOFF\.md \(handoff\); both are tracked in Git and missing from the working tree, so they were removed here by hand; restore them with: git checkout -- docs\/STATUS\.md docs\/HANDOFF\.md$/m);
   assert.equal(existsSync(join(p, "docs", "STATUS.md")), false, "the hook restores nothing itself");
   git(p, ["checkout", "--", "docs/STATUS.md", "docs/HANDOFF.md"], env);
 
@@ -734,7 +734,7 @@ test("a record or the configuration removed by hand is named at session start wi
   git(p, ["rm", "-q", "--cached", "docs/LESSONS.md"], env);
   commit(p, env, "Stop tracking the lessons record");
   const never = start("r2");
-  assert.match(never.out, /^- Records \(needs attention\): 1 of 9 missing: docs\/LESSONS\.md \(lessons\); docs\/LESSONS\.md is not in Git; skilliton prepare --apply recreates it and leaves every record that exists as it is$/m);
+  assert.match(never.out, /^- Records \(needs attention\): 1 of 9 missing: docs\/LESSONS\.md \(lessons\); docs\/LESSONS\.md is not in Git; skilliton prepare --apply creates it and leaves every record that exists as it is$/m);
   const status = statusJson(p, env);
   assert.equal(checkStatus(status.json, "records"), "attention");
   assert.deepEqual(status.json.details.records.never, ["docs/LESSONS.md"]);
@@ -1240,7 +1240,7 @@ test("status exits 1 for each attention condition and names it", async () => wit
   writeHandoff(missing, new Date().toISOString());
   const later = new Date(Date.now() + 5000).toISOString();
   commit(missing, { ...env, GIT_AUTHOR_DATE: later, GIT_COMMITTER_DATE: later }, "remove a record, committed 5 seconds after the handoff was written");
-  attentionOnly(missing, "records", /^1 of 9 missing: docs\/ROADMAP\.md \(roadmap\); docs\/ROADMAP\.md is not in Git; .* prepare --apply recreates it and leaves every record that exists as it is$/);
+  attentionOnly(missing, "records", /^1 of 9 missing: docs\/ROADMAP\.md \(roadmap\); docs\/ROADMAP\.md is not in Git; .* prepare --apply creates it and leaves every record that exists as it is$/);
 
   const unprepared = initRepo(join(dir, "unprepared"), env);
   const u = statusJson(unprepared, env);
