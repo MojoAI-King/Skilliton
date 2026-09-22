@@ -2,7 +2,17 @@
 
 Kind: Living. One entry per signed release, from its manifest under `releases/`, plus what is on `main` since. Plugin versions are what a machine sees; the release number is what it trusts.
 
-## Unreleased (main since 0.9.0)
+## Unreleased (main since 1.0.0)
+
+Nothing yet.
+
+## 1.0.0, 2026-09-22
+
+The second signed release, and the first that runs its routines without a person: repositories are prepared and migrated at session start on a joined machine, maintenance and dispatch are asked for by the hooks, and Skilliton's own files cannot be removed by the assistant. Manifest `releases/1.0.0.json`, tag `skilliton-release/1.0.0`.
+
+- workflow 0.21.0, guardrails 0.7.0, context-hygiene 0.3.0 (unchanged since 0.9.0), code-quality 0.2.1.
+- Project layout 3.
+- What changed since 0.9.0, newest first:
 
 - guardrails 0.7.0: a command that passes only because the project turned a rule off gets a notice naming the setting (`systemMessage`, no permission decision), found by running that one rule again with only itself on (B50).
 - workflow 0.21.0: `handoff.keepEarlier` (0 to 20, default 5) sets how many earlier notes stay in the handoff (B60); `--dir` accepts the repository root in another letter case on a case-insensitive filesystem (B56); `bin/skilliton` names Node.js 22 as the floor, the version CI runs (B11). The repository's own checks under `scripts/` are held to the 600 line ceiling with the files already past it pinned (B59), and the offline check list lives in `.github/workflows/checks.yml` alone (B43).
