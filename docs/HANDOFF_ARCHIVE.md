@@ -4,6 +4,13 @@ Kind: Reference. The current handoff is `docs/HANDOFF.md`.
 
 Superseded RESUME HERE notes, newest first. Moved here from docs/HANDOFF.md on 2026-09-16.
 
+### 2026-09-20 17:14 EDT
+- **State:** Wave 6 is on main at c8bd045 and green; this maintenance pass added the gate list finding as a lesson and B43. Evidence: Every index current before the pass; docs, living-docs --check and backlog all exit 0 after it; the 42 scripts named in docs/MAINTAIN.md step 2 and in checks.yml were extracted and compared, and they match.
+- **Next:** Wave 7 from docs/REPORT_CARD.md, planned in plan mode with the batch files under docs/areas read first
+- **Blocked:** nothing
+- **Watch out:** A parallel session owns task/promo-anatomy in the sibling worktree ~/Desktop/Skilliton-promo, five commits ahead of main with uncommitted work and a site/ tree that is not on main: do not clean those worktrees or merge that branch
+- **Git:** main @ c8bd045, 4 uncommitted
+
 ### 2026-09-20 15:47 EDT
 - **State:** Wave 6 is on main at 634da8e and green: the four headless batches built and pushed, then the maintenance pass on top of them. Evidence: Full offline suite 48 of 48 steps exit 0; scrub-check tree and history both PASS; report-card --check exit 0 at 65 of 123; CI 35532803307 (6e072b7) and 35533207494 (634da8e) both success, all 58 steps read.
 - **Next:** Wave 7 from docs/REPORT_CARD.md, planned in plan mode with the batch files under docs/areas read first
