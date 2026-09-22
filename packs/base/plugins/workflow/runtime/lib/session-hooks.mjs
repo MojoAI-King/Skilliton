@@ -21,6 +21,11 @@ const findLast = (list, test) => { for (let i = list.length - 1; i >= 0; i--) if
 // fingerprint differs from the last checkpoint event's (or, with no checkpoint, from this session's start); at least
 // checkpoints.minMinutes passed since that checkpoint (or since this session started when there is none); and no
 // stop-reminded event exists for this fingerprint. Returns { block, why, ... }.
+//
+// A clean working tree (no porcelain lines) never gets the reminder, even when HEAD moved: the fingerprint is HEAD
+// plus porcelain, so committing a checkpoint's own records changed it, and the next stop was held on a tree `git status`
+// showed empty (measured 2026-09-22). Those commits carry their own messages, and a merge among them is the
+// maintenance reminder's to raise, which it does on its own. A dirty tree is judged exactly as before.
 export function evaluateStop({ stopHookActive, checkpoints, state, events, session, now }) {
   if (stopHookActive === true) return { block: false, why: "stop_hook_active is true" };
   if (!checkpoints.stopReminder) return { block: false, why: "checkpoints.stopReminder is off" };
@@ -35,6 +40,7 @@ export function evaluateStop({ stopHookActive, checkpoints, state, events, sessi
   if (!baseline) return { block: false, why: "no checkpoint and no recorded start for this session, so there is nothing to measure from" };
   if (!baseline.fingerprint) return { block: false, why: "the baseline event has no fingerprint" };
   if (baseline.fingerprint === state.fingerprint) return { block: false, why: fromCheckpoint ? "nothing changed since the last checkpoint" : "nothing changed since this session started" };
+  if (state.dirty === 0) return { block: false, why: `the working tree is clean, so nothing is waiting to be recorded; the commits since the ${fromCheckpoint ? "last checkpoint" : "session started"} carry their own messages` };
   const elapsedMs = now.getTime() - Date.parse(baseline.at);
   if (elapsedMs < checkpoints.minMinutes * 60000) return { block: false, why: `less than ${checkpoints.minMinutes} minutes since the ${fromCheckpoint ? "last checkpoint" : "session started"}` };
   if (events.some((e) => e.event === "stop-reminded" && e.fingerprint === state.fingerprint)) return { block: false, why: "a reminder was already given for this working tree state" };

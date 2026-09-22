@@ -859,12 +859,12 @@ test("skilliton maintain does the mechanical half and records it; the stop hook 
   assert.equal(quiet.code, 0, quiet.all);
   assert.equal(quiet.out, "", "not due");
 
-  // A merge lands in the session: both reminders are due, maintenance first, once for that commit.
+  // A merge lands in the session with a file left uncommitted: both reminders are due, maintenance first, once.
   git(p, ["checkout", "-q", "-b", "feature"], env);
   writeFileSync(join(p, "feature.md"), "x\n");
   commit(p, env, "feature work");
   git(p, ["checkout", "-q", "main"], env);
-  git(p, ["-c", "commit.gpgsign=false", "merge", "-q", "--no-ff", "-m", "merge feature", "feature"], env);
+  git(p, ["-c", "commit.gpgsign=false", "merge", "-q", "--no-ff", "-m", "merge feature", "feature"], env); writeFileSync(join(p, "uncommitted.txt"), "still open\n");
   backdate(p, env, (e) => e.event === "session-start" && e.session === "s1", 30);
   const held = stop("s1");
   assert.equal(held.code, 0, held.all);
@@ -1076,16 +1076,16 @@ test("stop allows when nothing changed, and before minMinutes", async () => with
   assert.equal(hook(unknown, "stop", { session_id: "another-session" }, env).out, "", "with no checkpoint and no recorded start for this session there is nothing to measure from");
 }));
 
-// A repository where a lane branch was merged back after the session started, with the working tree left clean, so the
-// merge commit is the only thing that changed. A merge moves HEAD, and HEAD is part of the fingerprint, which is why a
-// Stop reminder can be due in a tree with nothing uncommitted in it.
+// A repository where a lane branch was merged back after the session started, with one file left uncommitted: a clean
+// tree never gets the checkpoint reminder (scripts/stop-clean-tree.test.mjs), so the file is what makes it due, and the
+// merge is what its merge sentence reports.
 function mergedFixture(dir, env) {
   const p = stopFixture(dir, env, { change: false });
   git(p, ["checkout", "-q", "-b", "lane"], env);
   writeFileSync(join(p, "lane.txt"), "lane work\n");
   commit(p, env, "lane: one item");
   git(p, ["checkout", "-q", "main"], env);
-  git(p, ["-c", "commit.gpgsign=false", "merge", "-q", "--no-ff", "-m", "merge lane", "lane"], env);
+  git(p, ["-c", "commit.gpgsign=false", "merge", "-q", "--no-ff", "-m", "merge lane", "lane"], env); writeFileSync(join(p, "uncommitted.txt"), "still open\n");
   return { p, merged: git(p, ["rev-parse", "--short", "HEAD"], env).trim() };
 }
 
@@ -1098,7 +1098,7 @@ const stopReasonOf = (p, env, bin = BIN) => {
 
 test("stop names maintain when a merge landed in the window it measures", async () => withTemp("stop-merged", async ({ dir, env }) => {
   const { p, merged } = mergedFixture(dir, env);
-  assert.equal(git(p, ["status", "--porcelain"], env), "", "the tree is clean, so the merge alone is what the reminder saw");
+  assert.equal(porcelainCount(p, env), 1, "one uncommitted file makes the reminder due; the merge is what its sentence reports");
   const reason = stopReasonOf(p, env);
   assert.ok(reason.includes(`1 merge commit landed in that window (${merged}), so a batch of work has just come in: run /workflow:maintain on an integration branch as well, which reconciles the records and the indexes against what merged.`), reason);
   assert.ok(!reason.includes("is unknown"), "the window was readable, so the reminder reports what it found");
@@ -1107,7 +1107,7 @@ test("stop names maintain when a merge landed in the window it measures", async 
 test("stop does not name maintain for an ordinary commit in the window", async () => withTemp("stop-committed", async ({ dir, env }) => {
   const p = stopFixture(dir, env, { change: false });
   writeFileSync(join(p, "work.txt"), "committed\n");
-  commit(p, env, "ordinary work");
+  commit(p, env, "ordinary work"); writeFileSync(join(p, "uncommitted.txt"), "still open\n");
   const reason = stopReasonOf(p, env);
   assert.ok(!reason.includes("/workflow:maintain"), `a commit that is not a merge is not a batch coming in:\n${reason}`);
   assert.ok(!reason.includes("is unknown"), "the window was readable");
@@ -1124,7 +1124,7 @@ test("stop says so when it cannot tell whether a batch merged", async () => with
   assert.equal(hook(p, "session-start", { session_id: "s1" }, env).code, 0);
   backdate(p, env, (e) => e.event === "session-start", 30);
   writeFileSync(join(p, "README.md"), "# fixture\n");
-  commit(p, env, "first");
+  commit(p, env, "first"); writeFileSync(join(p, "uncommitted.txt"), "still open\n");
   const reason = stopReasonOf(p, env);
   assert.match(reason, /Whether a batch merged in that window is unknown: the baseline event recorded no commit id, so there is nothing to measure from\./);
   assert.ok(!reason.includes("/workflow:maintain"), "an unreadable window is not a merge");
@@ -1985,7 +1985,7 @@ test("mutation check: without --merges, the ordinary-commit assertion fails", as
   const commitOnly = (at) => {
     const p = stopFixture(at, env, { change: false });
     writeFileSync(join(p, "work.txt"), "committed\n");
-    commit(p, env, "ordinary work");
+    commit(p, env, "ordinary work"); writeFileSync(join(p, "uncommitted.txt"), "still open\n");
     return p;
   };
   assert.ok(!stopReasonOf(commitOnly(join(dir, "shipped")), env).includes("/workflow:maintain"));
@@ -2004,7 +2004,7 @@ test("mutation check: without the problem field, the unknown-window assertion fa
     assert.equal(hook(p, "session-start", { session_id: "s1" }, env).code, 0);
     backdate(p, env, (e) => e.event === "session-start", 30);
     writeFileSync(join(p, "README.md"), "# fixture\n");
-    commit(p, env, "first");
+    commit(p, env, "first"); writeFileSync(join(p, "uncommitted.txt"), "still open\n");
     return p;
   };
   assert.ok(stopReasonOf(noBaselineHead(join(dir, "shipped")), env).includes("is unknown"));
