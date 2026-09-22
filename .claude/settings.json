@@ -1,4 +1,12 @@
 {
+  "bashOutputMaxChars": 30000,
+  "taskOutputMaxChars": 32000,
+  "enabledPlugins": {
+    "context-hygiene@skilliton": true,
+    "workflow@skilliton": true,
+    "guardrails@skilliton": true,
+    "code-quality@skilliton": true
+  },
   "extraKnownMarketplaces": {
     "skilliton": {
       "source": {
@@ -8,13 +16,5 @@
       "autoUpdate": true
     }
   },
-  "enabledPlugins": {
-    "context-hygiene@skilliton": true,
-    "workflow@skilliton": true,
-    "guardrails@skilliton": true,
-    "code-quality@skilliton": true
-  },
-  "autoCompactWindow": 600000,
-  "bashOutputMaxChars": 30000,
-  "taskOutputMaxChars": 32000
+  "autoCompactWindow": 600000
 }
