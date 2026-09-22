@@ -359,8 +359,16 @@ section("new-skill");
   const backups = join(tmp, "b-new-skill");
   const skill = join(root, "packs", "base", "plugins", "workflow", "skills", "release-notes", "SKILL.md");
   const description = "Write release notes from merged work. Use when someone asks for release notes.";
-  const r = cli(["new-skill", "workflow", "release-notes", "--repo", root, "--description", description], { SKILLITON_BACKUPS: backups });
-  check("new-skill exits 0", r.code === 0, r.all);
+
+  const before = snapshot(root);
+  const preview = cli(["new-skill", "workflow", "release-notes", "--repo", root, "--description", description], { SKILLITON_BACKUPS: backups });
+  check("preview exits 0 and names the file it would create", preview.code === 0 && preview.out.includes(`will create packs/base/plugins/workflow/skills/release-notes/SKILL.md`), preview.all);
+  check("preview shows the SKILL.md it would write and the version bump", preview.out.includes(`name: release-notes`) && preview.out.includes(`description: ${description}`) && preview.out.includes("will bump") && preview.out.includes("0.1.0 -> 0.1.1"), preview.all);
+  check("preview says to add --apply", /Next: run the same command with --apply/.test(preview.out), preview.all);
+  check("preview writes nothing and makes no backup", snapshot(root) === before && !existsSync(backups));
+
+  const r = cli(["new-skill", "workflow", "release-notes", "--repo", root, "--description", description, "--apply"], { SKILLITON_BACKUPS: backups });
+  check("new-skill --apply exits 0", r.code === 0, r.all);
   const text = existsSync(skill) ? readFileSync(skill, "utf8") : "";
   check("SKILL.md starts with frontmatter holding name and description", text.startsWith(`---\nname: release-notes\ndescription: ${description}\n---\n`), text);
   check("SKILL.md has the body skeleton", ["## When to use", "## Steps", "## What done looks like"].every((h) => text.includes(h)), text);
@@ -377,14 +385,14 @@ section("new-skill");
   check("a bad skill name is refused with exit 2 and the naming rule", badName.code === 2 && /lowercase letters, digits, and hyphens/.test(badName.all), badName.all);
   check("the bad name created nothing and bumped nothing", !existsSync(join(root, "packs", "base", "plugins", "workflow", "skills", "Release_Notes")) && versionIn(root) === "0.1.1");
 
-  const todo = cli(["new-skill", "workflow", "draft-skill", "--repo", root], { SKILLITON_BACKUPS: backups });
+  const todo = cli(["new-skill", "workflow", "draft-skill", "--repo", root, "--apply"], { SKILLITON_BACKUPS: backups });
   const todoText = readFileSync(join(root, "packs", "base", "plugins", "workflow", "skills", "draft-skill", "SKILL.md"), "utf8");
   check("without --description the description is a marked TODO placeholder", todo.code === 0 && /^description: TODO\(skilliton\) /m.test(todoText), todo.all + todoText);
 
-  const quoted = cli(["new-skill", "workflow", "quoted-skill", "--repo", root, "--description", "Use when: the text has a colon"], { SKILLITON_BACKUPS: backups });
+  const quoted = cli(["new-skill", "workflow", "quoted-skill", "--repo", root, "--description", "Use when: the text has a colon", "--apply"], { SKILLITON_BACKUPS: backups });
   const quotedText = readFileSync(join(root, "packs", "base", "plugins", "workflow", "skills", "quoted-skill", "SKILL.md"), "utf8");
   check("a description that YAML would misread is quoted", quoted.code === 0 && quotedText.includes('description: "Use when: the text has a colon"'), quotedText);
-  const boolish = cli(["new-skill", "workflow", "boolish-skill", "--repo", root, "--description", "true"], { SKILLITON_BACKUPS: backups });
+  const boolish = cli(["new-skill", "workflow", "boolish-skill", "--repo", root, "--description", "true", "--apply"], { SKILLITON_BACKUPS: backups });
   const boolishText = readFileSync(join(root, "packs", "base", "plugins", "workflow", "skills", "boolish-skill", "SKILL.md"), "utf8");
   check("a description YAML would read as a boolean stays text (regression)", boolish.code === 0 && boolishText.includes('description: "true"'), boolishText);
   check("each created skill bumped the version once (0.1.4 after four)", versionIn(root) === "0.1.4");
@@ -396,7 +404,7 @@ section("new-skill");
   writeFileSync(join(root, "packs", "acme", "plugins", "workflow", ".claude-plugin", "plugin.json"), PLUGIN_JSON);
   const ambiguous = cli(["new-skill", "workflow", "other-skill", "--repo", root]);
   check("a plugin name in two packs is refused, asking for --pack", ambiguous.code === 2 && /more than one pack \(acme, base\); add --pack/.test(ambiguous.all), ambiguous.all);
-  const chosen = cli(["new-skill", "workflow", "other-skill", "--repo", root, "--pack", "acme"], { SKILLITON_BACKUPS: backups });
+  const chosen = cli(["new-skill", "workflow", "other-skill", "--repo", root, "--pack", "acme", "--apply"], { SKILLITON_BACKUPS: backups });
   check("--pack picks the plugin", chosen.code === 0 && versionIn(root, "acme") === "0.1.1" && versionIn(root) === "0.1.4", chosen.all);
 }
 
@@ -483,7 +491,7 @@ section("new-plugin: a company plugin a fresh fork can add skills to");
   check("the team template enables acme-review@acme-skills", readJson(join(root, "templates", "project-settings.json")).enabledPlugins["acme-review@acme-skills"] === true);
   check("the catalog and template were backed up", backupsOf(backups, "new-plugin").length === 1);
 
-  const skill = cli(["new-skill", "acme-review", "billing-check", "--pack", "acme", "--repo", root, "--description", "Use when a change touches billing."], { SKILLITON_BACKUPS: backups });
+  const skill = cli(["new-skill", "acme-review", "billing-check", "--pack", "acme", "--repo", root, "--description", "Use when a change touches billing.", "--apply"], { SKILLITON_BACKUPS: backups });
   check("new-skill --pack acme now works and bumps the new plugin to 0.1.1", skill.code === 0 && readJson(join(root, "packs", "acme", "plugins", "acme-review", ".claude-plugin", "plugin.json")).version === "0.1.1", skill.all);
   const packs = spawnSync(process.execPath, [join(here, "packs.test.mjs"), "--root", root], { encoding: "utf8" });
   check("the packaging checks pass on the fork the two commands made", packs.status === 0, `${packs.stdout}${packs.stderr}`);
@@ -518,9 +526,18 @@ const importRoot = skillsRepo("repo-import");
   const skillText = "---\ndescription: Helps with a task. Use when asked for help with it.\n---\n\n# Helper\n\nDo the thing.\n";
   writeFileSync(join(src, "SKILL.md"), skillText);
   writeFileSync(join(src, "notes", "extra.md"), "More detail.\n");
-  const r = cli(["import", src, "--into", "workflow", "--repo", importRoot], { SKILLITON_BACKUPS: join(tmp, "b-import") });
   const dest = join(importRoot, "packs", "base", "plugins", "workflow", "skills", "helper-skill");
-  check("import exits 0", r.code === 0, r.all);
+
+  const before = snapshot(importRoot);
+  const preview = cli(["import", src, "--into", "workflow", "--repo", importRoot], { SKILLITON_BACKUPS: join(tmp, "b-import-preview") });
+  check("preview exits 0", preview.code === 0, preview.all);
+  check("preview still runs the scan", preview.out.includes("scanned files: 2") && preview.out.includes("scrub-check: PASS") && preview.out.includes("0 hits in 2 text file(s)"), preview.out);
+  check("preview names the files it would copy and where", preview.out.includes(`would copy 2 file(s) to packs/base/plugins/workflow/skills/helper-skill`) && preview.out.includes("SKILL.md") && preview.out.includes(join("notes", "extra.md")), preview.out);
+  check("preview names the version bump and says to add --apply", /would bump .* version 0\.1\.0 -> 0\.1\.1/.test(preview.out) && /Next: run the same command with --apply/.test(preview.out), preview.out);
+  check("preview writes nothing, makes no backup, and does not bump the version", snapshot(importRoot) === before && !existsSync(join(tmp, "b-import-preview")) && versionIn(importRoot) === "0.1.0" && !existsSync(dest));
+
+  const r = cli(["import", src, "--into", "workflow", "--repo", importRoot, "--apply"], { SKILLITON_BACKUPS: join(tmp, "b-import") });
+  check("import --apply exits 0", r.code === 0, r.all);
   check("the scan ran on both files and passed", r.out.includes("scanned files: 2") && r.out.includes("scrub-check: PASS") && r.out.includes("0 hits in 2 text file(s)"), r.out);
   check("every file was copied", existsSync(join(dest, "SKILL.md")) && readFileSync(join(dest, "notes", "extra.md"), "utf8") === "More detail.\n");
   const copied = existsSync(join(dest, "SKILL.md")) ? readFileSync(join(dest, "SKILL.md"), "utf8") : "";
@@ -571,7 +588,7 @@ section("import: scrub-check findings, a missing denylist, links, and home paths
   check("without a denylist the import is refused, because names were not scanned", noDeny.code === 2 && noDeny.all.includes("NAME SCAN NOT RUN") && /names were not scanned/.test(noDeny.all) && !existsSync(join(skillsDir, "clean-skill")), noDeny.all);
   const commentsOnly = join(tmp, "denylist-comments-only");
   writeFileSync(commentsOnly, "# no names to block\n");
-  const optedOut = cli(["import", clean, "--into", "workflow", "--repo", importRoot], { SKILLITON_DENYLIST: commentsOnly, SKILLITON_BACKUPS: join(tmp, "b-optout") });
+  const optedOut = cli(["import", clean, "--into", "workflow", "--repo", importRoot, "--apply"], { SKILLITON_DENYLIST: commentsOnly, SKILLITON_BACKUPS: join(tmp, "b-optout") });
   check("a denylist holding only comments is an explicit opt-out: import proceeds and shows 0 patterns", optedOut.code === 0 && optedOut.all.includes("0 patterns") && existsSync(join(skillsDir, "clean-skill", "SKILL.md")), optedOut.all);
 
   const linked = make("linked-skill", "Body.");
