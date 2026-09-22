@@ -109,7 +109,7 @@ Each is recorded in [docs/BACKLOG.md](docs/BACKLOG.md) or [DECISIONS.md](DECISIO
 |---|---|
 | `packs/base/plugins/` | The shipped product: four plugins, each with its hooks, skills, agents and a `.claude-plugin/plugin.json`. `workflow/runtime/` is the `skilliton` command (`commands/`, `lib/`). |
 | `scripts/` | Every check CI runs, the demo, the rehearsals, the meter and the release tooling. `scripts/skilliton.mjs` runs the command from a checkout. |
-| `docs/` | The living records (status, backlog, handoff, decisions, lessons, contracts) and the guides. [docs/AUTOPILOT_START_HERE.md](docs/AUTOPILOT_START_HERE.md) is the index; every file under `docs/` is reachable from it, and a test says so. |
+| `docs/` | The living records (status, backlog, handoff, decisions, lessons, contracts) and the guides. Every document says its Kind near the top: Living is kept current, Reference is a record that no longer changes. [docs/AUTOPILOT_START_HERE.md](docs/AUTOPILOT_START_HERE.md) is the index; every file under `docs/` is reachable from it, and a test says so. |
 | `evidence/` | What was measured, by date: live sessions under `live/`, scripted rehearsals under `rehearsals/`, skill evaluations by commit. |
 | `releases/` | Signed release manifests and their schema. |
 | `templates/` | The GitHub workflow for the hosted delivery check and the team settings template. |

@@ -3,6 +3,8 @@ name: name-things-consistently
 description: Use when one idea in a codebase goes by several names, when a rename is asked for, or when naming something new. Settles on one name per concept and makes the rename complete, covering the identifier and its string form, config keys, command flags, error text a user reads, file and folder names, and the docs. Also says which names must not be renamed because they cross a boundary you do not own, and how to stop the old name coming back.
 ---
 
+Kind: Reference. Not shipped: its eval case could not tell a run with it from a run without it (docs/not-shipped.md). Kept for the record, outside every installable plugin.
+
 # One concept, one name, everywhere it appears
 
 Two names for one thing cost more than an ugly name. Every reader has to learn that they are the same, every search finds half the places, and the third name arrives because the next person could not tell which of the two was current.

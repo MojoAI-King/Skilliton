@@ -19,6 +19,9 @@
 //                   GROUPS table with no commands/<name>.mjs module beside it (docs/CONTRACTS.md section 9)
 //   no-dependencies a tracked package.json outside scripts/fixtures/, which is what would make that page false
 //
+// Bash hooks (packs/*/plugins/*/hooks/*.sh) have no size ceiling here: the guardrails hook is one long case table on
+// purpose, and splitting it would put its rules in more than one file. Its shape is held by scripts/guardrails.test.sh.
+//
 // Dashes are not checked here: scripts/scrub-check.sh owns em and en dashes across the tree and over history, and two
 // implementations of one rule drift.
 //

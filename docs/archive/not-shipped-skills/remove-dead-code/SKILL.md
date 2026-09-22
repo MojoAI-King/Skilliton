@@ -3,6 +3,8 @@ name: remove-dead-code
 description: Use when deleting code that looks unused, or when asked to clean up dead code, unused exports, old helpers or leftover files. Establishes that code is really unreachable before it is deleted, because searching for a name finds only the places that spell it the same way. Covers names built at runtime, names that live in data rather than code, names crossing a language boundary, and what to do when reachability cannot be proved.
 ---
 
+Kind: Reference. Not shipped: its eval case could not tell a run with it from a run without it (docs/not-shipped.md). Kept for the record, outside every installable plugin.
+
 # Delete it only once it is proved unreachable
 
 Finding no caller is not the same as having no caller. A search finds the places that spell the name the way you spelled it, in the files you pointed it at. Everything else is still there, and it runs in production.

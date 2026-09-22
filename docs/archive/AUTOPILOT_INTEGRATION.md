@@ -1,6 +1,6 @@
 # Autopilot integration brief
 
-Kind: Living. Execution detail for PLAN.md v4, not a second roadmap. Updated 2026-09-16 after the integration.
+Kind: Reference. Archived 2026-09-22 with the build complete; kept as the record of what the build was asked to do. Earlier text: Execution detail for PLAN.md v4, not a second roadmap. Updated 2026-09-16 after the integration.
 
 **There is no next integration to pick up.** Wave 8, on 2026-09-21, was the last build wave: every acceptance item still open in docs/REPORT_CARD.md needs an owner input, not code. A session arriving here should read [OWNER_WALKTHROUGH.md](OWNER_WALKTHROUGH.md) to see what those inputs are and plan no work from it. What is below stays as the record of how the M1 to M5 integration ran and what each milestone still leaves open.
 

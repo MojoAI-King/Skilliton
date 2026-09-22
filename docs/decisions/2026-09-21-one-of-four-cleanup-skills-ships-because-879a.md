@@ -10,7 +10,7 @@ Kind: Living. Decision entry.
 
 The `code-quality` pack ships one skill, `split-a-file`. The other three written for it,
 `remove-dead-code`, `name-things-consistently` and `make-a-test-fail`, do not ship. Their text is kept
-beside the pack under `packs/base/plugins/code-quality/not-shipped/`, and the reason is recorded in
+beside the pack under `docs/archive/not-shipped-skills/`, and the reason is recorded in
 docs/not-shipped.md with the scores. All four eval cases stay in the pack, because they are the record of
 the measurement.
 

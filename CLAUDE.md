@@ -2,12 +2,12 @@
 
 Kind: Living.
 
-All preparation/security source, tests, demo, verification and archived design notes are in this checkout. Read docs/AUTOPILOT_START_HERE.md for the material index and docs/BUILD_GOAL.md for the full execution objective; no earlier chat or sibling worktree is required.
+All preparation/security source, tests, demo, verification and archived design notes are in this checkout. Read docs/AUTOPILOT_START_HERE.md for the material index and docs/archive/BUILD_GOAL.md for the full execution objective; no earlier chat or sibling worktree is required.
 
 Read PLAN.md v4 before doing anything. It is the canonical development-autopilot direction; its milestones supersede the older day-by-day scope. Then read docs/HANDOFF.md (where things stand), DECISIONS.md (every choice and the open items), docs/CONTRACTS.md (shared names and formats), and docs/LESSONS.md (what went wrong here and what now prevents it). docs/MAINTAIN.md lists this repo's own end-of-session steps. docs/REPORT_CARD.md is the master progress report: the ten areas the owner grades this repository against, one bar per area and per batch, computed by scripts/report-card.mjs from the batch files under docs/areas/. Work is picked from its waves; a ticked acceptance item names its evidence.
 
 Rules for every session in this repo:
-- Continue authorized work from the current milestone in PLAN.md and docs/HANDOFF.md. Use docs/AUTOPILOT_INTEGRATION.md for the next integration. Do not revive a superseded branch roadmap or wait for an obsolete day number. Keep unverified gates open.
+- Continue authorized work from the current milestone in PLAN.md and docs/HANDOFF.md. The build is complete; docs/archive/AUTOPILOT_INTEGRATION.md is its record. Do not revive a superseded branch roadmap or wait for an obsolete day number. Keep unverified gates open.
 - Agree shared files and interfaces before parallel implementation. Preserve other sessions' work. The integrating session owns shared contracts, PLAN.md and final decision/status reconciliation.
 - Nothing silent, ever. A crashed check, a missing field, or an unverified assumption is reported as such, never rounded up to success.
 - Do not invent Claude Code hook or plugin capabilities. If a behavior is not confirmed in the official docs or by running it, say "unverified" and propose the test.

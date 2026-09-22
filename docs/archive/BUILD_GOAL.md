@@ -1,6 +1,6 @@
 # Build goal: complete the development autopilot
 
-Kind: Living. Reusable goal instructions subordinate to PLAN.md v4. Updated 2026-09-16.
+Kind: Reference. Archived 2026-09-22 with the build complete; kept as the record of what the build was asked to do. Earlier text: Reusable goal instructions subordinate to PLAN.md v4. Updated 2026-09-16.
 
 Use the [paste-ready goal command](GOAL_COMMAND.md) from this repository's root; it fits the goal runner's 4,000-character input limit and points here for the full instructions. This file saves the requested goal; creating it does not launch a goal or assign a budget.
 
@@ -14,7 +14,7 @@ Build Skilliton into the working development autopilot defined by PLAN.md v4. Co
 - docs/AUTOPILOT_START_HERE.md
 - docs/HANDOFF.md
 - docs/CONTRACTS.md
-- docs/AUTOPILOT_INTEGRATION.md
+- docs/archive/AUTOPILOT_INTEGRATION.md
 - DECISIONS.md
 - docs/LESSONS.md
 - The current repository's CLAUDE.md and AGENTS.md instructions

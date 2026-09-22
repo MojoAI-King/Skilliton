@@ -11,7 +11,7 @@
     {
       "name": "context-hygiene",
       "source": "./packs/base/plugins/context-hygiene",
-      "description": "Bounded session-start checklist hook and a context-hygiene skill. A separate, reversible setup script adds a status line that logs real quota. The gate wrapper and drift check exist in the repo but are not wired into the plugin yet.",
+      "description": "A session-start checklist hook, a read guard that refuses whole-file reads of non-image files over 50 KB, and a context-hygiene skill. Two optional per-machine scripts in this folder (a quota status line and a settings drift check) are installed reversibly by scripts/setup.mjs, not by the plugin's hooks.",
       "author": {
         "name": "MojoAI"
       },

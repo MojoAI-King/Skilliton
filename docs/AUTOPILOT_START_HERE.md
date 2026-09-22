@@ -1,39 +1,59 @@
-# Autopilot: start here
+# The documents, on one screen
 
-Kind: Living. Navigation and current boundaries, not a second roadmap. Updated 2026-09-16 after the M1-M4 integration.
+Kind: Living. The index of `docs/`: every Markdown file under this folder is reachable from here, and `scripts/docs.test.mjs` fails when one is not. Updated 2026-09-22, after the build.
 
-Everything needed to continue the build is in this repository: the direction, the contracts, the integrated runtime, its tests, the rehearsals and their evidence. No earlier chat, sibling worktree or prototype branch is needed.
+Every document says its Kind near the top. **Living** is kept current and is safe to rely on. **Reference** is a record that no longer changes. The folders marked *build record* below are this repository's own working notes from building the product; a person using or adopting Skilliton never needs them.
 
-## Read and continue
+## Read first
 
-1. [PLAN.md](../PLAN.md): the product, scope, and section 7's milestone table with what is proved.
-2. [HANDOFF.md](HANDOFF.md): current state and next actions.
-3. [REPORT_CARD.md](REPORT_CARD.md): the ten areas the owner grades against, the bars, the grade history and the waves; each area's batches are under [areas/](areas/). Everything only the owner can do is collected, in order, in [OWNER_WALKTHROUGH.md](OWNER_WALKTHROUGH.md); a session plans no work from it.
-4. [CONTRACTS.md](CONTRACTS.md): every shared format, command and exit code as implemented.
-5. [DECISIONS.md](../DECISIONS.md) and [LESSONS.md](LESSONS.md): choices, open items and failures to avoid.
-6. [CLIENTS.md](CLIENTS.md): what Claude Code and Codex actually do, measured or documented.
-7. [AUTOPILOT_INTEGRATION.md](AUTOPILOT_INTEGRATION.md): the integration steps and which acceptance gates remain open.
-8. [BUILD_GOAL.md](BUILD_GOAL.md) and [GOAL_COMMAND.md](GOAL_COMMAND.md): the owner's goal instructions.
+| If you want to | Read |
+|---|---|
+| Know what it is, what it is written in, and how a company takes it to every laptop | [OWNER_GUIDE.md](OWNER_GUIDE.md) |
+| See the whole path with diagrams: fork, make it yours, release, install, work, feed lessons back | [HOW-IT-WORKS.md](HOW-IT-WORKS.md) |
+| Join a machine and prepare a repository (you are a developer) | [ONBOARDING.md](ONBOARDING.md) |
+| Fork, add skills, sign and publish releases (you are the company) | [RELEASING.md](RELEASING.md), then [DELIVERY.md](DELIVERY.md) for the merge check |
+| Know what Claude Code, Codex and Cursor actually do with it, measured or documented | [CLIENTS.md](CLIENTS.md) |
+| Answer an IT department: programs started, folders written, network, privileges | [IT-ALLOWLIST.md](IT-ALLOWLIST.md) |
+| The exact formats, commands and exit codes, as implemented | [CONTRACTS.md](CONTRACTS.md) |
+| What has and has not been exercised: platforms, versions, signing setups | [COVERAGE.md](COVERAGE.md) |
+| Run it on Windows for the first time | [WINDOWS.md](WINDOWS.md) |
+| Demonstrate it: what to run, what to say, what not to claim | [DEMO.md](DEMO.md), [ONE-PAGER.md](ONE-PAGER.md), [POSITIONING.md](POSITIONING.md) |
+| The company-wide plan beyond this build: device management, routines, more tools | [PHASE-3.md](PHASE-3.md) |
 
-## Where the material is
+## The product's own records (Living)
+
+| Record | Files |
+|---|---|
+| Direction and milestones | [PLAN.md](../PLAN.md) |
+| Where the work stands, for the next session | [HANDOFF.md](HANDOFF.md) (the RESUME HERE block), earlier entries in [HANDOFF_ARCHIVE.md](HANDOFF_ARCHIVE.md) |
+| Status and backlog | [STATUS.md](STATUS.md) with [STATUS_ARCHIVE.md](STATUS_ARCHIVE.md); [BACKLOG.md](BACKLOG.md) (open) with [BACKLOG_ARCHIVE.md](BACKLOG_ARCHIVE.md) (closed, dated, with evidence) |
+| Every choice, and every failure with what now prevents it | [DECISIONS.md](../DECISIONS.md) indexing [decisions/](decisions/); [LESSONS.md](LESSONS.md) indexing [lessons/](lessons/); one file per entry |
+| Security evidence register | [security/](security/), with the framework sources in [security-catalog-sources.md](security-catalog-sources.md) |
+| This repository's own end-of-session steps and full check list | [MAINTAIN.md](MAINTAIN.md) |
+| Naming and compatibility with the earlier name | [BRANDING.md](BRANDING.md) |
+| Session cost: the meter and the frozen before-picture | `scripts/token-cost.mjs` and [USAGE_BASELINE.md](USAGE_BASELINE.md); PLAN.md sections 6 and 8 govern any number that leaves this repository |
+
+## Build records (this repository's working notes)
+
+| What | Where |
+|---|---|
+| The report card: 123 acceptance items in ten areas, one batch file each, bars generated from the ticks | [REPORT_CARD.md](REPORT_CARD.md) and [areas/](areas/); what only the owner can do is collected in [OWNER_WALKTHROUGH.md](OWNER_WALKTHROUGH.md) |
+| One task record per piece of work, with acceptance criteria and checkpoints | [tasks/](tasks/) |
+| What was built, measured and then not shipped, with the scores | [not-shipped.md](not-shipped.md) |
+| Superseded documents (Reference): the goal instructions the build ran under, its integration steps, the first-day prompt, the three unshipped skills' text, and the prototype's own plan and handoff | [archive/](archive/) |
+| Rehearsal protocols, including the one for a real new builder | [rehearsals/](rehearsals/) |
+
+## Where the code and the evidence are
 
 | Material | Location |
 |---|---|
-| The command line and its engines | [packs/base/plugins/workflow/runtime/](../packs/base/plugins/workflow/runtime/) (`skilliton.mjs`, `lib/`, `commands/`); run through [scripts/skilliton.mjs](../scripts/skilliton.mjs) or the plugin's `bin/skilliton` |
-| Workflow skills, hooks, instruction template, catalogs | [packs/base/plugins/workflow/](../packs/base/plugins/workflow/) |
-| Guardrails | [packs/base/plugins/guardrails/](../packs/base/plugins/guardrails/) |
-| Tests | `scripts/*.test.mjs` and `scripts/*.test.sh`; the full list is [MAINTAIN.md](MAINTAIN.md) step 2 |
-| Demo | [scripts/autopilot-demo.mjs](../scripts/autopilot-demo.mjs) |
-| Rehearsals | [scripts/rehearsals/](../scripts/rehearsals/) (projects, company release, fork, machine, live clients) with results in [evidence/rehearsals/](../evidence/rehearsals/) |
-| Client probes | `scripts/live-capability-probe.sh`, `scripts/codex-offline-probe.sh`, `scripts/live-guardrails-probe.sh`, results in [evidence/live/](../evidence/live/) |
-| Guides | [OWNER_GUIDE.md](OWNER_GUIDE.md) (the owner's explainer: the tech facts first, then the flow from fork to every laptop), [HOW-IT-WORKS.md](HOW-IT-WORKS.md) (the whole path, with diagrams), [PHASE-3.md](PHASE-3.md) (the company-wide autopilot plan: device-management enrollment, routines, security audit, more tools), [POSITIONING.md](POSITIONING.md) (value claims and their evidence, a skeptical lead's questions, candidate next steps), [IT-ALLOWLIST.md](IT-ALLOWLIST.md) (what IT allows for endpoint security: programs, folders, network, privileges), [WINDOWS.md](WINDOWS.md) (the first Windows run: what to install, what to run, what to send back), [DEMO.md](DEMO.md) (the demonstration: what to run, what to say, what not to claim), [ONBOARDING.md](ONBOARDING.md), [RELEASING.md](RELEASING.md), [DELIVERY.md](DELIVERY.md), [ONE-PAGER.md](ONE-PAGER.md) (what a team gets, in one page), [rehearsals/NEW_BUILDER.md](rehearsals/NEW_BUILDER.md) |
-| Project records | [STATUS.md](STATUS.md) with [STATUS_ARCHIVE.md](STATUS_ARCHIVE.md), [BACKLOG.md](BACKLOG.md) with [BACKLOG_ARCHIVE.md](BACKLOG_ARCHIVE.md), [HANDOFF.md](HANDOFF.md) with [HANDOFF_ARCHIVE.md](HANDOFF_ARCHIVE.md), and one file per entry under [tasks/](tasks/), [decisions/](decisions/), [lessons/](lessons/) and [security/](security/), each folder's README describing the shape of its entries |
-| Session cost | the meter [scripts/token-cost.mjs](../scripts/token-cost.mjs) and the frozen before-picture [USAGE_BASELINE.md](USAGE_BASELINE.md); PLAN.md sections 6 and 8 govern any number that leaves this repository |
-| Security catalog | `packs/base/plugins/workflow/catalogs/`, with the framework sources behind it, how each was verified and the terms they carry, in [security-catalog-sources.md](security-catalog-sources.md) |
-| What has and has not been exercised (platforms, versions, scale, signing setups, security-review cases) | [COVERAGE.md](COVERAGE.md) |
-| What was built, measured and then not shipped | [not-shipped.md](not-shipped.md): the three cleanup skills whose eval cases could not tell a run with them from a run without them, with the scores and where their text is kept |
-| Prototype history | [docs/archive/autopilot-foundation/](archive/autopilot-foundation/), [evidence/autopilot-foundation/](../evidence/autopilot-foundation/), and the byte-for-byte prototype copies in `scripts/fixtures/prototype-v1/` used to test the layout-1 migration |
+| The command and its engines | [packs/base/plugins/workflow/runtime/](../packs/base/plugins/workflow/runtime/) (`skilliton.mjs`, `commands/`, `lib/`); run through [scripts/skilliton.mjs](../scripts/skilliton.mjs) or the plugin's `bin/skilliton` |
+| The four plugins: hooks, skills, agents, instruction template, catalogs | [packs/base/plugins/](../packs/base/plugins/) |
+| Tests and checkers | `scripts/*.test.mjs` and `scripts/*.test.sh`; the full list is [MAINTAIN.md](MAINTAIN.md) step 2, held equal to CI by a test |
+| The demo | [scripts/autopilot-demo.mjs](../scripts/autopilot-demo.mjs) |
+| Evidence: live sessions, scripted rehearsals, skill evaluations | [evidence/](../evidence/), indexed by its own README |
+| Signed release manifests | [releases/](../releases/) |
 
 ## Boundaries that still hold
 
-Local presence, publication, installation and verification are separate states; HANDOFF.md names each. Security evidence is not certification. Local guardrails are not merge enforcement. Codex lifecycle hooks, the hosted GitHub delivery adapter, a model session in a clean configuration and a real new builder remain unproved (DECISIONS.md O8, O9, O15, O16).
+Local presence, publication, installation and verification are separate states; HANDOFF.md names each. Security evidence is not certification. Local guardrails are not merge enforcement. No usage or cost saving is claimed anywhere. Still unproved: Codex lifecycle hooks, a real new builder, Windows, a lane launched through the brief's own `--agent` line (DECISIONS.md and BACKLOG.md name the input each needs).

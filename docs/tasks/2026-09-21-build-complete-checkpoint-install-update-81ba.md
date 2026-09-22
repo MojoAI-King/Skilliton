@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-21-build-complete-checkpoint-install-update-81ba
-- **State:** in-progress
+- **State:** done-local
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T04:00:14.979Z
+- **Updated:** 2026-09-22T04:06:00.481Z
 
 ## Request
 

@@ -3,6 +3,8 @@ name: make-a-test-fail
 description: Use when writing a test, reviewing one, or asked whether a green test or a passing check is actually testing anything. A test that has never been seen to fail has not been tested, so this proves it by breaking the code it covers and watching it go red. Lists the shapes that cannot fail (asserting on a value the test computed, a mock returning what it was told, a swallowed error, an unawaited assertion, a check that exits zero on its own error path) and what to report.
 ---
 
+Kind: Reference. Not shipped: its eval case could not tell a run with it from a run without it (docs/not-shipped.md). Kept for the record, outside every installable plugin.
+
 # Prove the test can fail
 
 A passing test tells you two things at once and does not say which: the code is right, or the test cannot fail. Until you have watched it go red, you have a green light of unknown wiring.

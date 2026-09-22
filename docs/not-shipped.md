@@ -7,7 +7,7 @@ record: the pack ships in `packs/` only for skills whose evals show a difference
 not shipped and why. Four cleanup skills were written and given an eval case each, every case run three
 times with the plugin and three times without it. One earned its place; the other three did not.
 
-Their text is kept, beside the pack it did not join, under `packs/base/plugins/code-quality/not-shipped/`. It is kept rather than deleted so the next attempt starts from a case that is known not to
+Their text is kept, beside the pack it did not join, under `docs/archive/not-shipped-skills/`. It is kept rather than deleted so the next attempt starts from a case that is known not to
 discriminate rather than from a blank page, and so that anyone who disagrees with the decision can read
 what was actually measured instead of taking this file's word for it.
 
@@ -52,7 +52,7 @@ Two particulars worth carrying:
 
 ## To reconsider one of these
 
-Move its `SKILL.md` from `packs/base/plugins/code-quality/not-shipped/` back under that plugin's `skills/`, **and first make its case
+Move its `SKILL.md` from `docs/archive/not-shipped-skills/` back under that plugin's `skills/`, **and first make its case
 harder**, because re-running it as it stands measures nothing: with the skill absent from the pack both
 arms are now identical. A case earns its keep by having a baseline that fails some of the time. The
 recorded command is in [docs/MAINTAIN.md](MAINTAIN.md) step 4, and the eval cases themselves stayed in

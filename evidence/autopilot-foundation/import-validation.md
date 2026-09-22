@@ -4,7 +4,7 @@ Kind: Reference. Local checks performed 2026-09-16 on the combined source tree: 
 
 ## Material accounting
 
-All material unique to the foundation is present as ordinary repository files: six implementation/test/demo files, original verification, and the archived plan, handoff and decision. The current plan and integration brief remain authoritative. docs/AUTOPILOT_START_HERE.md indexes the complete package; docs/BUILD_GOAL.md preserves the full execution objective. docs/GOAL_COMMAND.md provides a separately reviewed launcher measured at 1,369 characters including `/goal`, below the reported 4,000-character limit. No goal was launched by this import.
+All material unique to the foundation is present as ordinary repository files: six implementation/test/demo files, original verification, and the archived plan, handoff and decision. The current plan and integration brief remain authoritative. docs/AUTOPILOT_START_HERE.md indexes the complete package; docs/archive/BUILD_GOAL.md preserves the full execution objective. docs/archive/GOAL_COMMAND.md provides a separately reviewed launcher measured at 1,369 characters including `/goal`, below the reported 4,000-character limit. No goal was launched by this import.
 
 The following file bytes match the foundation snapshot exactly. Git blob IDs identify the tested source without depending on a sibling worktree:
 

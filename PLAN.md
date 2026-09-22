@@ -2,7 +2,7 @@
 
 Kind: Living. Canonical product direction and delivery gates. Updated 2026-09-16 after the owner aligned the parallel build sessions, and again when the owner set the Phase 3 direction (section 7; docs/PHASE-3.md).
 
-This version supersedes v3's product scope and day-by-day ordering. Earlier plans remain in Git history. Existing evidence and unresolved checks remain valid at their recorded scope; a new plan does not close them. There is one roadmap here. Original prototype plans are archived under docs/archive/autopilot-foundation/ as implementation history, not competing instructions. All source material is indexed in docs/AUTOPILOT_START_HERE.md; the saved execution objective is docs/BUILD_GOAL.md.
+This version supersedes v3's product scope and day-by-day ordering. Earlier plans remain in Git history. Existing evidence and unresolved checks remain valid at their recorded scope; a new plan does not close them. There is one roadmap here. Original prototype plans are archived under docs/archive/autopilot-foundation/ as implementation history, not competing instructions. All source material is indexed in docs/AUTOPILOT_START_HERE.md; the saved execution objective is docs/archive/BUILD_GOAL.md.
 
 ## 0. The product
 
@@ -131,7 +131,7 @@ The milestones fall into three phases: **Phase 1, foundation** (M0 to M5); **Pha
 | ID | Milestone | Acceptance | State |
 |---|---|---|---|
 | M0 | Shared direction | README, plan, contracts, instructions and handoff agree on implemented/prototype/target boundaries | Done (aligned again after integration) |
-| M1 | One prepared repository | Integrate foundation through existing CLI; one instruction writer; doctor understands config; preserves existing docs; repeat/undo or recovery exercised; no unexplained status codes | **Verified locally.** docs/AUTOPILOT_INTEGRATION.md I1 to I6 |
+| M1 | One prepared repository | Integrate foundation through existing CLI; one instruction writer; doctor understands config; preserves existing docs; repeat/undo or recovery exercised; no unexplained status codes | **Verified locally.** docs/archive/AUTOPILOT_INTEGRATION.md I1 to I6 |
 | M2 | Normal-work continuity | Actual session start/checkpoint/review/handoff integration; two contributors resume without overwriting records; missing/stale state stays visible | **Verified on Claude Code** (live sessions; project rehearsal). Open: Codex lifecycle hooks (O9), an interactive session (O6) |
 | M3 | Approved company updates | Rehearsal fork, versioned release/verify, second clean environment joins, receives one improved skill and one safe repo migration; tampering detected; rollback and removal proved | **Verified at install level** (18 of 18, Claude Code and Codex). Open: a model session in the clean configuration and automatic updates at session start (O8) |
 | M4 | Security and shared delivery | Broader applicable controls, evidence collectors and deduplicated gaps; actual application checks block a defective combined change; policy changes receive separate review | **Verified locally.** Open: the GitHub adapter on a hosted repository (O15) |
@@ -146,7 +146,7 @@ The milestones fall into three phases: **Phase 1, foundation** (M0 to M5); **Pha
 | M13 | Any AI coding tool | The portable core (skills, instruction block, git hooks, merge gate, command) plus an adapter per tool; a tool is called supported only when its CLIENTS.md column is measured (skills visible, instructions read, each hook observed, verify reads the install) and a rehearsal passes | **Not started** (B23). Claude Code and Codex are measured, and Claude Code's VS Code extension has its own measured column as of 2026-09-20, with its plugin rows not settled. VS Code with GitHub Copilot and Grok Build document reading Claude Code's plugin and hook files. Cursor, the owner's chosen second tool (O24), now has its own **documented, never measured** column as of 2026-09-20, read from published documentation with retrieval dates and a decision entry naming what an adapter would have to write; no session has run there, so no row of it says measured (B23) |
 | M14 | Proof of value and team view | The same real tasks with the plain tool and with Skilliton: tokens and cost from `scripts/token-cost.mjs` cross-checked against the client's usage metrics, time, interventions, rework, planted flaws caught before merge, resume accuracy; a locally generated read-only team view; time, cost and quality statements only from these numbers | **Not started** (B15, B16). Paid runs need the owner's approval and a ceiling |
 
-The integration steps and their evidence are in [docs/AUTOPILOT_INTEGRATION.md](docs/AUTOPILOT_INTEGRATION.md). Contracts are in [docs/CONTRACTS.md](docs/CONTRACTS.md). The latest execution state is [docs/HANDOFF.md](docs/HANDOFF.md). No milestone with an open item above is complete.
+The integration steps and their evidence are in [docs/archive/AUTOPILOT_INTEGRATION.md](docs/archive/AUTOPILOT_INTEGRATION.md). Contracts are in [docs/CONTRACTS.md](docs/CONTRACTS.md). The latest execution state is [docs/HANDOFF.md](docs/HANDOFF.md). No milestone with an open item above is complete.
 
 ## 8. Quality, review and trust
 
