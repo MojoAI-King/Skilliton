@@ -55,8 +55,11 @@ function lastLines(text, n) {
 // ---------- git ----------
 
 // A git runner bound to one repository: where is ["--git-dir", <bare repository>] or ["-C", <working tree>]. The
-// environment passes through unchanged, so inside a pre-receive hook git still sees the quarantined pushed objects.
-export function gitRunner(where, env = process.env) {
+// environment passes through, so inside a pre-receive hook git still sees the quarantined pushed objects, with
+// GIT_NO_REPLACE_OBJECTS added: a refs/replace/ entry would otherwise put a forged commit's policy in place of the real
+// tip's, and every read the gate makes (policy, tree, archive, signature) must be of the object stored (as trust.mjs).
+export function gitRunner(where, passed = process.env) {
+  const env = { ...passed, GIT_NO_REPLACE_OBJECTS: "1" };
   const git = (args, { allowExit = [0], buffer = false } = {}) => {
     const r = spawnSync("git", [...where, ...NO_REPOSITORY_PROGRAMS, ...args], {
       env, encoding: buffer ? "buffer" : "utf8", maxBuffer: GIT_MAX_BUFFER, stdio: ["ignore", "pipe", "pipe"],
@@ -493,6 +496,10 @@ export async function runGate({ bare, input, print = (line) => console.log(line)
     const { updates, problems } = parseRefUpdates(input);
     if (problems.length) { say(`rejected ${current}: ${problems[0]}`); return 1; }
     if (!updates.length) { say(`rejected ${current}: no ref updates arrived on standard input, so nothing could be checked`); return 1; }
+    // A replacement makes plain git show another object in place of a real one, so no push may create, move or delete
+    // one (the gate reads through none of them, above; everything else that reads this repository still would).
+    const replacing = updates.find((u) => /^refs\/replace\//i.test(u.ref));
+    if (replacing) { say(`rejected ${replacing.ref}: a push may not update refs/replace/, because a replacement shows another commit's content (such as a policy that protects nothing) in place of the real one; an administrator manages replacements on the server${updates.length > 1 ? ". The whole push was rejected; no ref in it was updated" : ""}`); return 1; }
     const git = gitRunner(["--git-dir", bare]);
     const approvers = approversSetting(git);
     if (approvers.problem) { say(`rejected ${updates[0].ref}: ${approvers.problem}`); return 1; }
