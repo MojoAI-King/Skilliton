@@ -1,25 +1,25 @@
 # Skilliton
 
-**Skilliton** is the evolved product formerly called Skillgate. Every command, folder and setting now uses the Skilliton name; a project or machine set up before the rename moves as described in [docs/BRANDING.md](docs/BRANDING.md).
-
 Kind: Living.
 
-**Skilliton is a forkable development autopilot for teams using AI coding tools.** A company decides once how it builds software: its records, habits, reviews, security evidence and checks. Every contributor, technical or not, then works inside that arrangement. They describe what they need, the assistant carries the work through the team's workflow, progress survives interruptions, and company-approved improvements arrive without anyone copying skills by hand.
+**Skilliton gives a team's AI coding assistant a shared way of working, enforced by hooks rather than remembered by people.** A company decides once how it builds software: the records it keeps, the checks that run before work is finished, the commands the assistant may not run, the review it gives before a commit, the security evidence it keeps current. Every developer's assistant then works that way in every repository, and company-approved improvements arrive as signed releases instead of copied files.
 
-**New here? [docs/OWNER_GUIDE.md](docs/OWNER_GUIDE.md) answers the first questions (what it is written in, how a company takes it to every laptop); [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) walks through the whole path with diagrams:** fork it, make it yours, release it, install it on every machine, work in any codebase, and feed lessons back.
+It is four Claude Code plugins and one command, `skilliton`, in a repository a company forks and makes its own.
 
-## Two ways in
+## At a glance
 
-There are two roles, and the first question is which one you are.
-
-- **You are the company.** Fork this repository, give the fork your name (`company init`), add your own skills, and publish signed releases (`release create`, `release sign`). Your developers join your fork, not this repository. The section "For a company maintainer" below has the commands; [docs/RELEASING.md](docs/RELEASING.md) has the whole path.
-- **You are a developer at a company that uses it.** Get one file from your company, its join file (it names the company, its skills repository and the release signers; it is handed out separately and never taken from the repository). Then, once per machine, clone the repository and run `join --from <that file> --apply`; and once per project, `skilliton prepare --dir <project> --apply`. [docs/ONBOARDING.md](docs/ONBOARDING.md) is written for you.
-
-Enabling Skilliton in one more repository is the second command only: a machine that has joined does not join again. `join` says so when it has.
-
-[PLAN.md](PLAN.md) is the direction and the milestone status. [docs/CONTRACTS.md](docs/CONTRACTS.md) defines every shared format and command. [docs/HANDOFF.md](docs/HANDOFF.md) says where the work stands. [docs/CLIENTS.md](docs/CLIENTS.md) says what Claude Code and Codex actually do, measured or documented.
-
-The command remains `skilliton` for compatibility with existing installations. Marketplace names, `.skilliton/` paths and other machine identifiers also retain that spelling; they refer to Skilliton. See [naming and compatibility](docs/BRANDING.md).
+| Question | Answer |
+|---|---|
+| Language | JavaScript (Node.js, ES modules) and Bash. Commands are Node; the hooks that must start in under a second are Bash. |
+| Runtime floor | Node.js 18 or later, and git. Exercised on Node 22 and 25; Node 18 itself has not been run ([docs/COVERAGE.md](docs/COVERAGE.md)). |
+| Dependencies | None. No `package.json`, no `node_modules`, no build step, no network code of its own. |
+| Size | About 40,000 lines of runtime, hooks and tests. 63 checks run in CI on every push. |
+| Shape | Plugins `workflow`, `guardrails`, `context-hygiene`, `code-quality` under `packs/base/plugins/`; the `skilliton` command ships inside `workflow`. |
+| Clients | Claude Code, measured (terminal and VS Code extension). Codex installs the plugins and sees the skills but runs no plugin hooks. Cursor is documented, not run ([docs/CLIENTS.md](docs/CLIENTS.md)). |
+| Platforms | macOS and Linux exercised. Windows has a written first run ([docs/WINDOWS.md](docs/WINDOWS.md)), not yet tried. |
+| Release trust | SSH-signed git tags checked against a signers file each machine holds; `skilliton verify` compares installed files with the signed manifest. |
+| What it sends anywhere | Nothing. One git command talks to a remote (`preflight`). Every write outside a repository is listed in [docs/IT-ALLOWLIST.md](docs/IT-ALLOWLIST.md), and CI fails when the code and that list disagree. |
+| Licence | MIT. |
 
 ## Try it in two minutes
 
@@ -27,36 +27,32 @@ The command remains `skilliton` for compatibility with existing installations. M
 node scripts/autopilot-demo.mjs
 ```
 
-It prepares a disposable project, turns a request into a task with a checkpoint, records real test evidence and shows it going stale when the code changes, then runs a shared repository whose delivery check accepts a passing change and rejects a change that breaks only once combined with work already merged. No model, no network, nothing outside a temporary folder.
+It prepares a disposable project, turns a request into a task with a checkpoint, records real test evidence and shows it going stale when the code changes, then runs a shared repository whose delivery check accepts a passing change and rejects one that breaks only once combined with work already merged. No model, no network, nothing outside a temporary folder.
 
-## What works today
+## Two ways in
 
-| Capability | How it works | Proof in this repository |
-|---|---|---|
-| **Prepare a project** | `skilliton prepare` adopts the records a project already has (status, backlog, roadmap, decisions, lessons, handoff), adds only what is missing, marked "not yet assessed", writes the team's instructions into `CLAUDE.md` and `AGENTS.md`, and sets up the security register. Repeat runs change nothing. `migrate` applies versioned changes with receipts and rollback; `remove` takes Skilliton out and keeps every record. | 41 tests; [project rehearsal](evidence/rehearsals/2026-09-16-projects/SUMMARY.md) including adoption of a clone of this repository |
-| **Everyday continuity** | Task records with acceptance criteria and checkpoints; decision and lesson entries, one file each, so parallel contributors never collide; `status`. Hooks show the handoff and a project-state summary when a session starts, remind the assistant to record a checkpoint before it stops with unrecorded changes, and keep a local journal so an interrupted session is recognized. | 32 tests; [live Claude Code sessions](evidence/rehearsals/2026-09-16-live-clients/SUMMARY.md) (session start, stop reminder, interruption) |
-| **Workflow skills and the dispatch command** | `task`, `dispatch`, `review` (plain-English review with a READY TO COMMIT, NEEDS ATTENTION or STOP verdict), `handoff`, `maintain`, `security`. Skills are instructions the assistant follows; the instruction block labels each behavior as enforced, instructed or checked at merge. `skilliton dispatch` turns a lane plan into one git worktree per lane, each with a brief naming its scope, what to read, what to return and the paths it must not touch; it writes and commits each lane's own task record, and it refuses rather than reusing a branch, a folder or a registered worktree. `skilliton dispatch merge` brings each lane's committed records back to the integration branch and names what conflicted instead of overwriting it. Three agents (`lane`, `locate`, `verify-item`) ship with the plugin, each naming a model and an effort. | [skill evaluations](evidence/); 22 dispatch tests over fixture repositories |
-| **Guardrails** | A hook reads each shell command the assistant runs: blocks force-pushes to protected branches, skipped git hooks and secret-shaped commits; asks before commands that discard uncommitted work (Codex cannot ask from a hook, so it refuses them). It does not cover other terminals or deliberately hidden commands. | 487 checks; live denials of a force-push and of `git reset --hard` |
-| **Project security evidence** | Observations tied to file fingerprints go stale when their sources change or expire; applicability is decided by a named person; collectors gather test results, a secret-shape scan and the delivery policy; open gaps become one backlog row each. A 15-control starter catalog references NIST SSDF 1.1 and OWASP ASVS 5.0.0. Evidence is not certification. | 52 tests; [catalog sources](docs/security-catalog-sources.md) |
-| **Company releases and updates** | `company init` gives a fork its own marketplace name and points projects at the fork; `new-plugin` and `new-skill` add the company's own skills; `join` sets up a developer's machine in one command and `join --undo` reverses it. A release manifest hashes every installable file; approval is a tag signed by a trusted approver; `verify` reports VERIFIED, TAMPERED, UNKNOWN VERSION, WITHDRAWN or NOT INSTALLED for Claude Code and Codex installs; lessons become scrubbed proposals; template changes reach projects as receipted migrations. | 21 tests; [company release rehearsal](evidence/rehearsals/2026-09-16-company-release/SUMMARY.md), 18 of 18 on real installs; [fork rehearsal](evidence/rehearsals/2026-09-16-fork/SUMMARY.md), 7 of 7, a renamed fork with its own plugin installed and verified on Claude Code and Codex; [machine rehearsal](evidence/rehearsals/2026-09-17-machine/SUMMARY.md), 8 of 8, including installs from GitHub |
-| **Trusted delivery checks** | `skilliton delivery install` puts a check in a shared repository that tests the combined result of every push to a protected branch, reads its policy from the branch rather than from the push, and requires an approver's signature for policy changes. A GitHub workflow template follows the same rules. | 10 tests with real pushes; the demo above |
+- **Use it as it is.** Clone this repository, join with its join file, prepare each repository you work in. No fork.
+- **Make it your company's.** Fork it, name it, add your own skills beside the base pack, sign releases, hand out one join file. Your developers join your fork, not this repository.
 
-## Not proven yet
+### A developer's two commands
 
-Each is recorded in [DECISIONS.md](DECISIONS.md) or [docs/BACKLOG.md](docs/BACKLOG.md) with the input it needs.
+Once per machine, from a full clone of the company's skills repository (the join file comes from your company, never from the repository):
 
-- **A real new builder** following the documentation ([protocol](docs/rehearsals/NEW_BUILDER.md)). An assistant role-playing a beginner does not count.
-- **Codex lifecycle hooks.** Codex installs the plugins and sees the skills and instructions (measured), but it does not run hooks bundled in plugins, and project hooks did not load in the measured setup. It needs a run from a logged-in, isolated Codex home.
-- **A live session in a clean Claude Code configuration** (installs, updates and verification there are measured; a model session needs a login in that configuration), and automatic marketplace updates observed at session start.
-- **The GitHub delivery adapter** on a real repository with branch protection.
-- **The confirmation prompt a person sees** for a guardrails "ask" (headless sessions deny it; measured).
-- **Dispatch helping a real session.** The command and its refusals are tested over fixture repositories. No dispatch of two or more lanes has been run for real and metered, so nothing here shows it makes parallel work cheaper or better.
-- **The team compaction window.** The settings template names 600000 tokens. Sessions in this repository compacted far below that, most recently around 170000, and the cause is not known; the test is the first automatic compaction of a session started after the setting was installed.
-- **Any usage or cost saving.** No saving is claimed.
+```bash
+git clone https://github.com/<company>/<skills-repo> ~/company-skills
+node ~/company-skills/scripts/skilliton.mjs join --from <join file>           # preview
+node ~/company-skills/scripts/skilliton.mjs join --from <join file> --apply   # set up, then verify
+```
 
-## For a company maintainer
+Once per repository:
 
-Fork this repository, give the fork its own name, add your skills beside `packs/base/`, and publish signed releases. [docs/RELEASING.md](docs/RELEASING.md) walks through the fork, the lesson-to-release loop, verification, withdrawal and rollback. [docs/DELIVERY.md](docs/DELIVERY.md) sets up the delivery check.
+```bash
+skilliton prepare --dir <project>          # preview; add --apply to write
+```
+
+`join` puts a `skilliton` command in `~/.local/bin`; inside a Claude Code session the workflow plugin also puts it on the shell path. A machine that has joined does not join again, and `join` says so. [docs/ONBOARDING.md](docs/ONBOARDING.md) is the developer's page.
+
+### A company's path
 
 ```bash
 node scripts/skilliton.mjs company init --name <company> --marketplace-repo <owner>/<repo> --apply
@@ -64,33 +60,75 @@ node scripts/skilliton.mjs new-plugin <plugin> --pack <company> --apply
 node scripts/skilliton.mjs new-skill <plugin> <skill> --pack <company> --description "<when to use it>" --apply
 node scripts/skilliton.mjs release create --version 1.0.0 --apply   # then commit the manifest
 node scripts/skilliton.mjs release sign 1.0.0 --apply               # with your own signing key
-node scripts/skilliton.mjs company join-file --name <company> --signers <allowed_signers> --out ~/handout/<company>.skilliton-join.json --apply   # hand this file out, never through the repository
+node scripts/skilliton.mjs company join-file --name <company> --signers <allowed_signers> --out ~/handout/<company>.skilliton-join.json --apply
 ```
 
-## For a developer
+Every writing command previews without `--apply` and writes nothing. [docs/RELEASING.md](docs/RELEASING.md) walks the fork, the lesson-to-release loop, verification, withdrawal and rollback; [docs/DELIVERY.md](docs/DELIVERY.md) sets up the merge check; [docs/OWNER_GUIDE.md](docs/OWNER_GUIDE.md) answers the questions a meeting asks; [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) has the whole path with diagrams.
 
-[docs/ONBOARDING.md](docs/ONBOARDING.md) is written for you. In short:
+## What runs in a session, and what makes it happen
 
-```bash
-git clone https://github.com/<company>/<skills-repo> ~/company-skills
-node ~/company-skills/scripts/skilliton.mjs join --from <join file from your company>           # preview
-node ~/company-skills/scripts/skilliton.mjs join --from <join file from your company> --apply   # set up, then verify
-# or, with the two facts typed by hand: join --company <company> --signers <allowed_signers file> --apply
-skilliton prepare --dir <project>          # preview; add --apply to write
-```
+Each behaviour is one of three kinds, and the instruction block every prepared project carries labels each line with its kind.
 
-`join` puts a `skilliton` command in `~/.local/bin` for the terminal; inside a Claude Code session the workflow plugin also puts it on the shell path.
+| Kind | Meaning | Examples |
+|---|---|---|
+| **Enforced** | A hook of an installed plugin does it on a client event, whatever the assistant intended | Session start shows the last handoff and the project state. Every shell command passes the guardrail: force-pushes to protected branches, skipped git hooks and secret-shaped commits are blocked; a command that discards uncommitted work asks first. A whole-file read of a non-image file over 50 KB is refused with the reason. The stop hook asks for a checkpoint when the tree changed and none was recorded. In a dispatched lane, writes outside the lane's files are refused. |
+| **Instructed** | The assistant is asked to do it; a skill is instructions, not enforcement | `task` (a record with acceptance criteria before code changes), `review` (plain-English pre-commit review with READY TO COMMIT, NEEDS ATTENTION or STOP), `handoff`, `maintain`, `security`, `dispatch`, `split-a-file`. Running checks through `skilliton gate`, which keeps the output in a log and prints the verdict. |
+| **Checked at merge** | The shared repository's own delivery check decides, whatever the laptop had | `skilliton delivery install` tests the combined result of every push to a protected branch, reads its policy from the branch, and needs an approver's signature for a policy change. The GitHub workflow template follows the same rules. |
+
+Not covered, and said so: commands a person types in their own terminal, other tools, the inside of scripts and git aliases.
+
+## What works today
+
+| Capability | What it does | Proof |
+|---|---|---|
+| **Prepare a project** | Adopts the records a project already has, adds only what is missing marked "not yet assessed", appends the team's instruction block to `CLAUDE.md` and `AGENTS.md` without touching the text above it, sets up the security register. Repeat runs change nothing; `migrate` applies versioned changes with receipts and rollback; `remove` takes Skilliton out and keeps every record. | `scripts/prepare.test.mjs`; [project rehearsal](evidence/rehearsals/2026-09-16-projects/SUMMARY.md) |
+| **Continuity** | Task records with acceptance criteria and checkpoints; decision and lesson entries as one file each, so parallel contributors never collide; a journal that names an interrupted session next time. | `scripts/lifecycle.test.mjs`; [a real session in the VS Code extension](evidence/live/2026-09-21-owner-machine-session.md) |
+| **Guardrails** | The shell-command hook above, on Claude Code. Codex cannot ask from a hook, so there it refuses instead. | `scripts/guardrails.test.sh`, 549 checks; [live denials](evidence/live/2026-09-16-guardrails-force-push.md) |
+| **Dispatch into worktrees** | `skilliton dispatch` turns a lane plan into one git worktree per lane with a brief, a context ceiling and its own committed task record; `dispatch merge` brings each lane's records back and names conflicts instead of overwriting. | `scripts/dispatch.test.mjs`; [the first real two-lane dispatch](evidence/live/2026-09-21-dispatch.md), both lanes under their ceiling |
+| **Security evidence** | Observations tied to file fingerprints go stale when their sources change; applicability is decided by a named person; collectors gather test results, a secret-shape scan and the delivery policy; open gaps become backlog rows. A 15-control starter catalog references NIST SSDF 1.1 and OWASP ASVS 5.0.0. Evidence is not certification. | `scripts/security-evidence.test.mjs`; [catalog sources](docs/security-catalog-sources.md) |
+| **Company releases** | `company init` names a fork and points projects at it; `new-plugin`, `new-skill`, `import` add the company's skills; a release manifest hashes every installable file; approval is a signed tag; `verify` reports VERIFIED, TAMPERED, UNKNOWN VERSION, WITHDRAWN or NOT INSTALLED. | `scripts/release.test.mjs`; [signed release verified from a fresh clone](evidence/live/2026-09-21-private-repository.md), including install, update and verify from a private repository |
+| **Trusted delivery checks** | The merge check above, against a local bare repository and against GitHub. | `scripts/delivery.test.mjs`; [the hosted gate refusing a defective pull request](evidence/live/2026-09-21-hosted-delivery-gate.md) |
+| **The self-running audit** | `skilliton audit` scans a range, the working tree or a push for secret shapes, shell injection and switched-off verification, never printing a matched value; it reports in the stop hook and the pre-push hook and refuses in the merge gate. | `scripts/audit.test.mjs` |
+
+[docs/REPORT_CARD.md](docs/REPORT_CARD.md) is the master progress record: 123 acceptance items across ten areas, each ticked item naming its evidence.
+
+## Not proven yet
+
+Each is recorded in [docs/BACKLOG.md](docs/BACKLOG.md) or [DECISIONS.md](DECISIONS.md) with the input it needs.
+
+- **A real team using it.** One repository on the owner's machine is the only live user so far; no new builder has been onboarded from the documents alone.
+- **Codex lifecycle hooks.** Codex installs the plugins and sees the skills (measured) but runs no hooks shipped inside a plugin; a team that wants them there configures and trusts its own.
+- **The confirmation prompt a person sees** on a guardrails "ask" (headless sessions deny it; measured).
+- **A lane launched through the brief's own `--agent` line.** The first real dispatch ran each lane with the shipped definition pasted, because the extension session did not offer the plugin agent as a subagent type.
+- **Windows, a clean macOS account, a Cursor session,** and the device-management scripts that would put the join file on every laptop (designed, not built).
+- **Any usage or cost saving.** No saving is claimed. `scripts/token-cost.mjs` reconstructs usage from local transcripts; the client's Usage screen is the only real meter.
+
+## The repository
+
+| Path | What it holds |
+|---|---|
+| `packs/base/plugins/` | The shipped product: four plugins, each with its hooks, skills, agents and a `.claude-plugin/plugin.json`. `workflow/runtime/` is the `skilliton` command (`commands/`, `lib/`). |
+| `scripts/` | Every check CI runs, the demo, the rehearsals, the meter and the release tooling. `scripts/skilliton.mjs` runs the command from a checkout. |
+| `docs/` | The living records (status, backlog, handoff, decisions, lessons, contracts) and the guides. [docs/AUTOPILOT_START_HERE.md](docs/AUTOPILOT_START_HERE.md) is the index; every file under `docs/` is reachable from it, and a test says so. |
+| `evidence/` | What was measured, by date: live sessions under `live/`, scripted rehearsals under `rehearsals/`, skill evaluations by commit. |
+| `releases/` | Signed release manifests and their schema. |
+| `templates/` | The GitHub workflow for the hosted delivery check and the team settings template. |
+| `PLAN.md`, `DECISIONS.md`, `CLAUDE.md` | The direction, every recorded choice, and this repository's own session contract. |
 
 ## Checks
 
-Credential-free checks run in [CI](.github/workflows/checks.yml) on every push and pull request: packaging and its self-test, the lint that holds the runtime's shape, strict plugin validation, the CLI, prepare and migrate, dispatch, lifecycle, security evidence, releases, the delivery gate, guardrails, hooks, the meter, setup, the guides' commands and links, the demo and the offline project rehearsal. `docs/MAINTAIN.md` lists each command.
+Credential-free checks run in [CI](.github/workflows/checks.yml) on every push and pull request; [docs/MAINTAIN.md](docs/MAINTAIN.md) lists each command, and a test keeps the two lists equal. They cover packaging and strict plugin validation, the lint that holds the runtime's shape (a 600-line ceiling with pinned exceptions that may only shrink, unused imports, no console logging in a runtime), dead code, the command, prepare and migrate, dispatch, lifecycle, security evidence, releases, the delivery gate, guardrails, hooks, the meter, the guides' commands and links, the endpoint allow list, the small-footprint rules, the whole-tree audit, the name scrub, the record relationships, the demo and the offline project rehearsal. Most checks carry a `--self-test` that proves they can fail.
 
-Checks that use an account and cost usage run by hand and write their results under `evidence/`: `scripts/live-capability-probe.sh`, `scripts/live-guardrails-probe.sh`, `scripts/rehearsals/live-clients.mjs`, `scripts/rehearsals/company-release.mjs --with-eval`, and `claude plugin eval`. `scripts/codex-offline-probe.sh` checks Codex without a model call.
+Checks that use an account and cost usage run by hand and write under `evidence/`: `scripts/live-capability-probe.sh`, `scripts/live-guardrails-probe.sh`, `scripts/rehearsals/live-clients.mjs`, `scripts/rehearsals/company-release.mjs --with-eval`, and `claude plugin eval`.
 
 Before publishing, run `bash scripts/scrub-check.sh --history` with your private `SKILLITON_DENYLIST`; without it the name scan reports that it did not run.
 
 ## Contributing and license
 
-Open a pull request with the changed behavior, its tests, and any migration impact. Plugin changes bump the plugin's version. Company-specific skills belong beside the base pack.
+Open a pull request with the changed behaviour, its tests, and any migration impact. A plugin change bumps that plugin's version. Company-specific skills belong beside the base pack, never inside it. No em or en dashes, no client or personal names, no savings claims: the checks refuse all three.
 
 MIT. See [LICENSE](LICENSE).
+
+## Naming
+
+The product had an earlier name. Every command, folder and setting now uses the Skilliton name; a project or machine set up under the earlier name moves by migration, as [docs/BRANDING.md](docs/BRANDING.md) describes.
