@@ -37,5 +37,7 @@ Read `docs/HANDOFF.md` for the next step and `docs/BACKLOG.md` for outstanding w
 <!-- skilliton:index:tasks:start -->
 Open tasks in `docs/tasks/` (every state except done-local, merged, released, verified and abandoned), sorted by ID. `skilliton index` writes this list from the task records; edit the task records, not the list.
 
-No open tasks.
+| ID | Title | State | Branch | Owner | Updated |
+|---|---|---|---|---|---|
+| [2026-09-22-release-1-0-0-and-the-demonstration-fix-ce38](tasks/2026-09-22-release-1-0-0-and-the-demonstration-fix-ce38.md) | Release 1.0.0 and the demonstration fix | in-progress | main | unassigned | 2026-09-22T22:12:47.128Z |
 <!-- skilliton:index:tasks:end -->
