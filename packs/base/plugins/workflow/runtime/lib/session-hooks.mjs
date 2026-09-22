@@ -102,14 +102,16 @@ export function parseHookInput(raw) {
   if (value !== null && !isObject) problem = "the hook input on stdin was not a JSON object";
   const obj = isObject ? value : {};
   const text = (v) => (typeof v === "string" && v.length > 0 && v.length <= 4096 ? v : null);
-  // user_prompt is whole prose, not an identifier, so it gets its own bound. The field name is the one the hooks
-  // reference gives for UserPromptSubmit; a client that sends another name reaches the "no prompt text" path, which
-  // suggests nothing rather than guessing.
-  const prompt = typeof obj.user_prompt === "string" && obj.user_prompt.length > 0 ? obj.user_prompt.slice(0, PROMPT_MAX_CHARS) : null;
+  // The prompt is whole prose, not an identifier, so it gets its own bound. Claude Code 2.1.278 sends it as `prompt`
+  // (measured 2026-09-22 with a project hook that saved its own input); the hooks reference read on 2026-09-20 named
+  // `user_prompt`, and this hook read only that name until then, so it never saw a real prompt. Both are accepted,
+  // `prompt` first. A client that sends neither reaches the "no prompt text" path, which suggests nothing.
+  const given = typeof obj.prompt === "string" && obj.prompt.length > 0 ? obj.prompt : typeof obj.user_prompt === "string" && obj.user_prompt.length > 0 ? obj.user_prompt : null;
+  const prompt = given === null ? null : given.slice(0, PROMPT_MAX_CHARS);
   return {
     cwd: text(obj.cwd), session: text(obj.session_id), stopHookActive: obj.stop_hook_active === true,
     source: text(obj.source), trigger: text(obj.trigger), reason: text(obj.reason),
-    prompt, promptTruncated: typeof obj.user_prompt === "string" && obj.user_prompt.length > PROMPT_MAX_CHARS, problem,
+    prompt, promptTruncated: given !== null && given.length > PROMPT_MAX_CHARS, problem,
   };
 }
 
@@ -189,8 +191,32 @@ export function dispatchSuggestion(counts, threshold) {
   // "the dispatch threshold" and not "this project's setting": the same number is the default in a repository that
   // was never prepared, where this hook also runs, and the note should not claim a setting that nobody made.
   return `[workflow] This prompt reads as ${counts.items} separate items (${made.join(" and ")}), at or above the dispatch threshold of ${threshold} (dispatch.minItemsForLanes). `
-    + "Before writing code, run /workflow:dispatch to verify each item and split them into lanes, or tell the user in one line why one pass is better here. "
-    + "Counting is structural and can be wrong: if these are not separate pieces of work, say so and carry on.";
+    + "Run /workflow:dispatch now, before writing any code: it verifies each item against the code and splits the work into lanes, or into one lane when that is what the items need. "
+    + "If no lane plan is written in this session, the stop hook asks once more. "
+    + "Counting is structural and can be wrong: if these are not separate pieces of work, say so in one line and carry on.";
+}
+
+// The stop hook's dispatch rule: the last dispatch suggestion of this session is due when no lane plan was written
+// after it (laneFileMtimeMs is the plan file's modification time, or null when there is none) and it has not been
+// asked about once already. { due, suggestion, planned?, asked? }.
+export function evaluateDispatchHold({ events, session, laneFileMtimeMs }) {
+  if (!session) return { due: false, suggestion: null };
+  const suggestion = [...events].reverse().find((e) => e.event === "dispatch-suggested" && e.session === session) ?? null;
+  if (!suggestion) return { due: false, suggestion };
+  const at = Date.parse(suggestion.at);
+  if (!Number.isFinite(at)) return { due: false, suggestion };
+  if (laneFileMtimeMs !== null && laneFileMtimeMs >= at) return { due: false, suggestion, planned: true };
+  if (events.some((e) => e.event === "dispatch-reminded" && e.session === session && e.suggestedAt === suggestion.at)) return { due: false, suggestion, asked: true };
+  return { due: true, suggestion };
+}
+
+export function dispatchHoldReason(hold, { laneFile, laneFileExists }) {
+  const n = hold.suggestion.items;
+  return [
+    `Skilliton dispatch was named for a prompt in this session that read as ${typeof n === "number" ? `${n} separate items` : "several separate items"}, and no lane plan has been written since (${laneFile} at the repository root ${laneFileExists ? "is older than that prompt" : "does not exist"}).`,
+    "Before finishing, run /workflow:dispatch: it verifies each item against the code and writes the lane plan, with one lane when that is what the items need.",
+    "If those were not separate pieces of work, tell the user so in one line and stop. This is asked once for that prompt.",
+  ].join(" ");
 }
 
 // ---------- the session-start block ----------

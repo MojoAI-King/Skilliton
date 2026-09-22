@@ -10,26 +10,29 @@
 import { CONFIG_REL, ConfigError, resolveProject } from "../lib/config.mjs";
 import { GitError, appendEvent, gitTopLevel, mergesSince, readGitState, readJournal } from "../lib/journal.mjs";
 import { clip, gatherProjectState } from "../lib/lifecycle.mjs";
-import { countPromptItems, dispatchSuggestion, evaluateStop, parseHookInput, sessionStartBlock, stopReason } from "../lib/session-hooks.mjs";
+import { countPromptItems, dispatchHoldReason, dispatchSuggestion, evaluateDispatchHold, evaluateStop, parseHookInput, sessionStartBlock, stopReason } from "../lib/session-hooks.mjs";
 import { currentTask } from "../lib/tasks.mjs";
 import { selfCommand } from "../lib/core.mjs";
 import { autoPrepare } from "../lib/auto-prepare.mjs";
 import { evaluateMaintain, maintainReason } from "../lib/maintain.mjs";
+import { LANE_FILE } from "../lib/dispatch.mjs";
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 export const help = `hook: run a Skilliton lifecycle hook. The workflow plugin's hooks.json calls these. Each reads the client's hook JSON
-on stdin (cwd, session_id, stop_hook_active, source, trigger, reason, user_prompt; every field optional).
+on stdin (cwd, session_id, stop_hook_active, source, trigger, reason, prompt or user_prompt; every field optional).
 
   hook session-start   print a bounded "Project state" block (at most handoff.maxBytes bytes) and record a
                        session-start event in the journal
   hook stop            when a checkpoint is due (checkpoints.stopReminder, checkpoints.minMinutes), block stopping
-                       once for this working tree state with the exact command to run; otherwise allow silently
+                       once for this working tree state with the exact command to run; also once per commit when
+                       maintenance is due on an integration branch, and once per dispatch note when this session's
+                       prompt named dispatch and no lane plan was written; otherwise allow silently
   hook pre-compact     record a pre-compact event
   hook session-end     record a session-end event
   hook user-prompt-submit
                        when a prompt reads as dispatch.minItemsForLanes or more separate items, add one note
-                       suggesting /workflow:dispatch; otherwise print nothing
+                       directing /workflow:dispatch before any code; otherwise print nothing
 
 The project is the Git top level of the JSON cwd (else the current folder). Outside a Git repository each hook
 prints one line saying Skilliton project state is unavailable, except user-prompt-submit, which runs on every prompt
@@ -174,10 +177,21 @@ async function stop(input) {
   const integration = state.branch !== null && project.integrationBranches.includes(state.branch);
   const maint = evaluateMaintain({ root, events: journal.events, now, integration });
   const maintDue = maint.due && !journal.events.some((e) => e.event === "maintain-reminded" && e.head === state.head);
-  if (!decision.block && !maintDue) return 0;
+  // Dispatch: this session's prompt was read as a list of tasks and dispatch was named (the prompt hook), and no lane
+  // plan has been written since. Asked once per such prompt, on any branch.
+  const laneFileMtimeMs = mtimeOf(join(root, LANE_FILE));
+  const hold = evaluateDispatchHold({ events: journal.events, session: input.session, laneFileMtimeMs });
+  const leads = [];
+  if (hold.due) leads.push(dispatchHoldReason(hold, { laneFile: LANE_FILE, laneFileExists: laneFileMtimeMs !== null }));
+  if (maintDue) leads.push(maintainReason(maint));
+  const recordLeads = () => {
+    if (hold.due) appendEvent(root, { event: "dispatch-reminded", session: input.session, at: now.toISOString(), suggestedAt: hold.suggestion.at }, { state });
+    if (maintDue) appendEvent(root, { event: "maintain-reminded", session: input.session, at: now.toISOString() }, { state });
+  };
+  if (!decision.block && !leads.length) return 0;
   if (!decision.block) {
-    appendEvent(root, { event: "maintain-reminded", session: input.session, at: now.toISOString() }, { state });
-    process.stdout.write(`${JSON.stringify({ decision: "block", reason: maintainReason(maint) })}\n`);
+    recordLeads();
+    process.stdout.write(`${JSON.stringify({ decision: "block", reason: leads.join(" ") })}\n`);
     return 0;
   }
   let current;
@@ -201,14 +215,19 @@ async function stop(input) {
   } catch (e) {
     audit = { problem: clip(e?.message ?? String(e), 200) };
   }
-  // Maintenance first: the checkpoint reminder ends with a command, and nothing may follow a command.
-  const reason = maintDue ? `${maintainReason(maint)} ${stopReason({ decision, state, current, merges, audit })}` : stopReason({ decision, state, current, merges, audit });
+  // Dispatch and maintenance first: the checkpoint reminder ends with a command, and nothing may follow a command.
+  const reason = [...leads, stopReason({ decision, state, current, merges, audit })].join(" ");
   // Recorded before the block is printed: a reminder that cannot be recorded would repeat on every stop, so a failure
   // here ends in the failure notice, and the session is allowed to stop.
   appendEvent(root, { event: "stop-reminded", session: input.session, at: now.toISOString() }, { state });
-  if (maintDue) appendEvent(root, { event: "maintain-reminded", session: input.session, at: now.toISOString() }, { state });
+  recordLeads();
   process.stdout.write(`${JSON.stringify({ decision: "block", reason })}\n`);
   return 0;
+}
+
+// A file's modification time in milliseconds, or null when it does not exist or cannot be read.
+function mtimeOf(path) {
+  try { return statSync(path).mtimeMs; } catch { return null; }
 }
 
 function recorder(event) {

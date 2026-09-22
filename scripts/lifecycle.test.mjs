@@ -1166,7 +1166,8 @@ test("mutation check: without the audit sentence, the assertion above fails", as
 
 const SESSION_HOOKS_LIB = async (root = PLUGIN) => import(pathToFileURL(join(root, "runtime", "lib", "session-hooks.mjs")).href);
 
-const promptHook = (cwd, prompt, env, options = {}) => hook(cwd, "user-prompt-submit", { session_id: "s1", user_prompt: prompt }, env, options);
+// `prompt` is the field Claude Code 2.1.278 sends (measured 2026-09-22); `user_prompt` is still accepted.
+const promptHook = (cwd, prompt, env, options = {}) => hook(cwd, "user-prompt-submit", { session_id: "s1", prompt }, env, options);
 
 const SIX_NUMBERED = "1. Fix the login bug\n2. Add a retry\n3. Rename the module\n4. Update the docs\n5. Bump the version\n6. Run the tests";
 const SIX_BULLETED = "- fix the login bug\n- add a retry\n- rename the module\n- update the docs\n- bump the version\n- run the tests";
@@ -1203,9 +1204,12 @@ test("user-prompt-submit suggests dispatch at the threshold and says nothing bel
   const payload = JSON.parse(fired.out);
   assert.deepEqual(Object.keys(payload), ["hookSpecificOutput"], "only the documented UserPromptSubmit field is printed");
   assert.equal(payload.hookSpecificOutput.hookEventName, "UserPromptSubmit");
-  assert.match(payload.hookSpecificOutput.additionalContext, /^\[workflow\] This prompt reads as 6 separate items \(6 numbered or bulleted lines\), at or above the dispatch threshold of 6 \(dispatch\.minItemsForLanes\)\. Before writing code, run \/workflow:dispatch to verify each item and split them into lanes/);
+  assert.match(payload.hookSpecificOutput.additionalContext, /^\[workflow\] This prompt reads as 6 separate items \(6 numbered or bulleted lines\), at or above the dispatch threshold of 6 \(dispatch\.minItemsForLanes\)\. Run \/workflow:dispatch now, before writing any code: it verifies each item against the code and splits the work into lanes/);
+  const legacy = hook(p, "user-prompt-submit", { session_id: "s0", user_prompt: SIX_NUMBERED }, env);
+  assert.match(JSON.parse(legacy.out).hookSpecificOutput.additionalContext, /reads as 6 separate items/, "the field name the hooks reference gave is still read");
   const events = readEvents(p, env).filter((e) => e.event === "dispatch-suggested");
-  assert.equal(events.length, 1, "the suggestion is recorded, so a live sighting can be filed from the journal");
+  assert.equal(events.length, 2, "each suggestion is recorded, so a live sighting can be filed from the journal");
+  events.shift();
   assert.deepEqual([events[0].items, events[0].listItems, events[0].sentenceItems, events[0].promptTruncated], [6, 6, 0, false]);
 
   for (const [label, prompt] of [["five items", SIX_NUMBERED.split("\n").slice(0, 5).join("\n")], ["an explanation", SIX_EXPLAINING], ["one task", "run the tests"], ["no prompt field", null]]) {
@@ -1213,13 +1217,62 @@ test("user-prompt-submit suggests dispatch at the threshold and says nothing bel
     assert.equal(quiet.code, 0, quiet.all);
     assert.equal(quiet.out, "", `${label} adds nothing to the conversation`);
   }
-  assert.equal(readEvents(p, env).filter((e) => e.event === "dispatch-suggested").length, 1, "only the suggestion that was given was recorded");
+  assert.equal(readEvents(p, env).filter((e) => e.event === "dispatch-suggested").length, 2, "only the suggestions that were given were recorded");
   // A prompt longer than the cap is counted over the part that was read, and the journal says the text was cut.
   const huge = promptHook(p, `${SIX_BULLETED}\n${"filler words with no orders in them. ".repeat(2000)}`, env);
   assert.match(JSON.parse(huge.out).hookSpecificOutput.additionalContext, /reads as 6 separate items/);
   const afterHuge = readEvents(p, env).filter((e) => e.event === "dispatch-suggested");
   assert.equal(afterHuge.at(-1).promptTruncated, true, "the cap was reached, and the record says so");
 
+}));
+
+test("the stop hook asks once more when this session's prompt named dispatch and no lane plan was written since, alone or before the checkpoint reminder", async () => withTemp("dispatch-hold", async ({ dir, env }) => {
+  const p = preparedRepo(join(dir, "p"), env);
+  const start = (id) => hook(p, "session-start", { session_id: id, source: "startup" }, env);
+  const stop = (id) => hook(p, "stop", { session_id: id }, env);
+  const prompt = (id, text) => hook(p, "user-prompt-submit", { session_id: id, prompt: text }, env);
+  const events = (name) => readEvents(p, env).filter((e) => e.event === name);
+  cli(p, ["maintain", "--apply"], env);
+  commit(p, env, "maintained");
+
+  // No suggestion in the session: nothing to ask.
+  start("d1");
+  assert.equal(stop("d1").out, "");
+  // A suggestion, no plan: held alone (the tree is clean, so no checkpoint is due), once for that prompt.
+  prompt("d1", SIX_NUMBERED);
+  const held = JSON.parse(stop("d1").out);
+  assert.equal(held.decision, "block");
+  assert.equal(held.reason, "Skilliton dispatch was named for a prompt in this session that read as 6 separate items, and no lane plan has been written since (LANES.md at the repository root does not exist). Before finishing, run /workflow:dispatch: it verifies each item against the code and writes the lane plan, with one lane when that is what the items need. If those were not separate pieces of work, tell the user so in one line and stop. This is asked once for that prompt.");
+  assert.equal(events("dispatch-reminded").length, 1);
+  assert.equal(stop("d1").out, "", "asked once for that prompt");
+  // Another session's suggestion is not this session's business.
+  start("d2");
+  assert.equal(stop("d2").out, "");
+  // A second list in the same session is a new prompt: asked again; a plan written after it clears it.
+  prompt("d2", SIX_BULLETED);
+  writeFileSync(join(p, "LANES.md"), "Base commit: 0000000\n");
+  assert.equal(stop("d2").out, "", "a lane plan written after the prompt means dispatch ran");
+  prompt("d2", SIX_NUMBERED);
+  utimesSync(join(p, "LANES.md"), new Date(Date.now() - 60000), new Date(Date.now() - 60000));
+  const older = JSON.parse(stop("d2").out);
+  assert.match(older.reason, /\(LANES\.md at the repository root is older than that prompt\)/);
+  rmSync(join(p, "LANES.md"));
+
+  // With a checkpoint also due, dispatch comes first and the checkpoint command stays last.
+  start("d3");
+  prompt("d3", SIX_NUMBERED);
+  writeFileSync(join(p, "work.md"), "changed\n");
+  backdate(p, env, (e) => e.event === "session-start" && e.session === "d3", 30);
+  const both = JSON.parse(stop("d3").out);
+  assert.match(both.reason, /^Skilliton dispatch was named .* This is asked once for that prompt\. Skilliton checkpoint reminder: /);
+  assert.match(both.reason, /--apply$/, "the checkpoint command is the last thing in the reason");
+
+  // Off with the stop reminder.
+  const config = JSON.parse(readFileSync(join(p, ".skilliton", "config.json"), "utf8"));
+  writeConfig(p, { ...config, checkpoints: { ...(config.checkpoints ?? {}), stopReminder: false } });
+  start("d4");
+  prompt("d4", SIX_NUMBERED);
+  assert.equal(stop("d4").out, "", "checkpoints.stopReminder false turns this off too");
 }));
 
 test("the dispatch suggestion's threshold comes from the project's configuration", async () => withTemp("prompt-threshold", async ({ dir, env }) => {
@@ -1241,7 +1294,7 @@ test("user-prompt-submit says nothing at all outside a project, because it runs 
   assert.equal(r.out, "", "no project state line: this hook would print it on every prompt of the session");
 
   // The folder named in the hook JSON is gone, while the hook itself runs somewhere that exists.
-  const gone = hook(outside, "user-prompt-submit", {}, env, { raw: JSON.stringify({ cwd: join(dir, "does-not-exist"), hook_event_name: "UserPromptSubmit", session_id: "s1", user_prompt: SIX_NUMBERED }) });
+  const gone = hook(outside, "user-prompt-submit", {}, env, { raw: JSON.stringify({ cwd: join(dir, "does-not-exist"), hook_event_name: "UserPromptSubmit", session_id: "s1", prompt: SIX_NUMBERED }) });
   assert.equal(gone.code, 0, gone.all);
   assert.equal(gone.out, "");
 

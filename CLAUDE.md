@@ -33,7 +33,7 @@ Each behavior is marked **enforced** (a hook of an installed, enabled plugin doe
 
 ### Starting a piece of work
 - **Instructed:** before changing code, turn the request into a task record with acceptance criteria: `skilliton task start "<title>" --request "<the user's words>" --criteria "<criterion>" --apply` (repeat `--criteria`; the request is what the user asked for, the criteria are what done means). Keep one task per branch; small work may stay on the current branch.
-- **Instructed:** when the user gives six or more separate tasks, bugs or notes, use `/workflow:dispatch` to verify and split them before writing code.
+- **Enforced (Claude Code):** when a prompt reads as six or more separate tasks, bugs or notes (the project's `dispatch.minItemsForLanes`), the prompt hook tells you to run `/workflow:dispatch` before writing any code, and the stop hook asks once more in that session if no lane plan (`LANES.md`) was written after it. **Instructed:** run it; when the items are not separate pieces of work, say so in one line and carry on.
 - **Instructed:** explain what you are about to change in plain language before changing it, especially for users who are not developers.
 
 ### While working
