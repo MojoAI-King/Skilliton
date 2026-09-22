@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T04:14:12.017Z
+- **Updated:** 2026-09-22T04:22:24.958Z
 
 ## Request
 
@@ -33,9 +33,16 @@ not yet written
 - **Next:** Split security.mjs by subject with the split-a-file skill, tests before and after; then the second cold review; then B50 probe, B55, B43 folding
 - **Git:** main @ 28ad475, 0 uncommitted
 
+### 2026-09-22T04:22:24.958Z
+
+- **State:** Review item 7 done: lib/security.mjs split along the file-layer seam into lib/security-io.mjs (250 lines) and the engine (498 lines, under the ceiling, pin row deleted); workflow 0.15.8; contracts history entry. Items 1 to 6, 11 and 12 shipped earlier tonight; 8, 9, 10 deferred as B57 to B59 with reasons; the second cold review is next
+- **Evidence:** Byte-identical move proven against git show HEAD; security-evidence and collectors 52 of 52, lifecycle 55 of 55, prepare and migrate 56 of 56, audit, skilliton, lint and self-test, deadcode, footprint, allowlist, packs, plugin validate, demo all pass; docs, scrub, names exit 0; CI for 28ad475 was 63 of 63
+- **Next:** CI for this commit; second cold review by a fresh subagent on the new tree; then B50 live probe, B55, B43 folding, handoff
+- **Git:** main @ 0cada16, 0 uncommitted
+
 ## Handoff
 
-- **State:** Cold review done (README C+, organisation B-, habits B+, tests A-, docs B-, twelve items). Shipped at 1ea056f and 28ad475: README rewritten in a cold reader's order; docs index as a one-screen map with Living, Reference and build-record folders; BUILD_GOAL, GOAL_COMMAND, AUTOPILOT_INTEGRATION and DAY-1-KICKOFF archived; LANES.md removed; the three unshipped skills moved out of the installable plugin (code-quality 0.2.1); evidence/README.md; context-hygiene description made true; lint header states the Bash exemption. Deferred with reasons as B57 to B60: legacy modules and catalog name, one test convention, a scripts/ size ceiling, the handoff trimmed to RESUME HERE. Not yet done: the security.mjs split (review item 7), a second cold review. Evidence: docs, packs, lint, backlog, names, scrub, living-docs, evidence, footprint, deadcode, allowlist, setup all exit 0 on 28ad475; plugin validate --strict passes for the tree and code-quality; my link rewrite had edited files inside six old lane worktrees and every one was reverted and reads clean; CI for 28ad475 running.
-- **Next:** Split security.mjs by subject with the split-a-file skill, tests before and after; then the second cold review; then B50 probe, B55, B43 folding
+- **State:** Review item 7 done: lib/security.mjs split along the file-layer seam into lib/security-io.mjs (250 lines) and the engine (498 lines, under the ceiling, pin row deleted); workflow 0.15.8; contracts history entry. Items 1 to 6, 11 and 12 shipped earlier tonight; 8, 9, 10 deferred as B57 to B59 with reasons; the second cold review is next. Evidence: Byte-identical move proven against git show HEAD; security-evidence and collectors 52 of 52, lifecycle 55 of 55, prepare and migrate 56 of 56, audit, skilliton, lint and self-test, deadcode, footprint, allowlist, packs, plugin validate, demo all pass; docs, scrub, names exit 0; CI for 28ad475 was 63 of 63.
+- **Next:** CI for this commit; second cold review by a fresh subagent on the new tree; then B50 live probe, B55, B43 folding, handoff
 - **Blocked:** nothing
 - **Watch out:** nothing known
