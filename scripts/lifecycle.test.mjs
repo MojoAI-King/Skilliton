@@ -1204,7 +1204,7 @@ test("user-prompt-submit suggests dispatch at the threshold and says nothing bel
   const payload = JSON.parse(fired.out);
   assert.deepEqual(Object.keys(payload), ["hookSpecificOutput"], "only the documented UserPromptSubmit field is printed");
   assert.equal(payload.hookSpecificOutput.hookEventName, "UserPromptSubmit");
-  assert.match(payload.hookSpecificOutput.additionalContext, /^\[workflow\] This prompt reads as 6 separate items \(6 numbered or bulleted lines\), at or above the dispatch threshold of 6 \(dispatch\.minItemsForLanes\)\. Run \/workflow:dispatch now, before writing any code: it verifies each item against the code and splits the work into lanes/);
+  assert.match(payload.hookSpecificOutput.additionalContext, /^\[workflow\] This prompt reads as 6 separate items \(6 numbered or bulleted lines\), at or above the dispatch threshold of 6 \(dispatch\.minItemsForLanes\)\. Run \/workflow:dispatch first, before editing any file: it verifies each item against the code and writes the lane plan \(LANES\.md\), with one lane when the items are small/);
   const legacy = hook(p, "user-prompt-submit", { session_id: "s0", user_prompt: SIX_NUMBERED }, env);
   assert.match(JSON.parse(legacy.out).hookSpecificOutput.additionalContext, /reads as 6 separate items/, "the field name the hooks reference gave is still read");
   const events = readEvents(p, env).filter((e) => e.event === "dispatch-suggested");
@@ -1242,7 +1242,7 @@ test("the stop hook asks once more when this session's prompt named dispatch and
   prompt("d1", SIX_NUMBERED);
   const held = JSON.parse(stop("d1").out);
   assert.equal(held.decision, "block");
-  assert.equal(held.reason, "Skilliton dispatch was named for a prompt in this session that read as 6 separate items, and no lane plan has been written since (LANES.md at the repository root does not exist). Before finishing, run /workflow:dispatch: it verifies each item against the code and writes the lane plan, with one lane when that is what the items need. If those were not separate pieces of work, tell the user so in one line and stop. This is asked once for that prompt.");
+  assert.equal(held.reason, "Skilliton dispatch was named for a prompt in this session that read as 6 separate items, and no lane plan has been written since (LANES.md at the repository root does not exist). Before finishing, run /workflow:dispatch: it verifies each item against the code and writes the lane plan, with one lane when the items are small, and it is the record of what was asked and checked even when the work is already done. Skip it only if that prompt was not a list of work at all, and then tell the user so in one line and stop. This is asked once for that prompt.");
   assert.equal(events("dispatch-reminded").length, 1);
   assert.equal(stop("d1").out, "", "asked once for that prompt");
   // Another session's suggestion is not this session's business.

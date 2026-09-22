@@ -191,9 +191,9 @@ export function dispatchSuggestion(counts, threshold) {
   // "the dispatch threshold" and not "this project's setting": the same number is the default in a repository that
   // was never prepared, where this hook also runs, and the note should not claim a setting that nobody made.
   return `[workflow] This prompt reads as ${counts.items} separate items (${made.join(" and ")}), at or above the dispatch threshold of ${threshold} (dispatch.minItemsForLanes). `
-    + "Run /workflow:dispatch now, before writing any code: it verifies each item against the code and splits the work into lanes, or into one lane when that is what the items need. "
+    + "Run /workflow:dispatch first, before editing any file: it verifies each item against the code and writes the lane plan (LANES.md), with one lane when the items are small, so small chores go through it too. "
     + "If no lane plan is written in this session, the stop hook asks once more. "
-    + "Counting is structural and can be wrong: if these are not separate pieces of work, say so in one line and carry on.";
+    + "Skip it only when the prompt is not a list of work at all (a pasted log, a question, notes to read), and say so in one line: counting is structural and can be wrong.";
 }
 
 // The stop hook's dispatch rule: the last dispatch suggestion of this session is due when no lane plan was written
@@ -214,8 +214,8 @@ export function dispatchHoldReason(hold, { laneFile, laneFileExists }) {
   const n = hold.suggestion.items;
   return [
     `Skilliton dispatch was named for a prompt in this session that read as ${typeof n === "number" ? `${n} separate items` : "several separate items"}, and no lane plan has been written since (${laneFile} at the repository root ${laneFileExists ? "is older than that prompt" : "does not exist"}).`,
-    "Before finishing, run /workflow:dispatch: it verifies each item against the code and writes the lane plan, with one lane when that is what the items need.",
-    "If those were not separate pieces of work, tell the user so in one line and stop. This is asked once for that prompt.",
+    "Before finishing, run /workflow:dispatch: it verifies each item against the code and writes the lane plan, with one lane when the items are small, and it is the record of what was asked and checked even when the work is already done.",
+    "Skip it only if that prompt was not a list of work at all, and then tell the user so in one line and stop. This is asked once for that prompt.",
   ].join(" ");
 }
 
