@@ -32,6 +32,8 @@ Read the preview: every plugin with its version and `treeSha256`, the project la
 
 Move the Unreleased entries in `CHANGELOG.md` under a heading for this version with today's date (read the clock), keeping the file's format, and leave a fresh Unreleased heading above it. Commit the manifest and the changelog together as `Release <x.y.z>`, and record a checkpoint. Do not push yet: the tag and the commit go together in step 4, so nobody fetches a manifest that has no signature.
 
+Then run the full check list again on that commit, with the same runner as step 1 item 9, and read its exit status on its own line before anyone runs `release sign`, because the manifest is itself a change to the tree, and on 2026-09-22 it alone broke a check that copies the repository. The green run from step 1 was on the tree without it, so it does not count here. A failure is a stop: fix it in a new commit, run the checks again, and let the preview of `release sign` in step 3 say whether the committed manifest still matches the tree.
+
 ## 3. Sign, as the approver
 
 Only a person whose key is in the company's signers file signs. Check the configuration without printing any key: `git config --get gpg.format` prints `ssh`, and `git config --get user.signingkey` prints something (a path or a key line; do not paste it anywhere). When either is missing, stop and tell the user what to set; never offer to generate or pass a key.
