@@ -39,5 +39,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner | Updated |
 |---|---|---|---|---|---|
-| [2026-09-21-build-complete-checkpoint-install-update-81ba](tasks/2026-09-21-build-complete-checkpoint-install-update-81ba.md) | Build-complete checkpoint: install update, tag, security and behavior walkthrough, stats and the full document | in-progress | main | unassigned | 2026-09-22T04:00:14.979Z |
+| [2026-09-22-a-quality-pass-before-the-wednesday-revi-0d34](tasks/2026-09-22-a-quality-pass-before-the-wednesday-revi-0d34.md) | A-quality pass before the Wednesday review: cold review, README, docs map, code habits | in-progress | main | unassigned | 2026-09-22T04:14:12.017Z |
 <!-- skilliton:index:tasks:end -->
