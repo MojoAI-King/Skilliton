@@ -39,5 +39,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner | Updated |
 |---|---|---|---|---|---|
-| [2026-09-21-build-complete-checkpoint-install-update-81ba](tasks/2026-09-21-build-complete-checkpoint-install-update-81ba.md) | Build-complete checkpoint: install update, tag, security and behavior walkthrough, stats and the full document | in-progress | main | unassigned | 2026-09-22T01:42:03.687Z |
+| [2026-09-21-build-complete-checkpoint-install-update-81ba](tasks/2026-09-21-build-complete-checkpoint-install-update-81ba.md) | Build-complete checkpoint: install update, tag, security and behavior walkthrough, stats and the full document | in-progress | main | unassigned | 2026-09-22T02:02:49.572Z |
 <!-- skilliton:index:tasks:end -->
