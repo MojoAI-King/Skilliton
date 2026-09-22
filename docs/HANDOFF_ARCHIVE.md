@@ -4,6 +4,13 @@ Kind: Reference. The current handoff is `docs/HANDOFF.md`.
 
 Superseded RESUME HERE notes, newest first. Moved here from docs/HANDOFF.md on 2026-09-16.
 
+### 2026-09-21 00:20 EDT
+- **State:** Wave 7 is on main at 51c38e5 and green: the audit that runs itself in three places, the supported client rule, skilliton usage, and the Codex and Cursor decisions, then this maintenance pass on top of them. Evidence: CI 35559200451 on f1a878a and 35560317702 on 51c38e5, both success, all 61 steps read one by one; the audit over the 47 files the wave changed reports 0 findings with 6 allowed lines, and over all 475 files this repository has ever changed 41 findings, every one a rule's own pattern or a planted fixture (B45); records gates each its own step, backlog, living-docs --check, docs, report-card --check, names all exit 0; scrub-check PASS on the tree and over 138 commits.
+- **Next:** Wave 8, the last build wave: 06-03's cleanup skills first, then the authorized eval run, and B45's allow markers. Then the owner pass
+- **Blocked:** The owner pass list in docs/REPORT_CARD.md: interactive checklist, maintain minutes, the live unprepared session, the Windows run, B7 decisions, signing key, hosted repository approval, M5 participant, Codex login. Any cost statement (PLAN.md sections 6 and 8)
+- **Watch out:** A repository with a delivery policy would now reject a push touching scripts/guardrails.test.sh, guard-bash.sh or scripts/preflight.test.mjs, because the audit reads their own patterns as findings; B45 marks those lines and nothing here is gated meanwhile (B43). The parallel session still owns task/promo-anatomy in ~/Desktop/Skilliton-promo: do not clean that worktree or merge that branch
+- **Git:** main @ 51c38e5, 3 uncommitted
+
 ### 2026-09-20 17:14 EDT
 - **State:** Wave 6 is on main at c8bd045 and green; this maintenance pass added the gate list finding as a lesson and B43. Evidence: Every index current before the pass; docs, living-docs --check and backlog all exit 0 after it; the 42 scripts named in docs/MAINTAIN.md step 2 and in checks.yml were extracted and compared, and they match.
 - **Next:** Wave 7 from docs/REPORT_CARD.md, planned in plan mode with the batch files under docs/areas read first
