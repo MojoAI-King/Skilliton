@@ -15,7 +15,7 @@ Kind: Living. One entry per signed release, from its manifest under `releases/`,
 - workflow 0.15.1: the tree hash leaves a top-level `.in_use` entry out, so a client's in-use marker no longer reads as tampering.
 - guardrails 0.5.2: a string handed to `bash -c`, `sh -c`, `eval` or `xargs` that names git asks first.
 - code-quality 0.2.1: the three unshipped skills moved out of the installable plugin folder to `docs/archive/not-shipped-skills/`.
-- Repository: README in a cold reader's order; `docs/README.md` as the index; `scripts/checks.mjs` runs CI's list locally; CONTRIBUTING, SECURITY and this file added; build-era documents archived.
+- Repository: README in a cold reader's order; `docs/README.md` as the index; `scripts/checks.mjs` runs CI's list locally; CONTRIBUTING, SECURITY and this file added; build-era documents archived. `docs/WHITE_PAPER.md`, `docs/PLAIN_GUIDE.md` and `docs/TROUBLESHOOTING.md` added, with PDFs built from them outside the repository.
 
 ## 0.9.0, 2026-09-21
 

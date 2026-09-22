@@ -4,6 +4,13 @@ Kind: Reference. The current handoff is `docs/HANDOFF.md`.
 
 Superseded RESUME HERE notes, newest first. Moved here from docs/HANDOFF.md on 2026-09-16.
 
+### 2026-09-21 07:09 EDT
+- **State:** Wave 8 is shipped and the build phase is over: main at 7779d50, report card 81 of 123, every remaining batch owner-gated. Evidence: CI runs 35590884701, 35591036358 and 35591331918 each 63 of 63 steps read individually; 19 local gates each with its status read from the gate itself after a known-failing command proved the runner reports FAIL; scrub-check over the tree and over history exit 0; the whole-tree audit 0 findings over 544 files with 45 allowed lines.
+- **Next:** The owner pass, in the order docs/OWNER_WALKTHROUGH.md sets; no session-doable work is left outside that list except the open backlog rows B37 to B48
+- **Blocked:** Nothing on a session. Every open batch needs the owner: a live session filed as evidence, a clean macOS account, a Windows machine, a signing key, a hosted repository, a real participant, or the fifteen applicability decisions
+- **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt. Two numbers written on 2026-09-21 were never measured and had to be corrected in follow-up commits: the CI step total said 60 and is 63, and three plugin versions were set from memory; read a total from the run and a version from its plugin.json
+- **Git:** main @ 7779d50, 0 uncommitted
+
 ### 2026-09-21 00:20 EDT
 - **State:** Wave 7 is on main at 51c38e5 and green: the audit that runs itself in three places, the supported client rule, skilliton usage, and the Codex and Cursor decisions, then this maintenance pass on top of them. Evidence: CI 35559200451 on f1a878a and 35560317702 on 51c38e5, both success, all 61 steps read one by one; the audit over the 47 files the wave changed reports 0 findings with 6 allowed lines, and over all 475 files this repository has ever changed 41 findings, every one a rule's own pattern or a planted fixture (B45); records gates each its own step, backlog, living-docs --check, docs, report-card --check, names all exit 0; scrub-check PASS on the tree and over 138 commits.
 - **Next:** Wave 8, the last build wave: 06-03's cleanup skills first, then the authorized eval run, and B45's allow markers. Then the owner pass

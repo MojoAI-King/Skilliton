@@ -77,3 +77,14 @@ The report card (docs/REPORT_CARD.md) has 123 acceptance items across ten areas;
 - **What does it cost to run?** Nothing to license and no services. Do not quote a token or cost figure that the meter did not produce and the owner did not cross-check.
 - **Other tools than Claude Code?** Codex: installs, sees the skills, runs no plugin hooks. Cursor: documented, not run. Anything else: no.
 - **Who maintains the base?** Upstream is this repository; a fork keeps `packs/base/` untouched and merges upstream when it wants the improvements.
+
+## Said plainly: what the skills do not do
+
+Corrections to the ways this is easy to describe wrongly, kept here because each was said aloud once on 2026-09-22 and had to be walked back.
+
+- `task` does not rewrite or improve a person's prompt. It turns the request into a record with acceptance criteria, in the person's own words, so "done" is defined and the work is recoverable. Nothing in Skilliton edits what the person asked.
+- `maintain` is not continuous. What runs as you go is the stop hook asking for a checkpoint and the checkpoint writing the handoff; `maintain` is the reconciliation you run at the end of a day.
+- `dispatch` is not automatic. It is invoked, and a hook suggests it when a prompt carries six or more items.
+- Skilliton does not compact the conversation. Claude Code compacts on its own schedule; the settings template names a window, and the context-hygiene plugin keeps context from growing (whole reads of big files refused, test output routed through `gate` so only the verdict enters the conversation).
+- Nothing here saves money on its own, and no figure is quoted until `scripts/token-cost.mjs` produced it and a person compared it with the Usage screen.
+- Nine hook wirings across three plugins are what runs without being asked (session start, every shell command, every write, every read, every prompt, stop, pre-compact, session end). Everything else is a skill: instructions the assistant follows when invoked, and the eight keyboard checks in docs/OWNER_WALKTHROUGH.md are how a team learns whether it does.

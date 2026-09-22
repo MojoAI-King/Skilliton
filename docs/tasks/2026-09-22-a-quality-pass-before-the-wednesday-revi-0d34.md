@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T07:31:23.515Z
+- **Updated:** 2026-09-22T08:05:17.164Z
 
 ## Request
 
@@ -75,9 +75,16 @@ not yet written
 - **Next:** Tuesday: B61 first among the code work, since it is the owner's ask; then the release skill and 1.0.0 Tuesday evening; the clean-machine README path; the unprepared-repo message; the Usage screen cross-check
 - **Git:** main @ 40d1e70, 0 uncommitted
 
+### 2026-09-22T08:05:17.164Z
+
+- **State:** Maintain at 04:04: B61 (persistence, the owner's ask) filed with a three-layer design; the three documents and their PDFs done; owner guide gains a Said plainly section correcting how the skills get described (task does not rewrite prompts, maintain is not continuous, dispatch is invoked, Skilliton does not compact, no savings figure); CHANGELOG names the documents. Nothing in code changed since the night handoff
+- **Evidence:** docs, backlog, scrub checks on the edited files; git log d4c1c5d..HEAD read
+- **Next:** Tuesday, in order: B61 (guardrails and write guard deny removal, delivery policy paths, session-start missing-records line with a fixture); the release skill with 1.0.0 as its first run Tuesday evening; the clean-machine README path; the unprepared-repo message; the meter cross-checked against the Usage screen for one quantifiable figure; the owner's keyboard checks reported back. Meeting Wednesday 11:00
+- **Git:** main @ 5eb389b, 2 uncommitted
+
 ## Handoff
 
-- **State:** B61 filed and pushed at 40d1e70: the owner's request that Skilliton's files persist, designed as three layers (assistant denied by the guardrails and write guard, a removal refused at the merge gate as a policy path, a person's removal named at session start with the restoring command, never restored silently). Nothing else changed since the night handoff. Evidence: backlog test and scrub exit 0 on the new row.
-- **Next:** Tuesday: B61 first among the code work, since it is the owner's ask; then the release skill and 1.0.0 Tuesday evening; the clean-machine README path; the unprepared-repo message; the Usage screen cross-check
+- **State:** Maintain at 04:04: B61 (persistence, the owner's ask) filed with a three-layer design; the three documents and their PDFs done; owner guide gains a Said plainly section correcting how the skills get described (task does not rewrite prompts, maintain is not continuous, dispatch is invoked, Skilliton does not compact, no savings figure); CHANGELOG names the documents. Nothing in code changed since the night handoff. Evidence: docs, backlog, scrub checks on the edited files; git log d4c1c5d..HEAD read.
+- **Next:** Tuesday, in order: B61 (guardrails and write guard deny removal, delivery policy paths, session-start missing-records line with a fixture); the release skill with 1.0.0 as its first run Tuesday evening; the clean-machine README path; the unprepared-repo message; the meter cross-checked against the Usage screen for one quantifiable figure; the owner's keyboard checks reported back. Meeting Wednesday 11:00
 - **Blocked:** B53: where the company's join file is published is the owner's call; the fifteen security applicability decisions; every walkthrough step that needs another machine or a real person
 - **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt. B49 is an unexplained exit 2 from allowlist.test.mjs seen once and not reproduced; keep every batch gate run's full output in a file, because that one was filtered through grep and its message is gone. Two numbers written on 2026-09-21 were never measured and had to be corrected: the CI step total said 60 and is 63, and three plugin versions were set from memory
