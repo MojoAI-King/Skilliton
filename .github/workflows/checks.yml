@@ -159,6 +159,9 @@ jobs:
       - name: Releases, signed approval, verify, trust and proposals
         run: node scripts/release.test.mjs
 
+      - name: A signed tag for another version's manifest, or under another name, approves nothing
+        run: node --test scripts/release-refusals.test.mjs
+
       - name: Machine setup with join and undo (stand-in clients)
         run: node --test scripts/join.test.mjs
 
