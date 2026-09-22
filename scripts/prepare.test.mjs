@@ -619,3 +619,49 @@ test("hotspots are drafted from the history once it holds 10 commits, and a draf
   assert.match(r.out, /0 created, 0 updated, .*, 1 drafted\./);
   assert.deepEqual(JSON.parse(read(ctx, ".skilliton/config.json")).dispatch.hotspots, ["src/core.mjs"], "docs/ is skipped by default");
 });
+
+// ---------------------------------------------------------------- B47: the --apply sweep
+
+// Every command that takes --apply, run bare against a freshly prepared project: --apply and no other argument, the
+// way a person fumbling a command line would type it. A project command (it reads a --dir) gets --dir ctx.dir; a
+// company-skills-repository command takes no --dir at all (it reads --repo, defaulting to the runtime's own
+// checkout), so it is run with --apply alone. harness, index, migrate and prepare need no further argument, and a
+// freshly prepared project already satisfies each of them, so all four complete (exit 0) and change nothing. Every
+// other form is missing a required argument or subcommand and is refused (exit 2), also without changing anything.
+// remove and project-settings are not in this sweep: both take --apply with no other required argument, but neither
+// is a no-op on a freshly prepared project (remove strips the harness block prepare just wrote; project-settings
+// creates .claude/settings.json), so asserting an unchanged tree for them would misdescribe what they actually do;
+// each has its own tests elsewhere (docs/tasks names the lane that owns them, not this one).
+// One line per command: [command, takesDir, exit code, a snippet only that form's outcome prints].
+const APPLY_SWEEP_FORMS = [
+  ["harness", true, 0, "Nothing to change; nothing written."],
+  ["index", true, 0, "Summary: every index is current; nothing written."],
+  ["migrate", true, 0, "no migration is pending."],
+  ["prepare", true, 0, "already prepared (layout 3); nothing to change, nothing written"],
+  ["checkpoint", true, 2, 'checkpoint needs --state "<what is done and what is not>"'],
+  ["dispatch", true, 2, "does not exist, so there is no lane plan to dispatch"],
+  ["record", true, 2, "record needs a kind and a title"],
+  ["task", true, 2, "task needs a subcommand: start, list, show or close"],
+  ["security", true, 2, "security needs a subcommand: status, record, applicability, collect or findings"],
+  ["audit", true, 2, "--apply only applies to --record; audit writes nothing otherwise"],
+  ["delivery", true, 2, "delivery needs a subcommand: install, gate, check or confirm"],
+  ["company", false, 2, 'unknown company command "--apply"'],
+  ["new-plugin", false, 2, "new-plugin needs exactly one name"],
+  ["join", false, 2, "join needs --company"],
+  ["pin", false, 2, "--apply needs to know which release to move to"],
+  ["propose", false, 2, "propose needs exactly one lesson file"],
+  ["release", false, 2, "release needs a subcommand: create, sign, withdraw or list"],
+  ["trust", false, 2, "trust needs a subcommand: add, show or remove"],
+];
+
+for (const [command, takesDir, code, snippet] of APPLY_SWEEP_FORMS) {
+  test(`--apply sweep (B47): "${command} --apply" with no target exits ${code} and leaves the tree unchanged`, (t) => {
+    const ctx = fixture(t);
+    assert.equal(prepare(ctx, "--apply").code, 0, "fixture setup: prepare --apply");
+    const before = snapshot(ctx.dir, { times: true });
+    const r = sg(ctx, [command, "--apply", ...(takesDir ? ["--dir", ctx.dir] : [])]);
+    assert.equal(r.code, code, r.all);
+    assert.ok(r.all.includes(snippet), `expected "${command} --apply" to report "${snippet}", got:\n${r.all}`);
+    assert.deepEqual(snapshot(ctx.dir, { times: true }), before, `"${command} --apply" changed the tree`);
+  });
+}
