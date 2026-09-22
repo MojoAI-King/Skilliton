@@ -33,6 +33,7 @@ import { auditFiles, findingLine } from "./audit.mjs";
 import { readWorking } from "./audit-run.mjs";
 import { LEGACY_POLICY_FILE } from "./legacy-names.mjs";
 import { checkRemovals } from "./delivery-persist.mjs";
+import { gateChanges, gateFingerprint } from "./delivery-integrity.mjs";
 import {
   CURRENT_FORMAT, LEGACY_FORMAT, POLICY_FILE, matchPolicyPath, parsePolicyText, readApproversFile, validBranchName,
 } from "./delivery-policy.mjs";
@@ -505,6 +506,7 @@ export async function runGate({ bare, input, print = (line) => console.log(line)
     if (approvers.problem) { say(`rejected ${updates[0].ref}: ${approvers.problem}`); return 1; }
     const protection = protectionFor(git, bareView(git));
     if (protection.error) { say(`rejected ${updates[0].ref}: ${protection.error}`); return 1; }
+    const gate = gateFingerprint(git, bare); // before any check runs pushed code as this account (delivery-integrity.mjs)
     const accepted = [];
     for (const update of updates) {
       current = update.ref;
@@ -513,7 +515,9 @@ export async function runGate({ bare, input, print = (line) => console.log(line)
         accepted.push(`accepted ${update.ref} without checks: not a protected branch`);
         continue;
       }
-      const result = await evaluateUpdate({ git, dir: bare, approvers: approvers.path, say }, { ...update, branch });
+      let result = await evaluateUpdate({ git, dir: bare, approvers: approvers.path, say }, { ...update, branch });
+      const changed = gateChanges(gate, gateFingerprint(git, bare));
+      if (changed.length) result = { reason: `the checks changed the gate itself: ${changed.join("; ")}. A check runs the pushed code as the gate's own account, and the change is still in place: restore it (skilliton delivery install rewrites the hook) and inspect this repository before trusting its next push`, tail: result.tail };
       if (result.verdict !== "accepted") {
         say(`rejected ${update.ref}: ${result.reason}`);
         for (const line of result.tail ?? []) print(`  | ${line}`);

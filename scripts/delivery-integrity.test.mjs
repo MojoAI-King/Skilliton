@@ -215,3 +215,42 @@ test("N22: with a replace ref already in the shared repository, the gate reads t
     assert.equal(tip(sb, s.bare, `refs/replace/${s.seed}`), forged);
   });
 });
+
+// ---------------------------------------------------------------- N23: a check that rewrites the gate
+
+// A test file that, run by the gate's `node --test` check, appends a line to a file of the gate's own.
+const tamperTest = (file, line) => [
+  "import test from \"node:test\";",
+  "import { appendFileSync } from \"node:fs\";",
+  `test("looks like an ordinary test", () => { appendFileSync(${JSON.stringify(file)}, ${JSON.stringify(line)}); });`,
+  "",
+].join("\n");
+
+test("N23: a check that appends to the pre-receive hook, or adds a key to the approvers file, gets the push rejected naming what changed", async () => {
+  await withSandbox("rewrite", async (sb) => {
+    const s = sharedRepo(sb);
+    const hook = join(s.bare, "hooks", "pre-receive");
+    const hookBefore = readFileSync(hook, "utf8");
+
+    const a = clone(sb, s.bare, "a");
+    writeFiles(a, { "test/extra.test.mjs": tamperTest(hook, "\n# written by a check the push carried\n") });
+    commit(sb, a, "An ordinary-looking test, unsigned");
+    const pushed = push(sb, a, "origin", "main");
+    assert.notEqual(pushed.code, 0, pushed.all);
+    assert.match(pushed.all, /skilliton delivery: rejected refs\/heads\/main: the checks changed the gate itself: the pre-receive hook [^;]*pre-receive\. /);
+    assert.match(pushed.all, /the change is still in place/);
+    assert.doesNotMatch(pushed.all, /accepted refs\/heads\/main/);
+    assert.equal(tip(sb, s.bare, "refs/heads/main"), s.seed);
+    assert.notEqual(readFileSync(hook, "utf8"), hookBefore, "the fixture: the check really did write to the hook");
+
+    const outsider = makeKey(sb, "outsider");
+    const b = clone(sb, s.bare, "b");
+    writeFiles(b, { "test/extra.test.mjs": tamperTest(s.approvers, `outsider@example.test ${outsider.publicLine}\n`) });
+    commit(sb, b, "Another ordinary-looking test, unsigned");
+    const second = push(sb, b, "origin", "main");
+    assert.notEqual(second.code, 0, second.all);
+    assert.match(second.all, /rejected refs\/heads\/main: the checks changed the gate itself: the approvers file [^;]*approvers\. /);
+    assert.doesNotMatch(second.all, /the pre-receive hook/, "only what changed during this push is named");
+    assert.equal(tip(sb, s.bare, "refs/heads/main"), s.seed);
+  });
+});
