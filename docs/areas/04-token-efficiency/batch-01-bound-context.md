@@ -14,7 +14,7 @@ Kind: Living. Batch record. Area [04-token-efficiency](AREA.md).
 - [x] the global autoCompactWindow value on this machine and how it reached 1000000 (file changed 17:57 on 2026-09-18) is explained in a decision entry (evidence: docs/decisions/2026-09-18-the-team-compaction-window-is-600000-own-e7ee.md, owner-set while the autocompact question was open; a project file overrides it)
 - [x] whether a subagent can be given a smaller window or a cheaper model by its agent definition is verified in the documentation or by running it, and says unverified otherwise (evidence: the subagents reference read on 2026-09-18 through the documentation agent lists model, effort and maxTurns as the agent frontmatter, no window key; recorded in the decision entry above; a cheaper model per lane is documented, a smaller window is not available, and neither was run here)
 - [x] the team settings template carries the window the decision names, with the reason in the decision entry (evidence: templates/project-settings.json autoCompactWindow 600000; scripts/skilliton.test.mjs section "team settings template: the keys a team relies on are pinned", 188 checks pass 2026-09-18; the decision entry above)
-- [ ] one session after the change shows its context staying under the window, filed
+- [x] one session after the change shows its context staying under the window, filed (evidence: evidence/live/2026-09-22-compaction-window-measured.md; the meter after its fixture test passed, over 2026-09-22 for this checkout's project key: 467 top-level requests, peak context 545728 under the 600000 window, and the two automatic compactions of the day at 568433 and 569293 tokens, far from the user setting of 1000000)
 
 ## Notes
 

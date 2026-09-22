@@ -16,7 +16,8 @@ Think of a new employee who is brilliant but has no memory between days and no s
 2. **Before the assistant starts a piece of work, it writes down what "done" means**, in the developer's own words, and records progress as it goes. If the session is interrupted, the next one picks up from the note.
 3. **Some commands are stopped before they run.** The ones that erase shared history, skip the safety checks, or add a password file by accident are refused with a reason. The ones that would throw away unsaved work ask first.
 4. **Before work is saved, the assistant writes a short review in plain English**: what changed, what could break, what was tested, and a verdict.
-5. **Improvements are shared the way software updates are**: the company signs a new version, every machine checks it is the genuine one, and everyone gets it. Nobody emails files around.
+5. **Housekeeping happens without anyone remembering it.** After work is merged, the assistant is stopped before it finishes until the project's notes are brought up to date. When someone hands it a long list of tasks, it is told to check and sort them before it starts. Every project it opens on a company machine is set up the first time.
+6. **Improvements are shared the way software updates are**: the company signs a new version, every machine checks it is the genuine one, and everyone gets it. Nobody emails files around.
 
 ## What it is not
 
@@ -51,7 +52,7 @@ Does that lower the bill? It should. The honest answer is that it has not yet be
 
 ## What has been proven, and what has not
 
-**Proven, with the evidence filed in the repository:** every automatic rule firing in a real session on a real machine; the dangerous commands being refused; a signed version being installed and verified as genuine on a fresh machine; the "checked at the door" refusal working on a real shared repository; the company's own rulebook being forked, renamed and released; two assistants working in parallel on separate tasks without stepping on each other, each under its assigned memory budget.
+**Proven, with the evidence filed in the repository:** every automatic rule firing in a real session on a real machine; the dangerous commands being refused; a signed version being installed and verified as genuine on a fresh machine; the "checked at the door" refusal working on a real shared repository; the company's own rulebook being forked, renamed and released; two assistants working in parallel on separate tasks without stepping on each other, each under its assigned memory budget; the housekeeping and the task sorting above, each run in a real session on 2026-09-22.
 
 **Not yet proven:** a whole team using it day to day (one project on one machine is the live user so far); Windows; the endpoint-management integration; any figure for time or money saved.
 

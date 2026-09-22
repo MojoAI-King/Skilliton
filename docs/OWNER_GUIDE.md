@@ -1,6 +1,6 @@
 # Skilliton, explained for its owner
 
-Kind: Living. Written 2026-09-21 at the end of the build, for the person who owns this repository and has to explain it to others. The private page with the same content and the scorecard beside it is kept outside the repository; this file is the source that travels with the code. Every figure here was measured on the tree at the commit that added this file unless it says otherwise.
+Kind: Living. Written 2026-09-21 at the end of the build and brought up to date on 2026-09-22, for the person who owns this repository and has to explain it to others. The private page with the same content and the scorecard beside it is kept outside the repository; this file is the source that travels with the code. Every figure here was measured on the tree at the commit that added this file unless it says otherwise.
 
 ## The tech-owner questions, answered first
 
@@ -52,12 +52,13 @@ Once a person has joined, these run in every Claude Code session on that user ac
 | When | What | Behaviour |
 |---|---|---|
 | Session start | Handoff and project state | Shows the last handoff (labelled as a record, not an instruction), the current task, pending migrations, stale records. On a joined machine, prepares a repository that is not prepared and says what it wrote (an opt-out file keeps a repository out). |
-| Session start | Guardrails status line | Names what is blocked and any rule a project's config turned off. |
+| Session start | Guardrails status line | Names what is blocked and any rule a project's config turned off; a command that only a turned-off rule let through gets a notice naming the setting. |
 | Before every shell command | Guardrails | Denies force-push in every direct spelling tried, and `rm`, `mv` or `git rm` aimed at Skilliton's own files (`.skilliton`, the records, `CLAUDE.md`, `AGENTS.md`); asks on malformed input, on BASH_ENV, and on a string handed to a shell, `eval` or `xargs` that names git. |
 | Before every file read | Read guard | Refuses a whole-file read of a non-image file over 50 KB and says how to read it instead. |
 | Before every write | Lane write guard | In a dispatched lane, keeps the assistant's writes inside that lane's files. |
 | Before every write | Managed block guard | Refuses a write that would take the managed block out of `CLAUDE.md` or `AGENTS.md`. |
-| On stop, compaction, end | Workflow events | Asks for a checkpoint when there are unrecorded changes; records the session so an interrupted one is named next time. |
+| Every prompt | Dispatch direction | On a list of six or more tasks, tells the assistant to run `/workflow:dispatch` before any code. |
+| On stop, compaction, end | Workflow events | Asks for a checkpoint when there are unrecorded changes, for maintenance after a merge or a day of commits, and once more for dispatch when a list got no lane plan; records the session so an interrupted one is named next time. |
 
 Not covered, and said so: commands a person types in their own terminal, other tools, the inside of scripts and git aliases.
 

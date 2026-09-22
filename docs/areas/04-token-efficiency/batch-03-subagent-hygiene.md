@@ -12,7 +12,7 @@ Kind: Living. Batch record. Area [04-token-efficiency](AREA.md).
 
 - [x] dispatch briefs carry a bound (what to read, what to return) and a model choice (evidence: briefText in packs/base/plugins/workflow/runtime/lib/dispatch.mjs, pinned by the brief test in scripts/dispatch.test.mjs)
 - [x] agent definitions with model and effort ship in the workflow plugin, with a packaging test (evidence: packs/base/plugins/workflow/agents/ holds lane, locate and verify-item; the agents loop in scripts/packs.test.mjs checks name, description, model, effort and maxTurns, with three self-test cases)
-- [ ] one real dispatch shows peak context per lane under the window, from the meter, filed
+- [x] one real dispatch shows peak context per lane under the window, from the meter, filed (evidence: evidence/live/2026-09-21-dispatch.md, the meter's subagent scope over the two lanes, peaks 107161 and 115485, under their context ceilings and under the 600000 window that 04-01 item 5 measured as honored)
 
 ## Notes
 

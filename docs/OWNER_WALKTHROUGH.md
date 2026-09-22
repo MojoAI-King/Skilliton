@@ -1,6 +1,6 @@
 # Owner walkthrough: the fourteen things only you can do, in order
 
-Kind: Living. Written for the owner. Every acceptance item left in docs/REPORT_CARD.md that a headless session cannot reach is here, once, in the order that wastes the least of your time. Nothing in this file asks you to write code.
+Kind: Living. Written for the owner. Every acceptance item left in docs/REPORT_CARD.md that a headless session cannot reach is here, once, in the order that wastes the least of your time. Nothing in this file asks you to write code. **For the evening before the 2026-09-23 meeting, start with docs/OWNER_TESTS.md**: it is the short list of what can be done tonight on this machine, with the exact commands, and it says which steps below it covers. Updated 2026-09-22: steps 3 and 6 and parts of step 2 were measured by headless sessions that day, and the items they ticked are named where they appear.
 
 ## How to work through it
 
@@ -26,8 +26,8 @@ Kind: Living. Written for the owner. Every acceptance item left in docs/REPORT_C
 - **Needs:** a brand new session in the Claude Code VS Code extension in this repository, started after the plugins were installed on 2026-09-19. Not `--plugin-dir`, not the session that is already open.
 - **Do:** the seven numbered checks in the batch file's own protocol: the Project state block and the RESUME HERE note at start; a blocked `git commit --no-verify`; the guardrails confirmation prompt on `git checkout -- .` with an uncommitted change, answered no; the eight slash skills under `/`; a whole-file read of `scripts/skilliton.test.mjs` refused by the read guard; the stop hook asking for a checkpoint when you end with changes and none recorded; and one real test run through `skilliton gate` with its log path.
 - **Good looks like:** each of the seven either happened with text you can paste, or did not, with that written down. The status line is the eighth thing to look at while you are there.
-- **Ticks:** 01-01 items 2 to 5, 03-01 items 1 and 2, 04-02 items 3 and 4, 07-04 item 2 if your first prompt carries six or more separate items.
-- **The one that may not tick:** 04-01 item 5 asks for a session staying under the window this project sets. On 2026-09-20 this repository compacted at about 170000 while the setting reads 600000, cause unknown. Paste the two journal lines from `.git/skilliton/journal.jsonl` whatever they say. A number far from 600000 is the finding this item has been waiting for, and the box stays open.
+- **Ticks:** 01-01 item 3 (the confirmation prompt), 03-01 items 1 and 2. The rest of 01-01, 04-02 items 3 and 4, and 07-04 item 2 are ticked already, the last by the headless dispatch runs of 2026-09-22.
+- **Settled since:** 04-01 item 5, the window, was measured on 2026-09-22: the day's automatic compactions happened at 568433 and 569293 tokens under the project's 600000 (evidence/live/2026-09-22-compaction-window-measured.md).
 - **Batch:** docs/areas/01-autopilot-loop/batch-01-install-and-live-use.md, with docs/areas/03-any-environment/batch-01-vscode-column.md and docs/areas/04-token-efficiency/batch-02-guard-and-gate-live.md
 
 ## 3. Two real lanes, dispatched from that same session
@@ -35,7 +35,7 @@ Kind: Living. Written for the owner. Every acceptance item left in docs/REPORT_C
 - **Needs:** nothing new. Do it before you close the session from step 2.
 - **Do:** give the session six or more separate notes or tasks so `/workflow:dispatch` is the right tool, let it split them, then launch at least one lane from the line the brief prints. When both lanes are done, `skilliton usage` for the window they ran in.
 - **Good looks like:** a lane agent starts from the brief with the shipped agent definition, each lane writes its own task record in its own worktree, and the meter's `peak_ctx` column shows a number per lane.
-- **Ticks:** 07-02 items 1 and 3, 04-03 item 3. No dispatch has ever been run for real, so this is also the first evidence that the whole seventh area works outside its fixtures.
+- **Ticks:** nothing left: 07-02 and 04-03 item 3 were ticked from the first real dispatch on 2026-09-21 (evidence/live/2026-09-21-dispatch.md). Do it anyway if you want to watch dispatch in the extension; since workflow 0.20.1 the prompt hook directs it on its own.
 - **Batch:** docs/areas/07-dispatch-worktrees/batch-02-lane-agents-bounded.md
 
 ## 4. The maintain minutes, one day before
@@ -59,7 +59,7 @@ Kind: Living. Written for the owner. Every acceptance item left in docs/REPORT_C
 - **Needs:** any repository on this machine that Skilliton has never touched. A scratch clone is fine.
 - **Do:** open a session in it and answer yes to the offer at session start. Watch what the preview says before you accept it, then let it write the first task record from your first request.
 - **Good looks like:** the offer appears, the preview matches what is written, a delivery policy draft is written from the test command it detected, and the first task record carries acceptance criteria it proposed.
-- **Ticks:** 02-01 item 5. The flow is already rehearsed headless on three kinds of repository, so this is the live confirmation, not the first run.
+- **Ticks:** nothing left: 02-01 item 5 was ticked from the headless auto-prepare run of 2026-09-22. On a joined machine the repository is now prepared at session start without an offer, so what you would watch is that.
 - **Batch:** docs/areas/02-auto-harness/batch-01-m8-second-increment.md
 
 ## 7. One Codex session in a prepared repository
