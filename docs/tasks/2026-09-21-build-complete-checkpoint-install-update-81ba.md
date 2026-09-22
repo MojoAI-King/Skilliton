@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-21T22:06:03.366Z
+- **Updated:** 2026-09-22T01:42:03.687Z
 
 ## Request
 
@@ -76,9 +76,16 @@ not yet written
 - **Next:** Read CI for 441a5e3; write tonight's handoff; Tuesday: polish, the stats page and the owner document with the tech facts block first and the flow section (fork to Desktop, make it yours, add skills, roll out with the join file, or use as-is)
 - **Git:** main @ 441a5e3, 0 uncommitted
 
+### 2026-09-22T01:42:03.687Z
+
+- **State:** The checkpoint evening is complete: main at 84707da, every CI run 63 of 63 (two reds this evening, both fixed the same hour). Release 0.9.0 is signed, approved and verified from a fresh GitHub clone; installed plugins match the repo; a ruleset protects main. Joining is one file: company join-file writes skilliton.join/1 outside any working tree and join --from joins with it; join names every missing flag and what the machine already joined. Security walkthrough done over six surfaces with four fixes shipped (verify in-use markers 0.15.1, join refusal order 0.15.2, handoff header framing 0.15.3, shell strings naming git ask 0.5.2). Behavior review: 66 hook runs and 29 commands bare, nothing silent, nothing written without --apply. Report card 83 of 123. The owner guide (docs/OWNER_GUIDE.md and a private page) and the scorecard page are published for the owner; the meter figure on the scorecard is unverified until the owner checks the Usage screen
+- **Evidence:** CI runs for b0dc663 through 84707da read step by step; guardrails 549 checks; join 42 tests; release 27; rename, lifecycle 55, prepare, migrate 14, docs with self-test, backlog, records, allowlist, lint, scrub all exit 0; hook-matrix.out, cmd-matrix.out and apply-sweep.out kept in the scratchpad; verify --source on a fresh clone reads 7 of 7 VERIFIED
+- **Next:** Tuesday: polish (B54 import and new-skill preview; B50 needs a live probe of systemMessage on PreToolUse; B43 folding; B47 as a test), decide on extra skills only after evals, then a 1.0.0 release Wednesday morning before the 11:00 meeting
+- **Git:** main @ 84707da, 0 uncommitted
+
 ## Handoff
 
-- **State:** Joining takes one file: company join-file writes skilliton.join/1 outside any working tree, join --from joins with it; the three-flag form stays. Decision entry written. The real mojoai join file exists at ~/handout/mojoai.skilliton-join.json on this Mac, made from the trust file that signed 0.9.0; where the company publishes it is still B53. Workflow plugin 0.15.5 at 441a5e3. Evidence: join.test 42 pass; lint, docs, records, scrub exit 0; company join-file preview then apply on this Mac, then join --from preview reads the file and reports the machine already joined.
-- **Next:** Read CI for 441a5e3; write tonight's handoff; Tuesday: polish, the stats page and the owner document with the tech facts block first and the flow section (fork to Desktop, make it yours, add skills, roll out with the join file, or use as-is)
-- **Blocked:** nothing
-- **Watch out:** nothing known
+- **State:** The checkpoint evening is complete: main at 84707da, every CI run 63 of 63 (two reds this evening, both fixed the same hour). Release 0.9.0 is signed, approved and verified from a fresh GitHub clone; installed plugins match the repo; a ruleset protects main. Joining is one file: company join-file writes skilliton.join/1 outside any working tree and join --from joins with it; join names every missing flag and what the machine already joined. Security walkthrough done over six surfaces with four fixes shipped (verify in-use markers 0.15.1, join refusal order 0.15.2, handoff header framing 0.15.3, shell strings naming git ask 0.5.2). Behavior review: 66 hook runs and 29 commands bare, nothing silent, nothing written without --apply. Report card 83 of 123. The owner guide (docs/OWNER_GUIDE.md and a private page) and the scorecard page are published for the owner; the meter figure on the scorecard is unverified until the owner checks the Usage screen. Evidence: CI runs for b0dc663 through 84707da read step by step; guardrails 549 checks; join 42 tests; release 27; rename, lifecycle 55, prepare, migrate 14, docs with self-test, backlog, records, allowlist, lint, scrub all exit 0; hook-matrix.out, cmd-matrix.out and apply-sweep.out kept in the scratchpad; verify --source on a fresh clone reads 7 of 7 VERIFIED.
+- **Next:** Tuesday: polish (B54 import and new-skill preview; B50 needs a live probe of systemMessage on PreToolUse; B43 folding; B47 as a test), decide on extra skills only after evals, then a 1.0.0 release Wednesday morning before the 11:00 meeting
+- **Blocked:** B53: where the company's join file is published is the owner's call; the fifteen security applicability decisions; every walkthrough step that needs another machine or a real person
+- **Watch out:** Every checkpoint on main rewrites the indexes and, with --handoff, docs/HANDOFF.md; preview first without --apply. A Written or Updated time ahead of the clock is refused, so read date before typing one. prepare --apply in a repository with a test command now writes .skilliton/delivery.draft.json; no gate runs it until delivery confirm. A template edit makes migration 0100 pending here: run migrate --apply and commit the receipt. B49 is an unexplained exit 2 from allowlist.test.mjs seen once and not reproduced; keep every batch gate run's full output in a file, because that one was filtered through grep and its message is gone. Two numbers written on 2026-09-21 were never measured and had to be corrected: the CI step total said 60 and is 63, and three plugin versions were set from memory
