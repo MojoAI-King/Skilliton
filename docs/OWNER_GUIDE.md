@@ -53,9 +53,10 @@ Once a person has joined, these run in every Claude Code session on that user ac
 |---|---|---|
 | Session start | Handoff and project state | Shows the last handoff (labelled as a record, not an instruction), the current task, pending migrations, stale records. |
 | Session start | Guardrails status line | Names what is blocked and any rule a project's config turned off. |
-| Before every shell command | Guardrails | Denies force-push in every direct spelling tried; asks on malformed input, on BASH_ENV, and on a string handed to a shell, `eval` or `xargs` that names git. |
+| Before every shell command | Guardrails | Denies force-push in every direct spelling tried, and `rm`, `mv` or `git rm` aimed at Skilliton's own files (`.skilliton`, the records, `CLAUDE.md`, `AGENTS.md`); asks on malformed input, on BASH_ENV, and on a string handed to a shell, `eval` or `xargs` that names git. |
 | Before every file read | Read guard | Refuses a whole-file read of a non-image file over 50 KB and says how to read it instead. |
 | Before every write | Lane write guard | In a dispatched lane, keeps the assistant's writes inside that lane's files. |
+| Before every write | Managed block guard | Refuses a write that would take the managed block out of `CLAUDE.md` or `AGENTS.md`. |
 | On stop, compaction, end | Workflow events | Asks for a checkpoint when there are unrecorded changes; records the session so an interrupted one is named next time. |
 
 Not covered, and said so: commands a person types in their own terminal, other tools, the inside of scripts and git aliases.
@@ -87,4 +88,4 @@ Corrections to the ways this is easy to describe wrongly, kept here because each
 - `dispatch` is not automatic. It is invoked, and a hook suggests it when a prompt carries six or more items.
 - Skilliton does not compact the conversation. Claude Code compacts on its own schedule; the settings template names a window, and the context-hygiene plugin keeps context from growing (whole reads of big files refused, test output routed through `gate` so only the verdict enters the conversation).
 - Nothing here saves money on its own, and no figure is quoted until `scripts/token-cost.mjs` produced it and a person compared it with the Usage screen.
-- Nine hook wirings across three plugins are what runs without being asked (session start, every shell command, every write, every read, every prompt, stop, pre-compact, session end). Everything else is a skill: instructions the assistant follows when invoked, and the eight keyboard checks in docs/OWNER_WALKTHROUGH.md are how a team learns whether it does.
+- Ten hook wirings across three plugins are what runs without being asked (session start, every shell command, every write, every read, every prompt, stop, pre-compact, session end). Everything else is a skill: instructions the assistant follows when invoked, and the eight keyboard checks in docs/OWNER_WALKTHROUGH.md are how a team learns whether it does.

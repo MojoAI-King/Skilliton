@@ -4,6 +4,8 @@ Kind: Living. One entry per signed release, from its manifest under `releases/`,
 
 ## Unreleased (main since 0.9.0)
 
+- workflow 0.16.0: the delivery gate rejects a push whose result removes what Skilliton keeps in the project unless an approver signed the commit that removes it (`lib/delivery-persist.mjs`); session start and `status` name a missing record with the command that restores it, and a tracked-but-missing `.skilliton/config.json` as removed by hand, in place of the offer to prepare (`lib/records-restore.mjs`). B61.
+- guardrails 0.6.0: `rm`, `rmdir`, `mv` and `git rm` aimed at a `.skilliton` folder, the record files, the entry folders, `CLAUDE.md` or `AGENTS.md` are denied, with `skilliton remove --apply` as the route; a new `managed-block-guard.mjs` hook refuses a `Write`, `Edit` or `MultiEdit` that would take the managed block out of `CLAUDE.md` or `AGENTS.md`; `guardrails.protectRecords: false` turns both off. Without `CLAUDE_PROJECT_DIR` the project is the repository root of the command's folder. B61.
 - workflow 0.15.9: `dispatch` names a plan line shaped like an item whose ID is not `N<digits>` and refuses instead of dropping it (B55).
 - workflow 0.15.8: the security engine's file layer moved to `lib/security-io.mjs`; every public name re-exported, no caller changed.
 - workflow 0.15.7: `import` and `new-skill` preview by default and write only with `--apply` (B54).

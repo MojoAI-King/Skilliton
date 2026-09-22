@@ -716,6 +716,39 @@ test("session-start names every missing piece and stays within handoff.maxBytes"
   assert.match(garbage.out, /^- Hook input \(not usable\): the hook input on stdin was not JSON, so the current folder was used$/m);
 }));
 
+test("a record or the configuration removed by hand is named at session start with the command that restores it, and never restored", async () => withTemp("removed", async ({ dir, env }) => {
+  const p = preparedRepo(join(dir, "p"), env);
+  const start = (id) => hook(p, "session-start", { session_id: id, source: "startup" }, env);
+
+  // Two tracked records deleted from the working tree: named as removed by hand, with git checkout.
+  rmSync(join(p, "docs", "STATUS.md"));
+  rmSync(join(p, "docs", "HANDOFF.md"));
+  const two = start("r1");
+  assert.equal(two.code, 0, two.all);
+  assert.match(two.out, /^- Records \(needs attention\): 2 of 9 missing: docs\/STATUS\.md \(status\), docs\/HANDOFF\.md \(handoff\); docs\/STATUS\.md and docs\/HANDOFF\.md are tracked in Git and missing from the working tree, so they were removed here by hand; restore them with: git checkout -- docs\/STATUS\.md docs\/HANDOFF\.md$/m);
+  assert.equal(existsSync(join(p, "docs", "STATUS.md")), false, "the hook restores nothing itself");
+  git(p, ["checkout", "--", "docs/STATUS.md", "docs/HANDOFF.md"], env);
+
+  // A record that was never committed: not in Git, so prepare --apply is the command.
+  rmSync(join(p, "docs", "LESSONS.md"));
+  git(p, ["rm", "-q", "--cached", "docs/LESSONS.md"], env);
+  commit(p, env, "Stop tracking the lessons record");
+  const never = start("r2");
+  assert.match(never.out, /^- Records \(needs attention\): 1 of 9 missing: docs\/LESSONS\.md \(lessons\); docs\/LESSONS\.md is not in Git; skilliton prepare --apply recreates it and leaves every record that exists as it is$/m);
+  const status = statusJson(p, env);
+  assert.equal(checkStatus(status.json, "records"), "attention");
+  assert.deepEqual(status.json.details.records.never, ["docs/LESSONS.md"]);
+
+  // The whole folder gone while tracked: the layout line names the removal and both routes, and the offer to prepare a
+  // never-prepared project is not made.
+  rmSync(join(p, ".skilliton"), { recursive: true });
+  const gone = start("r3");
+  assert.equal(gone.code, 0, gone.all);
+  assert.match(gone.out, /^- Layout \(needs attention\): not prepared now, but \.skilliton\/config\.json is tracked in Git and missing from the working tree, so Skilliton's files were removed here by hand \(1 tracked file\(s\) missing\); restore them with: git checkout -- \.skilliton\/config\.json; to take Skilliton out on purpose instead: skilliton remove --apply$/m);
+  assert.doesNotMatch(gone.out, /Not prepared \(needs attention\)/);
+  assert.equal(existsSync(join(p, ".skilliton")), false, "the hook restores nothing itself");
+}));
+
 test("session-start shows the current task, its last checkpoint and its handoff", async () => withTemp("session-task", async ({ dir, env }) => {
   const p = preparedRepo(join(dir, "p"), env);
   const { id, file } = startTask(p, env, "Resume me");
@@ -1207,7 +1240,7 @@ test("status exits 1 for each attention condition and names it", async () => wit
   writeHandoff(missing, new Date().toISOString());
   const later = new Date(Date.now() + 5000).toISOString();
   commit(missing, { ...env, GIT_AUTHOR_DATE: later, GIT_COMMITTER_DATE: later }, "remove a record, committed 5 seconds after the handoff was written");
-  attentionOnly(missing, "records", /^1 of 9 missing: docs\/ROADMAP\.md \(roadmap\)$/);
+  attentionOnly(missing, "records", /^1 of 9 missing: docs\/ROADMAP\.md \(roadmap\); docs\/ROADMAP\.md is not in Git; .* prepare --apply recreates it and leaves every record that exists as it is$/);
 
   const unprepared = initRepo(join(dir, "unprepared"), env);
   const u = statusJson(unprepared, env);

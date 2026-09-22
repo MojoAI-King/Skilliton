@@ -50,6 +50,7 @@ if [ -n "$OVERRIDE" ]; then
 fi
 SS="$(dirname "$HOOK")/session-start-guardrails.sh"
 WHOOK="$SHIPPED_DIR/lane-write-guard.mjs"   # --hook replaces guard-bash.sh only; this one is always the shipped file
+MHOOK="$SHIPPED_DIR/managed-block-guard.mjs" # likewise
 
 export HOME="$TMP/home" GIT_CONFIG_GLOBAL="$TMP/gitconfig" GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
@@ -242,13 +243,15 @@ TOO_LARGE=$(head -c 4000000 /dev/zero | tr '\0' 'x')   # with "git status " in f
 section "packaging: hooks.json and executable bits (Claude Code runs the scripts by path)"
 HJ="$SHIPPED_DIR/hooks.json"
 jq_true() { if jq -e "$2" "$HJ" >/dev/null 2>&1; then ok "$1"; else bad "$1"; fi; }
-jq_true "PreToolUse has two entries: Bash, then the file-writing tools" '(.hooks.PreToolUse | length) == 2 and .hooks.PreToolUse[0].matcher == "Bash" and .hooks.PreToolUse[1].matcher == "Write|Edit|MultiEdit|NotebookEdit"'
+jq_true "PreToolUse has three entries: Bash, the file-writing tools, then the text-writing tools" '(.hooks.PreToolUse | length) == 3 and .hooks.PreToolUse[0].matcher == "Bash" and .hooks.PreToolUse[1].matcher == "Write|Edit|MultiEdit|NotebookEdit" and .hooks.PreToolUse[2].matcher == "Write|Edit|MultiEdit"'
 jq_true "PreToolUse runs guard-bash.sh by path, in bash, with timeout 10" '.hooks.PreToolUse[0].hooks == [{"type":"command","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/guard-bash.sh","shell":"bash","timeout":10}]'
 jq_true "SessionStart runs session-start-guardrails.sh by path, in bash" '.hooks.SessionStart == [{"hooks":[{"type":"command","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-start-guardrails.sh","shell":"bash"}]}]'
 jq_true "no if filter anywhere (compound commands must reach the hook)" '[.. | objects | has("if")] | any | not'
 jq_true "the write entry runs lane-write-guard.mjs by path, in bash, with timeout 5" '.hooks.PreToolUse[1].hooks == [{"type":"command","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/lane-write-guard.mjs","shell":"bash","timeout":5}]'
+jq_true "the third entry runs managed-block-guard.mjs by path, in bash, with timeout 5" '.hooks.PreToolUse[2].hooks == [{"type":"command","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/managed-block-guard.mjs","shell":"bash","timeout":5}]'
 if [ -x "$HOOK" ]; then ok "guard-bash.sh is executable"; else bad "guard-bash.sh is not executable"; fi
 if [ -x "$WHOOK" ]; then ok "lane-write-guard.mjs is executable"; else bad "lane-write-guard.mjs is not executable"; fi
+if [ -x "$MHOOK" ]; then ok "managed-block-guard.mjs is executable"; else bad "managed-block-guard.mjs is not executable"; fi
 if [ -x "$SS" ]; then ok "session-start-guardrails.sh is executable"; else bad "session-start-guardrails.sh is not executable"; fi
 
 # ---------------------------------------------------------------- rule 1: force push
@@ -519,15 +522,77 @@ expect "config read from CLAUDE_PROJECT_DIR (rule off there)" allow "$R" 'git pu
 expect "config falls back to the input cwd"           allow "$RCFG" 'git push -f origin main' CLAUDE_PROJECT_DIR=
 rm -f "$RCFG/.skilliton/config.json"
 
+# ---------------------------------------------------------------- rule 4: what Skilliton keeps (B61)
+section "deny: removing what Skilliton keeps in a prepared project"
+write_config '{"version":1}'
+mkdir -p "$RCFG/docs/tasks" "$RCFG/sub"
+expect "rm -rf .skilliton"                          deny "$RCFG" 'rm -rf .skilliton'
+reason_has "  the reason names the one sanctioned route" "skilliton remove --apply"
+reason_has "  the reason names the setting that turns it off" '"protectRecords": false'
+expect "rm .skilliton/config.json"                  deny "$RCFG" 'rm .skilliton/config.json'
+expect "rm -r docs (the folder that holds the records)" deny "$RCFG" 'rm -r docs'
+expect "rm docs/HANDOFF.md"                         deny "$RCFG" 'rm docs/HANDOFF.md'
+expect "rm -- docs/STATUS.md (after end of options)" deny "$RCFG" 'rm -- docs/STATUS.md'
+expect "rm DECISIONS.md"                            deny "$RCFG" 'rm DECISIONS.md'
+expect "rm an entry in the tasks folder"            deny "$RCFG" 'rm docs/tasks/2026-09-22-one-0001.md'
+expect "rmdir docs/lessons"                         deny "$RCFG" 'rmdir docs/lessons'
+expect "rm CLAUDE.md (carries the managed block)"   deny "$RCFG" 'rm CLAUDE.md'
+expect "rm AGENTS.md"                               deny "$RCFG" 'rm AGENTS.md'
+expect "/bin/rm -rf .skilliton"                     deny "$RCFG" '/bin/rm -rf .skilliton'
+expect "git rm -r --cached .skilliton"              deny "$RCFG" 'git rm -r --cached .skilliton'
+expect "git rm docs/STATUS.md"                      deny "$RCFG" 'git rm docs/STATUS.md'
+expect "git -C sub rm ../CLAUDE.md"                 deny "$RCFG" 'git -C sub rm ../CLAUDE.md'
+expect "mv .skilliton elsewhere"                    deny "$RCFG" 'mv .skilliton /tmp/gone'
+expect "mv docs/STATUS.md old.md"                   deny "$RCFG" 'mv docs/STATUS.md old.md'
+expect "mv -t /tmp docs/BACKLOG.md"                 deny "$RCFG" 'mv -t /tmp docs/BACKLOG.md'
+# From a subfolder, Claude Code still names the project root in CLAUDE_PROJECT_DIR, so these cases pass it.
+expect "rm -rf ../.skilliton from a subfolder"      deny "$RCFG/sub" 'rm -rf ../.skilliton' CLAUDE_PROJECT_DIR="$RCFG"
+expect "cd .. && rm -rf docs from a subfolder"      deny "$RCFG/sub" 'cd .. && rm -rf docs' CLAUDE_PROJECT_DIR="$RCFG"
+expect "  the same with no project dir given: the root comes from git" deny "$RCFG/sub" 'cd .. && rm -rf docs' CLAUDE_PROJECT_DIR=
+expect "cd docs && rm STATUS.md"                    deny "$RCFG" 'cd docs && rm STATUS.md'
+expect "rm -rf * at the project root"               deny "$RCFG" 'rm -rf *'
+expect "rm -rf . at the project root"               deny "$RCFG" 'rm -rf .'
+expect "rm -rf .. from a subfolder"                 deny "$RCFG/sub" 'rm -rf ..' CLAUDE_PROJECT_DIR="$RCFG"
+expect "the project root by its absolute path"      deny "$RCFG" "rm -rf $RCFG"
+expect "a .skilliton folder in another repository"  deny "$RCFG" "rm -rf $R/.skilliton"
+expect "a variable path whose text names the folder" deny "$RCFG" 'rm -rf "$TMP/x/.skilliton"'
+expect "the same after a harmless command"          deny "$RCFG" 'echo hi; rm -rf .skilliton'
+
+section "allow: removals that take nothing of Skilliton's (negative controls)"
+expect "rm -rf node_modules"                        allow "$RCFG" 'rm -rf node_modules'
+expect "rm docs/notes.md (not a record)"            allow "$RCFG" 'rm docs/notes.md'
+expect "rm .skilliton-old (only starts like the folder)" allow "$RCFG" 'rm -rf .skilliton-old'
+expect "rm -rf . from a subfolder (nothing of Skilliton's below it)" allow "$RCFG/sub" 'rm -rf .' CLAUDE_PROJECT_DIR="$RCFG"
+expect "mv src/a.js src/b.js"                       allow "$RCFG" 'mv src/a.js src/b.js'
+expect "mv a new entry INTO the tasks folder"       allow "$RCFG" 'mv new.md docs/tasks/'
+expect "a variable path that cannot be resolved"    allow "$RCFG" 'rm -rf "$TMP/x"'
+expect "the word rm in text"                        allow "$RCFG" 'echo rm docs'
+expect "git rm of ordinary source"                  allow "$RCFG" 'git rm src/old.js'
+expect "in a repository with no configuration, the records are not records" allow "$R" 'rm -rf docs'
+expect "  but a .skilliton folder is protected wherever it is" deny "$R" 'rm -rf .skilliton'
+write_config '{"version":1,"guardrails":{"protectRecords":false}}'
+expect "protectRecords false: rm -rf docs"          allow "$RCFG" 'rm -rf docs'
+expect "protectRecords false: rm -rf .skilliton"    allow "$RCFG" 'rm -rf .skilliton'
+expect "protectRecords false: force-push still blocked" deny "$RCFG" 'git push -f origin main'
+write_config '{"version":1,"prepare":{"artifacts":{"status":"notes/STATE.md"},"directories":{"tasks":"work/tasks"}}}'
+expect "a record the project moved is protected where it is" deny "$RCFG" 'rm notes/STATE.md'
+expect "an entry folder the project moved, likewise"         deny "$RCFG" 'rm -r work/tasks'
+expect "the default place, once moved, is an ordinary file"  allow "$RCFG" 'rm docs/STATUS.md'
+write_config '{"guardrails": '
+expect "unreadable config: the rule stays on"       deny "$RCFG" 'rm -rf .skilliton'
+rm -f "$RCFG/.skilliton/config.json"
+rm -rf "$RCFG/docs" "$RCFG/sub"
+
 section "SKILLITON_GUARDRAILS=off"
 expect "off: git push --force origin main"             allow "$R" 'git push --force origin main' SKILLITON_GUARDRAILS=off
 expect "off: git add .env"                             allow "$R" 'git add .env' SKILLITON_GUARDRAILS=off
 expect "unset again: git push --force origin main"     deny "$R" 'git push --force origin main'
+expect "off: rm -rf .skilliton"                        allow "$R" 'rm -rf .skilliton' SKILLITON_GUARDRAILS=off
 
 # ---------------------------------------------------------------- SessionStart line
 section "SessionStart line"
-HEALTHY='[guardrails] on: force-push to protected branches, --no-verify, and secret files are blocked.' # skilliton-audit: allow verification-off the expected status line text, which names the checks
-OFFLINE='[guardrails] OFF for this session (SKILLITON_GUARDRAILS=off). Force-push, --no-verify, and secret-file checks are not running.' # skilliton-audit: allow verification-off the expected status line text, which names the checks
+HEALTHY='[guardrails] on: force-push to protected branches, --no-verify, secret files, and removal of Skilliton'"'"'s files are blocked.' # skilliton-audit: allow verification-off the expected status line text, which names the checks
+OFFLINE='[guardrails] OFF for this session (SKILLITON_GUARDRAILS=off). Force-push, --no-verify, secret-file and removal checks are not running.' # skilliton-audit: allow verification-off the expected status line text, which names the checks
 ss() { # ss <project dir> [VAR=value...]: runs the SessionStart hook by path; sets OUT and RC
   local dir=$1; shift
   OUT=$(printf '{"hook_event_name":"SessionStart","source":"startup","session_id":"t","cwd":%s}' "$(jstr "$dir")" \
@@ -539,13 +604,13 @@ ss "$R" SKILLITON_GUARDRAILS=off
 if [ "$RC" -eq 0 ] && [ "$OUT" = "$OFFLINE" ]; then ok "SKILLITON_GUARDRAILS=off: exactly the OFF line"; else bad "off: exit $RC, got: $OUT"; fi
 write_config '{"guardrails":{"blockForcePush":false}}'
 ss "$RCFG"
-if [ "$OUT" = "[guardrails] on. Blocked: --no-verify and secret files. Turned off in .skilliton/config.json: force-push to protected branches." ]; then # skilliton-audit: allow verification-off the expected status line text, which names the checks
+if [ "$OUT" = "[guardrails] on. Blocked: --no-verify, secret files, and removal of Skilliton's files. Turned off in .skilliton/config.json: force-push to protected branches." ]; then # skilliton-audit: allow verification-off the expected status line text, which names the checks
   ok "a rule turned off in the config is named in the line"
 else bad "rule turned off not reported as expected: $OUT"; fi
 # Codex-shaped SessionStart input (a model key) and no CLAUDE_PROJECT_DIR: the project comes from the input cwd
 printf '{"session_id":"t","transcript_path":null,"cwd":%s,"hook_event_name":"SessionStart","model":"guardrails-test-model","source":"startup"}' "$(jstr "$RCFG")" > "$TMP/ss-codex.json"
 OUT=$("$SS" < "$TMP/ss-codex.json" 2>/dev/null); RC=$?
-if [ "$RC" -eq 0 ] && [ "$OUT" = "[guardrails] on. Blocked: --no-verify and secret files. Turned off in .skilliton/config.json: force-push to protected branches." ]; then # skilliton-audit: allow verification-off the expected status line text, which names the checks
+if [ "$RC" -eq 0 ] && [ "$OUT" = "[guardrails] on. Blocked: --no-verify, secret files, and removal of Skilliton's files. Turned off in .skilliton/config.json: force-push to protected branches." ]; then # skilliton-audit: allow verification-off the expected status line text, which names the checks
   ok "Codex-shaped SessionStart input: the config is found from the input cwd"
 else bad "Codex-shaped SessionStart input with a config: exit $RC, got: $OUT"; fi
 printf '{"session_id":"t","transcript_path":null,"cwd":%s,"hook_event_name":"SessionStart","model":"guardrails-test-model","source":"startup"}' "$(jstr "$R")" > "$TMP/ss-codex.json"
@@ -876,6 +941,63 @@ expect_write "the default task folder once it has been moved"     deny  "$LANE_W
 printf '{"version":1,"dispatch":{"mainOnlyPaths":["notes/"]}}\n' > "$LANE_WT/.skilliton/config.json"
 expect_write "the lane's own configuration, not the main checkout's" deny "$LANE_WT" Write "$LANE_WT/notes/plan.md"
 expect_write "  and docs is no longer reserved for it"               allow "$LANE_WT" Write "$LANE_WT/docs/HANDOFF.md"
+
+# ---------------------------------------------------------------- the managed block guard (B61)
+# A prepared project whose CLAUDE.md and AGENTS.md carry the managed block, and a plain repository beside it.
+MB="$TMP/managed"
+new_repo "$MB" || { echo "FAIL: could not build the managed-block fixture"; exit 1; }
+mkdir -p "$MB/.skilliton" "$MB/docs"
+printf '{"version":1}\n' > "$MB/.skilliton/config.json"
+MB_START='<!-- skilliton:harness:start v1 -->'; MB_END='<!-- skilliton:harness:end -->'
+MB_BLOCK="$MB_START"$'\n## How we work here\n- rule one\n'"$MB_END"
+printf '# Project\n\nIntro.\n\n%s\n\nOutro.\n' "$MB_BLOCK" > "$MB/CLAUDE.md"
+cp "$MB/CLAUDE.md" "$MB/AGENTS.md"; cp "$MB/CLAUDE.md" "$MB/docs/CLAUDE.md"; cp "$MB/CLAUDE.md" "$R/CLAUDE.md"
+printf '# Plain\n' > "$MB/README.md"
+# payload_tool <cwd> <tool> <tool_input JSON>: Claude-shaped PreToolUse input with the tool input given whole.
+payload_tool() {
+  printf '{"session_id":"guardrails-test","transcript_path":%s,"cwd":%s,"scratchpad_dir":%s,"permission_mode":"default","hook_event_name":"PreToolUse","tool_name":%s,"tool_input":%s,"tool_use_id":"toolu_guardrails_test"}' \
+    "$TRANSCRIPT_JSON" "$(jstr "$1")" "$SCRATCH_JSON" "$(jstr "$2")" "$3"
+}
+managed_hook() { OUT=$(env "$@" "$MHOOK" < "$TMP/payload.json" 2>"$TMP/stderr"); RC=$?; read_result; }
+# expect_managed <label> <deny|allow> <cwd> <tool> <tool_input JSON>
+expect_managed() {
+  local label=$1 want=$2; shift 2
+  payload_tool "$1" "$2" "$3" > "$TMP/payload.json"
+  managed_hook CLAUDE_PROJECT_DIR="$1"
+  judge claude "$label" "$want"
+}
+ti() { jq -nc "$@"; }   # ti: a tool_input object from jq arguments
+
+section "managed block guard: a write that would take the block out of CLAUDE.md or AGENTS.md is refused"
+expect_managed "Write CLAUDE.md without the block"      deny  "$MB" Write "$(ti --arg p "$MB/CLAUDE.md" '{file_path:$p, content:"# Project\n\nIntro.\n"}')"
+reason_has "  the reason names harness --apply and remove --apply" "skilliton harness --apply"
+reason_has "  the reason states the guard's limit" "cannot see a script writing through Bash"
+expect_managed "Write AGENTS.md without the block"      deny  "$MB" Write "$(ti --arg p "$MB/AGENTS.md" '{file_path:$p, content:"# Agents\n"}')"
+expect_managed "Write by a path relative to the cwd"    deny  "$MB" Write "$(ti '{file_path:"CLAUDE.md", content:"# Project\n"}')"
+expect_managed "Edit that drops the start marker line"  deny  "$MB" Edit  "$(ti --arg p "$MB/CLAUDE.md" --arg o "$MB_START"$'\n' '{file_path:$p, old_string:$o, new_string:""}')"
+expect_managed "Edit that drops the whole block"        deny  "$MB" Edit  "$(ti --arg p "$MB/CLAUDE.md" --arg o "$MB_BLOCK" '{file_path:$p, old_string:$o, new_string:""}')"
+expect_managed "Edit with replace_all that drops the end marker" deny "$MB" Edit "$(ti --arg p "$MB/CLAUDE.md" --arg o "$MB_END" '{file_path:$p, old_string:$o, new_string:"", replace_all:true}')"
+expect_managed "MultiEdit whose second edit drops the end marker" deny "$MB" MultiEdit "$(ti --arg p "$MB/CLAUDE.md" --arg o "$MB_END" '{file_path:$p, edits:[{old_string:"Intro.", new_string:"Hi."},{old_string:$o, new_string:""}]}')"
+
+section "managed block guard: writes that keep the block, and everything it does not judge"
+expect_managed "Write CLAUDE.md that keeps the block"   allow "$MB" Write "$(ti --arg p "$MB/CLAUDE.md" --arg b "$MB_BLOCK" '{file_path:$p, content:("# New\n\n" + $b + "\n")}')"
+expect_managed "Edit inside the block"                  allow "$MB" Edit  "$(ti --arg p "$MB/CLAUDE.md" '{file_path:$p, old_string:"rule one", new_string:"rule two"}')"
+expect_managed "Edit outside the block"                 allow "$MB" Edit  "$(ti --arg p "$MB/CLAUDE.md" '{file_path:$p, old_string:"Intro.", new_string:"Hello."}')"
+expect_managed "Edit whose old_string does not occur (the client refuses it itself)" allow "$MB" Edit "$(ti --arg p "$MB/CLAUDE.md" '{file_path:$p, old_string:"no such text", new_string:""}')"
+expect_managed "Write README.md"                        allow "$MB" Write "$(ti --arg p "$MB/README.md" '{file_path:$p, content:"x"}')"
+expect_managed "a CLAUDE.md below the root"             allow "$MB" Write "$(ti --arg p "$MB/docs/CLAUDE.md" '{file_path:$p, content:"x"}')"
+expect_managed "a repository with no configuration"     allow "$R"  Write "$(ti --arg p "$R/CLAUDE.md" '{file_path:$p, content:"x"}')"
+expect_managed "NotebookEdit is not judged here"        allow "$MB" NotebookEdit "$(ti --arg p "$MB/CLAUDE.md" '{notebook_path:$p}')"
+expect_managed "a tool input with no path"              allow "$MB" Write '{"content":"x"}'
+printf 'garbage' > "$TMP/payload.json"; managed_hook; judge claude "input that is not JSON" allow
+printf '# Bare\n' > "$MB/CLAUDE.md"
+expect_managed "a CLAUDE.md that carries no block"      allow "$MB" Write "$(ti --arg p "$MB/CLAUDE.md" '{file_path:$p, content:"x"}')"
+printf '# Project\n\nIntro.\n\n%s\n\nOutro.\n' "$MB_BLOCK" > "$MB/CLAUDE.md"
+printf '{"version":1,"guardrails":{"protectRecords":false}}\n' > "$MB/.skilliton/config.json"
+expect_managed "protectRecords false: the same Write" allow "$MB" Write "$(ti --arg p "$MB/CLAUDE.md" '{file_path:$p, content:"# Project\n"}')"
+printf '{"version":1}\n' > "$MB/.skilliton/config.json"
+expect_managed "the rule back on: the same Write"       deny  "$MB" Write "$(ti --arg p "$MB/CLAUDE.md" '{file_path:$p, content:"# Project\n"}')"
+rm -f "$R/CLAUDE.md"
 
 # ---------------------------------------------------------------- size and time
 section "large commands finish well inside the 10 second hook timeout"

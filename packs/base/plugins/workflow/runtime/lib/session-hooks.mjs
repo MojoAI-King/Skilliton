@@ -254,7 +254,8 @@ export function sessionStartBlock(report, { maxBytes, notes = [] }) {
     lines.push(`- ${BLOCK_LABELS[name]}${word ? ` (${word})` : ""}: ${clip(check.summary, 600)}`);
     // A never-prepared repository has no managed block to instruct the assistant, so the offer is made here, in plain
     // words, with the commands a yes runs (PLAN.md M8, first increment).
-    if (name === "layout" && report.data?.layout?.version === null) lines.push(`- Not prepared (needs attention): ${prepareOffer()}`);
+    // A project whose files were removed by hand gets the layout line's restore command instead of this offer.
+    if (name === "layout" && report.data?.layout?.version === null && !report.data.layout.removed) lines.push(`- Not prepared (needs attention): ${prepareOffer()}`);
   }
   return boundLines(lines, maxBytes, `[workflow] Project state truncated at ${maxBytes} bytes; for all of it run: ${selfCommand()} status`);
 }

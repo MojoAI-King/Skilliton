@@ -32,6 +32,7 @@ import { NO_REPOSITORY_PROGRAMS } from "./journal.mjs";
 import { auditFiles, findingLine } from "./audit.mjs";
 import { readWorking } from "./audit-run.mjs";
 import { LEGACY_POLICY_FILE } from "./legacy-names.mjs";
+import { checkRemovals } from "./delivery-persist.mjs";
 import {
   CURRENT_FORMAT, LEGACY_FORMAT, POLICY_FILE, matchPolicyPath, parsePolicyText, readApproversFile, validBranchName,
 } from "./delivery-policy.mjs";
@@ -367,7 +368,8 @@ async function evaluateUpdate(ctx, update) {
     // under the other name without an approver's signature.
     const guarded = [...policy.policyPaths, POLICY_FILE, LEGACY_POLICY_FILE];
     const approved = [];
-    for (const { id, parent } of commitsBetween(git, oldId, newId)) {
+    const pushed = commitsBetween(git, oldId, newId);
+    for (const { id, parent } of pushed) {
       const touched = changedPaths(git, id, parent).filter((path) => matchPolicyPath(path, guarded));
       if (!touched.length) continue;
       const what = `commit ${short(id)} changes the policy path ${touched[0]}${touched.length > 1 ? ` (and ${touched.length - 1} more)` : ""}`;
@@ -386,6 +388,10 @@ async function evaluateUpdate(ctx, update) {
         return reject(`the pushed result changes the policy path ${path} to content that no approver-signed commit in this push gave it (for example a merge that brings back an earlier version); push the policy change as its own signed commit`);
       }
     }
+    // What Skilliton keeps in the project may not be removed without an approver's signature (lib/delivery-persist.mjs).
+    const removal = checkRemovals({ git, oldId, newId, commits: pushed, signatureStatus: (id) => signatureStatus(ctx, id) });
+    if (removal.reason) return reject(removal.reason);
+    notChecked.push(...removal.notChecked);
     const next = readPolicyAt(git, newId);
     if (next.state === "absent") return reject(`the pushed commit ${short(newId)} removes ${POLICY_FILE}; accepting it would reject every later push to this branch`);
     if (next.state === "invalid") return reject(`the delivery policy in the pushed commit ${short(newId)} is invalid (${next.problems.join("; ")}); accepting it would reject every later push to this branch`);

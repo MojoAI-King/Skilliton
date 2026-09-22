@@ -11,6 +11,7 @@ Kind: Living. Every entry here was hit by a real person or a real session and ha
 | `/` shows no `workflow:` or `guardrails:` skills | The plugins are not enabled for this account, or the client is not Claude Code | `claude plugin list` to see what is installed and at which scope. In Codex the skills show but no plugin hooks run; in Cursor nothing runs (docs/CLIENTS.md). |
 | The state block says `Previous session: interrupted` | The last session ended without a session-end event (a crash, a killed terminal, a machine that slept) | Nothing to fix. It is information: check `git status` for work that session left, and the task record for its last checkpoint. |
 | The state block says the handoff is older than the latest commit | Someone committed after the last handoff was written | Read the commits since; write a checkpoint with `--handoff` when you finish. It is a note, not a fault. |
+| The state block says a record, or `.skilliton/config.json`, is tracked in Git and missing from the working tree | Someone deleted it in Finder or a terminal, outside every hook; no hook restores anything | Run the `git checkout -- <path>` it prints. If the removal was meant, `skilliton remove --apply` records it; a record that was never made is created by `skilliton prepare --apply`. |
 
 ## Joining a machine
 
@@ -39,6 +40,8 @@ Kind: Living. Every entry here was hit by a real person or a real session and ha
 | A confirmation prompt on a command that discards work | The hook asks before `git checkout -- .`, `git reset --hard` and similar | Answer no unless you meant it. In Codex the same command is refused, because Codex cannot ask from a hook. |
 | The session-start line says a rule is turned off | The project's `.skilliton/config.json` lowers a guardrail | That is the team's setting; the line exists so it is never silent. A command the turned-off rule would have caught passes without a note (B50). |
 | A shell string that names git asks first | `bash -c "..."`, `sh -c`, `eval` and `xargs` hand text to a shell the hook cannot read inside | Run the git command directly, or confirm. |
+| `rm`, `mv` or `git rm` was denied naming `.skilliton`, a record, `docs`, `CLAUDE.md` or `AGENTS.md` | The command would remove what Skilliton keeps in the project (guardrails 0.6.0, B61) | If one file is really stale, a person removes it; to take Skilliton out of the project, a person runs `skilliton remove --apply`. A team lead turns the rule off with `"protectRecords": false` under `guardrails` in `.skilliton/config.json`. |
+| A Write or Edit to CLAUDE.md or AGENTS.md was denied | The result would no longer carry the managed block between the harness markers | Edit outside the markers; change the block through the company's template and `skilliton harness --apply`. |
 
 ## Releases and verify
 

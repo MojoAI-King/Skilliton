@@ -10,7 +10,10 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 # with the same tool_name and tool_input.command. This script reads the command text and answers
 # with one decision:
 #   deny   force-pushing a protected branch; skipping git hooks with --no-verify; staging or
-#          committing a file whose name or added content looks like a secret
+#          committing a file whose name or added content looks like a secret; rm, rmdir, mv or
+#          git rm aimed at what Skilliton keeps in a project (the .skilliton folder, the record
+#          files, the entry folders, CLAUDE.md and AGENTS.md), for which the one route is
+#          skilliton remove --apply, run by a person
 #   ask    git commands that throw away uncommitted work: reset --hard, clean -f, checkout .,
 #          restore . (without --staged), stash drop, stash clear, branch -D
 #   allow  everything else, by printing nothing
@@ -18,7 +21,7 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 # for confirmation from a hook: the command would run anyway. See detect_client.
 # A decision is JSON on stdout. The exit status is always 0. A hook that crashes with another
 # status does not block anything, so a failure inside this script becomes "ask" (a deny under
-# Codex) for any command that mentions git, never silent permission.
+# Codex) for any command that mentions git or a removal, never silent permission.
 #
 # What it can see, stated as a limit rather than left to be discovered:
 #   It reads the command TEXT. It splits on && || ; | & newlines and parentheses, respects
@@ -48,7 +51,15 @@ GUARD_MODE=pretooluse
 SEP=$'\036'
 GUARD_RAW=""; GUARD_EMITTED=0; GUARD_PARSER=""; GUARD_CLIENT=""; CLIENT_NOTE=""
 IN_KEYS=""; IN_CWD=""; IN_CMD=""; PROJECT_DIR=""
-CFG_FP=true; CFG_NV=true; CFG_SF=true; CFG_PB=$'main\nmaster'; CFG_STATE=default; CFG_FILE=.skilliton/config.json
+CFG_FP=true; CFG_NV=true; CFG_SF=true; CFG_PR=true; CFG_PB=$'main\nmaster'; CFG_STATE=default; CFG_FILE=.skilliton/config.json
+# What Skilliton keeps in a project (docs/CONTRACTS.md section 10): the record files and the entry folders come from
+# prepare.artifacts and prepare.directories in the project's configuration when it has them, else these defaults
+# (the first candidate of each role in lib/config.mjs ROLE_CANDIDATES and DIRECTORY_DEFAULTS). CLAUDE.md and AGENTS.md
+# carry the managed block. A folder named .skilliton is protected wherever it is.
+PROTECT_RECORDS=$'docs/STATUS.md\ndocs/BACKLOG.md\ndocs/BACKLOG_ARCHIVE.md\ndocs/ROADMAP.md\nDECISIONS.md\ndocs/LESSONS.md\ndocs/HANDOFF.md\ndocs/HANDOFF_ARCHIVE.md\ndocs/MAINTAIN.md'
+PROTECT_FOLDERS=$'docs/tasks\ndocs/decisions\ndocs/lessons'
+INSTRUCTION_FILES=$'CLAUDE.md\nAGENTS.md'
+NORM=""; PT_WHAT=""; PHYS=""
 DENY_REASON=""; ASK_REASON=""
 TOKS=(); SEGW=(); ARGS=(); GARGS=(); PA=(); FILES=()
 EFF_DIR=""; GDIR=""; RESOLVED=""; CUR_BRANCH=""; SC_LETTERS=""; SC_NEXT=0
@@ -66,6 +77,10 @@ CODEX_KEY_RE='"(turn_id|model)"[[:space:]]*:'
 # "echo hi" on one line and a force-push on the next was allowed unread).
 GIT_WORD_RE='(^|[^A-Za-z0-9_.-]|\\[bfnrt])[Gg][Ii][Tt]([^A-Za-z0-9_/-]|$)'
 mentions_git() { [[ $1 =~ $GIT_WORD_RE ]]; }
+# The same shape for the programs that remove or move a path, so a command with neither git nor one of them costs
+# one regex and nothing else, as before.
+REMOVE_WORD_RE='(^|[^A-Za-z0-9_.-]|\\[bfnrt])(rm|rmdir|mv)([^A-Za-z0-9_/-]|$)'
+mentions_removal() { [[ $1 =~ $REMOVE_WORD_RE ]]; }
 
 json_escape() { # sets ESCAPED to $1 as the inside of a JSON string
   local s=$1 bs='\' q='"'
@@ -198,13 +213,18 @@ read_input() { # sets IN_KEYS, IN_CWD and IN_CMD from GUARD_RAW; returns 1 when 
 
 JQ_CONFIG='(if type == "object" then .guardrails else null end) as $g0
 | (if ($g0 | type) == "object" then $g0 else {} end) as $g
+| (if type == "object" then .prepare else null end) as $p0
+| (if ($p0 | type) == "object" then $p0 else {} end) as $p
 | "FP=" + (if ($g | .blockForcePush) == false then "false" else "true" end),
   "NV=" + (if ($g | .blockNoVerify) == false then "false" else "true" end),
   "SF=" + (if ($g | .blockSecretFiles) == false then "false" else "true" end),
+  "PR=" + (if ($g | .protectRecords) == false then "false" else "true" end),
   (if ($g | .protectedBranches | type) == "array"
    then "PBSET=1", ($g | .protectedBranches[] | strings | "PB=" + .)
-   else empty end)'
-NODE_CONFIG='const fs=require("fs");let j;try{j=JSON.parse(fs.readFileSync(process.argv[1],"utf8"))}catch(e){process.exit(3)}const g0=(j&&typeof j==="object"&&!Array.isArray(j))?j.guardrails:null;const g=(g0&&typeof g0==="object"&&!Array.isArray(g0))?g0:{};const o=["FP="+(g.blockForcePush===false?"false":"true"),"NV="+(g.blockNoVerify===false?"false":"true"),"SF="+(g.blockSecretFiles===false?"false":"true")];if(Array.isArray(g.protectedBranches)){o.push("PBSET=1");for(const b of g.protectedBranches){if(typeof b==="string")o.push("PB="+b)}}process.stdout.write(o.join("\n")+"\n")'
+   else empty end),
+  (if ($p | .artifacts | type) == "object" then ($p | .artifacts[] | strings | "ART=" + .) else empty end),
+  (if ($p | .directories | type) == "object" then ($p | .directories[] | strings | "DIR=" + .) else empty end)'
+NODE_CONFIG='const fs=require("fs");let j;try{j=JSON.parse(fs.readFileSync(process.argv[1],"utf8"))}catch(e){process.exit(3)}const g0=(j&&typeof j==="object"&&!Array.isArray(j))?j.guardrails:null;const g=(g0&&typeof g0==="object"&&!Array.isArray(g0))?g0:{};const p0=(j&&typeof j==="object"&&!Array.isArray(j))?j.prepare:null;const p=(p0&&typeof p0==="object"&&!Array.isArray(p0))?p0:{};const o=["FP="+(g.blockForcePush===false?"false":"true"),"NV="+(g.blockNoVerify===false?"false":"true"),"SF="+(g.blockSecretFiles===false?"false":"true"),"PR="+(g.protectRecords===false?"false":"true")];if(Array.isArray(g.protectedBranches)){o.push("PBSET=1");for(const b of g.protectedBranches){if(typeof b==="string")o.push("PB="+b)}}for(const [key,tag] of [["artifacts","ART="],["directories","DIR="]]){const m=p[key];if(m&&typeof m==="object"&&!Array.isArray(m)){for(const v of Object.values(m)){if(typeof v==="string")o.push(tag+v)}}}process.stdout.write(o.join("\n")+"\n")'
 PY_CONFIG='import sys, json
 try:
     with open(sys.argv[1], "rb") as fh:
@@ -213,23 +233,40 @@ except Exception:
     sys.exit(3)
 g = j.get("guardrails") if isinstance(j, dict) else None
 g = g if isinstance(g, dict) else {}
+p = j.get("prepare") if isinstance(j, dict) else None
+p = p if isinstance(p, dict) else {}
 o = ["FP=" + ("false" if g.get("blockForcePush") is False else "true"),
      "NV=" + ("false" if g.get("blockNoVerify") is False else "true"),
-     "SF=" + ("false" if g.get("blockSecretFiles") is False else "true")]
+     "SF=" + ("false" if g.get("blockSecretFiles") is False else "true"),
+     "PR=" + ("false" if g.get("protectRecords") is False else "true")]
 pb = g.get("protectedBranches")
 if isinstance(pb, list):
     o.append("PBSET=1")
     o.extend("PB=" + b for b in pb if isinstance(b, str))
+for key, tag in (("artifacts", "ART="), ("directories", "DIR=")):
+    m = p.get(key)
+    if isinstance(m, dict):
+        o.extend(tag + v for v in m.values() if isinstance(v, str))
 sys.stdout.write("\n".join(o) + "\n")'
 
 set_project_dir() {
+  local top=""
   PROJECT_DIR=${CLAUDE_PROJECT_DIR:-}
+  # Without the client's project directory (Codex documents none), the repository root of the input cwd is the
+  # project: a session started in a subfolder still reads the project's settings and protects its records.
+  # The root is taken as the cwd with git's own prefix (the path below the root) removed, so it keeps the spelling
+  # the input used; git prints the physical path, which on macOS differs from a path through /var or /tmp.
+  if [ -z "$PROJECT_DIR" ] && [ -n "$IN_CWD" ]; then
+    top=$(git -C "$IN_CWD" -c core.fsmonitor=false rev-parse --show-prefix 2>/dev/null) && PROJECT_DIR=${IN_CWD%/}
+    top=${top%/}
+    [ -n "$top" ] && PROJECT_DIR=${PROJECT_DIR%/"$top"}
+  fi
   [ -n "$PROJECT_DIR" ] || PROJECT_DIR=$IN_CWD
   [ -n "$PROJECT_DIR" ] || PROJECT_DIR=$PWD
 }
 
 load_config() { # reads $PROJECT_DIR/.skilliton/config.json into CFG_*; defaults stay on when it cannot be read
-  local f="$PROJECT_DIR/.skilliton/config.json" out rc line pbset=0 pb=""
+  local f="$PROJECT_DIR/.skilliton/config.json" out rc line pbset=0 pb="" art="" dirs=""
   # A project not yet migrated from the earlier Skillgate names keeps its settings in .skillgate/config.json. They are
   # still honoured, so its protected branches do not silently fall back to the defaults before the migration.
   if [ ! -f "$f" ] && [ -f "$PROJECT_DIR/.skillgate/config.json" ]; then
@@ -251,13 +288,18 @@ load_config() { # reads $PROJECT_DIR/.skilliton/config.json into CFG_*; defaults
       FP=false) CFG_FP=false ;;
       NV=false) CFG_NV=false ;;
       SF=false) CFG_SF=false ;;
+      PR=false) CFG_PR=false ;;
       PBSET=1) pbset=1 ;;
       PB=?*) pb="$pb${line#PB=}"$'\n' ;;
+      ART=?*) art="$art${line#ART=}"$'\n' ;;
+      DIR=?*) dirs="$dirs${line#DIR=}"$'\n' ;;
     esac
   done <<EOF
 $out
 EOF
   [ "$pbset" = 1 ] && CFG_PB=$pb
+  [ -n "$art" ] && PROTECT_RECORDS=$art
+  [ -n "$dirs" ] && PROTECT_FOLDERS=$dirs
   return 0
 }
 
@@ -424,6 +466,8 @@ analyze_segment() {
   case "${SEGW[$k]}" in
     cd|pushd) track_cd $((k + 1)) ;;
     git|*/git) analyze_git $((k + 1)) ;;
+    rm|rmdir|*/rm|*/rmdir) check_remove $((k + 1)) ;;
+    mv|*/mv) check_move $((k + 1)) ;;
     sh|bash|zsh|dash|ksh|eval|xargs|*/sh|*/bash|*/zsh|*/dash|*/ksh|*/xargs) analyze_shell_string $((k + 1)) ;;
   esac
   return 0
@@ -487,6 +531,7 @@ analyze_git() { # analyze_git <index after the word git>
     restore) check_restore ;;
     stash) check_stash ;;
     branch) check_branch ;;
+    rm) check_git_rm ;;
   esac
   return 0
 }
@@ -1066,13 +1111,140 @@ check_branch() {
   fi
 }
 
+# ---------------------------------------------------------------- what Skilliton keeps (B61)
+# The assistant may not remove Skilliton's files from a project: the .skilliton folder wherever it is, and in the
+# project directory the record files, the entry folders and the instruction files
+# that carry the managed block. A path is judged after cd, git -C and .. are applied, so "cd docs && rm STATUS.md"
+# and "rm -rf ../.skilliton" are read as what they do. A path with a variable or a command substitution cannot be
+# resolved; it is denied only when its own text names the folder, and allowed otherwise, which is stated in the
+# skill as a limit. This is the same class as the other deny rules: it stops the assistant, not a person.
+
+normalize_path() { # normalize_path <absolute path>: sets NORM with . and .. applied and no trailing slash
+  local p=$1 seg out=""
+  local IFS=/
+  set -f
+  for seg in $p; do
+    case "$seg" in ''|.) ;; ..) out=${out%/*} ;; *) out="$out/$seg" ;; esac
+  done
+  set +f
+  NORM=${out:-/}
+}
+
+physical_path() { # physical_path <path>: sets PHYS to the path with symlinks resolved, when it exists; else ""
+  local d
+  PHYS=""
+  if [ -d "$1" ]; then PHYS=$(cd "$1" 2>/dev/null && pwd -P) || PHYS=""
+  elif [ -e "$1" ]; then d=${1%/*}; [ "$d" != "$1" ] || d=.; d=$(cd "$d" 2>/dev/null && pwd -P) && PHYS="$d/${1##*/}"
+  fi
+}
+
+record_covers() { # record_covers <newline list> <rel> <1: the list holds folders>: 0 when removing <rel> takes an item
+  local item
+  while IFS= read -r item; do
+    [ -n "$item" ] || continue
+    item=${item%/}
+    case "$item" in "$2"|"$2"/*) return 0 ;; esac          # the item itself, or a folder that holds it
+    if [ "$3" = 1 ]; then case "$2" in "$item"/*) return 0 ;; esac; fi   # an entry inside an entry folder
+  done <<EOF
+$1
+EOF
+  return 1
+}
+
+protected_target() { # protected_target <word> <base dir>: sets PT_WHAT to what would be lost, or "" when nothing of Skilliton's
+  local w=$1 base=$2 r rel proj
+  PT_WHAT=""
+  case "$w" in
+    *'$'*|*'`'*) case "$w" in *.skilliton*) PT_WHAT=$w ;; esac; return 0 ;;
+  esac
+  normalize_path "$PROJECT_DIR"; proj=$NORM
+  if is_everything "$w"; then
+    [ "$CFG_STATE" != default ] || return 0
+    resolve_dir "$base" "."; [ -n "$RESOLVED" ] || return 0
+    normalize_path "$RESOLVED"; r=$NORM
+    case "$proj" in "$r"|"$r"/*) PT_WHAT="everything under $r" ;; esac
+    return 0
+  fi
+  resolve_dir "$base" "$w"; [ -n "$RESOLVED" ] || return 0
+  normalize_path "$RESOLVED"; r=$NORM
+  case "$r/" in */.skilliton/*) case "$r" in "$proj"/*) PT_WHAT=${r#"$proj"/} ;; *) PT_WHAT=$r ;; esac; return 0 ;; esac
+  # Without a configuration file this is not a prepared project, and a file at a record's path is an ordinary file.
+  [ "$CFG_STATE" != default ] || return 0
+  # A path spelled through a symlink (on macOS, /var for /private/var) is the same path: when both exist, compare
+  # the physical ones instead. A path that does not exist is compared as written.
+  physical_path "$r"
+  if [ -n "$PHYS" ]; then physical_path "$proj"; if [ -n "$PHYS" ]; then proj=$PHYS; physical_path "$r"; r=$PHYS; fi; fi
+  case "$r" in
+    "$proj") PT_WHAT="the project folder $r" ;;
+    "$proj"/*)
+      rel=${r#"$proj"/}
+      if record_covers "$INSTRUCTION_FILES" "$rel" 0 || record_covers "$PROTECT_RECORDS" "$rel" 0 || record_covers "$PROTECT_FOLDERS" "$rel" 1; then
+        PT_WHAT=$rel
+      fi ;;
+  esac
+  return 0
+}
+
+deny_removal() { # deny_removal <what>
+  deny "Blocked: removing $1 would take away part of what Skilliton keeps in this project (the .skilliton folder, the record files, the entry folders, and the instruction files that carry the managed block), which is the project's memory. The one route that takes Skilliton out of a project is skilliton remove --apply, run by a person; it keeps the records and the history. If one file in there is really stale, say which and why, and let the person remove it. A team lead turns this rule off with \"protectRecords\": false under guardrails in .skilliton/config.json."
+}
+
+check_remove() { # check_remove <index of the first argument>: rm and rmdir, every path after the flags
+  [ "$CFG_PR" = true ] || return 0
+  local k=$1 n=${#SEGW[@]} w opts=1
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}; k=$((k + 1))
+    if [ "$opts" = 1 ]; then case "$w" in --) opts=0; continue ;; -*) continue ;; esac; fi
+    protected_target "$w" "$EFF_DIR"
+    if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT"; return 0; fi
+  done
+  return 0
+}
+
+check_move() { # check_move <index of the first argument>: every source of mv; with -t every plain argument is one
+  [ "$CFG_PR" = true ] || return 0
+  local k=$1 n=${#SEGW[@]} w opts=1 target=0 count last i=0
+  PA=()
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}; k=$((k + 1))
+    if [ "$opts" = 1 ]; then
+      case "$w" in
+        --) opts=0; continue ;;
+        -t|--target-directory) target=1; k=$((k + 1)); continue ;;
+        -t?*|--target-directory=*) target=1; continue ;;
+        -*) continue ;;
+      esac
+    fi
+    PA[${#PA[@]}]=$w
+  done
+  count=${#PA[@]}; last=$((count - 1)); [ "$target" = 1 ] && last=$count
+  while [ "$i" -lt "$last" ]; do
+    protected_target "${PA[$i]}" "$EFF_DIR"
+    if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT"; return 0; fi
+    i=$((i + 1))
+  done
+  return 0
+}
+
+check_git_rm() { # git rm [-r] [--cached] [--] <path>...: the paths are relative to where git runs
+  [ "$CFG_PR" = true ] || return 0
+  local n=${#ARGS[@]} k=0 w opts=1
+  while [ "$k" -lt "$n" ]; do
+    w=${ARGS[$k]}; k=$((k + 1))
+    if [ "$opts" = 1 ]; then case "$w" in --) opts=0; continue ;; -*) continue ;; esac; fi
+    protected_target "$w" "$GDIR"
+    if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT"; return 0; fi
+  done
+  return 0
+}
+
 # ---------------------------------------------------------------- entry points
 
 main_pretooluse() {
   local t note=""
   GUARD_RAW=$(cat)
   case "${SKILLITON_GUARDRAILS:-}" in [Oo][Ff][Ff]) exit 0 ;; esac
-  mentions_git "$GUARD_RAW" || exit 0
+  mentions_git "$GUARD_RAW" || mentions_removal "$GUARD_RAW" || exit 0
   # BASH_ENV names a file bash runs before the first line of any script it starts, including this one, so a file
   # that only says `exit 0` ends this check before it begins and the client reads the silence as an allow. Nothing
   # inside a script can prevent that, because the file has already run; what is left is to say it while it can still
@@ -1096,7 +1268,7 @@ main_pretooluse() {
     emit_decision ask "Check first: guardrails could not read this command from the hook input, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
     exit 0
   fi
-  mentions_git "$IN_CMD" || exit 0
+  mentions_git "$IN_CMD" || mentions_removal "$IN_CMD" || exit 0
   for t in git awk grep find; do
     if ! command -v "$t" >/dev/null 2>&1; then
       emit_decision ask "Check first: guardrails cannot inspect git commands because $t is not installed, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
@@ -1129,7 +1301,8 @@ join_list() { # join_list <item>...: sets REASON to "a", "a and b", or "a, b, an
     0) REASON="" ;;
     1) REASON=$1 ;;
     2) REASON="$1 and $2" ;;
-    *) REASON="$1, $2, and $3" ;;
+    3) REASON="$1, $2, and $3" ;;
+    *) REASON="$1, $2, $3, and $4" ;;
   esac
 }
 
@@ -1138,7 +1311,7 @@ main_session_start() {
   GUARD_RAW=$(cat 2>/dev/null)
   case "${SKILLITON_GUARDRAILS:-}" in
     [Oo][Ff][Ff])
-      status_line "[guardrails] OFF for this session (SKILLITON_GUARDRAILS=off). Force-push, --no-verify, and secret-file checks are not running." # skilliton-audit: allow verification-off the status line naming the checks that are off
+      status_line "[guardrails] OFF for this session (SKILLITON_GUARDRAILS=off). Force-push, --no-verify, secret-file and removal checks are not running." # skilliton-audit: allow verification-off the status line naming the checks that are off
       exit 0 ;;
   esac
   if ! pick_parser; then
@@ -1158,11 +1331,13 @@ main_session_start() {
   [ "$CFG_FP" = true ] && set -- "$@" "force-push to protected branches"
   [ "$CFG_NV" = true ] && set -- "$@" "--no-verify" # skilliton-audit: allow verification-off a fixture argument list for the rule's own test
   [ "$CFG_SF" = true ] && set -- "$@" "secret files"
+  [ "$CFG_PR" = true ] && set -- "$@" "removal of Skilliton's files"
   join_list "$@"; on_list=$REASON
   set --
   [ "$CFG_FP" = true ] || set -- "$@" "force-push to protected branches"
   [ "$CFG_NV" = true ] || set -- "$@" "--no-verify" # skilliton-audit: allow verification-off a fixture argument list for the rule's own test
   [ "$CFG_SF" = true ] || set -- "$@" "secret files"
+  [ "$CFG_PR" = true ] || set -- "$@" "removal of Skilliton's files"
   join_list "$@"; off_list=$REASON
   if [ -z "$off_list" ]; then
     line="[guardrails] on: $on_list are blocked."

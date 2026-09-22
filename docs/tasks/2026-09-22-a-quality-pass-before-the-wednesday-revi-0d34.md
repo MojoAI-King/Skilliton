@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-22-a-quality-pass-before-the-wednesday-revi-0d34
-- **State:** in-progress
+- **State:** merged
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T08:05:17.164Z
+- **Updated:** 2026-09-22T08:15:44.159Z
 
 ## Request
 

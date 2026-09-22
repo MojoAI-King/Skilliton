@@ -347,6 +347,76 @@ test("policy changes: unsigned is rejected; the current policy still runs its ch
 
 // ---------------------------------------------------------------- creating a branch; missing and invalid policies
 
+test("removing what Skilliton keeps needs an approver-signed commit: an unsigned removal is rejected naming the path and the route; an ordinary file is free; a moved record is protected where it is; a signed removal is accepted", async () => {
+  await withSandbox("persist", async (sb) => {
+    const s = sharedRepo(sb);
+    const d = clone(sb, s.bare, "d");
+    const reset = () => gitOk(sb, d, "reset", "-q", "--hard", "origin/main");
+    const accepted = (label) => { const r = push(sb, d, "origin", "main"); assert.equal(r.code, 0, `${label}:\n${r.all}`); return r; };
+
+    // A prepared project arrives by an ordinary commit: adding is free.
+    writeFiles(d, { ".skilliton/config.json": JSON.stringify({ prepare: { version: 3 } }), "docs/HANDOFF.md": "# Handoff\n", "docs/tasks/one.md": "# one\n", "CLAUDE.md": "# Rules\n", "notes/scratch.md": "x\n" });
+    commit(sb, d, "Prepare the project");
+    accepted("preparing");
+
+    // An unsigned removal of a record is rejected, naming the commit, the path and the route.
+    rmSync(join(d, "docs", "HANDOFF.md"));
+    const unsignedHead = commit(sb, d, "Delete the handoff");
+    const unsigned = push(sb, d, "origin", "main");
+    assert.notEqual(unsigned.code, 0, unsigned.all);
+    assert.match(unsigned.all, new RegExp(`rejected refs/heads/main: commit ${unsignedHead.slice(0, 12)} removes docs/HANDOFF\\.md, which Skilliton keeps in this project, without an approver signature: the commit is not signed\\. The one route that takes Skilliton out of a project is skilliton remove --apply, run by a person, in a commit an approver signs`));
+    assert.notEqual(tip(sb, s.bare, "main"), unsignedHead);
+
+    // The same for an entry, the configuration and an instruction file; and a push of several commits names the one that removes.
+    for (const [path, label] of [["docs/tasks/one.md", "an entry"], [".skilliton/config.json", "the configuration"], ["CLAUDE.md", "the instruction file"]]) {
+      reset();
+      writeFiles(d, { "lib/extra.mjs": `export const extra = ${JSON.stringify(label)};\n` });
+      commit(sb, d, `Add something for ${label}`);
+      rmSync(join(d, ...path.split("/")));
+      const head = commit(sb, d, `Delete ${label}`);
+      const r = push(sb, d, "origin", "main");
+      assert.notEqual(r.code, 0, `${label} should have been rejected:\n${r.all}`);
+      assert.match(r.all, new RegExp(`commit ${head.slice(0, 12)} removes ${path.replace(/[./]/g, "\\$&")}, which Skilliton keeps in this project, without an approver signature`));
+    }
+
+    // An ordinary file is free to go, and so is an outsider's signature on it (the rule is about Skilliton's files only).
+    reset();
+    rmSync(join(d, "notes", "scratch.md"));
+    commit(sb, d, "Delete a note");
+    accepted("deleting an ordinary file");
+
+    // A record the project moved is protected where it is, and the default place is then an ordinary file.
+    writeFiles(d, { ".skilliton/config.json": JSON.stringify({ prepare: { version: 3, artifacts: { handoff: "notes/HANDOFF.md" } } }), "notes/HANDOFF.md": "# Handoff\n" });
+    commit(sb, d, "Move the handoff");
+    accepted("moving the handoff");
+    rmSync(join(d, "notes", "HANDOFF.md"));
+    const movedHead = commit(sb, d, "Delete the moved handoff");
+    const moved = push(sb, d, "origin", "main");
+    assert.notEqual(moved.code, 0, moved.all);
+    assert.match(moved.all, new RegExp(`commit ${movedHead.slice(0, 12)} removes notes/HANDOFF\\.md, which Skilliton keeps`));
+    reset();
+    rmSync(join(d, "docs", "HANDOFF.md"));
+    commit(sb, d, "Delete the old place of the handoff");
+    accepted("deleting the default place once the record moved");
+
+    // A removal signed by an approver is the sanctioned route, and is accepted; a merge that carries an unsigned removal is not.
+    rmSync(join(d, "CLAUDE.md"));
+    const signedHead = commit(sb, d, "Take Skilliton out of the instruction file", { sign: s.approver });
+    accepted("a signed removal");
+    assert.equal(tip(sb, s.bare, "main"), signedHead);
+    gitOk(sb, d, "checkout", "-q", "-b", "side");
+    rmSync(join(d, "docs", "tasks", "one.md"));
+    const sideHead = commit(sb, d, "Delete an entry on a side branch");
+    gitOk(sb, d, "checkout", "-q", "main");
+    gitOk(sb, d, "config", "user.signingkey", s.approver.privateKey);
+    gitOk(sb, d, "merge", "-q", "--no-ff", "-S", "-m", "Merge side", "side");
+    const merged = push(sb, d, "origin", "main");
+    assert.notEqual(merged.code, 0, merged.all);
+    assert.match(merged.all, new RegExp(`commit ${sideHead.slice(0, 12)} removes docs/tasks/one\\.md, which Skilliton keeps in this project, without an approver signature`));
+    assert.equal(tip(sb, s.bare, "main"), signedHead);
+  });
+});
+
 test("a branch whose policy is still at the earlier .skillgate/delivery.json stays protected, and moving the policy needs an approver signature", async () => {
   await withSandbox("earlier-policy", async (sb) => {
     const approver = makeKey(sb, "approver");

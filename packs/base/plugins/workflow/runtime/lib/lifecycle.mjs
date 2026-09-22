@@ -19,6 +19,7 @@ import { CONFIG_REL, ConfigError, DEFAULTS, LAYOUT_VERSION, ROLES, resolveProjec
 import { HOME, PLUGIN_ROOT, Refused, cmpVersion, isFile, isPlainObject, readJsonMaybe, readPluginVersion, selfCommand, tilde } from "./core.mjs";
 import { GitError, changedPaths, gitTopLevel, readGitState, readJournal, runGit } from "./journal.mjs";
 import { TaskChangedError, TaskRecordError, gitLine, listTasks, pickCurrent } from "./tasks.mjs";
+import { deletedTracked, restoreAdvice } from "./records-restore.mjs";
 import { LEGACY_NAME, LEGACY_PROJECT_DIR } from "./legacy-names.mjs";
 import { HANDOFF_PLACEHOLDER } from "./project-files.mjs";
 import { OperationFailed } from "./prepare.mjs";
@@ -185,7 +186,19 @@ function sessionHistory(events, { currentSession } = {}) {
 function layoutCheck(project) {
   const version = project.layoutVersion;
   const data = { version, runtimeLayout: LAYOUT_VERSION };
-  if (version === null) return { status: "attention", summary: `not prepared by Skilliton (no prepare.version in ${project.configRel}); to see what prepare would change: ${selfCommand()} prepare`, data };
+  if (version === null) {
+    // A project whose configuration is tracked but gone was prepared and then had Skilliton's files removed by hand
+    // (B61). That is named, with the command that restores them and the one that records the removal on purpose,
+    // instead of the offer to prepare a project that never was.
+    const kept = [CONFIG_REL, "CLAUDE.md", "AGENTS.md", ...Object.values(project.artifacts ?? {}), ...Object.values(project.directories ?? {})];
+    const removed = deletedTracked(project.root, kept);
+    if (removed && removed.includes(CONFIG_REL)) {
+      data.removed = removed;
+      const shown = removed.slice(0, 12);
+      return { status: "attention", summary: `not prepared now, but ${CONFIG_REL} is tracked in Git and missing from the working tree, so Skilliton's files were removed here by hand (${removed.length} tracked file(s) missing); restore them with: git checkout -- ${shown.join(" ")}${removed.length > shown.length ? " ..." : ""}; to take Skilliton out on purpose instead: ${selfCommand()} remove --apply`, data };
+    }
+    return { status: "attention", summary: `not prepared by Skilliton (no prepare.version in ${project.configRel}); to see what prepare would change: ${selfCommand()} prepare`, data };
+  }
   if (project.legacyNames) return { status: "attention", summary: `layout ${version}${version === 2 ? ` under the earlier ${LEGACY_NAME} names (${LEGACY_PROJECT_DIR}/)` : ""}, and this runtime uses layout ${LAYOUT_VERSION} under the Skilliton names; until it is migrated, only migrate, status and doctor work in this project. To preview the migration: ${selfCommand()} migrate`, data };
   if (version < LAYOUT_VERSION) return { status: "attention", summary: `layout ${version}, and this runtime uses layout ${LAYOUT_VERSION}; to preview the migration: ${selfCommand()} migrate`, data };
   return { status: "ok", summary: `layout ${version} (current for this runtime)`, data };
@@ -240,8 +253,8 @@ function recordsCheck(project) {
     (file ? present : missing).push({ role, path: rel });
   }
   const data = { present, missing };
-  if (missing.length) return { status: "attention", summary: `${missing.length} of ${ROLES.length} missing: ${missing.map((m) => `${m.path} (${m.role})`).join(", ")}`, data };
-  return { status: "ok", summary: `all ${ROLES.length} present`, data };
+  if (!missing.length) return { status: "ok", summary: `all ${ROLES.length} present`, data };
+  return { status: "attention", summary: `${missing.length} of ${ROLES.length} missing: ${missing.map((m) => `${m.path} (${m.role})`).join(", ")}; ${restoreAdvice(project.root, missing.map((m) => m.path), data)}`, data };
 }
 
 function tasksCheck(project, git, report) {
