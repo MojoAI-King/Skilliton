@@ -53,7 +53,7 @@ Each behavior is marked **enforced** (a hook of an installed, enabled plugin doe
 
 ### End of a stretch of work
 - **Instructed:** when the work is finished, when the user is stepping away, or when the conversation has grown large, run `/workflow:handoff`. On `main` it updates `docs/HANDOFF.md`; on other branches it updates the task record.
-- **Instructed:** after merging a batch of work or at the end of a working day, run `/workflow:maintain` on an integration branch, then `skilliton index --apply`.
+- **Enforced (Claude Code, on `main`):** when a merge commit landed, or a day and at least one commit passed, since the last maintenance, the stop hook blocks the first stop, once per commit, with a paragraph naming `skilliton maintain --apply` (the indexes, the security findings, the maintenance recorded) and the judgment half. **Instructed:** do both before finishing: run that command, then record the decisions and lessons from this conversation as entry files, reconcile the status record and the backlog with what merged, and write the handoff (`/workflow:maintain` has the steps). Run it yourself after merging a batch when you would rather not wait for the stop.
 
 ### Always
 - **Instructed:** say "I don't know" or "not verified" instead of guessing; never report a failed or skipped check as a success; keep done locally, merged, released, installed and verified separate.

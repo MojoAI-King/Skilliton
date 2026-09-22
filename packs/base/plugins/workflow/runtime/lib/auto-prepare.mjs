@@ -9,6 +9,11 @@
 // the join file said "prepare": "offer" (copied into the receipt); the repository carries an empty .skilliton-off
 // file at its root; SKILLITON_AUTO_PREPARE=off is set for the session; or the project needs a migration first.
 // Nothing here is silent: every one of those is a line in the block.
+//
+// A prepared project gets the same treatment for a pending instruction migration (the managed block in CLAUDE.md
+// and AGENTS.md refreshed to the current template, with its receipt): applied at session start under the same
+// conditions, left uncommitted, said in the block. A migration that moves files (a layout change) is not applied
+// here; the block's migration line names the command.
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -54,25 +59,30 @@ export async function autoPrepare(root, { env = process.env } = {}) {
     if (e instanceof Refused) return { note: `Auto-prepare (not run): ${e.message}`, prepared: false, skipOffer: false };
     throw e;
   }
-  if (project.layoutVersion !== null) return null;
   const receipts = await joinedReceipts();
   if (!receipts.length) return null;
   const companies = receipts.map((r) => r.company).join(" and ");
+  const prepared = project.layoutVersion !== null;
   // Two places for the opt-out: a file at the root, which travels with the repository, or one inside the Git folder,
   // which never does (for a client's repository that must carry only the client's software).
   const repo = resolveGitRoot(root);
   const optOut = [join(root, OPT_OUT_FILE), join(repo.gitDir, OPT_OUT_FILE.slice(1))].find((p) => existsSync(p));
   if (optOut) {
+    if (prepared) return null;
     const where = optOut.startsWith(repo.gitDir) ? `${OPT_OUT_FILE.slice(1)} is present inside the Git folder` : `${OPT_OUT_FILE} is present at the repository root`;
     return { note: `Not prepared on purpose: ${where}, so this repository is left as it is (delete that file to have it prepared at the next session start)`, prepared: false, skipOffer: true };
   }
   const auto = receipts.filter((r) => r.prepare !== "offer");
   if (!auto.length) {
+    if (prepared) return null;
     return { note: `Not prepared, and auto-prepare is off for ${companies} (its join file said "offer"), so the offer below stands`, prepared: false, skipOffer: false };
   }
   if (offFor(env.SKILLITON_AUTO_PREPARE)) {
+    if (prepared) return null;
     return { note: "Auto-prepare: off for this session (SKILLITON_AUTO_PREPARE), so the offer below stands", prepared: false, skipOffer: false };
   }
+  const joined = auto.map((r) => r.company).join(" and ");
+  if (prepared) return autoMigrate(root, project, { repo, joined, loadProject, OperationFailed, TransactionFailed, describeFailure });
   let plan;
   try { plan = await planPrepare(root, { runtimeVersion: readPluginVersion(PLUGIN_ROOT) }); } catch (e) {
     if (e instanceof NeedsMigration || e instanceof Refused || e instanceof OperationFailed) {
@@ -84,7 +94,7 @@ export async function autoPrepare(root, { env = process.env } = {}) {
   try {
     const result = applyChanges({ root, gitDir: repo.gitDir, command: "prepare", changes: plan.changes });
     return {
-      note: `Prepared just now (this machine joined ${auto.map((r) => r.company).join(" and ")}): ${result.written.length} file(s) written, uncommitted: the records, .skilliton/config.json, the managed block in CLAUDE.md and AGENTS.md, the security register. Commit them with your next commit; an empty ${OPT_OUT_FILE} at the root keeps a repository out.`,
+      note: `Prepared just now (this machine joined ${joined}): ${result.written.length} file(s) written, uncommitted: the records, .skilliton/config.json, the managed block in CLAUDE.md and AGENTS.md, the security register. Commit them with your next commit; an empty ${OPT_OUT_FILE} at the root keeps a repository out.`,
       prepared: true,
       skipOffer: true,
     };
@@ -93,4 +103,35 @@ export async function autoPrepare(root, { env = process.env } = {}) {
     const failure = describeFailure("prepare", e);
     return { note: `Auto-prepare failed: ${failure.lines.join(" ")} To prepare by hand: ${selfCommand()} prepare --apply`, prepared: false, skipOffer: false };
   }
+}
+
+// A pending instruction migration, applied the way prepare is: one at a time, each through the migration engine's own
+// plan and transaction, the receipt written beside it, everything left uncommitted. Resolves null when nothing is
+// pending; a note when something was applied, could not be, or is a layout change that is not applied here.
+async function autoMigrate(root, initial, { repo, joined, loadProject, OperationFailed, TransactionFailed, describeFailure }) {
+  const { MIGRATIONS, applyMigration, migrationById, migrationState, planMigration } = await import("./migrations.mjs");
+  const runtimeVersion = readPluginVersion(PLUGIN_ROOT);
+  let project = initial;
+  const applied = [];
+  for (let guard = 0; guard <= MIGRATIONS.length; guard++) {
+    const state = migrationState(project);
+    if (!state.pending.length) break;
+    const migration = migrationById(state.pending[0].id, project);
+    if (migration.kind !== "instructions") {
+      return { note: `Migration ${migration.id} is pending and moves files, so it is not applied at session start; preview it with: ${selfCommand()} migrate, then the same with --apply${applied.length ? ` (applied first: ${applied.join(", ")})` : ""}`, prepared: false, skipOffer: false };
+    }
+    let plan;
+    try { plan = await planMigration(migration, project, { root, runtimeVersion }); } catch (e) {
+      if (e instanceof Refused || e instanceof OperationFailed) return { note: `Migration ${migration.id} (not applied): ${e.message}`, prepared: false, skipOffer: false };
+      throw e;
+    }
+    try { applyMigration(plan, { root, gitDir: repo.gitDir, runtimeVersion }); } catch (e) {
+      if (!(e instanceof TransactionFailed)) throw e;
+      return { note: `Migration ${migration.id} failed and was rolled back: ${describeFailure("migrate", e).lines.join(" ")} To apply it by hand: ${selfCommand()} migrate --apply`, prepared: false, skipOffer: false };
+    }
+    applied.push(migration.id);
+    project = loadProject(root, { allowLegacy: true });
+  }
+  if (!applied.length) return null;
+  return { note: `Migrated just now (this machine joined ${joined}): ${applied.join(", ")} applied; the managed block in CLAUDE.md and AGENTS.md follows the current template, the receipt is under .skilliton/migrations/ and the earlier text is in the backup, all uncommitted. Commit them with your next commit.`, prepared: false, skipOffer: false };
 }

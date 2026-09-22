@@ -58,6 +58,8 @@ Kind: Living. Every entry here was hit by a real person or a real session and ha
 |---|---|---|
 | "Whole-file reads of non-image files over 50KB are refused" | The read guard; the rule exists so one read does not fill the context | Read a range, grep, or summarise with a script. Images and PDFs are never refused. |
 | The stop hook asks for a checkpoint | The working tree changed since the last checkpoint and none was recorded; it asks once per tree state, and never in a repository that is not prepared (workflow 0.18.0) | Record the checkpoint it prints, or say why the work should not be recorded. |
+| The stop hook says maintenance is due | A merge landed, or a day and a commit passed, since the last `maintain` event in the journal (workflow 0.19.0); asked once per commit, on an integration branch only | `skilliton maintain --apply`, then the judgment half the message lists (or `/workflow:maintain`). `checkpoints.stopReminder: false` in `.skilliton/config.json` turns both stop reminders off. |
+| The block says "Migrated just now" | The managed block was behind the current template and the machine has joined, so the instruction migration was applied at session start (workflow 0.19.0) | Commit the changed files with the receipt. |
 | A check passes on its own and fails through a runner | The runner's shell or environment differs (a login shell sources profile files) | Compare the shell flags and the starting environment first. `scripts/checks.mjs` uses a plain shell for this reason. |
 | The session compacted far below the configured window | The window in `.claude/settings.json` is set but the client's own limit applied first; not explained (O25) | Nothing to fix; write a checkpoint before long stretches so a compaction loses nothing. |
 

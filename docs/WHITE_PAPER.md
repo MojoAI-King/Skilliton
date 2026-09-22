@@ -33,7 +33,7 @@ Underneath all three is a fourth: the assistant's context grows with every file 
 
 | Plugin | Hooks (enforced) | Skills (instructed) |
 |---|---|---|
-| `workflow` | Session start: the last handoff and a project state block. Stop: a checkpoint reminder when the tree changed and none was recorded. Pre-compact and session end: a journal entry. Prompt submit: the dispatch suggestion on a long list. | `task`, `review`, `handoff`, `maintain`, `security`, `dispatch`, `release` |
+| `workflow` | Session start: the last handoff and a project state block. Stop: a checkpoint reminder when the tree changed and none was recorded, and a maintenance reminder, once per commit, when a merge landed or a day of commits passed since the last one. Pre-compact and session end: a journal entry. Prompt submit: the dispatch suggestion on a long list. | `task`, `review`, `handoff`, `maintain`, `security`, `dispatch`, `release` |
 | `guardrails` | Every shell command: deny force-push to protected branches, skipped git hooks and secret-shaped files; ask before commands that discard uncommitted work; ask on a shell string that names git; deny `rm`, `rmdir`, `mv` and `git rm` aimed at what Skilliton keeps (the `.skilliton` folder, the records, the entry folders, `CLAUDE.md`, `AGENTS.md`). Every file write: the lane write guard inside a dispatched lane, and the managed block guard, which refuses a write that would take the managed block out of `CLAUDE.md` or `AGENTS.md`. | `guardrails` (explains a block) |
 | `context-hygiene` | Every file read: refuse a whole read of a non-image file over 50 KB. Session start: the cost checklist. | `context-hygiene` |
 | `code-quality` | none | `split-a-file` |

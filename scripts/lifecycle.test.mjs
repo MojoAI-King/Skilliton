@@ -811,6 +811,105 @@ test("on a joined machine, session start prepares a repository that is not prepa
   assert.match(offered.out, /^- Not prepared, and auto-prepare is off for acme \(its join file said "offer"\), so the offer below stands$/m);
   assert.match(offered.out, /Not prepared \(needs attention\)/);
   assert.equal(existsSync(join(q, ".skilliton")), false);
+
+  // A prepared project whose managed block is behind the template: the instruction migration is applied at session
+  // start under the same conditions, said in the block, and left uncommitted; with the offer setting it is only named.
+  const stale = readFileSync(join(p, "CLAUDE.md"), "utf8").replace(/(<!-- skilliton:harness:start v1 -->\n)[\s\S]*?(<!-- skilliton:harness:end -->)/, "$1stale text\n$2");
+  writeFileSync(join(p, "CLAUDE.md"), stale);
+  const onlyNamed = start(p, "a3");
+  assert.match(onlyNamed.out, /^- Pending migrations \(needs attention\): 1 pending: 0100-instructions-/m);
+  assert.doesNotMatch(onlyNamed.out, /Migrated just now/);
+  receipt();
+  const migrated = start(p, "a4");
+  assert.equal(migrated.code, 0, migrated.all);
+  assert.match(migrated.out, /^- Migrated just now \(this machine joined acme\): 0100-instructions-[0-9a-f]{12} applied; the managed block in CLAUDE\.md and AGENTS\.md follows the current template, the receipt is under \.skilliton\/migrations\/ and the earlier text is in the backup, all uncommitted\. Commit them with your next commit\.$/m);
+  assert.match(migrated.out, /^- Pending migrations: none pending/m);
+  assert.doesNotMatch(readFileSync(join(p, "CLAUDE.md"), "utf8"), /stale text/);
+  assert.ok(readdirSync(join(p, ".skilliton", "migrations")).some((f) => f.startsWith("0100-instructions-")), "the receipt was written");
+}));
+
+test("skilliton maintain does the mechanical half and records it; the stop hook holds the session when a merge landed or a day of commits passed since, once per commit, alone or before the checkpoint reminder, and never on a lane branch or in an unprepared repository", async () => withTemp("maintain", async ({ dir, env }) => {
+  const p = preparedRepo(join(dir, "p"), env);
+  const stop = (id) => hook(p, "stop", { session_id: id }, env);
+  const start = (id) => hook(p, "session-start", { session_id: id, source: "startup" }, env);
+  const events = (name) => readEvents(p, env).filter((e) => e.event === name);
+
+  // The command: preview writes nothing; --apply records the event; an entry file reaches its index through it.
+  const preview = cli(p, ["maintain"], env);
+  assert.equal(preview.code, 0, preview.all);
+  assert.match(preview.out, /would write +journal +a maintain event/);
+  assert.equal(events("maintain").length, 0);
+  const entry = cli(p, ["record", "decision", "Keep the ledger", "--apply"], env);
+  assert.equal(entry.code, 0, entry.all);
+  const applied = cli(p, ["maintain", "--apply"], env);
+  assert.equal(applied.code, 0, applied.all);
+  assert.match(applied.out, /wrote +indexes +decisions index in DECISIONS\.md/);
+  assert.match(applied.out, /not run +security findings +no security register/);
+  assert.match(applied.out, /wrote +journal +maintain event recorded/);
+  assert.match(applied.out, /Summary: the mechanical half is done and recorded\./);
+  assert.match(readFileSync(join(p, "DECISIONS.md"), "utf8"), /Keep the ledger/);
+  assert.equal(events("maintain").length, 1);
+  const again = cli(p, ["maintain", "--apply"], env);
+  assert.match(again.out, /current +indexes/);
+
+  // Not due: nothing merged and no day passed since the maintain event.
+  commit(p, env, "the entry and the index");
+  start("s1");
+  const quiet = stop("s1");
+  assert.equal(quiet.code, 0, quiet.all);
+  assert.equal(quiet.out, "", "not due");
+
+  // A merge lands in the session: both reminders are due, maintenance first, once for that commit.
+  git(p, ["checkout", "-q", "-b", "feature"], env);
+  writeFileSync(join(p, "feature.md"), "x\n");
+  commit(p, env, "feature work");
+  git(p, ["checkout", "-q", "main"], env);
+  git(p, ["-c", "commit.gpgsign=false", "merge", "-q", "--no-ff", "-m", "merge feature", "feature"], env);
+  backdate(p, env, (e) => e.event === "session-start" && e.session === "s1", 30);
+  const held = stop("s1");
+  assert.equal(held.code, 0, held.all);
+  const both = JSON.parse(held.out);
+  assert.equal(both.decision, "block");
+  assert.match(both.reason, /^Skilliton maintenance is due: 1 merge commit\(s\) landed \([0-9a-f]{7,}\) since the last maintenance\. Before finishing, run: skilliton maintain --apply \(it regenerates the indexes, refreshes the security findings and records the maintenance; nothing a person has to read\)\. Then the part only you can do: /);
+  assert.match(both.reason, /This is asked once for this commit; if maintenance should not run now, tell the user why and stop\. Skilliton checkpoint reminder: the working tree has changed since this session started/);
+  assert.equal(events("maintain-reminded").length, 1);
+  assert.equal(events("stop-reminded").length, 1);
+  // A new session at the same commit: the checkpoint reminder is not due, and maintenance was asked for this commit.
+  start("s2");
+  const once = stop("s2");
+  assert.equal(once.out, "", "asked once for this commit");
+  const done = cli(p, ["maintain", "--apply"], env);
+  assert.equal(done.code, 0, done.all);
+  assert.equal(stop("s2").out, "", "not due once maintenance is recorded after the merge");
+
+  // A day passes: due only when a commit landed in it, and on its own when the checkpoint reminder has nothing to say.
+  backdate(p, env, (e) => e.event === "maintain", 25 * 60);
+  assert.equal(stop("s2").out, "", "a day with no commit is not due");
+  writeFileSync(join(p, "later.md"), "y\n");
+  commit(p, env, "a commit the next day");
+  start("s3");
+  const aged = JSON.parse(stop("s3").out);
+  assert.equal(aged.decision, "block");
+  assert.match(aged.reason, /^Skilliton maintenance is due: 2[45] hours and 1 commit\(s\) have passed since the last maintenance\./);
+  assert.doesNotMatch(aged.reason, /checkpoint reminder/, "maintenance is the whole reason");
+  assert.equal(events("maintain-reminded").length, 2);
+  assert.equal(stop("s3").out, "", "asked once for this commit");
+
+  // A lane branch: neither the command nor the reminder.
+  git(p, ["checkout", "-q", "-b", "lane/one"], env);
+  writeFileSync(join(p, "lane.md"), "z\n");
+  commit(p, env, "lane work");
+  const lane = cli(p, ["maintain", "--apply"], env);
+  assert.equal(lane.code, 2, lane.all);
+  assert.match(lane.all, /written on an integration branch \(main, master\) only; this is branch lane\/one\. Nothing was written/);
+  start("s4");
+  assert.equal(stop("s4").out, "", "no maintenance reminder on a lane branch");
+
+  // An unprepared repository: refused, nothing written.
+  const q = initRepo(join(dir, "q"), env);
+  const bare = cli(q, ["maintain", "--apply"], env);
+  assert.equal(bare.code, 2, bare.all);
+  assert.match(bare.all, /is not prepared by Skilliton .* so there are no records to maintain\. Nothing was written/);
 }));
 
 test("session-start shows the current task, its last checkpoint and its handoff", async () => withTemp("session-task", async ({ dir, env }) => {
@@ -1822,8 +1921,9 @@ test("mutation check: without the merge sentence, the maintain assertion fails",
     '    parts.push(`${n} merge commit${n === 1 ? "" : "s"} landed in that window (${named}), so a batch of work has just come in: run /workflow:maintain on an integration branch as well, which reconciles the records and the indexes against what merged.`);', ""));
   const shipped = mergedFixture(join(dir, "shipped"), env);
   const broken = mergedFixture(join(dir, "mutated"), env);
-  assert.ok(stopReasonOf(shipped.p, env).includes("/workflow:maintain"));
-  assert.ok(!stopReasonOf(broken.p, env, mutant.bin).includes("/workflow:maintain"), "the mutant drops the sentence, so the assertion above can fail");
+  // The maintenance paragraph (workflow 0.19.0) names /workflow:maintain too, so the check is on the merge sentence itself.
+  assert.ok(stopReasonOf(shipped.p, env).includes("so a batch of work has just come in: run /workflow:maintain"));
+  assert.ok(!stopReasonOf(broken.p, env, mutant.bin).includes("so a batch of work has just come in"), "the mutant drops the sentence, so the assertion above can fail");
 }));
 
 test("mutation check: without --merges, the ordinary-commit assertion fails", async () => withTemp("mutant-merges-flag", async ({ dir, env }) => {

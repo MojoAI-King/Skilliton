@@ -84,7 +84,7 @@ The report card (docs/REPORT_CARD.md) has 123 acceptance items across ten areas;
 Corrections to the ways this is easy to describe wrongly, kept here because each was said aloud once on 2026-09-22 and had to be walked back.
 
 - `task` does not rewrite or improve a person's prompt. It turns the request into a record with acceptance criteria, in the person's own words, so "done" is defined and the work is recoverable. Nothing in Skilliton edits what the person asked.
-- `maintain` is not continuous. What runs as you go is the stop hook asking for a checkpoint and the checkpoint writing the handoff; `maintain` is the reconciliation you run at the end of a day.
+- Maintenance is half automatic since workflow 0.19.0: `skilliton maintain --apply` does the mechanical part (indexes, security findings, the journal event), and the stop hook asks for it and the judgment part, once per commit, when a merge landed or a day of commits passed since the last one. The judgment part (decisions and lessons from the conversation, the prose of status and backlog, the handoff) is still the assistant's work; the hook makes sure it is asked, once per commit, without a person remembering.
 - `dispatch` is not automatic. It is invoked, and a hook suggests it when a prompt carries six or more items.
 - Skilliton does not compact the conversation. Claude Code compacts on its own schedule; the settings template names a window, and the context-hygiene plugin keeps context from growing (whole reads of big files refused, test output routed through `gate` so only the verdict enters the conversation).
 - Nothing here saves money on its own, and no figure is quoted until `scripts/token-cost.mjs` produced it and a person compared it with the Usage screen.

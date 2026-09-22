@@ -95,7 +95,8 @@ if (argv.includes("--self-test")) {
     ["a detail section with no row", (d) => edit(d, OPEN, (t) => t + "\n### B9999 A section about an item with no row\n\nText.\n"), /B9999 has a detail section with no row/],
     ["the same ID twice in one file", (d) => edit(d, OPEN, (t) => { const row = firstOpenRow(t); return t.replace(row, `${row}\n${row}`); }), /has two rows/],
     ["a findings block with an end but no start", (d) => edit(d, OPEN, (t) => t + `\n${FINDINGS_END}\n`), /security findings markers must appear once each/],
-    ["a findings block in the backlog still passes", (d) => edit(d, OPEN, (t) => t + `\n${FINDINGS_START}\n\n## Security findings\n\n| ID | Control | Finding |\n|---|---|---|\n| SEC-1 | SG-01 | a finding row that is not a backlog item |\n| done | not an id | this row would fail outside the block |\n\n${FINDINGS_END}\n`), null],
+    // The live backlog may already carry a real findings block (skilliton maintain writes one), so the case strips it first.
+    ["a findings block in the backlog still passes", (d) => edit(d, OPEN, (t) => t.replace(new RegExp(`\\n?${FINDINGS_START}[\\s\\S]*?${FINDINGS_END}\\n?`), "\n") + `\n${FINDINGS_START}\n\n## Security findings\n\n| ID | Control | Finding |\n|---|---|---|\n| SEC-1 | SG-01 | a finding row that is not a backlog item |\n| done | not an id | this row would fail outside the block |\n\n${FINDINGS_END}\n`), null],
   ];
   let pass = 0;
   for (const [label, mutate, expect] of cases) {

@@ -14,6 +14,7 @@ import { countPromptItems, dispatchSuggestion, evaluateStop, parseHookInput, ses
 import { currentTask } from "../lib/tasks.mjs";
 import { selfCommand } from "../lib/core.mjs";
 import { autoPrepare } from "../lib/auto-prepare.mjs";
+import { evaluateMaintain, maintainReason } from "../lib/maintain.mjs";
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -167,7 +168,18 @@ async function stop(input) {
   const journal = readJournal(root);
   const now = new Date();
   const decision = evaluateStop({ stopHookActive: input.stopHookActive, checkpoints: project.checkpoints, state, events: journal.events, session: input.session, now });
-  if (!decision.block) return 0;
+  // Maintenance is due on an integration branch when a merge landed, or a day and a commit passed, since the last
+  // maintain event (lib/maintain.mjs); it is asked once per commit, and it holds the session on its own when the
+  // checkpoint reminder has nothing to say.
+  const integration = state.branch !== null && project.integrationBranches.includes(state.branch);
+  const maint = evaluateMaintain({ root, events: journal.events, now, integration });
+  const maintDue = maint.due && !journal.events.some((e) => e.event === "maintain-reminded" && e.head === state.head);
+  if (!decision.block && !maintDue) return 0;
+  if (!decision.block) {
+    appendEvent(root, { event: "maintain-reminded", session: input.session, at: now.toISOString() }, { state });
+    process.stdout.write(`${JSON.stringify({ decision: "block", reason: maintainReason(maint) })}\n`);
+    return 0;
+  }
   let current;
   try { current = currentTask(project, state.branch); } catch (e) {
     current = { task: null, ambiguous: [], unreadable: [{ file: project.directories.tasks, reason: clip(e.message, 200) }] };
@@ -189,10 +201,12 @@ async function stop(input) {
   } catch (e) {
     audit = { problem: clip(e?.message ?? String(e), 200) };
   }
-  const reason = stopReason({ decision, state, current, merges, audit });
+  // Maintenance first: the checkpoint reminder ends with a command, and nothing may follow a command.
+  const reason = maintDue ? `${maintainReason(maint)} ${stopReason({ decision, state, current, merges, audit })}` : stopReason({ decision, state, current, merges, audit });
   // Recorded before the block is printed: a reminder that cannot be recorded would repeat on every stop, so a failure
   // here ends in the failure notice, and the session is allowed to stop.
   appendEvent(root, { event: "stop-reminded", session: input.session, at: now.toISOString() }, { state });
+  if (maintDue) appendEvent(root, { event: "maintain-reminded", session: input.session, at: now.toISOString() }, { state });
   process.stdout.write(`${JSON.stringify({ decision: "block", reason })}\n`);
   return 0;
 }

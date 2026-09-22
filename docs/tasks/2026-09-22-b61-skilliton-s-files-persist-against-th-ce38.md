@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-22-b61-skilliton-s-files-persist-against-th-ce38
-- **State:** in-progress
+- **State:** done-local
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T18:16:11.142Z
+- **Updated:** 2026-09-22T18:57:36.441Z
 
 ## Request
 

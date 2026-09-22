@@ -20,7 +20,7 @@ import { appendFileSync, closeSync, fstatSync, mkdirSync, openSync, readSync } f
 import { userInfo } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 
-export const JOURNAL_EVENTS = ["session-start", "session-end", "pre-compact", "stop", "checkpoint", "stop-reminded", "dispatch-suggested"];
+export const JOURNAL_EVENTS = ["session-start", "session-end", "pre-compact", "stop", "checkpoint", "stop-reminded", "dispatch-suggested", "maintain", "maintain-reminded"];
 const BASE_KEYS = ["at", "event", "session", "branch", "head", "dirty", "fingerprint"];
 const MAX_READ_BYTES = 8 * 1024 * 1024;
 const MAX_EXTRA_LENGTH = 200;
