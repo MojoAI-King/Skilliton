@@ -54,9 +54,10 @@ export async function run(argv) {
     }
     const diffs = plan.sections.filter((s) => s.changed).map((s) => unifiedDiff(forDisplay(s.before.toString("latin1")), forDisplay(s.after.toString("latin1")), `a/${s.record}`, `b/${s.record}`)).join("");
     if (diffs) { say(""); process.stdout.write(diffs); }
-    if (plan.problems.length) {
+    if (plan.problems.length || plan.notes.length) {
       say("");
       for (const p of plan.problems) say(`Problem: ${p}`);
+      for (const n of plan.notes) say(`Note: ${n}`);
     }
     const pending = plan.sections.filter((s) => s.changed).length;
     say("");

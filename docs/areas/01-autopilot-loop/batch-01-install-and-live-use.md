@@ -11,11 +11,11 @@ Kind: Living. Batch record. Area [01-autopilot-loop](AREA.md).
 ## Acceptance
 
 - [x] join has run on this machine and skilliton verify reports the three plugins installed and enabled (evidence: evidence/live/2026-09-18-join-this-machine.md; join with the bundled Claude Code 2.1.276 installed context-hygiene 0.3.0, workflow 0.8.0 and guardrails 0.4.0 from the GitHub marketplace at commit f8a935c, `claude plugin list` shows all three enabled at user scope; verify reads UNKNOWN VERSION for each, not VERIFIED, because this repository has no signed release tag yet, backlog B6)
-- [ ] one real session in this repository shows the Project state block and the RESUME HERE note at session start, filed as evidence/live/session-start.md with the date and client version
+- [x] one real session in this repository shows the Project state block and the RESUME HERE note at session start, filed as evidence/live/session-start.md with the date and client version (evidence: evidence/live/2026-09-21-owner-machine-session.md, item 1, in the VS Code extension 2.1.278 on 2026-09-21; filed under that name rather than session-start.md, beside the other live checks)
 - [ ] the guardrails confirmation prompt is seen live on a command that throws away uncommitted work (B5), filed with what was typed and what the client showed
-- [ ] the read guard refuses a whole-file Read of a file over 50KB in the live session (B34), filed with the refusal text
+- [x] the read guard refuses a whole-file Read of a file over 50KB in the live session (B34), filed with the refusal text (evidence: evidence/live/2026-09-21-owner-machine-session.md, item 5)
 - [ ] the stop hook asks for a checkpoint when the session ends with changes and no recent checkpoint, filed
-- [ ] docs/CLIENTS.md and docs/COVERAGE.md say measured on this client for each row the session covered, with the date
+- [x] docs/CLIENTS.md and docs/COVERAGE.md say measured on this client for each row the session covered, with the date (evidence: the extension column's rows for plugin hooks and plugin skills read measured 2026-09-21 from evidence/live/2026-09-21-owner-machine-session.md; COVERAGE.md names the session)
 
 ## Notes
 

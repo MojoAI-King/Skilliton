@@ -213,4 +213,5 @@ function sayIndexes(plan, written) {
   }
   if (written && plan.result) say(`indexes: backups of the previous versions are under ${tilde(plan.result.backupDir)}`);
   for (const p of plan.problems) say(`indexes: problem: ${p}`);
+  for (const n of plan.notes ?? []) say(`indexes: note: ${n}`);
 }

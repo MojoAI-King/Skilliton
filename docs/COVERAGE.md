@@ -20,6 +20,7 @@ Kind: Living. Where Skilliton has and has not actually been run: platforms, vers
 ## Delivery gate
 
 - Exercised: pushes over the local file transport to a bare repository with the installed pre-receive hook (`scripts/delivery.test.mjs`, the demo), on macOS and in Linux CI. Since 2026-09-20 the gate also audits the files each push changes and rejects a finding by name, with a signed policy able to turn it off.
+- Exercised 2026-09-21: the GitHub adapter on a throwaway hosted repository with a ruleset (pull request and the `skilliton-delivery` check required): a direct push refused, the check failing on a defective change, the pull request BLOCKED (`evidence/live/2026-09-21-hosted-delivery-gate.md`). Not run: a clean change merging, the merge queue, the policy-path branch.
 - Not exercised: SSH and HTTP transports; shared server accounts (`safe.directory`, file ownership); concurrent pushes; sha256 object-format repositories; submodules; file names that are not UTF-8; LFS or other content filters during archive verification; the GitHub adapter on a hosted repository (O15, docs/BACKLOG.md B4).
 
 ## The self-running audit

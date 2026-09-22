@@ -420,3 +420,23 @@ test("mutation: without the closed-state filter, the open-tasks assertion fails"
   assert.match(read(ctx, "docs/STATUS.md"), /merged-work/, "the mutant lists a merged task as open, so the unmutated test's assertion can fail");
   assert.equal(existsSync(join(ctx.dir, "docs/tasks/2026-09-03-merged-work-cc33.md")), true);
 });
+
+// Owner's repository, 2026-09-21: a project that numbered its decisions before this runtime (NNN-slug.md, hundreds of
+// them) got one "was not indexed" problem per file and an attention exit from every checkpoint. They are its own
+// record's to list: said once, as a note, and never an attention exit.
+test("numbered entries from before this runtime are one note, not a problem per file, and do not set the exit", (t) => {
+  const ctx = prepared(t);
+  write(ctx, "docs/decisions/239-the-repo-is-organised-to-survive-a-compaction.md", "# An earlier decision\n\nKind: Reference.\n");
+  write(ctx, "docs/decisions/240-the-portal-is-the-support-desk.md", "# Another earlier decision\n\nKind: Reference.\n");
+  write(ctx, "docs/decisions/241-a-third.md", "# A third\n");
+  write(ctx, "docs/decisions/242-a-fourth.md", "# A fourth\n");
+  const preview = index(ctx);
+  assert.equal(preview.code, 0, preview.all);
+  assert.doesNotMatch(preview.out, /Problem: docs\/decisions\/2(39|40|41|42)-/);
+  assert.match(preview.out, /Note: docs\/decisions\/: 4 file\(s\) use the earlier numbering \(239-the-repo-is-organised-to-survive-a-compaction\.md, 240-the-portal-is-the-support-desk\.md, 241-a-third\.md, \.\.\.\) and are not entries this index manages/);
+  assert.equal((preview.out.match(/Note: docs\/decisions\//g) || []).length, 1, "one note, not one per file");
+  write(ctx, "docs/decisions/notes.md", "# Loose\n");
+  const withProblem = index(ctx);
+  assert.equal(withProblem.code, 1, withProblem.all);
+  assert.match(withProblem.out, /Problem: docs\/decisions\/notes\.md was not indexed: its name is not an entry ID/);
+});

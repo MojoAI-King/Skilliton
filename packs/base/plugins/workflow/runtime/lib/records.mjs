@@ -86,9 +86,9 @@ const shown = (value) => (value.length > 60 ? `${value.slice(0, 57)}...` : value
 export function readEntries(project, kind, { overlay = null } = {}) {
   const dir = project.directories[kind];
   const folder = inspectFolder(project.root, dir, `the ${kind} folder`);
-  const entries = [], problems = [];
+  const entries = [], problems = [], notes = [], numbered = [];
   let total = 0;
-  if (!folder.exists) return { dir, entries, total, problems };
+  if (!folder.exists) return { dir, entries, total, problems, notes };
   let names;
   try { names = readdirSync(folder.abs, { withFileTypes: true }); } catch (e) { throw new OperationFailed(`${dir}/ could not be listed (${e.code ?? "error"}); nothing was written`); }
   names.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
@@ -97,7 +97,9 @@ export function readEntries(project, kind, { overlay = null } = {}) {
     if (name === "README.md" || !name.endsWith(".md")) continue;
     const rel = `${dir}/${name}`;
     const id = name.slice(0, -3);
-    if (!isId(id)) { problems.push(`${rel} was not indexed: its name is not an entry ID (YYYY-MM-DD-<slug>-<four hex digits>.md)`); continue; }
+    // A project that kept numbered entries (NNN-slug.md) before this runtime keeps them: they are its own record's
+    // to list, said once as a note, never one problem per file (an owner's repository had hundreds, 2026-09-21).
+    if (!isId(id)) { if (/^\d+-/.test(id)) numbered.push(name); else problems.push(`${rel} was not indexed: its name is not an entry ID (YYYY-MM-DD-<slug>-<four hex digits>.md)`); continue; }
     let st;
     try { st = lstatSync(join(folder.abs, name)); } catch (e) { problems.push(`${rel} was not indexed: it could not be inspected (${e.code ?? "error"})`); continue; }
     if (!st.isFile()) { problems.push(`${rel} was not indexed: it is not a regular file`); continue; }
@@ -122,7 +124,8 @@ export function readEntries(project, kind, { overlay = null } = {}) {
     }
   }
   entries.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return { dir, entries, total, problems };
+  if (numbered.length) notes.push(`${dir}/: ${numbered.length} file(s) use the earlier numbering (${numbered.slice(0, 3).join(", ")}${numbered.length > 3 ? ", ..." : ""}) and are not entries this index manages; they stay listed the project's own way in its record`);
+  return { dir, entries, total, problems, notes };
 }
 
 // ---------- index sections ----------
@@ -154,12 +157,13 @@ export function findIndexSection(text, kind, label) {
 export function regenerateIndexes(project, { apply = false, gitDir = null, branch, overlay = null } = {}) {
   const onBranch = branch === undefined ? currentBranch(project.root) : branch;
   const integration = onBranch !== null && project.integrationBranches.includes(onBranch);
-  const sections = [], problems = [];
+  const sections = [], problems = [], notes = [];
   for (const kind of INDEX_KINDS) {
     const role = INDEX_RECORD_ROLE[kind];
     const record = project.artifacts[role];
-    const { dir, entries, total, problems: found } = readEntries(project, kind, { overlay });
+    const { dir, entries, total, problems: found, notes: foundNotes } = readEntries(project, kind, { overlay });
     problems.push(...found);
+    notes.push(...foundNotes);
     const bytes = readPath(project.root, record, `the ${ROLE_LABELS[role]} ${project.artifacts[role]}`);
     if (bytes === null) refuse(`the ${ROLE_LABELS[role]} ${record} does not exist, so the ${kind} index has nowhere to go. Run skilliton prepare --apply first. Nothing was written`);
     const text = bytes.toString("latin1");
@@ -181,5 +185,5 @@ export function regenerateIndexes(project, { apply = false, gitDir = null, branc
     if (!gitDir) throw new Error("internal: regenerateIndexes needs gitDir to write");
     result = applyChanges({ root: project.root, gitDir, command: "index", changes });
   }
-  return { branch: onBranch, integration, sections, problems, result };
+  return { branch: onBranch, integration, sections, problems, notes, result };
 }

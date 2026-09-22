@@ -9,7 +9,7 @@ Kind: Living. Area record. One of the ten areas in docs/REPORT_CARD.md; the batc
 - **What A- means here:** One signed release verified from the GitHub source; one private repository install, update and verify with real credentials on a throwaway; installs pinned to signed tags.
 - **Owner inputs this area waits on:** The owner's signing key and version choice (B6). Owner approval for a throwaway private repository (B31).
 - **Advances:** M3, M6, M12; B6, B18, B31
-- **Build progress:** `[##############......]` 71 (5 of 7) across 3 batch(es), by `node scripts/report-card.mjs --apply`
+- **Build progress:** `[####################]` 100 (7 of 7) across 3 batch(es), by `node scripts/report-card.mjs --apply`
 
 ## Batches
 
@@ -18,7 +18,7 @@ Kind: Living. Area record. One of the ten areas in docs/REPORT_CARD.md; the batc
 | Batch | Type | Progress |
 |---|---|---|
 | [01 First signed release (B6)](batch-01-first-signed-release.md) | owner | `[####################]` 100 (3 of 3) |
-| [02 Private repository (B31)](batch-02-private-repository.md) | owner | `[....................]` 0 (0 of 2) |
+| [02 Private repository (B31)](batch-02-private-repository.md) | owner | `[####################]` 100 (2 of 2) |
 | [03 Pinned installs (B18)](batch-03-pinned-installs.md) | build | `[####################]` 100 (2 of 2) |
 
 <!-- report-card:end -->
