@@ -244,13 +244,15 @@ jobs:
       # step above, whose high-confidence rules carry a reason on every allowed line, plus the scrub check below.
       - name: Security collectors over this repository, recorded as evidence
         run: |
-          echo "collect tests is not run here: this repository has no .skilliton/delivery.json, so there is no check list for it to run. It is covered by scripts/collectors.test.mjs."
+          echo "collect tests is not run here: this repository's delivery policy names node scripts/checks.mjs, which is this workflow itself. It is covered by scripts/collectors.test.mjs."
+          # The checkout carries this repository's own records since 1.1.0, so count what this run adds, not what exists.
+          before=$(ls .skilliton/security/records/*.json 2>/dev/null | wc -l)
           node scripts/skilliton.mjs security collect delivery-policy --apply --reviewer ci
           node scripts/skilliton.mjs security collect secrets --apply --reviewer ci
-          n=$(ls .skilliton/security/records/*.json 2>/dev/null | wc -l)
-          echo "--- records written by this run: $n"
-          for f in .skilliton/security/records/*.json; do jq -r '"\(.controlId) \(.assessment) by \(.reviewer)"' "$f"; done
-          [ "$n" -eq 2 ] || { echo "expected 2 records, got $n: a collector completed without writing one"; exit 1; }
+          n=$(( $(ls .skilliton/security/records/*.json 2>/dev/null | wc -l) - before ))
+          echo "--- records written by this run: $n (the checkout held $before)"
+          for f in $(ls -t .skilliton/security/records/*.json | head -n "$n"); do jq -r '"\(.controlId) \(.assessment) by \(.reviewer)"' "$f"; done
+          [ "$n" -eq 2 ] || { echo "expected 2 records from this run, got $n: a collector completed without writing one"; exit 1; }
 
       - name: The meter as a command (windows per merged batch, a stubbed meter)
         run: node scripts/usage.test.mjs
