@@ -1,11 +1,12 @@
 // skill-writers.test.mjs: `skilliton new-skill` and `skilliton import` write only inside the skills repository. A
 // symbolic link anywhere between the repository root and the new skill's folder (a pack, a plugin, its `skills`
 // folder, the skill's own folder) refuses with exit 2 and "Nothing was written", naming the linked component; nothing
-// outside changes and the plugin's version does not move. With no link, both still create the skill and bump it.
+// outside changes and the plugin's version does not move. A plugin.json with a second hard link refuses the same way
+// (N85). With no link, both still create the skill and bump it.
 //   node --test scripts/skill-writers.test.mjs
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -99,6 +100,25 @@ test("a linked plugin.json is refused before the version bump could write throug
   assertRefused(cli(["new-skill", "review", "review-probe", "--pack", "company", "--repo", root, "--apply"], join(tmp, "b-json")), "packs/company/plugins/review/.claude-plugin/plugin.json");
   assert.equal(readFileSync(outsideJson, "utf8"), PLUGIN_JSON);
   assert.ok(!existsSync(join(pluginDir(root), "skills")));
+});
+
+test("a hard-linked plugin.json is refused naming the file, and the version does not move", () => {
+  const root = companyRepo();
+  const manifest = join(pluginDir(root), ".claude-plugin", "plugin.json");
+  const other = join(folder(`outside${++count}`), "plugin.json");
+  linkSync(manifest, other);
+  for (const r of [
+    cli(["new-skill", "review", "review-probe", "--pack", "company", "--repo", root, "--apply"], join(tmp, "b-hard")),
+    cli(["import", sourceSkill("probe-skill"), "--into", "review", "--pack", "company", "--repo", root, "--apply"], join(tmp, "b-hard")),
+  ]) {
+    assert.equal(r.code, 2, r.all);
+    assert.ok(r.all.includes("packs/company/plugins/review/.claude-plugin/plugin.json has 2 hard links"), r.all);
+    assert.match(r.all, /Nothing was written/);
+    assert.doesNotMatch(r.all, /\n\s+at .+:\d+:\d+\)?\n|unexpected internal error/, "a refusal, not a crash");
+  }
+  assert.equal(versionOf(root), "0.1.0", "the version did not move");
+  assert.equal(readFileSync(other, "utf8"), PLUGIN_JSON, "the other name's bytes are unchanged");
+  assert.ok(!existsSync(join(pluginDir(root), "skills")), "no skill was created");
 });
 
 test("with no link, new-skill and import still create the skill and bump the version", () => {

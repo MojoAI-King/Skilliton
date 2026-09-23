@@ -15,7 +15,9 @@ const isInside = (child, parent) => { const r = relative(parent, child); return 
 // folder would create the skill wherever the link points while printing the in-repository path, then bump the
 // version for a skill the repository does not hold. The walk stops at the first component that does not exist yet:
 // whatever is created below it is created inside a folder already proved to be in the repository. The root itself
-// may be reached through a link (a temporary folder often is); only what is below it is checked.
+// may be reached through a link (a temporary folder often is); only what is below it is checked. A file on the way
+// (the plugin.json the version bump rewrites) with a second hard link is refused too, as lib/gate.mjs refuses its log:
+// writing it would change the other name's bytes, which may be anywhere on the disk.
 function proveInside(repo, parts, command) {
   const rootReal = realpathSync(repo);
   let at = repo, rel = "";
@@ -29,6 +31,10 @@ function proveInside(repo, parts, command) {
       try { target = readlinkSync(at); } catch { /* keep the fallback */ }
       refuse(`${rel} is a symbolic link (to ${tilde(target)}), and ${command} writes only inside the repository, never through a link. `
         + "Nothing was written. Replace the link with the folder itself, then run again.");
+    }
+    if (st.isFile() && st.nlink > 1) {
+      refuse(`${rel} has ${st.nlink} hard links, so writing it would change another file too, and ${command} writes only files of its own. `
+        + "Nothing was written. Replace it with a copy of its own (copy it, then move the copy over it), then run again.");
     }
     const real = realpathSync(at);
     if (!isInside(real, rootReal)) {
