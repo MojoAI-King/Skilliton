@@ -18,7 +18,7 @@
 import { spawn } from "node:child_process";
 import { createWriteStream, existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { refuse, selfCommand } from "./core.mjs";
+import { refuse, resolveProgram, selfCommand } from "./core.mjs";
 import { DRAFT_FILE, POLICY_FILE, parsePolicyText } from "./delivery-policy.mjs";
 import { GitError, readGitState } from "./journal.mjs";
 
@@ -86,7 +86,7 @@ function runOne(run, { cwd, log, tailLines = DEFAULT_TAIL, env = process.env, on
     let child;
     try {
       child = run.argv
-        ? spawn(run.argv[0], run.argv.slice(1), { cwd, env, stdio: ["ignore", "pipe", "pipe"], detached: group })
+        ? spawn(resolveProgram(run.argv[0]), run.argv.slice(1), { cwd, env, stdio: ["ignore", "pipe", "pipe"], detached: group })
         : spawn(run.shell, { cwd, env, stdio: ["ignore", "pipe", "pipe"], shell: true, detached: group }); // skilliton-audit: allow shell-true the command the person typed at --cmd, on their own machine; the shared delivery gate takes an argument list and never this branch
     } catch (e) {
       done({ name: run.name, ok: false, code: null, signal: null, timedOut: false, startError: e.message, seconds: 0, tail });

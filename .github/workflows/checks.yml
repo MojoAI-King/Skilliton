@@ -153,6 +153,9 @@ jobs:
       - name: Doctor from an installed copy (the marketplace's catalog, CLAUDE_CONFIG_DIR)
         run: node --test scripts/doctor-installed.test.mjs scripts/windows-cmd.test.mjs
 
+      - name: A bare program name resolves against PATH on Windows before it starts (B79)
+        run: node --test scripts/resolve-program.test.mjs
+
       - name: Prepare, migrate, remove, records and indexes
         run: node --test scripts/prepare.test.mjs scripts/migrate.test.mjs scripts/records.test.mjs scripts/root-and-handoff-settings.test.mjs scripts/path-form.test.mjs
 

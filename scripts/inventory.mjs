@@ -539,7 +539,7 @@ export function jsProgramCalls(src, wrappers = []) {
     if (/function\s+$/.test(before)) continue; // the wrapper's own definition
     const all = callArguments(src, m.index + m[0].length);
     const arg = all[0] ?? "";
-    const literal = /^(["'])([^"'`$\\]+)\1$/.exec(arg) ?? /^`([^`$\\]+)`$/.exec(arg);
+    const literal = /^resolveProgram\(\s*(["'])([^"'`$\\]+)\1\s*(?:,[\s\S]*)?\)$/.exec(arg) ?? /^(["'])([^"'`$\\]+)\1$/.exec(arg) ?? /^`([^`$\\]+)`$/.exec(arg); // resolveProgram("git", ...) (core.mjs, B79) reads as its literal
     // The options a child is started with are the third argument of a child_process call. A wrapper takes its own
     // arguments, so nothing is read there: the wrapper's own call is in this list too.
     const options = CHILD_PROCESS_FUNCTIONS.includes(names.get(m[1]) ?? "") ? (all[2] ?? null) : null;

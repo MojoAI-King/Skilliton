@@ -147,12 +147,25 @@ function windowsCmdLine(file, args, platform = process.platform, comspec = proce
   return [comspec || "cmd.exe", ["/d", "/s", "/c", `""${file}"${args.map((a) => ` ${a}`).join("")}"`]];
 }
 
+// The name a start of `name` should use on this platform, so a program placed in the working folder cannot stand in
+// for the one on PATH (a decoy node.exe measured in evidence/live/windows/2026-09-23-hosted-runner-port.md; backlog
+// B79). On win32, Node's own spawn resolves a bare name (one with no path separator) by searching the current folder
+// before PATH; `which` above searches PATH alone, so its match is what a caller passes to spawn or spawnSync instead
+// of the bare name. Elsewhere, and for a name that already has a path separator, the name is returned exactly as
+// given: this platform already looks only at PATH, or the caller chose the path on purpose. A name `which` cannot
+// find comes back unchanged, so the start fails exactly as it did before and is reported exactly as it always was.
+function resolveProgram(name, { platform = process.platform, which: whichFn = which } = {}) {
+  if (platform !== "win32" || name.includes("/") || name.includes("\\")) return name;
+  return whichFn(name) ?? name;
+}
+
 // Run a program with a timeout; never throws for the program's own failure.
 function runProgram(file, args, timeoutMs = 20000, { env } = {}) {
-  const viaCmd = windowsCmdLine(file, args);
+  const resolved = resolveProgram(file);
+  const viaCmd = windowsCmdLine(resolved, args);
   const r = viaCmd
     ? spawnSync(viaCmd[0], viaCmd[1], { encoding: "utf8", timeout: timeoutMs, stdio: ["ignore", "pipe", "pipe"], env: env ?? process.env, windowsVerbatimArguments: true })
-    : spawnSync(file, args, { encoding: "utf8", timeout: timeoutMs, stdio: ["ignore", "pipe", "pipe"], env: env ?? process.env });
+    : spawnSync(resolved, args, { encoding: "utf8", timeout: timeoutMs, stdio: ["ignore", "pipe", "pipe"], env: env ?? process.env });
   const failure = r.error ? (r.error.code === "ETIMEDOUT" ? `timed out after ${timeoutMs / 1000}s` : r.error.message)
     : r.status !== 0 ? `exit ${r.status ?? "signal " + r.signal}` : null;
   return { ok: failure === null, failure, status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
@@ -351,7 +364,7 @@ function readPluginVersion(pluginDir) {
 export {
   PLUGIN_ROOT, SKILLS_REPO, HOME, BACKUPS,
   Refused, refuse, say, isPlainObject, clone, sameJson, sha12, statOrNull, isDir, isFile, tilde, selfCommand,
-  resolveExistingDir, NAME_RE, validateName, parseArgs, which, runProgram, windowsCmdLine, newStamp, backupFile, unifiedDiff,
+  resolveExistingDir, NAME_RE, validateName, parseArgs, which, resolveProgram, runProgram, windowsCmdLine, newStamp, backupFile, unifiedDiff,
   readBytes, writeBytes, forDisplay, argPath,
   buildTeamSettings, readJsonObject,
   listDirNames, requireSkillsRepo, resolveSkillsRepo,

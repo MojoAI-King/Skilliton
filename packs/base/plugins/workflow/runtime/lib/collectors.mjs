@@ -13,6 +13,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveProgram } from './core.mjs';
 import { NO_REPOSITORY_PROGRAMS, gitEnvironment } from './journal.mjs';
 import { samePath } from './path-form.mjs';
 import {
@@ -52,7 +53,7 @@ function pluginVersion() {
 export function toolVersions() {
   let git = null;
   try {
-    const r = spawnSync('git', [...NO_REPOSITORY_PROGRAMS, '--version'], { encoding: 'utf8', timeout: 20000, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnvironment() });
+    const r = spawnSync(resolveProgram('git'), [...NO_REPOSITORY_PROGRAMS, '--version'], { encoding: 'utf8', timeout: 20000, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnvironment() });
     if (!r.error && r.status === 0) git = /^git version (\S+(?: \([^)]{1,40}\))?)/.exec(r.stdout.trim())?.[1] ?? null;
   } catch { git = null; }
   return { node: process.version, git, plugin: pluginVersion() };
@@ -70,8 +71,8 @@ export function runGit(root, args, { maxBuffer = 16 * 1024 * 1024, input = null 
   // Two calls, each with its options written out, rather than one with a spread or a variable: scripts/footprint.test.mjs
   // reads exactly these lines to say that nothing is left running, and a spread arrives as an object it cannot read.
   let r;
-  if (input === null) r = spawnSync('git', ['-C', root, ...NO_REPOSITORY_PROGRAMS, ...args], { timeout: 120000, maxBuffer, stdio: ['ignore', 'pipe', 'pipe'], env: gitEnvironment() });
-  else r = spawnSync('git', ['-C', root, ...NO_REPOSITORY_PROGRAMS, ...args], { timeout: 120000, maxBuffer, stdio: ['pipe', 'pipe', 'pipe'], env: gitEnvironment(), input });
+  if (input === null) r = spawnSync(resolveProgram('git'), ['-C', root, ...NO_REPOSITORY_PROGRAMS, ...args], { timeout: 120000, maxBuffer, stdio: ['ignore', 'pipe', 'pipe'], env: gitEnvironment() });
+  else r = spawnSync(resolveProgram('git'), ['-C', root, ...NO_REPOSITORY_PROGRAMS, ...args], { timeout: 120000, maxBuffer, stdio: ['pipe', 'pipe', 'pipe'], env: gitEnvironment(), input });
   if (r.error?.code === 'ENOENT') fail('GIT_NOT_FOUND');
   if (r.error) fail('GIT_FAILED', `git ${args[0]} did not finish (${r.error.code ?? 'error'})`);
   return { status: r.status, stdout: r.stdout };
@@ -80,7 +81,7 @@ export function runGit(root, args, { maxBuffer = 16 * 1024 * 1024, input = null 
 // true: git ignores .skilliton/private-evidence/; false: it does not; null: it could not be checked.
 export function privateEvidenceIgnored(root) {
   try {
-    const r = spawnSync('git', ['-C', root, ...NO_REPOSITORY_PROGRAMS, 'check-ignore', '-q', '--no-index', '--', `${PRIVATE_EVIDENCE_DIR}/probe.txt`], { timeout: 20000, stdio: 'ignore', env: gitEnvironment() });
+    const r = spawnSync(resolveProgram('git'), ['-C', root, ...NO_REPOSITORY_PROGRAMS, 'check-ignore', '-q', '--no-index', '--', `${PRIVATE_EVIDENCE_DIR}/probe.txt`], { timeout: 20000, stdio: 'ignore', env: gitEnvironment() });
     if (r.error) return null;
     return r.status === 0 ? true : r.status === 1 ? false : null;
   } catch { return null; }
@@ -211,7 +212,7 @@ function runCheck(root, check, fd) {
     process.on('SIGINT', onSignal);
     process.on('SIGTERM', onSignal);
     try {
-      child = spawn(check.command[0], check.command.slice(1), { cwd: root, stdio: ['ignore', fd, fd], detached: process.platform !== 'win32', shell: false, windowsHide: true });
+      child = spawn(resolveProgram(check.command[0]), check.command.slice(1), { cwd: root, stdio: ['ignore', fd, fd], detached: process.platform !== 'win32', shell: false, windowsHide: true });
     } catch (e) {
       done({ ok: false, started: false, reason: startFailure(e) });
       return;

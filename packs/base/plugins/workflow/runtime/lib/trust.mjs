@@ -18,7 +18,7 @@ import { createHash } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { refuse, selfCommand, tilde, validateName } from "./core.mjs";
+import { refuse, resolveProgram, selfCommand, tilde, validateName } from "./core.mjs";
 import { NO_REPOSITORY_PROGRAMS, gitEnvironment } from "./journal.mjs";
 import { legacyTrustDir } from "./legacy-names.mjs";
 
@@ -40,7 +40,7 @@ function gitEnv({ userFacing = false, pinHome = false, home = null } = {}) {
 // Runs git with an argument array, with a repository's own configuration never able to make git start a program
 // (see runtime/lib/journal.mjs). Never throws for git's own failure; `notFound` says git is not installed.
 export function runGit(repo, args, { buffer = false, timeoutMs = 60000, userFacing = false, pinHome = false, home = null, cwd, extraEnv } = {}) {
-  const r = spawnSync("git", repo ? ["-C", repo, ...NO_REPOSITORY_PROGRAMS, ...args] : [...NO_REPOSITORY_PROGRAMS, ...args], {
+  const r = spawnSync(resolveProgram("git"), repo ? ["-C", repo, ...NO_REPOSITORY_PROGRAMS, ...args] : [...NO_REPOSITORY_PROGRAMS, ...args], {
     cwd,
     encoding: buffer ? "buffer" : "utf8",
     env: { ...gitEnv({ userFacing, pinHome, home }), ...extraEnv },

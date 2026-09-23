@@ -27,7 +27,7 @@ import { createHash } from "node:crypto";
 import { lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
-import { isDir, refuse } from "./core.mjs";
+import { isDir, refuse, resolveProgram } from "./core.mjs";
 import { NO_REPOSITORY_PROGRAMS } from "./journal.mjs";
 import { auditFiles, findingLine } from "./audit.mjs";
 import { readWorking } from "./audit-run.mjs";
@@ -62,7 +62,7 @@ function lastLines(text, n) {
 export function gitRunner(where, passed = process.env) {
   const env = { ...passed, GIT_NO_REPLACE_OBJECTS: "1" };
   const git = (args, { allowExit = [0], buffer = false } = {}) => {
-    const r = spawnSync("git", [...where, ...NO_REPOSITORY_PROGRAMS, ...args], {
+    const r = spawnSync(resolveProgram("git"), [...where, ...NO_REPOSITORY_PROGRAMS, ...args], {
       env, encoding: buffer ? "buffer" : "utf8", maxBuffer: GIT_MAX_BUFFER, stdio: ["ignore", "pipe", "pipe"],
     });
     if (r.error) throw new DeliveryError(r.error.code === "ENOENT" ? "git was not found on PATH" : `git could not run (${r.error.message})`);
@@ -212,7 +212,7 @@ function waitFor(child, program) {
 
 // git archive <commit> | tar -x, with both programs started from argument lists.
 async function extractArchive(git, commit, dir) {
-  const archive = spawn("git", [...git.where, ...NO_REPOSITORY_PROGRAMS, "-c", "core.autocrlf=false", "archive", "--format=tar", commit], { env: git.env, stdio: ["ignore", "pipe", "pipe"] });
+  const archive = spawn(resolveProgram("git"), [...git.where, ...NO_REPOSITORY_PROGRAMS, "-c", "core.autocrlf=false", "archive", "--format=tar", commit], { env: git.env, stdio: ["ignore", "pipe", "pipe"] });
   const tar = spawn("tar", ["-x", "-f", "-", "-C", dir], { env: git.env, stdio: ["pipe", "ignore", "pipe"] });
   let archiveErr = "", tarErr = "";
   archive.stderr.on("data", (c) => { if (archiveErr.length < 8192) archiveErr += c; });
@@ -294,7 +294,7 @@ function runCheck(check, { cwd, home }) {
     const group = process.platform !== "win32";
     let child;
     try {
-      child = spawn(check.command[0], check.command.slice(1), { cwd, env, stdio: ["ignore", "pipe", "pipe"], detached: group });
+      child = spawn(resolveProgram(check.command[0]), check.command.slice(1), { cwd, env, stdio: ["ignore", "pipe", "pipe"], detached: group });
     } catch (e) {
       done({ ok: false, how: `could not start: ${e.message}`, seconds: 0, tail });
       return;

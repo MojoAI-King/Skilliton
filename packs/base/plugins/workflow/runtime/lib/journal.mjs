@@ -19,6 +19,7 @@ import { createHash } from "node:crypto";
 import { appendFileSync, closeSync, fstatSync, mkdirSync, openSync, readSync } from "node:fs";
 import { userInfo } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
+import { resolveProgram } from "./core.mjs";
 
 export const JOURNAL_EVENTS = ["session-start", "session-end", "pre-compact", "stop", "checkpoint", "stop-reminded", "dispatch-suggested", "maintain", "maintain-reminded", "dispatch-reminded"];
 const BASE_KEYS = ["at", "event", "session", "branch", "head", "dirty", "fingerprint"];
@@ -167,7 +168,7 @@ export function gitEnvironment({ keepConfig = false, optionalLocks = false, pinH
 // refreshing the index while a person's own git command may hold its lock.
 export function runGit(dir, args, { timeoutMs = 15000 } = {}) {
   const env = gitEnvironment();
-  const r = spawnSync("git", ["-C", dir, "--no-optional-locks", ...NO_REPOSITORY_PROGRAMS, ...args], {
+  const r = spawnSync(resolveProgram("git"), ["-C", dir, "--no-optional-locks", ...NO_REPOSITORY_PROGRAMS, ...args], {
     encoding: "utf8", timeout: timeoutMs, maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"], env,
   });
   if (r.error) {
