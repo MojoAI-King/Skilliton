@@ -48,6 +48,8 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #   command (printf ... > f && git add f) is not scanned, so an add or commit naming a path an
 #   earlier redirection in the command writes asks instead; a write by another program is not seen.
 #   It does not expand globs: rm -rf docs/* is judged by the word docs/*, not the files it matches.
+#   A file over 10 MB is checked by name only, when it is added and when it is committed (N72); a commit that takes
+#   one asks, naming it, so a large file cannot run the hook past its time limit into an allow.
 #
 # Settings: the "guardrails" section of .skilliton/config.json in the project directory
 # ($CLAUDE_PROJECT_DIR, else "cwd" from the hook input, else $PWD). Keys and defaults are in
@@ -1072,6 +1074,7 @@ g() { # git, run where this segment runs, with no prompts, no pager, and no stde
   # depended on one would fail open on a machine without it, which for this hook means a secret-shaped commit
   # allowed with nothing said. GIT_CONFIG_KEY_n and GIT_CONFIG_VALUE_n cannot be named one by one, and do not need
   # to be: git reads them only when GIT_CONFIG_COUNT is set, which it no longer is.
+  # Standard input is G_IN (the object names cat-file reads) or an empty line, never the terminal.
   (
     unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES \
           GIT_NAMESPACE GIT_COMMON_DIR GIT_PREFIX GIT_CONFIG GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM \
@@ -1083,7 +1086,9 @@ g() { # git, run where this segment runs, with no prompts, no pager, and no stde
           GIT_TRACE GIT_TRACE2 GIT_TRACE_CURL GIT_TRACE_PACKET GIT_TRACE_PERFORMANCE GIT_TRACE_SETUP \
           GIT_LITERAL_PATHSPECS GIT_ICASE_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS
     exec git -C "$GDIR" ${GARGS[@]+"${GARGS[@]}"} -c core.quotepath=off -c core.fsmonitor=false "$@"
-  ) </dev/null 2>/dev/null
+  ) 2>/dev/null <<EOF
+${G_IN:-}
+EOF
 }
 
 repo_state() { # 0: a git repository; 1: not one; 2: the directory could not be worked out
@@ -1535,17 +1540,81 @@ EOF
   fi
   check_names_list "$names" commit 0 && return 0
 
-  if ! diff=$(g diff --cached -U0 --no-color --no-ext-diff --no-textconv --diff-filter=d); then ask_unlisted; return 0; fi
+  # A file over the content-scan cap is checked by name only, as on the add path, so one large file cannot run the
+  # hook past its time limit into an allow (N72): the diff below leaves it out, and the commit asks, naming it.
+  if ! commit_big_files "$all"; then ask_unlisted; return 0; fi
+  local top_all pa_all
+  top_all=()
+  pa_all=(${PA[@]+"${PA[@]}"})
+  if [ "${#EXCL[@]}" -gt 0 ]; then top_all=(-- ":/" "${EXCL[@]}"); pa_all=(${PA[@]+"${PA[@]}"} "${EXCL[@]}"); fi
+  if ! diff=$(g diff --cached -U0 --no-color --no-ext-diff --no-textconv --diff-filter=d ${top_all[@]+"${top_all[@]}"}); then ask_unlisted; return 0; fi
   if [ "$all" = 1 ]; then
-    if ! extra=$(g diff -U0 --no-color --no-ext-diff --no-textconv --diff-filter=d); then ask_unlisted; return 0; fi
+    if ! extra=$(g diff -U0 --no-color --no-ext-diff --no-textconv --diff-filter=d ${top_all[@]+"${top_all[@]}"}); then ask_unlisted; return 0; fi
     diff="$diff"$'\n'"$extra"
   fi
   if [ "${#PA[@]}" -gt 0 ]; then
-    if ! extra=$(g diff -U0 --no-color --no-ext-diff --no-textconv --diff-filter=d -- "${PA[@]}"); then ask_unlisted; return 0; fi
+    if ! extra=$(g diff -U0 --no-color --no-ext-diff --no-textconv --diff-filter=d -- "${pa_all[@]}"); then ask_unlisted; return 0; fi
     diff="$diff"$'\n'"$extra"
   fi
   scan_diff "$diff"
   if [ -n "$HIT_FILE" ]; then content_reason "$HIT_FILE" commit; deny "$REASON"; fi
+  if [ -n "$BIG" ]; then
+    ask "Check first: ${BIG%%$'\n'*} is larger than 10 MB, too large for guardrails to scan for passwords or keys within its time limit, so it was checked by name only (the same size rule git add has). Look at what it holds, and confirm only if there is no secret in it."
+  fi
+  return 0
+}
+
+# The content-scan cap: the add path's find -size -10240k scans a file whose size, rounded up to whole KiB, is under
+# 10240, so a file over 10239 KiB is checked by name only. The commit path uses the same line (N72).
+BIG_BYTES=10484736
+EXCL=(); BIG=""
+commit_big_files() { # commit_big_files <1: commit -a>: sets BIG to the files this commit takes that are over the cap, one
+  # per line relative to the top of the repository, and EXCL to the pathspecs that leave them out of a diff. A staged
+  # file is measured by its size in the index, not on disk; a working-tree file (-a, or paths named) by its size on
+  # disk. Returns 1 when the sizes could not be read.
+  local whole=$1 raw line meta path paths="" shas="" sizes p z top extra f
+  BIG=""; EXCL=()
+  raw=$(g diff --cached --raw --no-abbrev --diff-filter=d) || return 1
+  while IFS= read -r line; do
+    case "$line" in :*) ;; *) continue ;; esac
+    meta=${line%%$'\t'*}; path=${line##*$'\t'}
+    case "$path" in '"'*'"') path=${path#'"'}; path=${path%'"'} ;; esac
+    set -f; set -- $meta; set +f
+    [ -n "${4:-}" ] || continue
+    paths="$paths$path"$'\n'; shas="$shas$4"$'\n'
+  done <<EOF
+$raw
+EOF
+  if [ -n "$shas" ]; then
+    G_IN=$shas; sizes=$(g cat-file --batch-check='%(objectsize)'); z=$?; G_IN=""
+    [ "$z" = 0 ] || return 1
+    while IFS= read -r p <&3 && IFS= read -r z <&4; do
+      case "$z" in ''|*[!0-9]*) continue ;; esac   # a submodule's commit is not an object here
+      [ "$z" -gt "$BIG_BYTES" ] && BIG="$BIG$p"$'\n'
+    done 3<<EOF 4<<EOF2
+$paths
+EOF
+$sizes
+EOF2
+  fi
+  if [ "$whole" = 1 ] || [ "${#PA[@]}" -gt 0 ]; then
+    top=$(g rev-parse --show-toplevel) || return 1
+    if [ "$whole" = 1 ]; then extra=$(g diff --name-only --diff-filter=d) || return 1; else extra=""; fi
+    if [ "${#PA[@]}" -gt 0 ]; then extra="$extra"$'\n'"$(g diff --name-only --diff-filter=d -- "${PA[@]}")" || return 1; fi
+    FILES=()
+    while IFS= read -r f; do [ -n "$f" ] && [ -f "$top/$f" ] && FILES[${#FILES[@]}]="./$f"; done <<EOF
+$extra
+EOF
+    if [ "${#FILES[@]}" -gt 0 ]; then
+      extra=$(cd "$top" && find "${FILES[@]}" -prune -type f -size +10239k -print 2>/dev/null)
+      while IFS= read -r f; do [ -n "$f" ] && BIG="$BIG${f#./}"$'\n'; done <<EOF
+$extra
+EOF
+    fi
+  fi
+  while IFS= read -r f; do [ -n "$f" ] && EXCL[${#EXCL[@]}]=":(top,exclude,literal)$f"; done <<EOF
+$BIG
+EOF
   return 0
 }
 

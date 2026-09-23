@@ -246,6 +246,32 @@ expect "negative: rm \"\$x\" (not recursive and forced)" allow "$R" 'rm "$x"'
 expect "negative: rm -rf \"\$PWD/node_modules\" (\$PWD is known)" allow "$R" 'rm -rf "$PWD/node_modules"'
 expect "negative: rm .git/index.lock"                   allow "$R" 'rm .git/index.lock'
 
+# ---------------------------------------------------------------- N72
+section "N72: the commit path checks a file over the 10 MB content-scan cap by name only, and says so"
+FAKE_AWS="AKIA""TESTONLYEXAMPLE0"   # split so the whole value never appears in this file
+RC72="$TMP/repo-large"; new_repo "$RC72" || { echo "FAIL: could not build $RC72"; exit 1; }
+git -C "$RC72" checkout -q feature
+big_file() { head -c "$2" /dev/zero | tr '\0' 'a' | fold -w 100 > "$1"; printf 'key = %s\n' "$FAKE_AWS" >> "$1"; }
+big_file "$RC72/large.txt" 10500000; git -C "$RC72" add large.txt
+t0=$(date +%s); run_bash_hook claude "$RC72" 'git commit -m x'; t1=$(date +%s)
+if [ $((t1 - t0)) -le 5 ] && [ "$DECISION" != allow ]; then ok "a staged file just over the cap is decided within 5 seconds ($((t1 - t0)) s, $DECISION)"
+else bad "a staged file just over the cap took $((t1 - t0)) s and was $DECISION"; fi
+expect "git commit with a staged file over the cap whose last line is secret-shaped (base: deny)" ask "$RC72" 'git commit -m x'
+reason_has "  the reason names the file" "large.txt is larger than 10 MB"
+reason_has "  the reason names the size rule" "checked by name only"
+case "$REASON_TEXT" in *"$FAKE_AWS"*) bad "  the reason repeats the value" ;; *) ok "  the reason never repeats the value" ;; esac
+git -C "$RC72" reset -q; rm -f "$RC72/large.txt"
+big_file "$RC72/small.txt" 1000; git -C "$RC72" add small.txt
+expect "a file under the cap with the same last line is still denied by content (base: deny)" deny "$RC72" 'git commit -m x'
+reason_has "  by its content" "small.txt contain text shaped like an AWS access key ID"
+big_file "$RC72/small.txt" 10500000
+expect "a small staged secret stays scanned when the file on disk has grown past the cap (base: deny)" deny "$RC72" 'git commit -m x'
+git -C "$RC72" reset -q; git -C "$RC72" add small.txt; git -C "$RC72" commit -q -m "a large tracked file"
+printf 'one more line\n' >> "$RC72/small.txt"
+expect "git commit -am x with a tracked file over the cap changed on disk (base: allow)" ask "$RC72" 'git commit -am x'
+reason_has "  the reason names it" "small.txt is larger than 10 MB"
+expect "negative: an ordinary commit of a small clean file"  allow "$R" 'git commit -m x'
+
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
 echo "RESULT: FAIL ($fails failed, $oks ok)"; exit 1
