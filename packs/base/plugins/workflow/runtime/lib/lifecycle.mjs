@@ -464,7 +464,7 @@ function sessionsCheck(root, git, currentSession) {
   const parts = [];
   if (history.mode === "hook") {
     if (!history.previous) parts.push("none recorded in this worktree's journal");
-    else if (history.live) parts.push(`another session looks active in this checkout (last seen ${history.lastSeen}): work in a worktree lane, or check before committing shared records`);
+    else if (history.live) parts.push(`another session looks active in this checkout (last seen ${history.lastSeen}), or it was interrupted: if it is open in another window, work in a worktree lane or check before committing shared records`);
     else if (history.interrupted) parts.push(`interrupted: ${who(history.previous)} has no session-end`);
     else parts.push(`${who(history.previous)} ended normally`);
   } else if (!history.latest) {

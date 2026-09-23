@@ -92,8 +92,8 @@ test("a previous session with recent activity and no session-end looks live, and
   // s1 never ends: its only activity (session-start) is seconds old when s2 starts, well inside the 30 minute window.
   const second = hook(p, "session-start", { session_id: "s2" }, env);
   assert.equal(second.code, 0, second.all, "a live previous session must not block the new one");
-  assert.match(second.out, /^- Previous session: another session looks active in this checkout \(last seen [^)]+\): work in a worktree lane, or check before committing shared records$/m);
-  assert.doesNotMatch(second.out, /interrupted/, "a live session is not also reported as interrupted");
+  assert.match(second.out, /^- Previous session: another session looks active in this checkout \(last seen [^)]+\), or it was interrupted: if it is open in another window, work in a worktree lane or check before committing shared records$/m);
+  assert.doesNotMatch(second.out, /Previous session: interrupted:/, "a live session does not get the interrupted line, which names a crash as certain");
 }));
 
 test("a previous session's own stop event counts as activity, so a session started a while ago but stopped recently still looks live", async () => withTemp("live-stop", async ({ dir, env }) => {
@@ -105,7 +105,7 @@ test("a previous session's own stop event counts as activity, so a session start
   appendRawEvent(p, env, { at: new Date().toISOString(), event: "stop", session: "s1" });
   const second = hook(p, "session-start", { session_id: "s2" }, env);
   assert.equal(second.code, 0, second.all);
-  assert.match(second.out, /^- Previous session: another session looks active in this checkout \(last seen [^)]+\): work in a worktree lane, or check before committing shared records$/m);
+  assert.match(second.out, /^- Previous session: another session looks active in this checkout \(last seen [^)]+\), or it was interrupted: if it is open in another window, work in a worktree lane or check before committing shared records$/m);
 }));
 
 test("a previous session with no recent activity and no session-end is still reported as interrupted", async () => withTemp("interrupted", async ({ dir, env }) => {
