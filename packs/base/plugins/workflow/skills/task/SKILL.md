@@ -29,7 +29,7 @@ The person asking may not be a developer. They describe an outcome; this skill m
 ## 4. Work in small, checkable steps
 
 - Before each change, say in one plain sentence what you are about to change and why.
-- After each step that decided, verified or blocked something, record a checkpoint: `skilliton checkpoint --state "<what is true now>" --evidence "<what ran and what it showed>" --next "<the next step>" --apply`. The stop hook reminds you when there are changes and no recent checkpoint; do not wait for it.
+- After each step that decided, verified or blocked something, record a checkpoint: `skilliton checkpoint --state "<what is true now>" --evidence "<what ran and what it showed>" --next "<the next step>" --apply`. The stop hook reminds you once per working-tree state, after 20 minutes of unrecorded changes and on the stop that follows; do not wait for it.
 - A choice someone might later question (a library, a data shape, a trade-off) gets its own entry: `skilliton record decision "<title>" --apply`, then fill in why and what else was considered.
 - Evidence is only what actually ran in this session. "Should work" is not evidence.
 - Never edit a list between `skilliton:index` markers by hand. If `skilliton index` cannot run, say why and leave the list for the next run.

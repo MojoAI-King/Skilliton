@@ -36,6 +36,19 @@ Each is a way the hook's reading of command text falls short of the actions it n
 - **The record-deletion forms** guarded under "Removing what Skilliton keeps" have equivalent commands (beyond `rm`, `rmdir`, `mv`, `git rm`) that reach the same result without matching the guarded verb list: fixed in guardrails 0.9.0 and workflow 0.23.0, released in 1.2.0.
 - **A symlinked gate log or skills folder** lets a write land outside the path the hook checked, because the hook resolves a removal path through symbolic links only when the path already exists, not every path it reads: fixed in guardrails 0.9.0 and workflow 0.23.0, released in 1.2.0.
 
+### Limits found by the second, 2026-09-23 review
+
+- **The gate that protects its own check program** is not itself checked before the program runs: fixed in guardrails 0.10.0 and workflow 0.24.0, in progress.
+- **An in-place editor run on a record** can change it outside the path the hook checked: fixed in guardrails 0.10.0 and workflow 0.24.0, in progress.
+- **A shell fed a command from a pipe** is not read the way a command typed directly is: fixed in guardrails 0.10.0 and workflow 0.24.0, in progress.
+- **A write to the settings file**, beyond the forms already caught, still reaches it: fixed in guardrails 0.10.0 and workflow 0.24.0, in progress.
+- **A glob over a record folder** removes or changes files the guarded verb list does not name one by one: fixed in guardrails 0.10.0 and workflow 0.24.0, in progress.
+- **Command text over the size cap** is not scanned the way shorter command text is: fixed in guardrails 0.10.0 and workflow 0.24.0, in progress.
+- **The freshness check** reads a record's content in a way the review found it should not trust: fixed in guardrails 0.10.0 and workflow 0.24.0, in progress.
+- **The handoff hook, given a linked path,** does not resolve it the way the removal-path check does: fixed in guardrails 0.10.0 and workflow 0.24.0, in progress.
+- **The delivery reader's line bound** can be worked around by a file shaped to sit past it: fixed in guardrails 0.10.0 and workflow 0.24.0, in progress.
+- **A hard-linked manifest** is not told apart from the file it links to: fixed in guardrails 0.10.0 and workflow 0.24.0, in progress.
+
 ## What it is not
 
 The security evidence register keeps observations tied to file fingerprints and marks them stale when their sources change. It is evidence-keeping for a team's own review; it is not a certification, an attestation, or a compliance pass, and nothing here claims one.

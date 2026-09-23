@@ -63,13 +63,13 @@ claude plugin install code-quality@skilliton
 | Before code changes | The assistant writes a task record with acceptance criteria | asked of the assistant |
 | Every shell command | Force-pushes to protected branches, `--no-verify`, secret-shaped commits and deleting Skilliton's records are blocked; commands that throw away uncommitted work ask you first | enforced by a hook |
 | A whole-file read over 50 KB | Refused, with how to read a range instead | enforced by a hook |
-| Finishing with uncommitted changes, no checkpoint, and at least 20 minutes since the session started or the last checkpoint (`checkpoints.minMinutes` in `.skilliton/config.json`) | The stop is held once and the assistant is asked to record where the work stands | enforced by a hook |
+| Finishing with uncommitted changes, no checkpoint, and at least 20 minutes since the session started or the last checkpoint (`checkpoints.minMinutes` in `.skilliton/config.json`) | The stop is held once per working-tree state, on the stop that follows those 20 minutes, and the assistant is asked to record where the work stands | enforced by a hook |
 | Six or more separate items in one message | The assistant is told to split them into lanes with `/workflow:dispatch` first | enforced note, the assistant does the work |
 | Before a commit | `/workflow:review` summarizes what changed, what could break and what was tested | asked of the assistant |
 
 Type `/` to see the skills: `workflow:task`, `workflow:review`, `workflow:handoff`, `workflow:maintain`, `workflow:dispatch`, `workflow:security`, `workflow:release`, and one each from the other three plugins.
 
-**This path follows the repository's main branch.** Nothing checks the installed files against a signed release; path 3 does.
+**This path follows the repository's main branch.** Nothing checks the installed files against a signed release; path 3 does. Whoever controls main controls the hooks on a trial machine; a machine that holds client work joins signed.
 
 **To take it out again:** in each prepared repository, run `skilliton remove` to see what it would take out (the assistant may run this preview for you), then run `skilliton remove --apply` yourself: the project's instructions and the guardrails reserve that step for a person. It takes out the managed block from CLAUDE.md and AGENTS.md (delete either file if nothing else was in it) and the generated `.skilliton/security/REPORT.md`, and keeps every record and `.skilliton/config.json` (add `--config` to delete that too). On this path `skilliton` is on PATH only inside a Claude Code session; in your own terminal, run it by its full path, `~/.claude/plugins/cache/skilliton/workflow/<version>/bin/skilliton`. Then remove the plugins and the marketplace:
 

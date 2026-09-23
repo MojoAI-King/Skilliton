@@ -5,7 +5,7 @@ import { PLUGIN_ROOT, Refused, argPath, parseArgs, readPluginVersion, refuse, re
 import { LAYOUT_VERSION } from "../lib/config.mjs";
 import { NeedsMigration, OperationFailed, TransactionFailed, applyChanges, describeFailure, planPrepare, resolveGitRoot, resultJson } from "../lib/prepare.mjs";
 
-export const help = `prepare: adopt a Git repository's existing records and add what a prepared Skilliton project (layout 2) needs.
+export const help = `prepare: adopt a Git repository's existing records and add what a prepared Skilliton project (layout ${LAYOUT_VERSION}) needs.
 
   prepare [--dir <repo root>]           show the plan (create, adopt or update, for each file); writes nothing
   prepare --apply [--dir <repo root>]   write the plan
@@ -17,7 +17,7 @@ A prepared project gets:
     maintenance checklist. Each existing record is adopted and never modified (conventional paths, or the paths in
     prepare.artifacts); each missing one is created, saying "not yet assessed".
   - entry folders for tasks, decisions and lessons, each with a README explaining the entry format
-  - .skilliton/config.json with every existing key kept, and prepare.version 2, the record map, the entry folders,
+  - .skilliton/config.json with every existing key kept, and prepare.version ${LAYOUT_VERSION}, the record map, the entry folders,
     the minimum workflow version (prepare.requires.workflow) and handoff.file set
   - the security catalog shipped with this package, only when the project has none (an existing one is kept), and
     README files pointing at "skilliton security status"
