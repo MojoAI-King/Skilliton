@@ -58,7 +58,7 @@ Once a person has joined, these run in every Claude Code session on that user ac
 | Before every write | Lane write guard | In a dispatched lane, keeps the assistant's writes inside that lane's files. |
 | Before every write | Managed block guard | Refuses a write that would take the managed block out of `CLAUDE.md` or `AGENTS.md`. |
 | Every prompt | Dispatch direction | On a list of six or more tasks, tells the assistant to run `/workflow:dispatch` before any code. |
-| On stop, compaction, end | Workflow events | Asks for a checkpoint when there are unrecorded changes, for maintenance after a merge or a day of commits, and once more for dispatch when a list got no lane plan; records the session so an interrupted one is named next time. |
+| On stop, compaction, end | Workflow events | Asks for a checkpoint when there are unrecorded changes, for maintenance after a merge, 15 commits, a day of commits, or when the handoff is 15 commits behind, and once more for dispatch when a list got no lane plan; records the session so an interrupted one is named next time. |
 
 Not covered, and said so: commands a person types in their own terminal, other tools, the inside of scripts and git aliases.
 

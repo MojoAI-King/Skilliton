@@ -188,10 +188,10 @@ async function stop(input) {
   const now = new Date();
   const decision = evaluateStop({ stopHookActive: input.stopHookActive, checkpoints: project.checkpoints, state, events: journal.events, session: input.session, now });
   // Maintenance is due on an integration branch when a merge landed, or a day and a commit passed, since the last
-  // maintain event (lib/maintain.mjs); it is asked once per commit, and it holds the session on its own when the
-  // checkpoint reminder has nothing to say.
+  // maintain event, or when the shared handoff is too many commits behind (lib/maintain.mjs); it is asked once per
+  // commit, and it holds the session on its own when the checkpoint reminder has nothing to say.
   const integration = state.branch !== null && project.integrationBranches.includes(state.branch);
-  const maint = evaluateMaintain({ root, events: journal.events, now, integration });
+  const maint = evaluateMaintain({ root, events: journal.events, now, integration, handoff: project.artifacts.handoff });
   const maintDue = maint.due && !journal.events.some((e) => e.event === "maintain-reminded" && e.head === state.head);
   // Dispatch: this session's prompt was read as a list of tasks and dispatch was named (the prompt hook), and no lane
   // plan has been written since. Asked once per such prompt, on any branch.

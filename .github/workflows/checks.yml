@@ -159,6 +159,9 @@ jobs:
       - name: Tasks, checkpoints, status and lifecycle hooks
         run: node scripts/lifecycle.test.mjs
 
+      - name: When maintenance is due (the handoff behind, a merge, a day)
+        run: node --test scripts/maintain-due.test.mjs
+
       - name: The stop hook on a clean working tree (no checkpoint reminder; a dirty tree as before)
         run: node --test scripts/stop-clean-tree.test.mjs
 

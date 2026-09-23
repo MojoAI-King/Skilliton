@@ -9,7 +9,11 @@
 // (the owner's decision, 2026-09-22: the harness decides the procedure, not the person).
 //
 // When is maintenance due? Measured from the last `maintain` event, or from the journal's first session start when
-// there has never been one: a merge commit landed since, or a day has passed and at least one commit landed since.
+// there has never been one: a merge commit landed since, DUE_AFTER_COMMITS commits landed since, or a day has passed
+// and at least one commit landed since. A checkpoint never writes that event, so no checkpoint quiets this. Also, whatever the journal says, when the shared handoff is HANDOFF_BEHIND_COMMITS or more commits behind HEAD: a
+// session that commits straight to main makes no merge commit, and in a client repository 41 such commits in one
+// evening never made maintenance due, while a mechanical `maintain --apply` had reset the clock without the judgment
+// half (reported 2026-09-22). Only committing a handoff clears that one.
 // A working tree that changed with no commit is the checkpoint reminder's business, not this one's.
 
 import { existsSync } from "node:fs";
@@ -19,6 +23,8 @@ import { regenerateIndexes } from "./records.mjs";
 import { Refused, selfCommand } from "./core.mjs";
 
 const DUE_AFTER_HOURS = 24;
+export const DUE_AFTER_COMMITS = 15;
+export const HANDOFF_BEHIND_COMMITS = 15;
 const CATALOG_REL = ".skilliton/security/catalog.json";
 
 // Commits reachable from HEAD and not from baseHead, or null when git could not say.
@@ -33,16 +39,36 @@ function commitsSince(root, baseHead) {
   }
 }
 
-// { due, why, baseline: { kind, at, head } | null }: the stop hook's rule. `events` is the journal, oldest first.
-export function evaluateMaintain({ root, events, now, integration }) {
+// Commits since the handoff file was last committed, or null when it never was or git could not say.
+function commitsBehindHandoff(root, rel) {
+  if (!rel) return null;
+  try {
+    const last = runGit(root, ["log", "-1", "--format=%H", "HEAD", "--", rel]);
+    return last.status === 0 && last.stdout.trim() ? commitsSince(root, last.stdout.trim()) : null;
+  } catch (e) {
+    if (e instanceof GitError) return null;
+    throw e;
+  }
+}
+
+// { due, why, baseline: { kind, at, head } | null }: the stop hook's rule. `events` is the journal, oldest first;
+// `handoff` is the shared handoff's repository-relative path.
+export function evaluateMaintain({ root, events, now, integration, handoff = null }) {
   if (!integration) return { due: false, why: "not an integration branch, where the shared records are written", baseline: null };
+  const behind = commitsBehindHandoff(root, handoff);
+  const handoffDue = behind !== null && behind >= HANDOFF_BEHIND_COMMITS
+    ? { due: true, why: `the shared handoff (${handoff}) is ${behind} commits behind HEAD, the limit is ${HANDOFF_BEHIND_COMMITS}, and only committing a new handoff clears this`, baseline: null, handoffBehind: behind }
+    : null;
   const last = [...events].reverse().find((e) => e.event === "maintain") ?? null;
   const first = events.find((e) => e.event === "session-start") ?? null;
   const baseline = last ? { kind: "maintain", at: last.at, head: last.head ?? null } : first ? { kind: "session-start", at: first.at, head: first.head ?? null } : null;
-  if (!baseline) return { due: false, why: "no maintenance and no session start recorded, so there is nothing to measure from", baseline };
-  if (!baseline.head) return { due: false, why: "the baseline event recorded no commit id", baseline };
+  if (!baseline) return handoffDue ?? { due: false, why: "no maintenance and no session start recorded, so there is nothing to measure from", baseline };
+  if (!baseline.head) return handoffDue ?? { due: false, why: "the baseline event recorded no commit id", baseline };
   const merges = mergesSince(root, baseline.head);
   if (merges.merges.length) return { due: true, why: `${merges.merges.length} merge commit(s) landed (${merges.merges.map((m) => m.shortSha).join(", ")})`, baseline, merges };
+  const landed = commitsSince(root, baseline.head);
+  if (landed !== null && landed >= DUE_AFTER_COMMITS) return { due: true, why: `${landed} commits landed (the limit is ${DUE_AFTER_COMMITS})`, baseline, merges };
+  if (handoffDue) return { ...handoffDue, baseline };
   const hours = (now.getTime() - Date.parse(baseline.at)) / 3600000;
   if (hours >= DUE_AFTER_HOURS) {
     const commits = commitsSince(root, baseline.head);
@@ -55,9 +81,9 @@ export function evaluateMaintain({ root, events, now, integration }) {
 
 // The stop hook's paragraph. The command comes first, the judgment steps after it, and the once-per rule last.
 export function maintainReason(decision, { command = selfCommand() } = {}) {
-  const since = decision.baseline.kind === "maintain" ? "the last maintenance" : "this project's first recorded session (no maintenance has been recorded yet)";
+  const since = decision.handoffBehind !== undefined ? null : decision.baseline.kind === "maintain" ? "the last maintenance" : "this project's first recorded session (no `skilliton maintain` run is in this repository's journal; a maintenance done without it is not seen)";
   return [
-    `Skilliton maintenance is due: ${decision.why} since ${since}.`,
+    `Skilliton maintenance is due: ${decision.why}${since ? ` since ${since}` : ""}.`,
     `Before finishing, run: ${command} maintain --apply (it regenerates the indexes, refreshes the security findings and records the maintenance; nothing a person has to read).`,
     "Then the part only you can do: sweep this conversation for decisions and lessons that are not yet entry files and record them (record decision or record lesson, then fill the file); reconcile the status record and the backlog with what merged; write the handoff with checkpoint --handoff. /workflow:maintain has the full steps.",
     "This is asked once for this commit; if maintenance should not run now, tell the user why and stop.",
