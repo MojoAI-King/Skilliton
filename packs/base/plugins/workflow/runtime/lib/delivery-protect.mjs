@@ -10,9 +10,16 @@
 //   - the policy's "protectedPaths", when it has one: a folder ends with "/" and covers everything below it, a file is
 //     matched exactly. An explicit list replaces the default, and may be empty (a policy change, so it is signed);
 //   - otherwise the default: every argument of a check command (the program included, and the value of a --name=value
-//     argument) that is a repository-relative path naming a file in the pushed tree, plus .github/workflows/. An
-//     argument that names no file there (a flag, a program on PATH, a script the tree does not hold) protects nothing,
-//     and a check whose script is missing fails on its own when it cannot start.
+//     argument) that is a repository-relative path naming a file at the current tip or at the pushed tip, plus
+//     .github/workflows/. Reading both tips is what makes deleting, renaming or replacing the script a change to it: a
+//     push that removes scripts/checks.mjs changes a path that named a check's file before the push. An argument that
+//     names no file at either tip (a flag, a program on PATH, a script the tree does not hold) protects nothing, and a
+//     check whose script is missing fails on its own when it cannot start.
+//
+// A protected path, or a check argument under the default, may not lie below a symbolic link in the pushed tree, signed
+// or not. git does not follow a link inside a tree path, so a folder link (scripts -> lib) leaves no file at
+// scripts/checks.mjs for either rule to hold, while the check, run in the extracted archive, follows the link to
+// whatever lib/checks.mjs holds, which no rule protects. The push is refused, naming the path and the link.
 //
 // It also holds the policy-path rule that was in lib/delivery.mjs (the same rule, with the same messages, now sharing
 // holdPaths with this one) and the gate's two small tree readers (blobAt, changedPaths), moved here when that file
@@ -69,16 +76,36 @@ function checkArguments(policy) {
   return found;
 }
 
-// The default list for a policy at a pushed tip: the check arguments that name a file there, and the workflow folder.
-function defaultProtectedPaths(git, policy, commit) {
-  const files = new Set();
-  for (const arg of checkArguments(policy)) {
-    const path = repositoryPath(arg);
-    if (!path || files.has(path)) continue;
+// The repository paths the check arguments could name.
+const argumentPaths = (policy) => [...new Set(checkArguments(policy).map(repositoryPath).filter(Boolean))];
+
+// The default list for a policy: the check arguments that name a file at any of the given tips (the current one and
+// the pushed one), and the workflow folder.
+function defaultProtectedPaths(git, policy, commits) {
+  const files = argumentPaths(policy).filter((path) => commits.some((commit) => {
     const r = git(["cat-file", "-t", `${commit}:${path}`], { allowExit: "any" });
-    if (r.status === 0 && r.stdout.trim() === "blob") files.add(path);
-  }
+    return r.status === 0 && r.stdout.trim() === "blob";
+  }));
   return [...files, ...DEFAULT_PROTECTED_FOLDERS];
+}
+
+// The first path whose folder, or a folder above it, is a symbolic link at commit: { path, link }, or null. A folder
+// entry ("tools/") is itself a folder, so a link at its own name counts too.
+function linkedFolder(git, commit, paths) {
+  const above = (path) => {
+    const parts = path.replace(/\/$/, "").split("/");
+    const upTo = path.endsWith("/") ? parts.length : parts.length - 1;
+    return Array.from({ length: upTo }, (_, i) => parts.slice(0, i + 1).join("/"));
+  };
+  const folders = [...new Set(paths.flatMap(above))];
+  if (!folders.length) return null;
+  const listed = git(["ls-tree", "-z", "--full-tree", commit, "--", ...folders]).stdout.split("\0").filter(Boolean);
+  const links = new Set(listed.filter((e) => e.startsWith("120000 ")).map((e) => e.slice(e.indexOf("\t") + 1)));
+  for (const path of paths) {
+    const link = above(path).find((f) => links.has(f));
+    if (link) return { path, link };
+  }
+  return null;
 }
 
 // The entry that covers a path, or null. A folder entry covers everything below it; a file entry only itself.
@@ -120,11 +147,17 @@ function holdPaths({ git, oldId, newId, commits, signatureStatus, notChecked, co
 // and the same signature, so a path one of them covers is left to it.
 function checkProtectedPaths(held, policy, guarded) {
   const explicit = Array.isArray(policy.protectedPaths);
-  const paths = explicit ? policy.protectedPaths : defaultProtectedPaths(held.git, policy, held.newId);
+  const paths = explicit ? policy.protectedPaths : defaultProtectedPaths(held.git, policy, [held.oldId, held.newId]);
   if (!paths.length) return null;
   const because = explicit ? "the policy's protectedPaths lists it" : "a check runs it or it is a workflow file";
   const needed = "a change to it needs a commit signed by an approver (a key in the approvers file); "
     + "push the change as its own signed commit";
+  const linked = linkedFolder(held.git, held.newId, explicit ? paths : [...new Set([...paths, ...argumentPaths(policy)])]);
+  if (linked) {
+    return `the pushed tip ${short(held.newId)} makes ${linked.link} a symbolic link, and the protected path ${linked.path} lies below it `
+      + `(the delivery gate protects it because ${because}); git does not follow a link inside a tree path, so what a check would run there `
+      + "is whatever the link points to, which no rule holds; commit the folder itself instead of a link, signed or not";
+  }
   return holdPaths({
     ...held,
     covers: (p) => matchProtectedPath(p, paths) && !matchPolicyPath(p, guarded),

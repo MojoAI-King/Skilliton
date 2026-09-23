@@ -13,7 +13,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -216,6 +216,60 @@ test("a normal push is accepted; a merge that brings back an earlier checks scri
     assert.notEqual(merged.code, 0, merged.all);
     assert.match(merged.all, /rejected refs\/heads\/main: the pushed result changes the protected path scripts\/checks\.mjs .*no approver-signed commit in this push gave it/);
     assert.equal(tip(sb, s.bare), approved);
+  });
+});
+
+// ---------------------------------------------------------------- the script deleted, renamed, or reached through a folder link
+
+test("a push that deletes or renames the checks script is a change to it: the default list is read at the current tip as well as the pushed one", async () => {
+  await withSandbox("rename", async (sb) => {
+    const s = sharedRepo(sb);
+    // Rename only, the policy untouched, unsigned: the path that named a check's file before the push is held.
+    gitOk(sb, s.work, "mv", "scripts/checks.mjs", "scripts/verify.mjs");
+    const renamed = commit(sb, s.work, "Rename the checks script, unsigned");
+    const r = push(sb, s.work);
+    assert.notEqual(r.code, 0, r.all);
+    assert.match(r.all, new RegExp(`rejected refs/heads/main: commit ${renamed.slice(0, 12)} changes the protected path scripts/checks\\.mjs, which the delivery gate protects because a check runs it`));
+    assert.doesNotMatch(r.all, /checking refs\/heads\/main at/, "nothing was extracted or run");
+    assert.equal(tip(sb, s.bare), s.seed);
+  });
+});
+
+test("a push that turns the checks script's folder into a symbolic link is rejected naming the script and the link, unsigned or signed, and the linked check never runs", async () => {
+  await withSandbox("folder-link", async (sb) => {
+    const s = sharedRepo(sb);
+    const marker = sb.path("linked-check-ran");
+    // The red team's case: scripts/checks.mjs deleted, lib/checks.mjs always passes, scripts committed as a link to lib,
+    // beside a failing test. At the pushed tip git finds no file at scripts/checks.mjs, but the check would follow the link.
+    rmSync(join(s.work, "scripts"), { recursive: true, force: true });
+    writeFiles(s.work, { "lib/greet.mjs": GREET_BROKEN, "lib/checks.mjs": alwaysPasses(marker) });
+    symlinkSync("lib", join(s.work, "scripts"));
+    const linked = commit(sb, s.work, "Link scripts to lib, unsigned");
+    assert.equal(gitOk(sb, s.work, "ls-tree", linked, "scripts").split(/\s+/)[0], "120000", "the fixture committed a link");
+    const unsigned = push(sb, s.work);
+    assert.notEqual(unsigned.code, 0, unsigned.all);
+    assert.match(unsigned.all, new RegExp(`rejected refs/heads/main: the pushed tip ${linked.slice(0, 12)} makes scripts a symbolic link, and the protected path scripts/checks\\.mjs lies below it`));
+    assert.doesNotMatch(unsigned.all, /checking refs\/heads\/main at/, "nothing was extracted or run");
+    assert.equal(existsSync(marker), false, "the linked check never executed");
+    assert.equal(tip(sb, s.bare), s.seed);
+
+    // Signed by the approver, the link is still refused: once scripts is a link, lib/checks.mjs is what runs and no
+    // rule would hold a later unsigned change to it.
+    gitOk(sb, s.work, "config", "user.signingkey", s.approver.privateKey);
+    gitOk(sb, s.work, "commit", "-q", "--amend", "--no-edit", "-S");
+    const signed = push(sb, s.work);
+    assert.notEqual(signed.code, 0, signed.all);
+    assert.match(signed.all, /makes scripts a symbolic link, and the protected path scripts\/checks\.mjs lies below it/);
+    assert.equal(existsSync(marker), false, "the linked check never executed");
+    assert.equal(tip(sb, s.bare), s.seed);
+
+    // A link somewhere else in the tree is not the gate's business: an ordinary push that adds one is accepted.
+    gitOk(sb, s.work, "reset", "-q", "--hard", "origin/main");
+    symlinkSync("lib", join(s.work, "library"));
+    commit(sb, s.work, "An unrelated folder link");
+    const unrelated = push(sb, s.work);
+    assert.equal(unrelated.code, 0, unrelated.all);
+    assert.match(unrelated.all, /accepted refs\/heads\/main: 1 check\(s\) passed \(checks\)/);
   });
 });
 

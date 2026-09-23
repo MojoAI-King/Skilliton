@@ -44,7 +44,7 @@ be signed by an approver. The policy format is .skilliton/delivery.json:
     "policyPaths": [".skilliton/delivery.json", ".github/workflows/", ".github/CODEOWNERS", "CODEOWNERS"] }
 A change to a protected path also needs an approver's signed commit, and is refused before any check runs. The
 optional "protectedPaths" lists them (a folder ends with "/", a file is matched exactly); without it, every file a
-check command names in the pushed tree is protected, and .github/workflows/.
+check command names at the current or the pushed tip, and .github/workflows/. A folder link above one is refused.
 
 Exit codes: 0 accepted (install: previewed or written); 1 rejected, or the check needs attention; 2 invalid or
 refused, nothing written; 3 the operation failed (the gate rejects the push when it cannot finish).`;

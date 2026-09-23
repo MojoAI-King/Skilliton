@@ -809,9 +809,9 @@ test("a check that cannot start or that times out rejects the push, and a timed-
     const approved = push(sb, t, "origin", "main");
     assert.equal(approved.code, 0, approved.all);
 
-    // The program a check names is missing from the pushed tree.
+    // The program a check names is missing from the pushed tree (removing it is a change to a protected path, so approved).
     rmSync(join(t, "tools", "run-check"));
-    commit(sb, t, "Remove the check tool");
+    commit(sb, t, "Remove the check tool, approved", { sign: s.approver });
     const missing = push(sb, t, "origin", "main");
     assert.notEqual(missing.code, 0, missing.all);
     assert.match(missing.all, /rejected refs\/heads\/main: check "runs" failed \(could not start: \.\/tools\/run-check was not found\)/);
