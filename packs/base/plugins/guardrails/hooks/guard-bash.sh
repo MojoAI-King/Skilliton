@@ -754,7 +754,7 @@ EOF
 # ---------------------------------------------------------------- deny rules
 
 check_push() {
-  local n=${#ARGS[@]} j=0 w force=0 mirror=0 all=0 noverify=0 endopts=0 remote_seen=0 refs="" r plus dst branches b target first
+  local n=${#ARGS[@]} j=0 w force=0 delete=0 mirror=0 all=0 noverify=0 endopts=0 remote_seen=0 refs="" r plus del dst branches b target first
   while [ "$j" -lt "$n" ]; do
     w=${ARGS[$j]}; j=$((j + 1))
     if [ "$endopts" = 0 ]; then
@@ -764,18 +764,21 @@ check_push() {
         --no-force) force=0; continue ;;
         --mirror) mirror=1; continue ;;
         --no-mirror) mirror=0; continue ;;
+        --delete) delete=1; continue ;;
         --all|--branches) all=1; continue ;;
         --no-verify) noverify=1; continue ;; # skilliton-audit: allow verification-off the guard's own parser for the flag it blocks
         --verify) noverify=0; continue ;;
         --repo|--receive-pack|--exec|--push-option|--recurse-submodules) j=$((j + 1)); continue ;;
         --*)
           if long_opt "$w" --force-with-lease --force-w; then force=1
+          elif long_opt "$w" --delete --de; then delete=1
           elif long_opt "$w" --no-verify --no-veri; then noverify=1 # skilliton-audit: allow verification-off the guard's own parser for the abbreviated form of the flag it blocks
           fi
           continue ;;
         -?*)
           short_cluster "$w" o ""
           has_letter f && force=1
+          has_letter d && delete=1
           [ "$SC_NEXT" = 1 ] && j=$((j + 1))
           continue ;;
       esac
@@ -796,12 +799,14 @@ check_push() {
     return 0
   fi
 
-  # named refspecs: [+]src:dst or [+]name; a leading + forces that one refspec
+  # named refspecs: [+]src:dst or [+]name; a leading + forces that one refspec. A delete (--delete, -d, or a refspec
+  # with an empty source such as :main) takes the branch off the remote, which loses as much as a force-push does.
   while IFS= read -r r; do
     [ -n "$r" ] || continue
-    plus=0
+    plus=0; del=$delete
     case "$r" in +*) plus=1; r=${r#+} ;; esac
-    [ "$force" = 1 ] || [ "$plus" = 1 ] || continue
+    case "$r" in :*) del=1 ;; esac
+    [ "$force" = 1 ] || [ "$plus" = 1 ] || [ "$del" = 1 ] || continue
     case "$r" in *:*) dst=${r##*:} ;; *) dst=$r ;; esac
     [ -n "$dst" ] || continue
     # git reads heads/main on the remote side as refs/heads/main (measured 2026-09-22: a real remote's main was
@@ -826,7 +831,11 @@ check_push() {
       dst=$CUR_BRANCH
     fi
     if is_protected "$dst"; then
-      deny "Blocked: this would force-push over the shared $dst branch and could erase other people's work. Push your branch without --force and open a pull request instead."
+      if [ "$del" = 1 ]; then
+        deny "Blocked: this would delete the shared $dst branch on the remote and could erase other people's work. Delete only branches of your own; if $dst really has to go, the person who looks after it removes it."
+      else
+        deny "Blocked: this would force-push over the shared $dst branch and could erase other people's work. Push your branch without --force and open a pull request instead."
+      fi
       return 0
     fi
   done <<EOF

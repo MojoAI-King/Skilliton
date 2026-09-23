@@ -109,6 +109,19 @@ expect "negative: git push origin 'refs/heads/*' without force" allow "$RF" "git
 expect "negative: git push -f origin HEAD:heads/feature"       allow "$RF" 'git push -f origin HEAD:heads/feature'
 expect "negative: git push -f origin refs/tags/main"           allow "$RF" 'git push -f origin refs/tags/main'
 
+# ---------------------------------------------------------------- N28
+section "N28: deleting a protected branch on the remote"
+expect "git push origin --delete main"                deny "$RF" 'git push origin --delete main'
+reason_has "  the reason says delete, not force-push" "would delete the shared main branch"
+expect "git push -d origin main"                      deny "$RF" 'git push -d origin main'
+expect "git push origin :main (empty source)"         deny "$RF" 'git push origin :main'
+expect "git push origin :refs/heads/master"           deny "$RF" 'git push origin :refs/heads/master'
+expect "git push --del origin main (abbreviation)"    deny "$RF" 'git push --del origin main'
+expect "git push origin feature --delete main (flag after)" deny "$RF" 'git push origin --delete feature main'
+expect "negative: git push origin --delete feature"   allow "$R"  'git push origin --delete feature'
+expect "negative: git push origin :feature"           allow "$R"  'git push origin :feature'
+expect "negative: git push origin main:feature"       allow "$R"  'git push origin main:feature'
+
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
 echo "RESULT: FAIL ($fails failed, $oks ok)"; exit 1
