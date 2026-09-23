@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/guard-security-0922
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T22:59:34.057Z
+- **Updated:** 2026-09-23T01:32:49.187Z
 
 ## Request
 
@@ -29,9 +29,16 @@ not yet written
 
 ## Checkpoints
 
+### 2026-09-23T01:32:49.187Z
+
+- **State:** N27 to N34 committed on lane/guard-security-0922 (8 item commits plus an N30 follow-up); guard-bash.sh, managed-block-guard.mjs and the guardrails skill changed; new scripts/guardrails-bypass.test.sh runs in CI
+- **Evidence:** each run: step of checks.yml run on its own at 388f1dd with RUNNER_TEMP in a scratch folder: 58 pass, 0 fail, 1 skipped (security collectors, which write records into the tree); guardrails.test.sh 676 ok; guardrails-bypass.test.sh 117 ok, and 69 of its checks fail against the base hook
+- **Next:** main merges the lane, bumps the guardrails version, and updates docs/CONTRACTS.md for the settings guard
+- **Git:** lane/guard-security-0922 @ 388f1dd, 0 uncommitted
+
 ## Handoff
 
-- **State:** not yet written
-- **Next:** not yet written
-- **Blocked:** not yet written
-- **Watch out:** not yet written
+- **State:** N27 to N34 committed on lane/guard-security-0922 (8 item commits plus an N30 follow-up); guard-bash.sh, managed-block-guard.mjs and the guardrails skill changed; new scripts/guardrails-bypass.test.sh runs in CI. Evidence: each run: step of checks.yml run on its own at 388f1dd with RUNNER_TEMP in a scratch folder: 58 pass, 0 fail, 1 skipped (security collectors, which write records into the tree); guardrails.test.sh 676 ok; guardrails-bypass.test.sh 117 ok, and 69 of its checks fail against the base hook.
+- **Next:** main merges the lane, bumps the guardrails version, and updates docs/CONTRACTS.md for the settings guard
+- **Blocked:** nothing
+- **Watch out:** nothing known
