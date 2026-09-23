@@ -18,8 +18,12 @@ export const help = `gate: run the project's checks and return a verdict, not a 
 The full output of every run goes to .git/skilliton/gate/<label>.log inside the repository (in a linked worktree,
 under its own .git/worktrees/<name>/ folder; folder 0700, file 0600, never committed). What is printed: the verdict from the exit status, the tree it ran on (commit, branch and any
 uncommitted files, because a green on a changed tree is about that tree and not about a commit), and on failure the
-last lines of the failing run. Checks run in the policy's order and stop at the first failure. The checks run with
-this shell's environment; the shared branch's delivery gate is the one that isolates.
+last lines of the failing run. On failure only, the verdict adds what it can measure without guessing about the
+machine: the untracked files present when the run started, the tracked files already changed against HEAD, and the
+one-minute load average with the CPU count (not measured on Windows), because a failure in a file outside those
+lists may come from the machine or another session, not the change. Checks run in the policy's order and stop at the
+first failure. The checks run with this shell's environment; the shared branch's delivery gate is the one that
+isolates.
 
 Exit codes: 0 every run passed; 1 a run failed, timed out or was killed (the verdict says which); 2 refused, nothing
 run; 3 the gate itself could not run (the log could not be written, git could not be started).`;
@@ -45,7 +49,7 @@ export async function run(argv) {
       if (e && typeof e.code === "string") throw new OperationFailed(`the gate log could not be written (${e.code}: ${e.message})`);
       throw e;
     }
-    const { results, where } = outcome;
+    const { results, where, startTree, machine } = outcome;
     const failed = results.find((r) => !r.ok) ?? null;
     const passed = results.filter((r) => r.ok);
     const seconds = results.reduce((a, r) => a + r.seconds, 0);
@@ -64,6 +68,15 @@ export async function run(argv) {
       for (const line of failed.tail) say(`  ${line}`);
     }
     say(`  log: ${tilde(outcome.log)}`);
+    if (failed) {
+      const listed = (list) => list.length ? `${list.length} (${list.slice(0, 5).join(", ")}${list.length > 5 ? `, and ${list.length - 5} more (in the log)` : ""})` : "0";
+      if (startTree) {
+        say(`  untracked when the run started: ${listed(startTree.untracked)}`);
+        say(`  tracked file(s) changed against HEAD: ${listed(startTree.trackedChanged)}`);
+      } else say("  untracked / tracked-changed: not recorded (git could not describe this folder)");
+      say(machine.measured ? `  load average (1m): ${machine.loadavg1.toFixed(2)} across ${machine.cpuCount} CPU(s)` : `  load average (1m): not measured on ${machine.reason}`);
+      say("  a failure in a file outside these lists may come from the machine or another session, not the change");
+    }
     return failed ? 1 : 0;
   } catch (e) {
     if (e instanceof OperationFailed) { console.error(`skilliton: gate could not run: ${e.message}`); return 3; }

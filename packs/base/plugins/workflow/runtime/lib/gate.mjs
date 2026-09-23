@@ -17,10 +17,11 @@
 
 import { spawn } from "node:child_process";
 import { createWriteStream, existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
+import { cpus, loadavg } from "node:os";
 import { join } from "node:path";
 import { refuse, resolveProgram, selfCommand } from "./core.mjs";
 import { DRAFT_FILE, POLICY_FILE, parsePolicyText } from "./delivery-policy.mjs";
-import { GitError, readGitState } from "./journal.mjs";
+import { changedPaths, GitError, readGitState } from "./journal.mjs";
 
 export const DEFAULT_TAIL = 25;
 export const MAX_TAIL = 200;
@@ -151,6 +152,30 @@ function provenance(root) {
   }
 }
 
+// The working tree's untracked files and its tracked files changed against HEAD, at a moment in time, split the way
+// `git status --porcelain=v1 -uall -z` already tells them apart (code "??" is untracked; anything else is a tracked
+// file the index or the worktree differs on from HEAD). Returns null when git could not describe the tree.
+function treeSnapshot(root) {
+  try {
+    const paths = changedPaths(root);
+    return {
+      untracked: paths.filter((p) => p.code === "??").map((p) => p.path),
+      trackedChanged: paths.filter((p) => p.code !== "??").map((p) => p.path),
+    };
+  } catch (e) {
+    if (e instanceof GitError) return null;
+    throw e;
+  }
+}
+
+// The one-minute load average and the CPU count, when the platform can say. os.loadavg() always reports [0, 0, 0]
+// on Windows (Node's own documented behaviour, not a measurement), so that platform says it was not measured rather
+// than printing a manufactured zero.
+function machineLoad() {
+  if (process.platform === "win32") return { measured: false, reason: "Windows" };
+  return { measured: true, loadavg1: loadavg()[0], cpuCount: cpus().length };
+}
+
 // Runs the plan in order, stopping at the first failure. Resolves { results, log: path }. `signals` lets the
 // caller forward an interrupt to the running child.
 export async function runGate(plan, { root, gitDir, label, tailLines, env = process.env, signals = true }) {
@@ -168,6 +193,9 @@ export async function runGate(plan, { root, gitDir, label, tailLines, env = proc
   log.on("error", (e) => { if (!logError) { logError = e; forward("SIGKILL"); } });
   const handlers = [];
   if (signals) for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) { const h = () => forward(sig); handlers.push([sig, h]); process.on(sig, h); }
+  // Taken before the first check runs, so it describes the tree the run started from, not what a check's own
+  // build output left behind.
+  const startTree = treeSnapshot(root);
   const results = [];
   try {
     log.write(`skilliton gate ${label}: ${plan.source}\n`);
@@ -185,8 +213,11 @@ export async function runGate(plan, { root, gitDir, label, tailLines, env = proc
   if (logError) throw logError;
   const where = provenance(root);
   if (where) log.write(`tree: ${where.shortHead ?? "no commits"}${where.branch ? ` on ${where.branch}` : ""}, uncommitted: ${where.dirty.join(", ") || "none"}\n`);
+  const machine = machineLoad();
+  if (startTree) log.write(`at start: untracked ${startTree.untracked.join(", ") || "none"}; tracked changed against HEAD ${startTree.trackedChanged.join(", ") || "none"}\n`);
+  log.write(machine.measured ? `load average (1m): ${machine.loadavg1.toFixed(2)} across ${machine.cpuCount} CPU(s)\n` : `load average (1m): not measured on ${machine.reason}\n`);
   await new Promise((r) => log.end(r)); // the end of the log is where a suite prints its summary; never lose it
-  return { results, log: path, where };
+  return { results, log: path, where, startTree, machine };
 }
 
 export function describe(result) {
