@@ -198,6 +198,21 @@ push_case "for b in main; do git push -f origin \$b; done (base: allow)" ask for
 push_case "git push -f origin \$(git branch --show-current) (base: deny)" ask forced 'git push -f origin $(git branch --show-current)'
 push_case "negative: git push --force --no-force origin main (--no-force takes back --force)" allow kept 'git push --force --no-force origin main'
 push_case "negative: git push origin main (not a fast-forward, git refuses)" allow kept 'git push origin main'
+# The red team's one ordinary command that did not go through (2026-09-23, pre-existing at the base): a dry run sends
+# nothing, so a forced one is allowed; a later --no-dry-run, --dry-run after --, and -o n (a push option) are not dry runs.
+push_case "git push --dry-run -f origin main (base: deny)" allow kept 'git push --dry-run -f origin main'
+push_case "git push -n -f origin main (base: deny)"        allow kept 'git push -n -f origin main'
+push_case "git push -fn origin main (base: deny)"          allow kept 'git push -fn origin main'
+push_case "git push --dr -f origin main (a start of --dry-run) (base: deny)" allow kept 'git push --dr -f origin main'
+push_case "git push -f origin main --dry-run (base: deny)" allow kept 'git push -f origin main --dry-run'
+push_case "git push -f --dry-run --mirror origin (base: deny)" allow kept 'git push -f --dry-run --mirror origin'
+push_case "git push --dry-run --no-dry-run -f origin main (as before) (base: deny)" deny forced 'git push --dry-run --no-dry-run -f origin main'
+push_case "git push --dry-run --no-dr -f origin main (as before) (base: deny)" deny forced 'git push --dry-run --no-dr -f origin main'
+push_case "git push --d -f origin main (ambiguous, git refuses) (base: deny)" deny kept 'git push --d -f origin main'
+push_case "git push --dry-run=1 -f origin main (git refuses) (base: deny)" deny kept 'git push --dry-run=1 -f origin main'
+push_case "git push -f origin -- main --dry-run (after --) (base: deny)" deny kept 'git push -f origin -- main --dry-run'
+push_case "git push -on -f origin main (-o takes n) (base: deny)" deny either 'git push -on -f origin main'
+expect "git push --dry-run --no-verify origin feature (as before) (base: deny)" deny "$R" 'git push --dry-run --no-verify origin feature' # skilliton-audit: allow verification-off a test case that sends the flag to the guard
 
 section "N71: option starts, -c configuration, variables, and hook skips, asked of the hook only"
 expect "git commit --no-ver -m x (base: allow)"         deny "$R" 'git commit --no-ver -m x'

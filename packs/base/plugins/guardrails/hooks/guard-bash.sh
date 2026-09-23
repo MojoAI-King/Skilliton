@@ -1345,13 +1345,18 @@ EOF
 
 check_push() {
   local n=${#ARGS[@]} j=0 w plain=0 lease=0 incl=0 force=0 delete=0 mirror=0 all=0 noverify=0 endopts=0 remote_seen=0 refs="" r plus del dst branches b target first
-  local vars="" matching=0 fromcfg=0
+  local vars="" matching=0 fromcfg=0 dry=0
   while [ "$j" -lt "$n" ]; do
     w=${ARGS[$j]}; j=$((j + 1))
     if [ "$endopts" = 0 ]; then
       case "$w" in
         --) endopts=1; continue ;;
         --force) plain=1; continue ;;
+        # --dry-run (or -n) sends nothing: git works out what it would update and leaves the remote as it was (measured
+        # on git 2.51.1 against a bare remote: --dry-run -f, -n -f, -fn and --dr -f all left main unchanged). A later
+        # --no-dry-run, or any start of it, takes it back; git refuses --d as ambiguous and --dry-run=<x> as taking no
+        # value, so neither counts as a dry run here.
+        --dry-run) dry=1; continue ;;
         # --no-force takes back --force only: an earlier --force-with-lease or --force-if-includes still forces (N71;
         # measured on git 2.51: --force-with-lease --no-force HEAD:main force-updates main)
         --no-force) plain=0; continue ;;
@@ -1372,11 +1377,17 @@ check_push() {
           is_abbrev "$w" --delete && delete=1
           { is_abbrev "$w" --all || is_abbrev "$w" --branches; } && all=1
           is_abbrev "$w" --no-verify && noverify=1 # skilliton-audit: allow verification-off the guard's own parser for the abbreviated form of the flag it blocks
+          case "$w" in
+            *=*) ;;
+            *) is_abbrev "$w" --dry-run && ! is_abbrev "$w" --delete && dry=1 ;;
+          esac
+          is_abbrev "$w" --no-dry-run && dry=0
           continue ;;
         -?*)
           short_cluster "$w" o ""
           has_letter f && plain=1
           has_letter d && delete=1
+          has_letter n && dry=1
           [ "$SC_NEXT" = 1 ] && j=$((j + 1))
           continue ;;
       esac
@@ -1390,6 +1401,8 @@ check_push() {
     deny "Blocked: --no-verify skips this project's safety checks (the git hooks that run before a push). Push without --no-verify, and if a check fails, fix what it reports instead of skipping it." # skilliton-audit: allow verification-off the refusal message naming the flag it just blocked
   fi
   [ "$CFG_FP" = true ] || return 0
+  # a dry run overwrites and deletes nothing on the remote, so a forced, deleting or mirroring one goes through
+  [ "$dry" = 1 ] && return 0
 
   if [ "$mirror" = 1 ]; then
     first=${CFG_PB%%$'\n'*}
