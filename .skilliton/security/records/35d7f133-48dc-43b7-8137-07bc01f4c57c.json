@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "35d7f133-48dc-43b7-8137-07bc01f4c57c",
+  "controlId": "SG-SECRETS-IN-SOURCE",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "35d74bb402cc65d381356b219d90d1f16da9e49370997ca5cb48d2561818acfb",
+  "recordedAt": "2026-09-23T14:02:25.318Z",
+  "assessment": "needs-human",
+  "note": "Collector: secrets version 1 (workflow plugin 0.22.0); node v25.8.1; git 2.51.1. 1753 line(s) in 299 file(s) matched a secret shape (long-encoded-run 1727, bearer-credential 2, credential-assignment 24); 708 of 711 tracked files scanned as text. 13 line(s) allowed by .skilliton/security/secrets-allow.json. This records what the collector saw at that time; it is not a security pass.",
+  "reviewer": "skilliton collect secrets",
+  "sources": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-23T14-02-25-191Z-leak-scan-files.txt",
+      "sha256": "1bca7519a8dd882cae43937162e186a2eb812770c1cb4a2ea1f406bdf74b6084"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-23T14-02-25-191Z-leak-scan.txt",
+      "sha256": "552f6a5bab1c66578689deadee7782c5cf5847100c880d8892a8e94a878c8a74"
+    }
+  ]
+}

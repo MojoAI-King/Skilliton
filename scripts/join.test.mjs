@@ -35,7 +35,7 @@ const TOOLS = { node: process.execPath, git: toolPath("git"), "ssh-keygen": tool
 
 function fixture(t, { clients = ["claude", "codex"] } = {}) {
   const base = realpathSync(mkdtempSync(join(tmpdir(), "skilliton-join-")));
-  t.after(() => rmSync(base, { recursive: true, force: true }));
+  t.after(() => rmSync(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })); // CI: a background git gc held .git (ENOTEMPTY)
   const ctx = {
     base, repo: join(base, "company-skills"), tools: join(base, "tools"), keys: join(base, "keys"),
     home: join(base, "home"), claude: join(base, "claude-config"), codex: join(base, "codex-home"),
@@ -83,7 +83,7 @@ function envOf(ctx, extra = {}) {
   };
 }
 
-const gitIn = (ctx, dir, ...args) => execFileSync(TOOLS.git, ["-C", dir, ...args], { env: { ...GIT_ENV, PATH: dirname(TOOLS.git), HOME: ctx.home }, encoding: "utf8" });
+const gitIn = (ctx, dir, ...args) => execFileSync(TOOLS.git, ["-C", dir, "-c", "gc.auto=0", "-c", "maintenance.auto=false", ...args], { env: { ...GIT_ENV, PATH: dirname(TOOLS.git), HOME: ctx.home }, encoding: "utf8" });
 
 function sg(ctx, args, { cli = join(ctx.repo, "scripts", "skilliton.mjs"), env = {} } = {}) {
   const r = spawnSync(process.execPath, [cli, ...args], { cwd: ctx.base, env: envOf(ctx, env), encoding: "utf8" });

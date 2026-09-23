@@ -1,0 +1,55 @@
+{
+  "task": "D",
+  "arm": "with",
+  "rep": 1,
+  "model": "claude-sonnet-5",
+  "measured": {
+    "inputTokens": 263952,
+    "outputTokens": 1135,
+    "success": null
+  },
+  "sessions": [
+    {
+      "exit": 0,
+      "signal": null,
+      "isError": false,
+      "usage": {
+        "input_tokens": 10,
+        "cache_creation_input_tokens": 24302,
+        "cache_read_input_tokens": 239640,
+        "output_tokens": 1135,
+        "output_tokens_details": {
+          "thinking_tokens": 102
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 24302,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 156,
+            "cache_read_input_tokens": 53225,
+            "cache_creation_input_tokens": 645,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 645
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      }
+    }
+  ],
+  "at": "2026-09-23T14:00:07.182Z",
+  "results": [
+    "`data.json` contains **16,000 records**, each with fields: `id`, `name`, `note`, `price`, `tags`.\n\n- **Price range:** 0 to 999 (all 16,000 records have a numeric price)\n- Sample record: `{id: 0, name: \"item-0\", price: 0, tags: [\"a\"], note: \"xxx...\"}`\n\nThe file itself is 2.6MB, so I read it via a script rather than loading it whole (per this session's read-size guard)."
+  ]
+}
