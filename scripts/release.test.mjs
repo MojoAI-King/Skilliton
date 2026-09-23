@@ -83,7 +83,7 @@ function boxed(name, fn) {
     const missing = prerequisites();
     assert.deepEqual(missing, [], `this suite needs git 2.34+ and ssh-keygen: ${missing.join("; ")}`);
     const box = sandbox(name);
-    try { await fn(box, t); } finally { rmSync(box.root, { recursive: true, force: true }); }
+    try { await fn(box, t); } finally { rmSync(box.root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); }
   });
 }
 
@@ -99,7 +99,7 @@ function expectCode(r, code, what) {
 }
 
 function git(box, cwd, args, { ok = true } = {}) {
-  const r = spawnSync("git", args, { cwd, env: box.env, encoding: "utf8" });
+  const r = spawnSync("git", ["-c", "gc.auto=0", "-c", "maintenance.auto=false", ...args], { cwd, env: box.env, encoding: "utf8" });
   if (ok && r.status !== 0) throw new Error(`git ${args.join(" ")} failed (${r.status}): ${r.stderr}`);
   return r;
 }
