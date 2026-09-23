@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-lane-writers-review-8abd
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/writers-review-0923
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T15:12:31.271Z
+- **Updated:** 2026-09-23T15:26:44.623Z
 
 ## Request
 

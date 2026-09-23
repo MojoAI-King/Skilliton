@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T14:59:00.654Z
+- **Updated:** 2026-09-23T15:27:26.361Z
 
 ## Request
 
@@ -28,9 +28,16 @@ not yet written
 
 ## Checkpoints
 
+### 2026-09-23T15:27:26.361Z
+
+- **State:** Four lanes dispatched from LANES-6.md at a61a778; docs-review merged (SECURITY.md What the guard is, INSTALL prerequisites and paths, template autoUpdate false with a decision entry) plus the README half on main; writers-review merged (gate log O_NOFOLLOW and link refusal, new-skill and import prove the destination inside the repository); the threat model page and the allow-list sentence are on main; guard-review (N70 done, N71 to N73 in progress) and hygiene-review (N80, N81 done, N82 in progress) still building; main pushed at bd35690
+- **Evidence:** Per merge: lint, lint-shape, allowlist, docs, names, scrub, deadcode, footprint each exit 0 on the rebased lane tree; gate.test and skill-writers.test 24 pass 0 fail on merged main; the writers lane ran the full gate PASS in 753 s on its tree; whole-history audit 0 findings in 730 files after each commit; CI on the pushes not yet read
+- **Next:** Merge guard-review after its red-team pass and hygiene-review, each with the fast checks then push; bump workflow to 0.23.0 and guardrails to 0.9.0; full checks.mjs on the merged tree; release 1.2.0; read CI
+- **Git:** main @ bd35690, 2 uncommitted
+
 ## Handoff
 
-- **State:** not yet written
-- **Next:** not yet written
-- **Blocked:** not yet written
-- **Watch out:** not yet written
+- **State:** Four lanes dispatched from LANES-6.md at a61a778; docs-review merged (SECURITY.md What the guard is, INSTALL prerequisites and paths, template autoUpdate false with a decision entry) plus the README half on main; writers-review merged (gate log O_NOFOLLOW and link refusal, new-skill and import prove the destination inside the repository); the threat model page and the allow-list sentence are on main; guard-review (N70 done, N71 to N73 in progress) and hygiene-review (N80, N81 done, N82 in progress) still building; main pushed at bd35690. Evidence: Per merge: lint, lint-shape, allowlist, docs, names, scrub, deadcode, footprint each exit 0 on the rebased lane tree; gate.test and skill-writers.test 24 pass 0 fail on merged main; the writers lane ran the full gate PASS in 753 s on its tree; whole-history audit 0 findings in 730 files after each commit; CI on the pushes not yet read.
+- **Next:** Merge guard-review after its red-team pass and hygiene-review, each with the fast checks then push; bump workflow to 0.23.0 and guardrails to 0.9.0; full checks.mjs on the merged tree; release 1.2.0; read CI
+- **Blocked:** nothing
+- **Watch out:** nothing known
