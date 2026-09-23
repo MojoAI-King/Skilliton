@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// delivery-protect.test.mjs: the delivery gate protects the program that runs its checks (N83,
-// packs/base/plugins/workflow/runtime/lib/delivery-protect.mjs).
+// delivery-protect.test.mjs: the delivery gate protects the program that runs its checks (N83), and reads a check's
+// output with a bounded partial line (N84), both in packs/base/plugins/workflow/runtime/lib/delivery-protect.mjs.
 //
 //   node scripts/delivery-protect.test.mjs
 //
@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { lineReader } from "../packs/base/plugins/workflow/runtime/lib/delivery-protect.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CLI = join(here, "skilliton.mjs");
@@ -265,5 +266,40 @@ test("the default does not crash when a check command names a script that is not
     assert.match(accepted.all, /accepted refs\/heads\/main: 2 check\(s\) passed \(checks, extra\)/);
     assert.doesNotMatch(accepted.all, /could not finish|failed \(/);
     assert.equal(tip(sb, s.bare), normal);
+  });
+});
+
+// ---------------------------------------------------------------- a check's output without a newline (N84)
+
+test("the output reader bounds its partial line: 4 MB without a newline never carries more than the limit, and the last lines are kept", () => {
+  const kept = [];
+  const reader = lineReader((line) => kept.push(line.length > 400 ? `${line.slice(0, 400)} ...` : line), 400);
+  const chunk = Buffer.alloc(64 * 1024, "x");
+  let most = 0;
+  for (let i = 0; i < 64; i++) { reader.feed(chunk); most = Math.max(most, reader.carried()); }
+  assert.ok(most <= 400, `the carry reached ${most} characters; the bound is 400`);
+  reader.feed(Buffer.from("\nlast line one\r\nlast line two"));
+  reader.flush();
+  assert.equal(reader.carried(), 0);
+  assert.deepEqual(kept.slice(-2), ["last line one", "last line two"]);
+  // The newline that ends the long run ends an empty carry, since the run was already kept; that empty line is all.
+  const run = kept.slice(0, -2).filter(Boolean);
+  assert.ok(run.length > 1 && run.every((l) => /^x{400} \.\.\.$/.test(l)), "the long run was kept as bounded lines");
+});
+
+test("a check that prints 4 MB without a newline finishes, and the rejection's tail shows its last lines", async () => {
+  await withSandbox("bounded", async (sb) => {
+    const s = sharedRepo(sb);
+    const loud = "process.stdout.write(\"x\".repeat(4 * 1024 * 1024));\nconsole.log(\"\\nlast line one\\nlast line two\");\nprocess.exitCode = 1;\n";
+    writeFiles(s.work, { "scripts/checks.mjs": loud });
+    commit(sb, s.work, "A check that prints 4 MB on one line and fails, approved", { sign: s.approver });
+    const r = push(sb, s.work);
+    assert.notEqual(r.code, 0, r.all);
+    assert.match(r.all, /rejected refs\/heads\/main: check "checks" failed \(exit 1\)/);
+    assert.match(r.all, /remote: +\| last line one\s*\n/);
+    assert.match(r.all, /remote: +\| last line two\s*\n/);
+    const longest = Math.max(...r.all.split("\n").map((l) => l.length));
+    assert.ok(longest < 1000, `a line of the rejection is ${longest} characters; the tail is bounded`);
+    assert.equal(tip(sb, s.bare), s.seed);
   });
 });

@@ -15,7 +15,7 @@
 //     and a check whose script is missing fails on its own when it cannot start.
 //
 // It also keeps the gate's two small tree readers (blobAt, changedPaths), moved here from lib/delivery.mjs when that
-// file reached the ceiling scripts/lint.test.mjs holds it to.
+// file reached the ceiling scripts/lint.test.mjs holds it to, and the bounded line reader for a check's output (N84).
 //
 // Pure over the git runner the gate already holds; it never reads a working tree, because inside pre-receive there is
 // none.
@@ -23,6 +23,7 @@
 import { matchPolicyPath } from "./delivery-policy.mjs";
 
 const DEFAULT_PROTECTED_FOLDERS = [".github/workflows/"];
+const LINE_LIMIT = 400;
 const short = (id) => String(id).slice(0, 12);
 
 // ---------- the gate's tree readers ----------
@@ -121,4 +122,23 @@ export function checkProtectedPaths({ git, oldId, newId, policy, commits, signat
     }
   }
   return { notChecked, paths };
+}
+
+// ---------- a check's output, read a line at a time with a bounded carry (N84) ----------
+
+// keep(line) receives every complete line. A stream that writes without a newline (a progress writer, or a check
+// that prints megabytes on one line) must not grow the carry without bound: once the carry passes the limit it is
+// kept as a line of its own and reset, as lib/gate.mjs does. flush() hands over whatever is left at the end.
+export function lineReader(keep, limit = LINE_LIMIT) {
+  let carry = "";
+  return {
+    feed(chunk) {
+      const lines = (carry + chunk.toString("utf8")).replace(/\r(?=\n)/g, "").split("\n");
+      carry = lines.pop();
+      lines.forEach(keep);
+      if (carry.length > limit) { keep(carry); carry = ""; }
+    },
+    flush() { if (carry) { keep(carry); carry = ""; } },
+    carried: () => carry.length,
+  };
 }

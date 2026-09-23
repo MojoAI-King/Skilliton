@@ -34,7 +34,7 @@ import { readWorking } from "./audit-run.mjs";
 import { LEGACY_POLICY_FILE } from "./legacy-names.mjs";
 import { checkRemovals } from "./delivery-persist.mjs";
 import { gateChanges, gateFingerprint } from "./delivery-integrity.mjs";
-import { blobAt, changedPaths, checkProtectedPaths } from "./delivery-protect.mjs";
+import { blobAt, changedPaths, checkProtectedPaths, lineReader } from "./delivery-protect.mjs";
 import {
   CURRENT_FORMAT, LEGACY_FORMAT, POLICY_FILE, matchPolicyPath, parsePolicyText, readApproversFile, validBranchName,
 } from "./delivery-policy.mjs";
@@ -288,14 +288,10 @@ function runCheck(check, { cwd, home }) {
       done({ ok: false, how: `could not start: ${e.message}`, seconds: 0, tail });
       return;
     }
-    const partial = { out: "", err: "" };
-    const feed = (key) => (chunk) => {
-      const lines = (partial[key] + chunk.toString("utf8")).replace(/\r(?=\n)/g, "").split("\n");
-      partial[key] = lines.pop();
-      lines.forEach(keep);
-    };
-    child.stdout.on("data", feed("out"));
-    child.stderr.on("data", feed("err"));
+    // Each stream's partial line is bounded, so a check that prints megabytes without a newline holds 400 characters.
+    const readers = { out: lineReader(keep), err: lineReader(keep) };
+    child.stdout.on("data", readers.out.feed);
+    child.stderr.on("data", readers.err.feed);
     let timedOut = false, settled = false, exit = null, grace = null;
     // Kill the whole process group: a test runner's own children must not outlive the check or hold its pipes open.
     const killAll = () => {
@@ -309,7 +305,8 @@ function runCheck(check, { cwd, home }) {
       clearTimeout(grace);
       child.stdout?.destroy();
       child.stderr?.destroy();
-      for (const key of ["out", "err"]) if (partial[key]) { keep(partial[key]); partial[key] = ""; }
+      readers.out.flush();
+      readers.err.flush();
       const seconds = Math.round((Date.now() - began) / 100) / 10;
       const ok = !timedOut && how === null && exit?.code === 0;
       const reason = timedOut ? `timed out after ${check.timeoutSeconds}s`
