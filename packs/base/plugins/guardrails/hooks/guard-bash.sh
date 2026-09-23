@@ -36,6 +36,10 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #   command it is, and $(( )) is arithmetic, never a heredoc; an unclosed one asks); a shell, eval or xargs string that
 #   names git asks instead of allowing in silence. It stops ordinary and accidental
 #   commands, not a command someone has deliberately hidden.
+#   It sees the tree as it is BEFORE the command runs: a secret written and staged in the same
+#   command (printf ... > f && git add f) is not scanned, so an add or commit naming a path an
+#   earlier redirection in the command writes asks instead; a write by another program is not seen.
+#   It does not expand globs: rm -rf docs/* is judged by the word docs/*, not the files it matches.
 #
 # Settings: the "guardrails" section of .skilliton/config.json in the project directory
 # ($CLAUDE_PROJECT_DIR, else "cwd" from the hook input, else $PWD). Keys and defaults are in
@@ -469,7 +473,7 @@ EOF
 }
 
 walk_segments() { # runs analyze_segment on each segment, in order, so cd carries forward
-  local n=${#TOKS[@]} i=0 start=0 redir=0
+  local n=${#TOKS[@]} i=0 start=0 redir=0 t
   EFF_DIR=$IN_CWD; REDIRS=""
   while [ "$i" -le "$n" ]; do
     if [ "$i" -eq "$n" ] || [ "${TOKS[$i]}" = "$SEP" ]; then
@@ -477,6 +481,8 @@ walk_segments() { # runs analyze_segment on each segment, in order, so cd carrie
         SEGW=("${TOKS[@]:$start:$((i - start))}"); SEGR=()
         [ "$redir" = 1 ] && split_redirects
         analyze_segment
+        # what this segment writes, for a later add or commit in the same command (N34)
+        if [ "${#SEGR[@]}" -gt 0 ]; then for t in "${SEGR[@]}"; do REDIRS="$REDIRS$t"$'\n'; done; fi
       fi
       start=$((i + 1)); redir=0
     else
@@ -817,6 +823,38 @@ long_opt() { # long_opt <word> <full option> <shortest abbreviation git accepts>
 
 is_everything() { case "$1" in .|./|:/|'*') return 0 ;; esac; return 1; }
 
+# written_then_staged <newline list of paths> <1 when the whole tree is taken>: 0, with HIT_FILE set, when an earlier
+# segment of this command redirected into a path this add or commit names. The hook reads the tree before the command
+# runs, so what that write puts there cannot have been scanned. A path is compared after cd and .., and a pattern such
+# as *.txt is matched against the written path, since the shell would expand it only when the command runs.
+written_then_staged() {
+  local t p abs top
+  [ -n "$REDIRS" ] && [ -n "$GDIR" ] || return 1
+  normalize_path "$GDIR"; top=$NORM
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    case "$t" in "$top"/*) ;; *) continue ;; esac
+    if [ "$2" = 1 ]; then HIT_FILE=${t#"$top"/}; return 0; fi
+    while IFS= read -r p; do
+      [ -n "$p" ] || continue
+      if is_everything "$p"; then HIT_FILE=${t#"$top"/}; return 0; fi
+      resolve_dir "$GDIR" "$p"; [ -n "$RESOLVED" ] || continue
+      normalize_path "$RESOLVED"; abs=$NORM
+      # shellcheck disable=SC2254
+      case "$t" in "$abs"|"$abs"/*|$abs) HIT_FILE=${t#"$top"/}; return 0 ;; esac
+    done <<PATHS
+$1
+PATHS
+  done <<WRITTEN
+$REDIRS
+WRITTEN
+  return 1
+}
+
+written_reason() { # written_reason <add|commit>: sets REASON for a file written earlier in the same command
+  REASON="Check first: an earlier part of this command writes $HIT_FILE, and this git $1 would take it in. guardrails reads the files as they are before the command runs, so what that write puts there has not been checked for passwords or keys. Run the write on its own first, then stage or commit in a separate command so the file can be checked."
+}
+
 ask_unlisted() {
   ask "Check first: guardrails could not list the files this command would stage or commit, so it could not check them for passwords or keys. Look for files such as .env or *.pem first, and confirm only if none of them is included."
 }
@@ -1116,6 +1154,7 @@ check_commit() {
   fi
   [ "$CFG_SF" = true ] || return 0
   check_names_list "$paths" commit 0 && return 0
+  if written_then_staged "$paths" "$all"; then written_reason commit; ask "$REASON"; fi   # the scan goes on: a deny below still wins
   repo_state; state=$?
   [ "$state" = 1 ] && return 0          # not a repository: this commit cannot run there
   if [ "$state" = 2 ]; then ask_unlisted; return 0; fi
@@ -1181,6 +1220,9 @@ check_add() {
 
   # 1. names typed on the command line, including patterns such as *.pem
   check_names_list "$paths" add 0 && return 0
+  # 1b. a file an earlier part of this command wrote, which the tree read below does not yet hold (N34)
+  local whole=0; { [ "$broad" = 1 ] || [ "$update" = 1 ]; } && whole=1
+  if written_then_staged "$paths" "$whole"; then written_reason add; ask "$REASON"; fi   # the scan goes on: a deny below still wins
 
   # 2. the files git would actually stage, listed without taking git's index lock
   repo_state; state=$?

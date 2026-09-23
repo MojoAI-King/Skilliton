@@ -241,6 +241,28 @@ expect "--git-dir=<main repo>/.git (as before)"        deny "$RF" "git --git-dir
 expect "negative: GIT_DIR=<feature repo>/.git git push -f origin HEAD" allow "$R" "GIT_DIR=$RF/.git git push -f origin HEAD"
 expect "negative: FOO=1 git push -f origin HEAD (on feature)" allow "$RF" 'FOO=1 git push -f origin HEAD'
 
+# ---------------------------------------------------------------- N34
+section "N34: a file written and staged in the same command"
+FAKE_AWS="AKIA""TESTONLYEXAMPLE0"   # split so the whole value never appears in this file
+RW="$TMP/repo-write"; new_repo "$RW" || { echo "FAIL: could not build $RW"; exit 1; }
+mkdir -p "$RW/sub"
+expect "printf key > cfg.txt && git add cfg.txt && git commit -m x asks" ask "$RW" "printf 'k=$FAKE_AWS' > cfg.txt && git add cfg.txt && git commit -m x"
+reason_has "  the reason names the file and says why" "an earlier part of this command writes cfg.txt"
+case "$REASON_TEXT" in *"$FAKE_AWS"*) bad "  the reason repeats the value" ;; *) ok "  the reason never repeats the value" ;; esac
+expect "echo > sub/cfg.txt; git add sub (a folder that holds it)" ask "$RW" "echo x > sub/cfg.txt; git add sub"
+expect "echo > cfg.txt && git add . asks"              ask "$RW" "echo x > cfg.txt && git add ."
+expect "echo > cfg.txt && git add -A asks"             ask "$RW" "echo x > cfg.txt && git add -A"
+expect "echo > cfg.txt && git add '*.txt' (a pattern) asks" ask "$RW" "echo x > cfg.txt && git add '*.txt'"
+expect "echo >> README.md && git commit -am x asks"     ask "$RW" "echo x >> README.md && git commit -am x"
+expect "echo > cfg.txt && git commit cfg.txt -m x asks" ask "$RW" "echo x > cfg.txt && git commit cfg.txt -m x"
+expect "cd sub && echo > c.txt && cd .. && git add sub/c.txt asks" ask "$RW" "cd sub && echo x > c.txt && cd .. && git add sub/c.txt"
+reason_has "  for the written file, followed through cd" "an earlier part of this command writes sub/c.txt"
+expect "a secret-shaped file in the same git add . is still denied" deny "$RS" "echo x > cfg.txt && git add . && git add .env"
+expect "negative: echo > /tmp/log && git add README.md" allow "$RW" "echo x > $TMP/log && git add README.md"
+expect "negative: echo > notes.txt && git add README.md" allow "$RW" "echo x > notes.txt && git add README.md"
+expect "negative: git add README.md > out.log (written by the same git)" allow "$RW" "git add README.md > out.log"
+expect "negative: make > build.log 2>&1 && git status" allow "$RW" "make > build.log 2>&1 && git status"
+
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
 echo "RESULT: FAIL ($fails failed, $oks ok)"; exit 1
