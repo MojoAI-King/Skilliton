@@ -16,7 +16,9 @@
 // developer's own checks on the developer's own machine; the delivery gate is the one that isolates.
 
 import { spawn } from "node:child_process";
-import { createWriteStream, existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
+import {
+  closeSync, constants as fsConstants, createWriteStream, existsSync, fstatSync, ftruncateSync, lstatSync, mkdirSync, openSync, readFileSync,
+} from "node:fs";
 import { cpus, loadavg } from "node:os";
 import { join } from "node:path";
 import { refuse, resolveProgram, selfCommand } from "./core.mjs";
@@ -176,14 +178,59 @@ function machineLoad() {
   return { measured: true, loadavg1: loadavg()[0], cpuCount: cpus().length };
 }
 
+// An error the gate command reports as its log not being written (exit 3): a string code, like a system error.
+function unsafeLog(code, message) {
+  const e = new Error(message);
+  e.code = code;
+  return e;
+}
+const NOTHING = "nothing was written. Remove it and run again";
+const linked = (path) => unsafeLog("ESYMLINK", `${path} is a symbolic link, and the gate never writes its log through a link; ${NOTHING}`);
+const hardLinked = (path, n) => unsafeLog("EHARDLINK", `${path} has ${n} hard links, so writing it would change another file; ${NOTHING}`);
+const notRegular = (path) => unsafeLog("ENOTREG", `${path} is not a regular file; ${NOTHING}`);
+
+// Opens the log for writing without ever following a link out of the Git folder. Each folder between the Git folder
+// and the file is checked with lstat and made one at a time (a recursive mkdir would follow a linked parent and
+// create folders wherever it points); the file itself is opened with O_NOFOLLOW, and a file with a second hard link
+// is refused, because truncating it would change the other name's bytes. The file is truncated only after those
+// checks pass on the opened descriptor, so a refused target keeps every byte it had. The Git folder itself is not
+// checked: it is where git says it is, and on some machines the temporary folder above it is a link.
+function openLog(gitDir, label) {
+  let dir = gitDir;
+  for (const part of LOG_DIR) {
+    dir = join(dir, part);
+    let st = null;
+    try { st = lstatSync(dir); } catch (e) { if (e.code !== "ENOENT") throw e; }
+    if (st && st.isSymbolicLink()) throw linked(dir);
+    if (st && !st.isDirectory()) throw unsafeLog("ENOTDIR", `${dir} is not a folder; ${NOTHING}`);
+    if (!st) mkdirSync(dir, { mode: 0o700 });
+  }
+  const path = logPath(gitDir, label);
+  let before = null;
+  try { before = lstatSync(path); } catch (e) { if (e.code !== "ENOENT") throw e; }
+  if (before && before.isSymbolicLink()) throw linked(path);
+  if (before && before.isFile() && before.nlink > 1) throw hardLinked(path, before.nlink);
+  if (before && !before.isFile() && !before.isDirectory()) throw notRegular(path);
+  // O_NOFOLLOW is 0 where the platform has none (Windows); the lstat above is then the only guard.
+  const flags = fsConstants.O_WRONLY | fsConstants.O_CREAT | (fsConstants.O_NOFOLLOW ?? 0);
+  const fd = openSync(path, flags, 0o600); // a directory here throws EISDIR, a link made since the lstat throws ELOOP
+  try {
+    const st = fstatSync(fd);
+    if (!st.isFile()) throw notRegular(path);
+    if (st.nlink > 1) throw hardLinked(path, st.nlink);
+    ftruncateSync(fd, 0);
+  } catch (e) {
+    closeSync(fd);
+    throw e;
+  }
+  return { fd, path };
+}
+
 // Runs the plan in order, stopping at the first failure. Resolves { results, log: path }. `signals` lets the
 // caller forward an interrupt to the running child.
 export async function runGate(plan, { root, gitDir, label, tailLines, env = process.env, signals = true }) {
-  const dir = join(gitDir, ...LOG_DIR);
-  mkdirSync(dir, { recursive: true, mode: 0o700 });
-  const path = logPath(gitDir, label);
   // Opened before anything starts, so a log that cannot be written is a refusal (exit 3) and no check is left running.
-  const fd = openSync(path, "w", 0o600);
+  const { fd, path } = openLog(gitDir, label);
   const log = createWriteStream(null, { fd });
   let current = null;
   const forward = (sig) => { if (current) { try { process.kill(current.group ? -current.child.pid : current.child.pid, sig); } catch { /* gone */ } } };

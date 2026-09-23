@@ -5,7 +5,7 @@
 //   node --test scripts/gate.test.mjs
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -208,6 +208,51 @@ test("a gate log that cannot be written is exit 3, not a run's verdict, and no c
   assert.ok(!existsSync(marker), "no check was started");
   spawnSync("sleep", ["3"]);
   assert.ok(!existsSync(marker), "and none was left running after the gate returned");
+});
+
+test("the gate log never follows a link: a linked log, a linked folder and a hard-linked log are exit 3, and the outside file keeps its bytes", { skip: process.platform === "win32" }, () => {
+  const outside = join(base, `outside${++count}.txt`);
+  const bytes = "the outside file's own bytes\n";
+  const gateDir = (dir) => join(dir, ".git", "skilliton", "gate");
+
+  const linked = repo();
+  writeFileSync(outside, bytes);
+  mkdirSync(gateDir(linked), { recursive: true });
+  symlinkSync(outside, join(gateDir(linked), "gate.log"));
+  const r = gate(linked, ["--cmd", "printf ok"]);
+  assert.equal(r.status, 3, r.all);
+  assert.match(r.all, /the gate log could not be written \(ESYMLINK: .*gate\.log is a symbolic link, and the gate never writes its log through a link; nothing was written/);
+  assert.doesNotMatch(r.all, /PASS|FAIL/);
+  assert.equal(readFileSync(outside, "utf8"), bytes, "the file the link points at is unchanged");
+  assert.ok(lstatSync(join(gateDir(linked), "gate.log")).isSymbolicLink(), "the link itself is left for the person to remove");
+
+  const folderLinked = repo();
+  const elsewhere = join(base, `elsewhere${count}`);
+  mkdirSync(elsewhere);
+  mkdirSync(join(folderLinked, ".git", "skilliton"));
+  symlinkSync(elsewhere, gateDir(folderLinked));
+  const f = gate(folderLinked, ["--cmd", "printf ok"]);
+  assert.equal(f.status, 3, f.all);
+  assert.match(f.all, /ESYMLINK: .*skilliton\/gate is a symbolic link/);
+  assert.deepEqual(readdirSync(elsewhere), [], "nothing was written in the folder the link points at");
+
+  const hard = repo();
+  writeFileSync(outside, bytes);
+  mkdirSync(gateDir(hard), { recursive: true });
+  linkSync(outside, join(gateDir(hard), "gate.log"));
+  const h = gate(hard, ["--cmd", "printf ok"]);
+  assert.equal(h.status, 3, h.all);
+  assert.match(h.all, /EHARDLINK: .*gate\.log has 2 hard links, so writing it would change another file; nothing was written/);
+  assert.equal(readFileSync(outside, "utf8"), bytes, "the other name of the hard link is unchanged");
+
+  const normal = repo();
+  mkdirSync(gateDir(normal), { recursive: true });
+  writeFileSync(join(gateDir(normal), "gate.log"), "an older run's much longer log text\n".repeat(50), { mode: 0o600 });
+  const n = gate(normal, ["--cmd", "printf ok"]);
+  assert.equal(n.status, 0, n.all);
+  assert.equal(statSync(join(gateDir(normal), "gate.log")).mode & 0o777, 0o600);
+  assert.match(logOf(normal), /^skilliton gate gate: the --cmd option\n/);
+  assert.doesNotMatch(logOf(normal), /an older run/, "an existing log is replaced, not appended to");
 });
 
 test("a timeout kills the whole process group, so a grandchild cannot outlive the check", { skip: process.platform === "win32" }, () => {
