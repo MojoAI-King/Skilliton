@@ -96,8 +96,19 @@ export const secretShaped = (s) => SECRET_SHAPES.some(({ re }) => re.test(s));
 // 48-character run), while a run inside one part is still refused.
 const secretShapedPath = (p) => SECRET_SHAPES.some(({ rule, re }) => (rule === 'long-encoded-run' ? p.split('/').some((part) => re.test(part)) : re.test(p)));
 
+// null when s is a usable text field; otherwise the one rule it broke, in the order this function checks them (a
+// value can break more than one; the first is what is named). textField below is textFieldProblem(s, max) === null,
+// kept as its own export because most callers only need the yes-or-no answer.
+export function textFieldProblem(s, max = 200) {
+  if (typeof s !== 'string' || s.length === 0) return 'empty';
+  if (s.length > max) return 'too long';
+  if (s.trim() !== s) return 'surrounding spaces';
+  if (/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(s)) return 'control characters';
+  if (secretShaped(s)) return 'looks like a secret';
+  return null;
+}
 export function textField(s, max = 200) {
-  return typeof s === 'string' && s.length > 0 && s.length <= max && s.trim() === s && !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(s) && !secretShaped(s);
+  return textFieldProblem(s, max) === null;
 }
 
 export function relativePath(p, attachment = false) {

@@ -19,10 +19,10 @@ import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { ConfigError, resolveProject } from './config.mjs';
 import { LEGACY_MANIFEST_MARKER } from './legacy-names.mjs';
-import { LIMIT, SECURITY_DIR, RECORDS_DIR, CATALOG_REL, APPLICABILITY_REL, APPLICABILITY_LOCK_REL, REPORT_REL, PRIVATE_EVIDENCE_DIR, REPORT_MARKER, MANIFEST_MARKER, FINDINGS_START, FINDINGS_END, ASSESSMENTS, SecurityRefusal, refusalText, fail, object, secretShaped, textField, relativePath, projectRoot, inspect, checkedPath, inspectPath, newBudget, safeRead, digest, canonical, jsonRead, ensureDirectory, publish } from './security-io.mjs';
+import { LIMIT, SECURITY_DIR, RECORDS_DIR, CATALOG_REL, APPLICABILITY_REL, APPLICABILITY_LOCK_REL, REPORT_REL, PRIVATE_EVIDENCE_DIR, REPORT_MARKER, MANIFEST_MARKER, FINDINGS_START, FINDINGS_END, ASSESSMENTS, SecurityRefusal, refusalText, fail, object, secretShaped, textField, textFieldProblem, relativePath, projectRoot, inspect, checkedPath, inspectPath, newBudget, safeRead, digest, canonical, jsonRead, ensureDirectory, publish } from './security-io.mjs';
 
 // The file layer's public names, re-exported so every caller of this module reads as before.
-export { LIMIT, SECURITY_DIR, RECORDS_DIR, CATALOG_REL, APPLICABILITY_REL, APPLICABILITY_LOCK_REL, REPORT_REL, PRIVATE_EVIDENCE_DIR, REPORT_MARKER, MANIFEST_MARKER, FINDINGS_START, FINDINGS_END, ASSESSMENTS, SecurityRefusal, refusalText, SECRET_SHAPES, secretShaped, textField, relativePath, projectRoot, inspectPath, newBudget, readRepositoryFile, digest, ensureDirectory } from './security-io.mjs';
+export { LIMIT, SECURITY_DIR, RECORDS_DIR, CATALOG_REL, APPLICABILITY_REL, APPLICABILITY_LOCK_REL, REPORT_REL, PRIVATE_EVIDENCE_DIR, REPORT_MARKER, MANIFEST_MARKER, FINDINGS_START, FINDINGS_END, ASSESSMENTS, SecurityRefusal, refusalText, SECRET_SHAPES, secretShaped, textField, textFieldProblem, relativePath, projectRoot, inspectPath, newBudget, readRepositoryFile, digest, ensureDirectory } from './security-io.mjs';
 
 const ID = /^[A-Za-z][A-Za-z0-9_.:-]{0,63}$/;
 const VERSION = /^[A-Za-z0-9][A-Za-z0-9_.+-]{0,63}$/;
@@ -120,26 +120,36 @@ export function fingerprintAttachment(root, rel, budget = newBudget()) {
 
 // input: { controlId, assessment, note, reviewer, sources, artifacts }. Each attachment is a repository-relative path
 // (fingerprinted now) or a { path, sha256 } fingerprint a collector took from the bytes it actually used.
+// field: which of control, assessment, note, reviewer, sources or artifacts is at fault; the rule after it is one of
+// empty, too long, surrounding spaces, control characters, looks like a secret, listed twice, or not in the catalog
+// (never the value itself). commands/security.mjs prints this as the refusal's detail, appended after the generic
+// INVALID_RECORD_INPUT text.
 export function createRecord(root, input, { apply = false, budget = newBudget(), catalog = null, now = new Date() } = {}) {
   const cat = catalog ?? readCatalog(root, budget);
   const ctrl = cat.controls.find((c) => c.id === input.controlId);
-  if (!ctrl || !ASSESSMENTS.includes(input.assessment) || !textField(input.note, 1000) || !textField(input.reviewer, 120)) fail('INVALID_RECORD_INPUT');
-  const lists = [input.sources ?? [], input.artifacts ?? []];
-  for (const list of lists) {
-    if (!Array.isArray(list) || list.length > LIMIT.attachments) fail('INVALID_RECORD_INPUT');
+  if (!ctrl) fail('INVALID_RECORD_INPUT', 'control: not in the catalog');
+  if (!ASSESSMENTS.includes(input.assessment)) fail('INVALID_RECORD_INPUT', 'assessment: not observed, gap or needs-human');
+  const noteProblem = textFieldProblem(input.note, 1000);
+  if (noteProblem) fail('INVALID_RECORD_INPUT', `note: ${noteProblem}`);
+  const reviewerProblem = textFieldProblem(input.reviewer, 120);
+  if (reviewerProblem) fail('INVALID_RECORD_INPUT', `reviewer: ${reviewerProblem}`);
+  const sources = input.sources ?? [], artifacts = input.artifacts ?? [];
+  for (const [field, list] of [['sources', sources], ['artifacts', artifacts]]) {
+    if (!Array.isArray(list)) fail('INVALID_RECORD_INPUT', `${field}: not a list`);
+    if (list.length > LIMIT.attachments) fail('INVALID_RECORD_INPUT', `${field}: more than ${LIMIT.attachments} files`);
     const paths = list.map((a) => (typeof a === 'string' ? a : a?.path));
-    if (new Set(paths).size !== paths.length) fail('INVALID_RECORD_INPUT');
+    if (new Set(paths).size !== paths.length) fail('INVALID_RECORD_INPUT', `${field}: listed twice`);
   }
-  if (input.assessment === 'observed' && (!lists[0].length || !lists[1].length)) fail('OBSERVED_REQUIRES_ATTACHMENTS');
-  const fingerprint = (a) => {
+  if (input.assessment === 'observed' && (!sources.length || !artifacts.length)) fail('OBSERVED_REQUIRES_ATTACHMENTS');
+  const fingerprint = (field) => (a) => {
     if (typeof a === 'string') return fingerprintAttachment(root, a, budget);
-    if (!keys(a, ['path', 'sha256']) || !SHA.test(a.sha256)) fail('INVALID_RECORD_INPUT');
+    if (!keys(a, ['path', 'sha256']) || !SHA.test(a.sha256)) fail('INVALID_RECORD_INPUT', `${field}: not a valid path/sha256 fingerprint`);
     relativePath(a.path, true);
     return { path: a.path, sha256: a.sha256 };
   };
   const r = { schemaVersion: 1, id: randomUUID(), controlId: ctrl.id, catalogVersion: cat.catalogVersion, controlHash: controlHash(cat, ctrl),
     recordedAt: now.toISOString(), assessment: input.assessment, note: input.note, reviewer: input.reviewer,
-    sources: lists[0].map(fingerprint), artifacts: lists[1].map(fingerprint) };
+    sources: sources.map(fingerprint('sources')), artifacts: artifacts.map(fingerprint('artifacts')) };
   recordValidate(r, `${r.id}.json`, Date.now() + 1000);
   if (apply) {
     ensureDirectory(root, RECORDS_DIR);
