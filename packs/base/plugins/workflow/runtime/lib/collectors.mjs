@@ -14,6 +14,7 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { NO_REPOSITORY_PROGRAMS, gitEnvironment } from './journal.mjs';
+import { samePath } from './path-form.mjs';
 import {
   LIMIT, PRIVATE_EVIDENCE_DIR, SECRET_SHAPES, SecurityRefusal,
   appendEvidence, closeEvidenceFile, createEvidenceFile, createRecord, digest, fingerprintAttachment, inspectPath,
@@ -307,9 +308,12 @@ export function collectSecrets(root, { control, reviewer, apply = false } = {}) 
   const reviewerLabel = reviewerFor('secrets', reviewer);
   const top = runGit(root, ['rev-parse', '--show-toplevel']);
   if (top.status !== 0) fail('NOT_A_GIT_REPOSITORY');
-  let topReal;
-  try { topReal = realpathSync(top.stdout.toString('utf8').replace(/\r?\n$/, '')); } catch { fail('GIT_FAILED', 'git named a repository root that could not be resolved'); }
-  if (topReal !== root) fail('NOT_REPOSITORY_ROOT');
+  // Both sides resolved natively: on Windows the project folder can arrive as a short 8.3 name (RUNNER~1) while git
+  // prints the long one, and git writes C:/ where Node writes C:\. A hosted Windows runner refused a secret scan in a
+  // temporary folder with NOT_REPOSITORY_ROOT (2026-09-22); that the short name is the cause is inferred, not measured.
+  let topReal, rootReal;
+  try { topReal = realpathSync.native(top.stdout.toString('utf8').replace(/\r?\n$/, '')); rootReal = realpathSync.native(root); } catch { fail('GIT_FAILED', 'git named a repository root that could not be resolved'); }
+  if (!samePath(topReal, rootReal)) fail('NOT_REPOSITORY_ROOT');
   const listing = runGit(root, ['ls-files', '-z'], { maxBuffer: 256 * 1024 * 1024 });
   if (listing.status !== 0) fail('GIT_FAILED', 'git ls-files did not succeed');
   const tracked = listing.stdout.toString('utf8').split('\0').filter(Boolean);
