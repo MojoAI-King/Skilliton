@@ -205,6 +205,16 @@ rm -f "$CF"
 write_guard "a new settings file that turns a rule off"       deny  Write '{file_path:$p, content:"{\"guardrails\":{\"blockForcePush\":false}}"}'
 printf '{}\n' > "$CF"
 
+# ---------------------------------------------------------------- N31
+section "N31: git stage is git add"
+RS="$TMP/repo-stage"; new_repo "$RS" || { echo "FAIL: could not build $RS"; exit 1; }
+printf 'SECRET=placeholder\n' > "$RS/.env"
+expect "git add .env (as before)"                      deny "$RS" 'git add .env'
+expect "git stage .env && git commit -m x"             deny "$RS" 'git stage .env && git commit -m x'
+reason_has "  the reason is the secret-file one" "looks like a file that holds passwords or keys"
+expect "git stage -A (the .env is untracked)"          deny "$RS" 'git stage -A'
+expect "negative: git stage README.md"                 allow "$RS" 'git stage README.md'
+
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
 echo "RESULT: FAIL ($fails failed, $oks ok)"; exit 1

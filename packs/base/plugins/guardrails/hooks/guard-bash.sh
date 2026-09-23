@@ -692,7 +692,7 @@ analyze_git() { # analyze_git <index after the word git>
   case "$w" in
     push) check_push ;;
     commit) check_commit ;;
-    add) check_add ;;
+    add|stage) check_add ;;   # git stage is a synonym of git add
     reset) check_reset ;;
     clean) check_clean ;;
     checkout) check_checkout ;;
