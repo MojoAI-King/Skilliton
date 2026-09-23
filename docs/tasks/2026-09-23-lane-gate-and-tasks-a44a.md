@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/gate-and-tasks-0923
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T07:00:49.645Z
+- **Updated:** 2026-09-23T07:06:49.314Z
 
 ## Request
 
@@ -23,9 +23,16 @@ not yet written
 
 ## Checkpoints
 
+### 2026-09-23T07:06:49.314Z
+
+- **State:** N68 done: gate's failing verdict names untracked/tracked-changed files and load average, with the caveat sentence
+- **Evidence:** node --test scripts/gate-context.test.mjs (5/5 pass) and node --test scripts/gate.test.mjs (18/18 pass, unbroken)
+- **Next:** N69: checkpoint growth note in commands/checkpoint.mjs
+- **Git:** lane/gate-and-tasks-0923 @ b05f802, 0 uncommitted
+
 ## Handoff
 
-- **State:** not yet written
-- **Next:** not yet written
-- **Blocked:** not yet written
-- **Watch out:** not yet written
+- **State:** N68 done: gate's failing verdict names untracked/tracked-changed files and load average, with the caveat sentence. Evidence: node --test scripts/gate-context.test.mjs (5/5 pass) and node --test scripts/gate.test.mjs (18/18 pass, unbroken).
+- **Next:** N69: checkpoint growth note in commands/checkpoint.mjs
+- **Blocked:** nothing
+- **Watch out:** nothing known
