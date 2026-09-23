@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T18:08:41.195Z
+- **Updated:** 2026-09-23T18:13:57.788Z
 
 ## Request
 
@@ -29,9 +29,16 @@ not yet written
 
 ## Checkpoints
 
+### 2026-09-23T18:13:57.788Z
+
+- **State:** Four lanes dispatched from LANES-7.md at a19f791 (gate-review, guard-review-2, runner-review, docs-review-2) and building; the README overhead attribution and stop-hook sentence corrected and the journal retention stated on main (b5dfe24, pushed). Not done: the lanes, their red teams, the merges, the policy's protected paths signed, docs/DELIVERY.md and CONTRACTS 14, the changelog, the release
+- **Evidence:** docs, allowlist and scrub checks exit 0 on b5dfe24; CI green through a19f791; the earlier cold-review task closed as done (1.2.0 signed, approved, verified)
+- **Next:** Merge each lane as its report lands, rolling with the fast checks and its own suites; sign the policy with protectedPaths; write DELIVERY.md and CONTRACTS 14; changelog; full checks; release
+- **Git:** main @ b5dfe24, 0 uncommitted
+
 ## Handoff
 
-- **State:** not yet written
-- **Next:** not yet written
-- **Blocked:** not yet written
-- **Watch out:** not yet written
+- **State:** Four lanes dispatched from LANES-7.md at a19f791 (gate-review, guard-review-2, runner-review, docs-review-2) and building; the README overhead attribution and stop-hook sentence corrected and the journal retention stated on main (b5dfe24, pushed). Not done: the lanes, their red teams, the merges, the policy's protected paths signed, docs/DELIVERY.md and CONTRACTS 14, the changelog, the release. Evidence: docs, allowlist and scrub checks exit 0 on b5dfe24; CI green through a19f791; the earlier cold-review task closed as done (1.2.0 signed, approved, verified).
+- **Next:** Merge each lane as its report lands, rolling with the fast checks and its own suites; sign the policy with protectedPaths; write DELIVERY.md and CONTRACTS 14; changelog; full checks; release
+- **Blocked:** nothing
+- **Watch out:** nothing known
