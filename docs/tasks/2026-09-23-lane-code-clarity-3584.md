@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-lane-code-clarity-3584
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/code-clarity-0923
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T08:37:44.213Z
+- **Updated:** 2026-09-23T15:06:07.466Z
 
 ## Request
 

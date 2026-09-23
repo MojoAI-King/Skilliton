@@ -16,6 +16,7 @@ Every document says its Kind near the top. **Living** is kept current and is saf
 | Fork, add skills, sign and publish releases (you are the company) | [RELEASING.md](RELEASING.md), then [DELIVERY.md](DELIVERY.md) for the merge check |
 | Know what Claude Code, Codex and Cursor actually do with it, measured or documented | [CLIENTS.md](CLIENTS.md) |
 | Answer an IT department: programs started, folders written, network, privileges | [IT-ALLOWLIST.md](IT-ALLOWLIST.md) |
+| Know what is protected, against whom, by which mechanism, and where each one stops, with the limits the 2026-09-23 reviews found and the release that fixes each | [THREAT_MODEL.md](THREAT_MODEL.md) |
 | The exact formats, commands and exit codes, as implemented | [CONTRACTS.md](CONTRACTS.md) |
 | What has and has not been exercised: platforms, versions, signing setups | [COVERAGE.md](COVERAGE.md) |
 | Run it on Windows for the first time | [WINDOWS.md](WINDOWS.md) |
