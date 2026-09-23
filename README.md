@@ -73,7 +73,7 @@ To see it before installing anything: `git clone https://github.com/MojoAI-King/
 | Release trust | SSH-signed git tags checked against a signers file each machine holds. For this repository, the signer is the key GitHub publishes for its owner: `gh api users/MojoAI-King/ssh_signing_keys` |
 | What it sends anywhere | nothing; every write outside a repository is listed in [docs/IT-ALLOWLIST.md](docs/IT-ALLOWLIST.md), and CI fails when the code and that list disagree |
 | Where to start reading the code | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| Licence | MIT |
+| Licence | MIT, copyright Mojo AI Services, LLC |
 
 ## What works today
 
@@ -115,4 +115,4 @@ A company that forks this repository gets the product and a worked example of th
 
 The product had an earlier name. Commands, folders and settings use the Skilliton name, and a project set up under the earlier one moves by migration. The security catalog keeps its original id, `skillgate-baseline-2`, because existing evidence records name it ([decision](docs/decisions/2026-09-22-the-frozen-copies-stay-beside-the-migrat-a3d4.md)).
 
-MIT. See [LICENSE](LICENSE).
+MIT, copyright Mojo AI Services, LLC. See [LICENSE](LICENSE).

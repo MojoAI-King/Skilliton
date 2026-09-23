@@ -13,7 +13,7 @@ Kind: Living. Written 2026-09-21 at the end of the build and brought up to date 
 | Shape | Four Claude Code plugins (workflow, guardrails, context-hygiene, code-quality) and one command, `skilliton`, which ships inside the workflow plugin. |
 | Clients | Claude Code, measured. Codex installs the plugins and sees the skills but runs no plugin hooks, so every enforced behaviour is instructed there. Cursor is documented only, never run (docs/CLIENTS.md). |
 | Platforms | macOS and Linux exercised. Windows is not supported yet: the commands, preparation and every hook pass on a GitHub-hosted Windows runner (evidence/live/windows/2026-09-23-hosted-runner-port.md), backlog item B80 stands before support, and no Claude Code session has run on Windows (docs/WINDOWS.md). |
-| Licence | MIT, public on GitHub. |
+| Licence | MIT, copyright Mojo AI Services, LLC, public on GitHub. |
 | Release trust | SSH-signed git tags checked against a signers file each machine holds; `skilliton verify` compares installed files with the signed manifest. |
 | Data it sends anywhere | None. One git command talks to a remote, in `preflight`. Where it writes on a machine is listed file by file in docs/IT-ALLOWLIST.md, and CI fails when the code and that list disagree. |
 

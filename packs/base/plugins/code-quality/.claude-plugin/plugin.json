@@ -3,7 +3,7 @@
   "description": "Splitting an oversized file without changing what it does: moving code rather than rewriting it, keeping every name and its callers, and ending in evidence a reader can check rather than a claim. Four cleanup skills were written for this pack and given an eval case each, run three times with the plugin and three times without it; this is the one whose runs beat their own baseline. The other three are recorded in docs/not-shipped with what was measured, because their cases could not tell the difference.",
   "version": "0.2.1",
   "author": {
-    "name": "MojoAI"
+    "name": "Mojo AI Services, LLC"
   },
   "homepage": "https://github.com/MojoAI-King/Skilliton",
   "repository": "https://github.com/MojoAI-King/Skilliton",

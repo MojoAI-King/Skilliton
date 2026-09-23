@@ -142,7 +142,7 @@ Kind: Living. Reconciled every working session. Written so the owner can supervi
 **Reversibility:** EXPENSIVE once pushed (history is public). Evidence: `bash scripts/scrub-check.sh --self-test`.
 
 ## 2026-09-16 MIT license, MojoAI as author
-**Decision:** MIT, copyright MojoAI; commits are authored as MojoAI with a GitHub noreply email.
+**Decision:** MIT, copyright MojoAI; commits are authored as MojoAI with a GitHub noreply email. Since 2026-09-23, at the owner's instruction, the attribution reads Mojo AI Services, LLC in the licence, the marketplace owner and each plugin's author field; no document attributes authorship to an assistant.
 **Why:** MIT is the shortest permissive license and the easiest for a company to fork and adapt, which is the intended use. The machine's global git identity was a placeholder, so the repo sets its own.
 **Alternatives rejected:** Apache-2.0 (adds a patent grant, longer; not needed for scripts and docs this size).
 **Risk:** None significant.
