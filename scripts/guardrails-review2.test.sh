@@ -223,6 +223,52 @@ expect "negative: cp x .claude/ (keeps its own name)" allow "$RS" "cp $TMP/plain
 expect "negative: rm -rf .claude/agents"              allow "$RS" 'rm -rf .claude/agents'
 expect "negative: echo x > .claude/notes.md"          allow "$RS" 'echo x > .claude/notes.md'
 
+# ---------------------------------------------------------------- N92
+section "N92: a glob that can match a record path denies"
+mkdir -p "$TMP/src"
+expect "rm -rf docs/* (base: allow)"                   deny "$RP" 'rm -rf docs/*'
+reason_has "  the reason names what the glob matches" "(which docs/* matches)"
+expect "rm -rf docs/t* (base: allow)"                  deny "$RP" 'rm -rf docs/t*'
+reason_has "  the reason names the entry folder" "removing docs/tasks"
+expect "rm -rf d*cs/tasks (base: allow)"               deny "$RP" 'rm -rf d*cs/tasks'
+expect "rm -rf d?cs (base: allow)"                     deny "$RP" 'rm -rf d?cs'
+expect "rm -rf [d]ocs (base: allow)"                   deny "$RP" 'rm -rf [d]ocs'
+expect "rm -f D*.md (base: allow)"                     deny "$RP" 'rm -f D*.md'
+expect "rm -f *.md at the root (base: allow)"          deny "$RP" 'rm -f *.md'
+expect "rm -rf .s* (base: allow)"                      deny "$RP" 'rm -rf .s*'
+expect "rm -rf docs/tasks/*.md, the entries (base: allow)" deny "$RP" 'rm -rf docs/tasks/*.md'
+expect "cd docs && rm -rf t* (base: allow)"            deny "$RP" 'cd docs && rm -rf t*'
+expect "rmdir docs/* (base: allow)"                    deny "$RP" 'rmdir docs/*'
+expect "mv docs/S* away (base: allow)"                 deny "$RP" "mv docs/S* $TMP/"
+expect "find d* -delete (base: allow)"                 deny "$RP" 'find d* -delete'
+expect "rsync --delete into d*/ (base: allow)"         deny "$RP" "rsync -a --delete $TMP/src/ d*/"
+expect "echo x > docs/S* (base: allow)"                deny "$RP" 'echo x > docs/S*'
+expect "echo x > C* (base: allow)"                     deny "$RP" 'echo x > C*'
+expect "rm -rf ./* in a prepared project (base: allow; denies, as rm -rf * already did)" deny "$RP" 'rm -rf ./*'
+expect "rm -rf .* in a prepared project (base: allow; matches .skilliton, so denies)" deny "$RP" 'rm -rf .*'
+expect "rm -rf * in a prepared project (base: deny, kept)" deny "$RP" 'rm -rf *'
+expect "rm -rf * at the root of a project that is not prepared (base: allow)" ask "$R" 'rm -rf *'
+reason_has "  the reason says it is every file and folder there" "at the project root, which reaches every file and folder there"
+expect "rm -rf ./* at the root of a project that is not prepared (base: allow)" ask "$R" 'rm -rf ./*'
+expect "rm -rf .* at the root of a project that is not prepared (base: allow)" ask "$R" 'rm -rf .*'
+if [ -e "$RP/DOCS" ] && [ "$RP/docs" -ef "$RP/DOCS" ]; then
+  echo "note: this disk is case-insensitive, so a glob is matched in any letter case"
+  expect "rm -rf DO* on a case-insensitive disk (base: allow)" deny "$RP" 'rm -rf DO*'
+else
+  echo "note: this disk is case-sensitive, so DO* matches only DO..."
+  expect "rm -rf DO* on a case-sensitive disk matches no record" allow "$RP" 'rm -rf DO*'
+fi
+expect "negative: rm -rf dist/*"                       allow "$RP" 'rm -rf dist/*'
+expect "negative: rm -f *.log"                         allow "$RP" 'rm -f *.log'
+expect "negative: rm -rf src/*/build"                  allow "$RP" 'rm -rf src/*/build'
+expect "negative: rm -rf node_modules/.cache/*"        allow "$RP" 'rm -rf node_modules/.cache/*'
+expect "negative: echo x > *.log"                      allow "$RP" 'echo x > *.log'
+expect "negative: echo x >> docs/S* (adds to it)"      allow "$RP" 'echo x >> docs/S*'
+expect "negative: find d* -name '*.tmp' -delete"       allow "$RP" "find d* -name '*.tmp' -delete"
+expect "negative: rm -rf docs/* in a project that is not prepared" allow "$R" 'rm -rf docs/*'
+expect "negative: rm -f * (not recursive) in a project that is not prepared" allow "$R" 'rm -f *'
+expect "negative: rm -rf sub/* in a project that is not prepared" allow "$R" 'rm -rf sub/*'
+
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
 echo "RESULT: FAIL ($fails failed, $oks ok)"; exit 1

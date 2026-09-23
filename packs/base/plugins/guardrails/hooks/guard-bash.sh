@@ -54,7 +54,10 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #   It sees the tree as it is BEFORE the command runs: a secret written and staged in the same
 #   command (printf ... > f && git add f) is not scanned, so an add or commit naming a path an
 #   earlier redirection in the command writes asks instead; a write by another program is not seen.
-#   It does not expand globs: rm -rf docs/* is judged by the word docs/*, not the files it matches.
+#   It does not expand globs against the disk: a word holding * ? or [ after rm, rmdir, mv, git rm, find, rsync
+#   --delete or a write is matched segment by segment with bash's own [[ == ]] against every path of Skilliton's and
+#   the folders that hold them (N92), so rm -rf docs/* and rm -rf d*cs/tasks deny, and rm -rf * ./* or .* at the
+#   project root asks.
 #   A file over 10 MB is checked by name only, when it is added and when it is committed (N72); a commit that takes
 #   one asks, naming it, so a large file cannot run the hook past its time limit into an allow.
 #   A command text longer than CMD_MAX_BYTES (64 KB) is not read at all (N88): it asks at once, whatever it names,
@@ -112,8 +115,9 @@ mentions_git() { [[ $1 =~ $GIT_WORD_RE ]]; }
 # The same shape for the programs that remove or move a path, so a command with neither git nor one of them costs
 # one regex and nothing else, as before.
 REMOVE_WORD_RE='(^|[^A-Za-z0-9_.-]|\\[bfnrt])(rm|rmdir|mv|truncate|find|rsync|cp|tee|dd|sponge|install|ln|shred)([^A-Za-z0-9_/-]|$)'
-# The other ways a record is emptied or removed (N73): a > onto a Markdown file, and a program's own removal calls.
-RECORD_HINT_RE='rmtree|unlink|os[.]remove|rmSync|>[>|]?[[:space:]]*[^[:space:]]*[.][Mm][Dd]'
+# The other ways a record is emptied or removed (N73): a > onto a Markdown file, and a program's own removal calls; and
+# a > onto a glob, which the shell expands to the one file it matches (N92).
+RECORD_HINT_RE='rmtree|unlink|os[.]remove|rmSync|>[>|]?[[:space:]]*[^[:space:]]*[.][Mm][Dd]|>[>|]?[[:space:]]*[^[:space:]]*[*?[]'
 mentions_removal() { [[ $1 =~ $REMOVE_WORD_RE ]] || [[ $1 =~ $RECORD_HINT_RE ]]; }
 # The editors that write a file back over itself (N89), read only so that one aimed at a record can be seen.
 EDIT_WORD_RE='(^|[^A-Za-z0-9_.-]|\\[bfnrt])(sed|gsed|perl|awk|gawk|ex|ed)([^A-Za-z0-9_/-]|$)'
@@ -2095,6 +2099,95 @@ detect_nocase_fs() { # sets NOCASE_FS, once per run: 1 when the project's disk t
   return 0
 }
 
+# ---- globs (N92): a word holding * ? or [ is matched the way the shell would expand it, against what Skilliton keeps.
+seg_match() { # seg_match <path> <pattern> [prefix]: 0 when each /-separated segment of the path matches the pattern's
+  # segment at the same place with bash's own [[ == ]], as pathname expansion matches one segment at a time: the same
+  # number of segments, or with "prefix", the path's segments matching the start of a longer pattern. A * ? or [ at
+  # the start of a pattern segment does not match a leading dot, as in pathname expansion.
+  local IFS=/ i=0 a b ps pp
+  set -f; ps=($1); pp=($2); set +f
+  if [ "${3:-}" = prefix ]; then [ "${#pp[@]}" -gt "${#ps[@]}" ] || return 1
+  else [ "${#pp[@]}" -eq "${#ps[@]}" ] || return 1; fi
+  while [ "$i" -lt "${#ps[@]}" ]; do
+    a=${ps[$i]}; b=${pp[$i]}; i=$((i + 1))
+    case "$b" in [*?[]*) case "$a" in .*) return 1 ;; esac ;; esac
+    [[ $a == $b ]] || return 1
+  done
+  return 0
+}
+
+GLOB_HITS=""; GLOB_FILES=""; GLOB_PAT=""; GLOB_PROJ=""
+glob_pattern() { # glob_pattern <word> <base>: sets GLOB_PAT to the word as an absolute pattern, with the folder before its
+  # first glob character spelled physically when it exists, and GLOB_PROJ to the project folder spelled the same way
+  local lit
+  GLOB_PAT=""; GLOB_PROJ=""
+  resolve_dir "$2" "$1"; [ -n "$RESOLVED" ] || return 1
+  normalize_path "$RESOLVED"; GLOB_PAT=$NORM
+  lit=${GLOB_PAT%%[*?[]*}; lit=${lit%/*}
+  if [ -n "$lit" ]; then physical_path "$lit"; [ -z "$PHYS" ] || GLOB_PAT="$PHYS${GLOB_PAT:${#lit}}"; fi
+  normalize_path "$PROJECT_DIR"; GLOB_PROJ=$NORM
+  physical_path "$GLOB_PROJ"; [ -z "$PHYS" ] || GLOB_PROJ=$PHYS
+  return 0
+}
+
+glob_matches() { # glob_matches <word> <base>: sets GLOB_HITS to what of Skilliton's the word matches, relative to the
+  # project, one per line: the .skilliton folder and its settings file when they exist, and in a prepared project each
+  # record file, instruction file and entry folder, every folder that holds one, and an entry folder whose entries the
+  # pattern reaches (docs/tasks/*.md); GLOB_FILES is the same for the ones that are files that exist now
+  local c item d cands="" folders
+  GLOB_HITS=""; GLOB_FILES=""
+  glob_pattern "$1" "$2" || return 0
+  for c in .skilliton .skilliton/config.json; do [ -e "$GLOB_PROJ/$c" ] && cands="$cands$c"$'\n'; done
+  folders=$'.skilliton\n'
+  if [ "$CFG_STATE" != default ]; then
+    folders="$folders$PROTECT_FOLDERS"$'\n'
+    while IFS= read -r item; do
+      item=${item%/}; [ -n "$item" ] || continue
+      cands="$cands$item"$'\n'; d=$item
+      while case "$d" in */*) true ;; *) false ;; esac; do d=${d%/*}; cands="$cands$d"$'\n'; done
+    done <<EOF
+$INSTRUCTION_FILES
+$PROTECT_RECORDS
+$PROTECT_FOLDERS
+EOF
+  fi
+  while IFS= read -r c; do
+    [ -n "$c" ] || continue
+    case $'\n'"$GLOB_HITS" in *$'\n'"$c"$'\n'*) continue ;; esac
+    if seg_match "$GLOB_PROJ/$c" "$GLOB_PAT"; then
+      GLOB_HITS="$GLOB_HITS$c"$'\n'
+      [ -f "$GLOB_PROJ/$c" ] && GLOB_FILES="$GLOB_FILES$c"$'\n'
+    fi
+  done <<EOF
+$cands
+EOF
+  while IFS= read -r c; do
+    c=${c%/}; [ -n "$c" ] || continue
+    [ "$c" != .skilliton ] || [ -e "$GLOB_PROJ/.skilliton" ] || continue
+    if seg_match "$GLOB_PROJ/$c" "$GLOB_PAT" prefix; then GLOB_HITS="$GLOB_HITS$c"$'\n'; GLOB_FILES="$GLOB_FILES$c"$'\n'; fi
+  done <<EOF
+$folders
+EOF
+  return 0
+}
+
+glob_matches_folded() { # glob_matches with letter case folded on a case-insensitive disk, as protected_target does
+  local fold=0
+  detect_nocase_fs
+  if [ "$NOCASE_FS" = 1 ] && ! shopt -q nocasematch; then shopt -s nocasematch; fold=1; fi
+  glob_matches "$@"
+  [ "$fold" = 0 ] || shopt -u nocasematch
+  return 0
+}
+
+root_glob() { # root_glob <word>: 0 when the word is *, ./* or .* at the project root (every file and folder there)
+  expand_known "$1"
+  case "$EXPANDED" in *'$'*|*'`'*) return 1 ;; esac
+  glob_pattern "$EXPANDED" "$EFF_DIR" || return 1
+  case "$GLOB_PAT" in "$GLOB_PROJ"/'*'|"$GLOB_PROJ"/'.*') return 0 ;; esac
+  return 1
+}
+
 protected_target() { # protected_target <word> <base dir>: sets PT_WHAT to what would be lost, or "" when nothing of Skilliton's
   # On a case-insensitive disk the names are compared in any letter case, so rm -rf DOCS is read as the docs it removes.
   detect_nocase_fs
@@ -2120,6 +2213,12 @@ protected_target_as_named() {
     case "$proj" in "$r"|"$r"/*) PT_WHAT="everything under $r" ;; esac
     return 0
   fi
+  case "$w" in
+    *[*?[]*)
+      glob_matches "$w" "$base"
+      [ -z "$GLOB_HITS" ] || PT_WHAT="${GLOB_HITS%%$'\n'*} (which $w matches)"
+      return 0 ;;
+  esac
   resolve_dir "$base" "$w"; [ -n "$RESOLVED" ] || return 0
   normalize_path "$RESOLVED"; r=$NORM
   case "$r/" in */.skilliton/*) case "$r" in "$proj"/*) PT_WHAT=${r:$((${#proj} + 1))} ;; *) PT_WHAT=$r ;; esac; return 0 ;; esac
@@ -2179,7 +2278,7 @@ deny_removal() { # deny_removal <what> [<what is done to it>]
 }
 
 check_remove() { # check_remove <index of the first argument>: rm and rmdir, every path after the flags
-  local k=$1 n=${#SEGW[@]} w opts=1 rec=0 frc=0 vars="" p
+  local k=$1 n=${#SEGW[@]} w opts=1 rec=0 frc=0 vars="" roots="" p
   while [ "$k" -lt "$n" ]; do
     w=${SEGW[$k]}; k=$((k + 1))
     if [ "$opts" = 1 ]; then
@@ -2196,6 +2295,7 @@ check_remove() { # check_remove <index of the first argument>: rm and rmdir, eve
       [ -n "$p" ] || continue
       hooks_target "$p" "$EFF_DIR" && deny_hooks
       settings_removal "$p"
+      root_glob "$p" && roots="$roots${roots:+ }$p"
       [ "$CFG_PR" = true ] || continue
       protected_target "$p" "$EFF_DIR"
       if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT"; return 0; fi
@@ -2210,6 +2310,10 @@ check_remove() { # check_remove <index of the first argument>: rm and rmdir, eve
 $BRACED
 EOF
   done
+  # rm -r of *, ./* or .* at the project root: every file and folder there (N92)
+  if [ -n "$roots" ] && [ "$rec" = 1 ]; then
+    ask "Check first: this removes $roots at the project root, which reaches every file and folder there (for .*, every hidden one, the Git folder included), and what was never committed cannot be recovered. Name what to remove instead; confirm only if emptying the project folder is intended."
+  fi
   # rm -rf of a path that holds a variable guardrails cannot resolve: what it removes cannot be known here (N71)
   if [ -n "$vars" ] && [ "$rec" = 1 ] && [ "$frc" = 1 ] && [ "$CFG_PR" = true ]; then
     ask "Check first: this rm -rf removes $vars, which holds a variable or a command substitution guardrails cannot resolve, so it cannot tell what would be deleted. Write the path out, or run echo on it first to see it; confirm only if it is not the project's records or anything else that is wanted."
@@ -2220,10 +2324,23 @@ EOF
 record_file_target() { # record_file_target <word> <base>: sets PT_WHAT when the word names a record file, an instruction
   # file or an entry that exists now, which writing over it or emptying it would lose (N73); "" otherwise. The
   # settings file is left to its own rule, which asks.
-  local p
+  local p c
   PT_WHAT=""
   [ "$CFG_PR" = true ] || return 0
   expand_known "$1"; p=$EXPANDED
+  case "$p" in
+    *'$'*|*'`'*) ;;
+    *[*?[]*)
+      # a glob written over (N92): the files of Skilliton's that exist now and that it matches, the settings file aside
+      glob_matches_folded "$p" "$2"
+      while IFS= read -r c; do
+        case "$c" in ''|.skilliton|.skilliton/*) continue ;; esac
+        PT_WHAT="$c (which $1 matches)"; return 0
+      done <<EOF
+$GLOB_FILES
+EOF
+      return 0 ;;
+  esac
   resolve_dir "$2" "$p"; [ -n "$RESOLVED" ] || return 0
   [ -f "$RESOLVED" ] || return 0
   normalize_path "$RESOLVED"
@@ -2427,9 +2544,25 @@ check_find() { # check_find <index of the first argument>: find -delete, or -exe
 $PROTECT_FOLDERS
 EOF
   fi
+  local expanded=() h
   for s in "${starts[@]}"; do
+    case "$s" in
+      *'$'*|*'`'*) expanded[${#expanded[@]}]=$s ;;
+      *[*?[]*)
+        # a glob start (N92): each folder or file of Skilliton's it matches is a start of its own
+        glob_matches_folded "$s" "$EFF_DIR"
+        while IFS= read -r h; do [ -n "$h" ] && expanded[${#expanded[@]}]="$GLOB_PROJ/$h"; done <<EOF
+$GLOB_HITS
+EOF
+        ;;
+      *) expanded[${#expanded[@]}]=$s ;;
+    esac
+  done
+  [ "${#expanded[@]}" -gt 0 ] || return 0
+  for s in "${expanded[@]}"; do
     resolve_dir "$EFF_DIR" "$s"; [ -n "$RESOLVED" ] || continue
     normalize_path "$RESOLVED"; r=$NORM
+    physical_path "$r"; [ -z "$PHYS" ] || { physical_path "$base"; [ -z "$PHYS" ] || { base=$PHYS; physical_path "$r"; r=$PHYS; }; }
     shown=${s%/}; [ -n "$shown" ] || shown=/
     while IFS= read -r c; do
       [ -n "$c" ] || continue
