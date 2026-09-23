@@ -6,7 +6,7 @@ Kind: Living. Written for two readers: a person installing Skilliton, and an AI 
 
 - **Claude Code**, signed in. The path 2 commands use its command line (`claude`). With only the VS Code extension, see rule 1 of [the agent section](#if-you-are-an-ai-agent-installing-this-for-someone).
 - **git**, and **Node.js 22 or later** (`node --version`).
-- macOS or Linux. Windows is not supported yet: after the port, preparation, every session hook and the guard's decisions work on a hosted Windows machine, but a program in the project folder can stand in for one a check starts by name (backlog B79), and no signed-in Claude Code session has run there ([evidence](evidence/live/windows/2026-09-23-hosted-runner-port.md)).
+- macOS or Linux. Windows is not supported yet: after the port, preparation, every session hook and the guard's decisions work on a hosted Windows machine, but a command of several hundred KB takes the guard longer than its timeout (backlog B80), and no signed-in Claude Code session has run there ([evidence](evidence/live/windows/2026-09-23-hosted-runner-port.md)).
 
 ## Pick a path
 

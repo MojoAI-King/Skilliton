@@ -22,7 +22,7 @@ Written by `node scripts/living-docs.mjs --apply` from PLAN.md section 7 (the mi
 | M9 | One name | Verified locally | none |
 | M10 | Security audit that runs itself | Three of its six parts built 2026-09-20 | B17, B45 |
 | M11 | Routines while working | Two of three routines built 2026-09-20 | B21 |
-| M12 | Enrollment through device management | Spike measured on Linux | B22, B29, B30, B79 |
+| M12 | Enrollment through device management | Spike measured on Linux | B22, B29, B30, B79, B80 |
 | M13 | Any AI coding tool | Not started | B23, O24 |
 | M14 | Proof of value and team view | Started: first comparison run 2026-09-22 | B15, B16 |
 

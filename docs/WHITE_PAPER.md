@@ -111,6 +111,6 @@ The repository is prepared with its own product and runs every check in CI on ev
 | Dependencies | None; no build step; no network code of its own |
 | Size | About 40,000 lines of runtime, hooks and tests; every check a CI step of its own (`node scripts/checks.mjs --list`) |
 | Clients | Claude Code, measured (terminal and VS Code extension). Codex: installs, sees skills, runs no plugin hooks. Cursor: documented only |
-| Platforms | macOS and Linux exercised; Windows runs on a GitHub-hosted runner and is not supported until backlog item B79 is fixed |
+| Platforms | macOS and Linux exercised; Windows runs on a GitHub-hosted runner and is not supported yet: backlog item B80 is open and no Claude Code session has run there |
 | Licence | MIT |
 | Where it writes | `docs/IT-ALLOWLIST.md`, held equal to the code by a test |

@@ -89,7 +89,7 @@ Say these plainly if they come up, rather than being caught by them:
   with Skilliton used about 20,000 to 30,000 more input tokens than without, and it reports no time comparison
   ([SUMMARY.md](../evidence/comparison/2026-09-22/SUMMARY.md)). Do not say "faster" or "cheaper".
 - **Endpoint security:** not tested under any product (B29).
-- **Windows:** measured on a hosted Windows runner, not supported until B79 is fixed, and no Claude Code session has
+- **Windows:** measured on a hosted Windows runner, not supported yet (B80 is open), and no Claude Code session has
   run on Windows (B30, [WINDOWS.md](WINDOWS.md), [the hosted run](../evidence/live/windows/2026-09-23-hosted-runner-port.md)).
 - **Device management:** the Claude Code half is measured in a container, with no login; a real Intune or Jamf tenant
   is untested (B22).

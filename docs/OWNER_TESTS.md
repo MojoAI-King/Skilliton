@@ -101,7 +101,7 @@ Open docs/REPORT_CARD.md. The bars were recomputed tonight from the ticked items
 
 | What | Walkthrough step | What it needs |
 |---|---|---|
-| Windows on a real workstation | 9 | a Windows machine with a Claude login; the hosted-runner port is merged (evidence/live/windows/2026-09-23-hosted-runner-port.md), and B79 stands before support |
+| Windows on a real workstation | 9 | a Windows machine with a Claude login; the hosted-runner port is merged (evidence/live/windows/2026-09-23-hosted-runner-port.md), and B80 stands before support |
 | A hosted repository with branch protection | 10 | your approval to create a disposable hosted repository |
 | A private repository install | 11 | the same, private, with a credential named by location only |
 | The new builder rehearsal | 14 | a person who has not seen this repository |

@@ -12,7 +12,7 @@ Kind: Living. Written 2026-09-21 at the end of the build and brought up to date 
 | Size | About 40,000 lines of runtime, hooks and tests; every check runs as its own CI step on every commit (`node scripts/checks.mjs --list` prints the current list). |
 | Shape | Four Claude Code plugins (workflow, guardrails, context-hygiene, code-quality) and one command, `skilliton`, which ships inside the workflow plugin. |
 | Clients | Claude Code, measured. Codex installs the plugins and sees the skills but runs no plugin hooks, so every enforced behaviour is instructed there. Cursor is documented only, never run (docs/CLIENTS.md). |
-| Platforms | macOS and Linux exercised. Windows is not supported yet: the commands, preparation and every hook pass on a GitHub-hosted Windows runner (evidence/live/windows/2026-09-23-hosted-runner-port.md), backlog item B79 stands before support, and no Claude Code session has run on Windows (docs/WINDOWS.md). |
+| Platforms | macOS and Linux exercised. Windows is not supported yet: the commands, preparation and every hook pass on a GitHub-hosted Windows runner (evidence/live/windows/2026-09-23-hosted-runner-port.md), backlog item B80 stands before support, and no Claude Code session has run on Windows (docs/WINDOWS.md). |
 | Licence | MIT, public on GitHub. |
 | Release trust | SSH-signed git tags checked against a signers file each machine holds; `skilliton verify` compares installed files with the signed manifest. |
 | Data it sends anywhere | None. One git command talks to a remote, in `preflight`. Where it writes on a machine is listed file by file in docs/IT-ALLOWLIST.md, and CI fails when the code and that list disagree. |
@@ -68,7 +68,7 @@ The report card (docs/REPORT_CARD.md) has 123 acceptance items across ten areas;
 
 **Measured:** fork, rename, company plugin, signed release, install and verify on Claude Code and Codex; update, downgrade and removal in a clean Claude Code configuration; every guardrail deny and ask path; the merge gate rejecting a planted flaw and accepting a clean push against a local bare repository; layout migrations with preview, receipt and rollback; the meter reproducing a known window; 73 CI check steps per commit.
 
-**Not yet:** a real team using it (one two-lane dispatch has run for real, on 2026-09-21, both lanes under their context ceiling; no new builder onboarded from the documents alone); Windows support (B79), a clean macOS account; the enrollment scripts; Cursor beyond its documentation; and any saving, which the repository forbids claiming unless the meter produced it and the owner cross-checked it against the Usage screen (PLAN.md sections 6 and 8).
+**Not yet:** a real team using it (one two-lane dispatch has run for real, on 2026-09-21, both lanes under their context ceiling; no new builder onboarded from the documents alone); Windows support (B80 and a first session there), a clean macOS account; the enrollment scripts; Cursor beyond its documentation; and any saving, which the repository forbids claiming unless the meter produced it and the owner cross-checked it against the Usage screen (PLAN.md sections 6 and 8).
 
 ## The questions a meeting will ask
 

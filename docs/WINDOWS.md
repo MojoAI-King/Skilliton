@@ -113,8 +113,8 @@ These were guesses, written down so the run could confirm or refute them. The ho
   here. With `whoami.exe` copied into the project folder as `node.exe`, a check `["node", "-e", "process.exit(0)"]`
   failed where the same check passes without the decoy, so a program in the working folder is found before PATH.
   Since workflow 0.22.0 the runtime looks every bare name up on PATH before it starts it on Windows (backlog B79:
-  `git`, `tar` and a policy check's program); until the decoy step passes on a run that includes that change, treat
-  a repository's own program standing in for a check's program as possible.
+  `git`, `tar` and a policy check's program), and the decoy step passed on the rerun of 2026-09-23 (the same
+  evidence note, its last section).
 - **The status line and the drift check** use `jq`, which Git for Windows does not bring. They are optional, and the
   check should say so rather than fail.
 
@@ -123,4 +123,4 @@ These were guesses, written down so the run could confirm or refute them. The ho
 Update `docs/COVERAGE.md` (the operating system row), `docs/CLIENTS.md` (which shell runs a hook), the Windows lines in
 `docs/IT-ALLOWLIST.md` section 8, and `docs/BACKLOG.md` B30, each with what was run, on which versions, and on which
 Windows build. Until then, every document says Windows is not supported: the hosted runner has run the commands and
-the hooks, but no Claude Code session has run on Windows, and backlog item B79 is open.
+the hooks, but no Claude Code session has run on Windows, and backlog item B80 is open.

@@ -45,4 +45,11 @@ Kind: Evidence. GitHub Actions run 35815835006 of `.github/workflows/windows.yml
 ## What this settles and what it does not
 
 - **Settled:** the WINDOWS.md commands, preparation, status, every session hook and the guard's decisions work on a clean Windows machine with Git for Windows; each failure of the first run has a fix with a test or is listed above (area 03 batch 02 items 2 to 4).
-- **Not settled:** a Claude Code session on Windows (no login on the runner), a developer's workstation with endpoint security, and B79. Windows stays **not supported** in 1.0.1.
+- **Not settled:** a Claude Code session on Windows (no login on the runner), a developer's workstation with endpoint security, and B80. Windows stays **not supported** in 1.0.1.
+
+## Rerun after B79, 2026-09-23 (run 35838465792, main at aba8b6f)
+
+The same workflow, started by `workflow_dispatch` on main after `resolveProgram` (5c0f604) looked every bare-name start up on PATH first.
+
+- **The decoy step passes now:** with `whoami.exe` copied into the project folder as `node.exe`, `skilliton gate` printed `PASS: 1 check(s) passed (node)` and exited 0, and the step printed `PASS bare name: PATH's node ran, not the node.exe in the project folder`. Before the fix the same step failed. B79 is closed on this run.
+- **Everything else is as above:** the guard 674 of 676 (the two are the large-command timings, B80), the handoff hook 129 of 129, `preflight.test` 9 pass and 13 fail for the stand-in reason above, the other suites with no failure, and the behavior steps (prepare, status, the handoff hook, session start, stop, the guard's four decisions) all PASS.
