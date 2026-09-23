@@ -592,7 +592,7 @@ export function measureWrites() {
 
     const env = {
       ...GIT_ENV, PATH: `${ws.tools}:${process.env.PATH ?? ""}`, HOME: ws.home, TMPDIR: ws.tmp, LANG: "C.UTF-8",
-      SKILLITON_SELF: "skilliton", STANDIN_LOG: ws.log, STANDIN_DEFAULT_HOME: ws.home,
+      SKILLITON_SELF: "skilliton", STANDIN_LOG: ws.log, STANDIN_DEFAULT_HOME: ws.home, npm_config_cache: join(ws.tmp, "npm-cache"), npm_config_logs_dir: join(ws.tmp, "npm-logs"), NPM_CONFIG_UPDATE_NOTIFIER: "false", // npm's own writer, not Skilliton's; tolerated below
     };
     const run = (file, args, options = {}) => spawnSync(file, args, { encoding: "utf8", env: { ...env, ...options.env }, cwd: options.cwd ?? base, input: options.input, timeout: 120000 });
     const cli = (args, options) => run(process.execPath, [join(ws.repo, "scripts", "skilliton.mjs"), ...args], options);
@@ -657,7 +657,7 @@ export function measureWrites() {
       ran.push({ label, exit: r.status, expected, output: `${r.stdout ?? ""}${r.stderr ?? ""}`.trim() });
       for (const path of walkRelative(ws.home)) written.add(path);
     }
-    return { written: [...written].sort(), leftInTemp: walkRelative(ws.tmp), steps: ran };
+    return { written: [...written].sort(), leftInTemp: walkRelative(ws.tmp).filter((p) => !["npm-cache", "npm-logs"].includes(p.split("/")[0])), steps: ran }; // npm-cache/npm-logs are npm's own writer, tolerated, not reported as a leftover
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
