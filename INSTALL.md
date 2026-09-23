@@ -6,7 +6,7 @@ Kind: Living. Written for two readers: a person installing Skilliton, and an AI 
 
 - **Claude Code**, in a terminal or the VS Code extension, signed in.
 - **git**, and **Node.js 22 or later** (`node --version`).
-- macOS or Linux. Windows is not yet run end to end ([docs/WINDOWS.md](docs/WINDOWS.md)).
+- macOS or Linux. Windows is not supported yet: its first run on a hosted Windows machine found that preparing a repository is refused there ([evidence](evidence/live/windows/2026-09-22-hosted-runner-first-run.md)).
 
 ## Pick a path
 

@@ -60,7 +60,7 @@ To see it work before installing anything: `git clone https://github.com/MojoAI-
 | Size | About 40,000 lines of runtime, hooks and tests. 58 check steps run in CI on every push; `node scripts/checks.mjs` runs the same list locally. |
 | Shape | Plugins `workflow`, `guardrails`, `context-hygiene`, `code-quality` under `packs/base/plugins/`; the `skilliton` command ships inside `workflow`. |
 | Clients | Claude Code, measured in the terminal and in the VS Code extension 2.1.280 ([evidence](evidence/live/2026-09-22-vs-code-extension-hooks.md)). Codex installs the plugins and sees the skills but runs no plugin hooks. Cursor is documented, not run ([docs/CLIENTS.md](docs/CLIENTS.md)). |
-| Platforms | macOS and Linux exercised. Windows has a written first run ([docs/WINDOWS.md](docs/WINDOWS.md)), not yet tried. |
+| Platforms | macOS and Linux measured. Windows is not supported yet: its first run on a hosted Windows machine is filed, and `prepare` refuses there ([evidence](evidence/live/windows/2026-09-22-hosted-runner-first-run.md)). |
 | Release trust | SSH-signed git tags checked against a signers file each machine holds; `skilliton verify` compares installed files with the signed manifest. |
 | What it sends anywhere | Nothing. One git command talks to a remote (`preflight`). Every write outside a repository is listed in [docs/IT-ALLOWLIST.md](docs/IT-ALLOWLIST.md), and CI fails when the code and that list disagree. |
 | Licence | MIT. |
