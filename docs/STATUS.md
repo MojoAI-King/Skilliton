@@ -39,7 +39,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner |
 |---|---|---|---|---|
-| [2026-09-22-the-home-stretch-every-area-as-high-as-e-3732](tasks/2026-09-22-the-home-stretch-every-area-as-high-as-e-3732.md) | The home stretch: every area as high as evidence allows before the cold read | in-progress | main | unassigned |
-| [2026-09-23-cold-review-fixes-the-guard-reads-git-th-1054](tasks/2026-09-23-cold-review-fixes-the-guard-reads-git-th-1054.md) | Cold review fixes: the guard reads git the way git does, the writers stay inside the repository, the limits are disclosed | in-progress | main | unassigned |
 | [2026-09-23-second-review-batch-the-gate-protects-it-cd08](tasks/2026-09-23-second-review-batch-the-gate-protects-it-cd08.md) | Second review batch: the gate protects its check program, the guard's remaining gaps, the runner's shell, the history-bound tests, the freshness contract, the documents that ran ahead | in-progress | main | unassigned |
 <!-- skilliton:index:tasks:end -->

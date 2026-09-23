@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "71e0b13e-8404-4cdd-a163-4f7bfd16fb1f",
+  "controlId": "SG-CHECK-CRITERIA",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "3549ecd7deac4f7ab0da5c1bf12b98a72d5d22fbb264aa99bdde67db373c0d01",
+  "recordedAt": "2026-09-23T20:18:54.858Z",
+  "assessment": "observed",
+  "note": "Collector: delivery-policy version 1 (workflow plugin 0.23.0); node v25.8.1; git 2.51.1. The delivery policy defines 1 check(s) (checks) and protected branch(es) main; this does not show that the checks were reviewed, pass, or are enforced. This records what the collector saw at that time; it is not a security pass.",
+  "reviewer": "skilliton maintain",
+  "sources": [
+    {
+      "path": ".skilliton/delivery.json",
+      "sha256": "3e26e504de6ff40faf368548f862026285337bfd8b9c09ec78150dba2d2f00bc"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-23T20-18-54-852Z-delivery-policy.txt",
+      "sha256": "7bd500ae7ea8db4423eef7e313af1c26da94ff62cf8ea2e2b6b664b284d7850b"
+    }
+  ]
+}
