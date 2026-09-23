@@ -78,7 +78,7 @@ claude plugin uninstall code-quality@skilliton
 claude plugin marketplace remove skilliton
 ```
 
-**A line you may see that is not an error.** `skilliton doctor` on this path marks the base plugin check UNVERIFIED and exits 1, because it compares against a company skills repository that path 2 does not have; the other lines are what to read. The context-hygiene plugin prints nothing at session start unless `SKILLITON_LESSONS` names a personal checklist file; if it names one that cannot be read, a `[context-hygiene]` line says so and gives the path.
+**What `skilliton doctor` checks on this path.** Run from the installed copy, it compares each installed base plugin with the catalog of the marketplace it came from and passes when they match. It reads Claude Code's files from `CLAUDE_CONFIG_DIR` when that is set, else from `~/.claude`, and its header says which. The context-hygiene plugin prints nothing at session start unless `SKILLITON_LESSONS` names a personal checklist file; if it names one that cannot be read, a `[context-hygiene]` line says so and gives the path.
 
 ## 3. Roll it out to a team
 

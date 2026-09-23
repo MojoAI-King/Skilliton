@@ -56,7 +56,7 @@ export const PINNED_LINES = [
   ["scripts/delivery.test.mjs", 1081],
   ["scripts/release.test.mjs", 1039],
   ["scripts/guardrails.test.sh", 1027],
-  ["scripts/allowlist.test.mjs", 1006],
+  ["scripts/allowlist.test.mjs", 1003],
   ["scripts/security-evidence.test.mjs", 785],
   ["scripts/skilliton.test.mjs", 708],
   ["scripts/inventory.mjs", 688],

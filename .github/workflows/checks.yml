@@ -150,6 +150,9 @@ jobs:
       - name: Onboarding CLI
         run: node scripts/skilliton.test.mjs
 
+      - name: Doctor from an installed copy (the marketplace's catalog, CLAUDE_CONFIG_DIR)
+        run: node --test scripts/doctor-installed.test.mjs
+
       - name: Prepare, migrate, remove, records and indexes
         run: node --test scripts/prepare.test.mjs scripts/migrate.test.mjs scripts/records.test.mjs scripts/root-and-handoff-settings.test.mjs
 
