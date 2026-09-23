@@ -10,7 +10,7 @@ Kind: Living. Batch record. Area [05-repo-maintenance](AREA.md).
 
 ## Acceptance
 
-- [ ] applicability decisions recorded for every control the register lists as needing attention
+- [x] applicability decisions recorded for every control the register lists as needing attention (evidence: .skilliton/security/applicability.json, fifteen decisions with --decided-by owner on 2026-09-22 after the owner's blanket confirmation, 0 undecided in `skilliton security status`)
 - [x] the collectors run in CI as evidence, with the step named in checks.yml (evidence: the step "Security collectors over this repository, recorded as evidence" in .github/workflows/checks.yml, green as step 54 of 63 on run 35589180170 at commit 18b8fd0; both collectors record gap on this repository by construction and the whole-tree audit beside it is step 53, 0 findings over 544 files)
 
 ## Notes

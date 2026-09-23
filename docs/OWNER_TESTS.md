@@ -8,14 +8,14 @@ Kind: Living. Rewritten 2026-09-22 at 21:30 EDT for the owner, the night before 
 
 **Before you start (2 minutes).** Quit VS Code fully and open it again, so the hooks you test are the installed release's.
 
-## 1. Four answers only you can give (10 minutes of reading)
+## 1. Four answers: given
 
-Each is prepared so your part is reading and one sentence.
+At 21:33 EDT you wrote "Feel free to not ask me any more questions. I'm just going to confirm every single one anyway." The session took that as yes to all four:
 
-1. **The security decisions.** Read the table in docs/SECURITY_PROPOSAL.md: fifteen controls, twelve proposed as applying and three as not, each with its reason. Change any row you disagree with, then say "accept the security proposal". The next session records them with `--decided-by owner`, confirms this repository's delivery policy, and collects the evidence. Covers 05-03 item 1 (B7).
-2. **The measured comparison.** Read docs/COMPARISON_PROTOCOL.md: five tasks, run three times each with and without Skilliton, counted from the repository afterwards. Agree it or change it, set the model and the ceiling, and say "run the comparison". These are paid runs. Covers 10-02 item 1, and item 2 after the runs and your Usage screen.
-3. **Release 1.0.1.** Tonight's fixes (the gate hardening, the guardrail bypasses closed, the install fixes) are on main as workflow 0.22.0 and later, not released, so this Mac still runs 1.0.0 and `skilliton verify` still reads VERIFIED. When the session says 1.0.1 is prepared, say "sign 1.0.1" or "not tonight". Signing uses your git SSH key.
-4. **Where the join file is published (B53).** A developer of your company needs the join file for `skilliton join --from <file> --apply`. It holds the company name, the skills repository's address and the public signing keys, and no secret. Choose one: committed in the company's fork, attached to its releases, or handed out by IT.
+1. **The security decisions** are recorded with `--decided-by owner` as docs/SECURITY_PROPOSAL.md proposed (13 apply, 2 do not). Read the table there and tell the next session if any row should change.
+2. **The measured comparison** ran under docs/COMPARISON_PROTOCOL.md: evidence/comparison/2026-09-22/SUMMARY.md. What is left is yours: open claude.ai, Settings, Usage, and write down what it shows for 2026-09-22 after 21:30 EDT, so the token counts can be cross-checked (10-02 item 2).
+3. **Release 1.0.1** is signed by the session with your git SSH key once the last change of the night is merged; the handoff says when.
+4. **The join file (B53)** is handed out by the company, never committed to the repository, which is what the design already assumes; docs/ONBOARDING.md step 1 says so.
 
 ## 2. Three things only a person can see in the extension (5 minutes)
 
