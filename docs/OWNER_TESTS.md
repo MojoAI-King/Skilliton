@@ -4,7 +4,7 @@ Kind: Living. Rewritten 2026-09-22 at 21:30 EDT for the owner, the night before 
 
 **How to report.** For each test, write down what you saw in the client's exact words, or "not seen". Paste those notes into the next session and say "file tonight's owner tests". That session writes the evidence notes and ticks the boxes. A test that fails is a finding, not a step to repeat until it passes.
 
-**Already measured tonight by the build session, so not on this list:** the session-start, stop and read-guard hooks firing in the VS Code extension (evidence/live/2026-09-22-vs-code-extension-hooks.md), a real Codex session (evidence/live/2026-09-22-codex-session.md), the Windows commands on a hosted Windows machine (evidence/live/windows/), and a cold install from GitHub by an agent following INSTALL.md.
+**Already measured tonight by the build session, so not on this list:** the session-start, stop and read-guard hooks firing in the VS Code extension (evidence/live/2026-09-22-vs-code-extension-hooks.md), a real Codex session (evidence/live/2026-09-22-codex-session.md), the Windows commands and every session hook on a hosted Windows machine, before and after the port (evidence/live/windows/), and a cold install from GitHub by an agent following INSTALL.md.
 
 **Before you start (2 minutes).** Quit VS Code fully and open it again, so the hooks you test are the installed release's.
 
@@ -101,7 +101,7 @@ Open docs/REPORT_CARD.md. The bars were recomputed tonight from the ticked items
 
 | What | Walkthrough step | What it needs |
 |---|---|---|
-| Windows on a real workstation | 9 | the hosted-runner port first (branch windows/port-0922), then a Windows machine |
+| Windows on a real workstation | 9 | a Windows machine with a Claude login; the hosted-runner port is merged (evidence/live/windows/2026-09-23-hosted-runner-port.md), and B79 stands before support |
 | A hosted repository with branch protection | 10 | your approval to create a disposable hosted repository |
 | A private repository install | 11 | the same, private, with a credential named by location only |
 | The new builder rehearsal | 14 | a person who has not seen this repository |

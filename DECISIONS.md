@@ -324,4 +324,6 @@ Decision entries in `docs/decisions/`, sorted by ID. `skilliton index` writes th
 | [2026-09-22-the-subprocess-teardown-stays-copied-in-a0d3](docs/decisions/2026-09-22-the-subprocess-teardown-stays-copied-in-a0d3.md) | The subprocess teardown stays copied in the gate and the delivery gate | accepted | 2026-09-22 |
 | [2026-09-22-this-repository-has-no-formatter-and-the-4991](docs/decisions/2026-09-22-this-repository-has-no-formatter-and-the-4991.md) | This repository has no formatter, and the lint is what holds its shape | accepted | 2026-09-22 |
 | [2026-09-22-token-direction-of-travel-counts-gate-ru-cda2](docs/decisions/2026-09-22-token-direction-of-travel-counts-gate-ru-cda2.md) | Token direction-of-travel counts gate runs and read-guard refusals by structural markers, not substring search | proposed | 2026-09-22 |
+| [2026-09-23-a-record-s-header-line-is-one-templated-7207](docs/decisions/2026-09-23-a-record-s-header-line-is-one-templated-7207.md) | A record's header line is one templated string, not a hardcoded Kind: prefix | proposed | 2026-09-23 |
+| [2026-09-23-n47-secrets-allowlist-freshness-folds-in-419c](docs/decisions/2026-09-23-n47-secrets-allowlist-freshness-folds-in-419c.md) | N47 secrets allowlist freshness folds into the file manifest, not raw record sources | proposed | 2026-09-23 |
 <!-- skilliton:index:decisions:end -->
