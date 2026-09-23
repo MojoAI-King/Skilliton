@@ -18,7 +18,7 @@ Every document says its Kind near the top. **Living** is kept current and is saf
 | The exact formats, commands and exit codes, as implemented | [CONTRACTS.md](CONTRACTS.md) |
 | What has and has not been exercised: platforms, versions, signing setups | [COVERAGE.md](COVERAGE.md) |
 | Run it on Windows for the first time | [WINDOWS.md](WINDOWS.md) |
-| Demonstrate it: what to run, what to say, what not to claim | [DEMO.md](DEMO.md), [ONE-PAGER.md](ONE-PAGER.md), [POSITIONING.md](POSITIONING.md) |
+| Demonstrate it: what to run, what to say, what not to claim | [DEMO.md](DEMO.md), [POSITIONING.md](POSITIONING.md) |
 | Read the technical white paper, or the plain-language guide for someone who signs off but does not code | [WHITE_PAPER.md](WHITE_PAPER.md), [PLAIN_GUIDE.md](PLAIN_GUIDE.md) |
 | Something is not working: not seeing it, join refusals, prepare refusals, a denied command, verify reports TAMPERED | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | The company-wide plan beyond this build: device management, routines, more tools | [PHASE-3.md](PHASE-3.md) |
@@ -46,7 +46,7 @@ Every document says its Kind near the top. **Living** is kept current and is saf
 | The proposed protocol for the measured comparison (tasks, the two setups, runs, measure and ceiling), agreed by the owner before any run | [COMPARISON_PROTOCOL.md](COMPARISON_PROTOCOL.md) |
 | One task record per piece of work, with acceptance criteria and checkpoints | [tasks/](tasks/) |
 | What was built, measured and then not shipped, with the scores | [not-shipped.md](not-shipped.md) |
-| Superseded documents (Reference): the goal instructions the build ran under, its integration steps, the first-day prompt, the three unshipped skills' text, and the prototype's own plan and handoff | [archive/](archive/) |
+| Superseded documents (Reference): the goal instructions the build ran under, its integration steps, the first-day prompt, the three unshipped skills' text, the prototype's own plan and handoff, and the first one-pager, superseded by INSTALL.md and PLAIN_GUIDE.md | [archive/](archive/) |
 | Rehearsal protocols, including the one for a real new builder | [rehearsals/](rehearsals/) |
 
 ## Where the code and the evidence are

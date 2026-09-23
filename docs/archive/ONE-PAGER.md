@@ -1,6 +1,6 @@
 # Skilliton: how your team works with AI
 
-Kind: Living. Updated 2026-09-16 with the integrated build. What is proved and what is not is kept in [PLAN.md](../PLAN.md) section 7 and [CLIENTS.md](CLIENTS.md).
+Kind: Reference. Archived 2026-09-22: written 2026-09-16 and not kept current since. Its job is now done by [INSTALL.md](../../INSTALL.md) (what a person sees on day one) and [PLAIN_GUIDE.md](../PLAIN_GUIDE.md) (the plain-language guide). Kept as it was, links included, for the record.
 
 ## For your first week
 
