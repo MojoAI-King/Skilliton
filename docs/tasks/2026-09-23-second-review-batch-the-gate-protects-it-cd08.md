@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-second-review-batch-the-gate-protects-it-cd08
-- **State:** in-progress
+- **State:** merged
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T22:01:03.754Z
+- **Updated:** 2026-09-23T22:07:14.153Z
 
 ## Request
 

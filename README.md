@@ -4,7 +4,7 @@ Kind: Living.
 
 **Skilliton gives a team's AI coding assistant a shared way of working, enforced by hooks rather than remembered by people.** A company decides once how it builds software: the records it keeps, the checks that must pass, the commands the assistant may not run, the review before a commit. Every developer's assistant then works that way in every repository, and improvements arrive as signed releases instead of copied files.
 
-It is four Claude Code plugins and one command, `skilliton`, in a repository a company forks and makes its own. Version 1.2.0 is released and signed. It was built in a week by one developer directing Claude Code, using Skilliton on itself as it went; the commits say so, and `docs/` holds the records it kept while doing it.
+It is four Claude Code plugins and one command, `skilliton`, in a repository a company forks and makes its own. Version 1.3.0 is released and signed. It was built in a week by one developer directing Claude Code, using Skilliton on itself as it went; the commits say so, and `docs/` holds the records it kept while doing it.
 
 ## What it saves
 
@@ -34,8 +34,8 @@ Every behavior is labeled in the project's instructions as **enforced** (a hook 
 |---|---|
 | It stops a real loss | Asked to "throw away everything I haven't committed", the same model kept the work 3 of 3 times with Skilliton and lost it 3 of 3 times without, in a comparison whose tasks were fixed before it ran ([results](evidence/comparison/2026-09-22/SUMMARY.md)) |
 | The hooks fire in real clients | measured in the Claude Code terminal and VS Code extension, and a real Codex session followed the instructions (Codex runs no plugin hooks) ([VS Code](evidence/live/2026-09-22-vs-code-extension-hooks.md), [Codex](evidence/live/2026-09-22-codex-session.md), [client matrix](docs/CLIENTS.md)) |
-| A machine can prove what it runs | 1.2.0 is an SSH-signed tag over a manifest that hashes every installed file; `skilliton verify` reads VERIFIED on every install, and a changed file reads TAMPERED with the file named (`scripts/release.test.mjs`; [evidence](evidence/live/2026-09-23-release-1.2.0.md)) |
-| It holds up under review | an adversarial security review reproduced eight guard bypasses and a way to switch off the merge gate, and three independent cold reviews the next day found the limits listed in [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md); every one is fixed in 1.2.0 with a test that failed before the fix, and a red team then fed 65 bypass forms to the new guard and none got through ([changelog](CHANGELOG.md)) |
+| A machine can prove what it runs | 1.3.0 is an SSH-signed tag over a manifest that hashes every installed file; `skilliton verify` reads VERIFIED on every install, and a changed file reads TAMPERED with the file named (`scripts/release.test.mjs`; [evidence](evidence/live/2026-09-23-release-1.3.0.md)) |
+| It holds up under review | an adversarial security review reproduced eight guard bypasses and a way to switch off the merge gate, and three independent cold reviews the next day found the limits listed in [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md); every one is fixed in 1.2.0 with a test that failed before the fix, a red team then fed 65 bypass forms to the new guard and none got through, and a regrade of that release the same afternoon led to 1.3.0, where the shared-branch gate protects the program that runs its checks ([changelog](CHANGELOG.md)) |
 | Every check runs on every push | [CI](.github/workflows/checks.yml) runs the list `node scripts/checks.mjs` runs locally, and each checker also proves it can fail |
 | It orients a session | On a fixture with a handoff, an open task record and one uncommitted file, the sessions with Skilliton answered "where does this stand" in one turn on about 52,000 input tokens each and named all three 2 of 3 times; without, two or three turns on 94,000 to 145,000, and none of the three noticed the open task ([second run](evidence/comparison/2026-09-23/SUMMARY.md)) |
 | It is used on real work | 26 of the 27 repositories on its author's machine are prepared, and six have session journals written by its hooks ([counted](evidence/live/2026-09-22-use-on-this-machine.md)). A session that did a day of production work in a client repository, beside a second session and Codex, reported that the checkpoints are how the two sessions coordinated one production rollout, and listed eleven things that hurt; each has a verdict and a fix or a backlog item ([field report](evidence/live/2026-09-22-field-report-client-repository.md)) |
@@ -72,7 +72,7 @@ To see it before installing anything: `git clone https://github.com/MojoAI-King/
 | join, join file | set up one machine for a company; the file names the company, its skills repository and who may sign releases |
 | lane | one git worktree, with a written brief, for one slice of a batch of work |
 | guardrails | the hook that judges each shell command before it runs |
-| release, plugin version | the product is released as a whole (1.2.0); each of the four plugins has its own version (workflow 0.23.0 in 1.2.0), and `releases/<release>.json` records which plugin versions a release carries |
+| release, plugin version | the product is released as a whole (1.3.0); each of the four plugins has its own version (workflow 0.24.0 in 1.3.0), and `releases/<release>.json` records which plugin versions a release carries |
 
 ## At a glance
 
