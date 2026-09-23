@@ -184,7 +184,7 @@ jobs:
         run: node --test scripts/handoff-write.test.mjs
 
       - name: Project security evidence and collectors
-        run: node --test scripts/security-evidence.test.mjs scripts/collectors.test.mjs scripts/security-record-refusals.test.mjs
+        run: node --test scripts/security-evidence.test.mjs scripts/collectors.test.mjs scripts/security-record-refusals.test.mjs scripts/security-propose.test.mjs
 
       - name: Maintain refreshes the collector-backed security records that are missing or stale
         run: node --test scripts/maintain-security-collectors.test.mjs

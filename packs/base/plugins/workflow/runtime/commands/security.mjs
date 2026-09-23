@@ -17,6 +17,7 @@ import { LEGACY_NAME } from '../lib/legacy-names.mjs';
 import { DRAFT_FILE } from '../lib/delivery-policy.mjs';
 import * as security from '../lib/security.mjs';
 import * as collectors from '../lib/collectors.mjs';
+import * as propose from '../lib/security-propose.mjs';
 
 export const help = `security: project security evidence. Status, recorded observations, applicability decisions, evidence
 collectors, and open findings in the backlog record. Commands that write show their change first and write only with
@@ -41,6 +42,20 @@ collectors, and open findings in the backlog record. Commands that write show th
       Add a decision to .skilliton/security/applicability.json; the newest decision per control wins. A control with
       no decision is undecided and counts as needing a human. applies false removes the control from the denominator,
       and the report lists it with its rationale.
+
+  security applicability --propose [--dir <project>] [--apply]
+      Read the tracked files for a fixed set of signals (a web framework or server, a sign-in or token library,
+      session or cookie handling, a database or query library, a child process or shell use, a dependency manifest)
+      and write .skilliton/security/applicability-proposal.json: per control, whether it applies, the signals and up
+      to three example paths that led there, and a plain reason. Six process controls, SG-SECRETS-IN-SOURCE and
+      SG-POLICY-CHANGE-REVIEW always apply; SG-DEPENDENCY-RISK applies when a manifest is tracked; the rest follow
+      their one named signal. Without --apply, previews only.
+
+  security applicability --accept-proposal --decided-by <label> [--replace] [--dir <project>] [--apply]
+      Turn the proposal into one applicability decision per control, through the same path as a manual decision,
+      with rationale "proposed from repository signals: <reason>". Refuses a missing proposal, one older than the
+      tracked files it read (run --propose again), and, without --replace, a control someone already decided by
+      hand. Without --apply, previews only.
 
   security collect tests --source <file> [--source <file>]... [--control <id>] [--reviewer <label>] [--dir] [--apply]
       Run each check in .skilliton/delivery.json (an argument list, no shell, with its timeout), save the combined
@@ -77,13 +92,16 @@ The standalone prototype used exit 2 for attention and exit 1 for refusals; thes
 const SUBCOMMANDS = {
   status: { options: ['dir'], repeat: [] },
   record: { options: ['dir', 'control', 'assessment', 'note', 'reviewer'], repeat: ['source', 'artifact'] },
-  applicability: { options: ['dir', 'control', 'applies', 'rationale', 'decided-by'], repeat: [] },
+  applicability: { options: ['dir', 'control', 'applies', 'rationale', 'decided-by'], repeat: [], flags: ['propose', 'accept-proposal', 'replace'] },
   collect: { options: ['dir', 'control', 'reviewer'], repeat: ['source'] },
   findings: { options: ['dir'], repeat: [] },
 };
 const OPTIONS = [...new Set(Object.values(SUBCOMMANDS).flatMap((s) => s.options))];
 const REPEATABLE = ['source', 'artifact'];
-const FLAGS = ['apply'];
+// apply is meaningful (and allowed) on every subcommand; a subcommand's own flags (propose, accept-proposal,
+// replace) are named in its SUBCOMMANDS entry and checked against it below, the same way repeatable options are.
+const UNIVERSAL_FLAGS = ['apply'];
+const FLAGS = [...new Set([...UNIVERSAL_FLAGS, ...Object.values(SUBCOMMANDS).flatMap((s) => s.flags ?? [])])];
 const safeWord = (word) => /^[a-z][a-z0-9-]{0,39}$/.test(word);
 const shown = (word) => (safeWord(word) ? `"${word}"` : '(not shown)');
 
@@ -118,7 +136,8 @@ function parse(argv) {
   if (sub === 'collect' && !extra.length) throw new Refused('security collect needs a collector: tests, secrets or delivery-policy');
   if (extra.length > (sub === 'collect' ? 1 : 0)) throw new Refused(`security ${sub} got an unexpected extra argument (not shown); quote values that contain spaces`);
   for (const key of Object.keys(o)) {
-    if (key !== '_' && key !== 'help' && !FLAGS.includes(key) && !spec.options.includes(key)) throw new Refused(`--${key} does not apply to "security ${sub}". Run: ${selfCommand()} security --help`);
+    if (key === '_' || key === 'help' || UNIVERSAL_FLAGS.includes(key) || spec.options.includes(key) || (spec.flags ?? []).includes(key)) continue;
+    throw new Refused(`--${key} does not apply to "security ${sub}". Run: ${selfCommand()} security --help`);
   }
   for (const key of REPEATABLE) if (repeat[key].length && !spec.repeat.includes(key)) throw new Refused(`--${key} does not apply to "security ${sub}"`);
   return { sub, o, repeat, name: extra[0] };
@@ -185,6 +204,19 @@ async function record({ o, repeat }) {
 }
 
 async function applicability({ o }) {
+  if (o.propose && o['accept-proposal']) throw new Refused('security applicability takes only one of --propose or --accept-proposal');
+  const manualOnly = ['control', 'applies', 'rationale'];
+  if (o.propose || o['accept-proposal']) {
+    const used = manualOnly.filter((k) => o[k] !== undefined);
+    if (used.length) throw new Refused(`--${used[0]} does not apply with ${o.propose ? '--propose' : '--accept-proposal'}`);
+  }
+  if (o.replace && !o['accept-proposal']) throw new Refused('--replace applies only with --accept-proposal');
+  if (o.propose) return applicabilityPropose({ o });
+  if (o['accept-proposal']) return applicabilityAccept({ o });
+  return applicabilityDecide({ o });
+}
+
+async function applicabilityDecide({ o }) {
   const root = projectDir(o);
   requireOptions(o, 'applicability', ['control', 'applies', 'rationale', 'decided-by']);
   if (o.applies !== 'true' && o.applies !== 'false') throw new Refused('--applies must be true or false (the value given is not shown)');
@@ -206,6 +238,50 @@ async function applicability({ o }) {
   say(`Recorded the decision "${what}" in ${security.APPLICABILITY_REL} (${result.decisions} decision(s); the newest per control wins).`);
   if (result.backup) say(`Backup of the previous file: ${tilde(result.backup)}`);
   if (!d.applies) say('This control no longer counts toward status; the report lists it with its rationale.');
+  return 0;
+}
+
+async function applicabilityPropose({ o }) {
+  const root = projectDir(o);
+  const built = propose.buildProposal(root);
+  const applyCount = built.controls.filter((c) => c.applies).length;
+  say(`security applicability --propose${o.apply ? '' : ' (preview: nothing is written)'}`);
+  say(`  read ${built.trackedFiles} tracked file(s) at HEAD ${built.head ?? '(no commits yet)'}`);
+  for (const c of built.controls) {
+    say(`  ${c.controlId}: ${c.applies ? 'applies' : 'does not apply'} - ${c.reason}${c.examples.length ? ` (${c.examples.join(', ')})` : ''}`);
+  }
+  if (!o.apply) {
+    say(`Preview: ${built.controls.length} control(s) proposed, ${applyCount} applying. Nothing was written. Add --apply to write ${propose.PROPOSAL_REL}.`);
+    return 0;
+  }
+  propose.writeProposal(root, built);
+  say(`Wrote ${propose.PROPOSAL_REL}: ${built.controls.length} control(s) proposed, ${applyCount} applying.`);
+  say(`This is a proposal, not a decision: run security applicability --accept-proposal --decided-by <label> --apply to record it.`);
+  return 0;
+}
+
+async function applicabilityAccept({ o }) {
+  const root = projectDir(o);
+  requireOptions(o, 'applicability', ['decided-by']);
+  const stamp = newStamp();
+  const result = propose.acceptProposal(root, {
+    decidedBy: o['decided-by'], apply: Boolean(o.apply), replace: Boolean(o.replace),
+    beforeReplace: (path) => {
+      try { return backupFile('security', path, stamp); } catch {
+        throw new security.SecurityRefusal('WRITE_FAILED', 'the backup of the applicability file could not be written, so it was not changed');
+      }
+    },
+  });
+  const skipped = result.plan.filter((p) => p.skip);
+  for (const p of result.plan) {
+    say(`  ${p.controlId}: ${p.applies ? 'applies' : 'does not apply'}${p.skip ? ' - skipped, a decision already exists (use --replace to overwrite it)' : ''} - ${p.reason}`);
+  }
+  if (!o.apply) {
+    say(`Preview: ${result.plan.length - skipped.length} decision(s) would be recorded in ${security.APPLICABILITY_REL}, ${skipped.length} skipped. Nothing was written. Add --apply to write them.`);
+    return 0;
+  }
+  say(`Recorded ${result.written} decision(s) in ${security.APPLICABILITY_REL}, ${skipped.length} left alone (a decision already existed).`);
+  if (result.backups.length) say(`Backup(s) of the applicability file before each replace: ${result.backups.map((b) => tilde(b)).join(', ')}`);
   return 0;
 }
 
@@ -299,6 +375,7 @@ export async function run(argv) {
     label = `security ${parsed.sub}`;
     return await HANDLERS[parsed.sub](parsed);
   } catch (e) {
+    if (e instanceof propose.ProposalRefusal) throw new Refused(`${label}: ${e.message} Nothing was written.`);
     if (e instanceof security.SecurityRefusal) {
       const text = `${label}: ${e.kind === 'failed' ? 'operation failed' : 'refused'} (${e.code}): ${security.refusalText(e.code)}${e.detail ? `. ${e.detail}` : ''}.`;
       if (e.kind === 'failed') { console.error(`skilliton: ${text}`); return 3; }
