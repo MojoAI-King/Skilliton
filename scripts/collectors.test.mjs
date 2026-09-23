@@ -26,6 +26,7 @@ const STARTER = join(pluginDir, 'catalogs', 'skillgate-starter-1.json');
 const SECURITY = '.skilliton/security';
 const EVIDENCE = '.skilliton/private-evidence';
 const DELIVERY = '.skilliton/delivery.json';
+const DELIVERY_DRAFT = '.skilliton/delivery.draft.json';
 
 const bases = [];
 const baseOf = (dir) => bases.find((b) => dir === b || dir.startsWith(`${b}/`));
@@ -173,6 +174,27 @@ test('tests collector: refuses without --source, a policy, an argument-list comm
   refused(['--source', 'app.js'], 2, /MALFORMED_JSON/);
   assert.deepEqual(evidenceFiles(dir), []);
   assert.deepEqual(records(dir), []);
+});
+
+test('N45: security status and the tests collector point at the same fix when the delivery policy is missing, and at delivery confirm once a draft exists', (t) => {
+  const dir = project(t);
+  const noDraftStatus = status(dir);
+  assert.match(noDraftStatus.out, /Note: \.skilliton\/delivery\.json is missing, which the tests and delivery-policy collectors both need; write \.skilliton\/delivery\.json yourself \(the format is in: .* delivery --help\)\.$/m);
+  const noDraftCollect = collect(dir, 'tests', ['--source', 'app.js', '--apply']);
+  assert.equal(noDraftCollect.code, 2, noDraftCollect.out);
+  assert.match(noDraftCollect.out, /NO_DELIVERY_POLICY.*write \.skilliton\/delivery\.json yourself/);
+
+  writeFileSync(join(dir, DELIVERY_DRAFT), JSON.stringify({ schema: 'skilliton.delivery/1', protectedBranches: ['main'], checks: [] }));
+  const withDraftStatus = status(dir);
+  assert.match(withDraftStatus.out, /Note: \.skilliton\/delivery\.json is missing, which the tests and delivery-policy collectors both need; run: .* delivery confirm --apply\.$/m);
+  const withDraftCollect = collect(dir, 'tests', ['--source', 'app.js', '--apply']);
+  assert.equal(withDraftCollect.code, 2, withDraftCollect.out);
+  assert.match(withDraftCollect.out, /NO_DELIVERY_POLICY.*delivery confirm --apply/);
+  assert.deepEqual(evidenceFiles(dir), []);
+  assert.deepEqual(records(dir), []);
+
+  writePolicy(dir, [nodeCheck('ok', 'process.exit(0)')]);
+  assert.equal(status(dir).out.includes('is missing'), false, 'the note disappears once the policy exists');
 });
 
 test('tests collector: a source changed by a check leaves the new observation stale and says so', (t) => {

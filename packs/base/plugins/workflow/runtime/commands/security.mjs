@@ -9,10 +9,12 @@
 //
 // Supplied values are never echoed in refusals, and evidence file contents are never printed.
 
+import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { Refused, backupFile, forDisplay, newStamp, parseArgs, say, selfCommand, tilde, unifiedDiff } from '../lib/core.mjs';
 import { ConfigError, readProjectConfig } from '../lib/config.mjs';
 import { LEGACY_NAME } from '../lib/legacy-names.mjs';
+import { DRAFT_FILE } from '../lib/delivery-policy.mjs';
 import * as security from '../lib/security.mjs';
 import * as collectors from '../lib/collectors.mjs';
 
@@ -153,6 +155,11 @@ async function status({ o }) {
   const code = security.exitCodeFor(ev.result);
   const c = ev.counts;
   process.stdout.write(report);
+  if (!existsSync(join(root, collectors.DELIVERY_REL))) {
+    const make = existsSync(join(root, DRAFT_FILE)) ? `run: ${selfCommand()} delivery confirm --apply`
+      : `write ${collectors.DELIVERY_REL} yourself (the format is in: ${selfCommand()} delivery --help)`;
+    say(`Note: ${collectors.DELIVERY_REL} is missing, which the tests and delivery-policy collectors both need; ${make}.`);
+  }
   if (o.apply && ev.result === 'invalid') {
     say(`Not written: ${security.REPORT_REL}, because the evidence is invalid (see above). Fix it, then run again. Nothing was written.`);
   } else if (o.apply) {

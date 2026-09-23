@@ -56,7 +56,7 @@ const REFUSALS = {
   INVALID_FINDINGS_MARKERS: 'the backlog record has a security-findings start or end marker that is duplicated, unpaired, out of order, or not on a line of its own',
   UNKNOWN_CONTROL: 'the control is not in the project catalog; pass --control with one of the catalog control ids',
   SOURCE_REQUIRED: 'the tests collector needs at least one --source file that its checks cover',
-  NO_DELIVERY_POLICY: 'there is no .skilliton/delivery.json, so there are no checks to run',
+  NO_DELIVERY_POLICY: 'there is no .skilliton/delivery.json, which the tests and delivery-policy collectors both need; run "skilliton delivery confirm --apply" when .skilliton/delivery.draft.json exists, otherwise write .skilliton/delivery.json yourself (the format is in "skilliton delivery --help")',
   INVALID_DELIVERY_POLICY: 'the delivery policy .skilliton/delivery.json is not usable',
   NO_DELIVERY_CHECKS: 'the delivery policy defines no checks',
   GIT_NOT_FOUND: 'git was not found on PATH',
