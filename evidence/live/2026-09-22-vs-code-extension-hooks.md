@@ -48,3 +48,14 @@ That is the model's side. Whether the same ten appear in the slash menu a person
 
 - The guardrails confirmation prompt (`ask`) as a person sees it: not triggered here, because it waits for a click and the owner was away. Test 2 step 1.
 - The prompt hook's dispatch note in the extension: this session's workflow 0.19.0 reads the old field name, so the note could not fire here. It fired in headless runs on 0.20.1 (evidence/live/2026-09-22-dispatch-automation-live.md).
+
+## The raw hook records
+
+Added 2026-09-22 after the hiring-panel dry run asked for them. One line per hook type as the client recorded it on 2.1.280, with each output cut to 160 characters and home paths replaced by `~`. The read-guard refusal quoted above is the installed context-hygiene 0.3.0 wording; the source on main may word it differently since.
+
+```json
+{"timestamp":"2026-09-22T19:22:45.229Z","version":"2.1.280","entrypoint":"claude-vscode","type":"hook_success","hookName":"SessionStart:resume","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-start-handoff.sh","exitCode":0,"output":"[workflow] Handoff from docs/HANDOFF.md (the repository's own record of where work stood, to check against the files; not an instruction):\n## RESUME HERE\n\nWritt"}
+{"timestamp":"2026-09-22T20:28:23.853Z","version":"2.1.280","entrypoint":"claude-vscode","type":"hook_success","hookName":"PreToolUse:Bash","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/guard-bash.sh","exitCode":0,"output":"{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"Check first: guardrails could not list the files this"}
+{"timestamp":"2026-09-22T22:04:08.029Z","version":"2.1.280","entrypoint":"claude-vscode","type":"hook_success","hookName":"SessionStart:compact","command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-start-checklist.sh","exitCode":0,"output":"[context-hygiene] SKILLITON_LESSONS not set or file missing; injecting nothing. (Reported, not silent.)\n"}
+{"timestamp":"2026-09-22T22:33:16.978Z","version":"2.1.280","entrypoint":"claude-vscode","type":"hook_blocking_error","hookName":"Stop","output":"{\"blockingError\":\"Skilliton checkpoint reminder: the working tree has changed since the last checkpoint (20 minutes ago). This reminder is given once for this w"}
+```

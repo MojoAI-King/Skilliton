@@ -1,7 +1,7 @@
 {
   "name": "context-hygiene",
   "description": "Keeps the assistant's context small. A read guard hook refuses a whole-file read of a non-image file over 50KB with the reason, so the session reads a range or summarizes the file instead (enforced on Claude Code). A bounded session-start checklist hook, and a context-hygiene skill with the rules for large results, idle gaps, shell output (run checks through skilliton gate) and subagents. A separate, reversible setup script adds a status line that logs real quota; the config drift check is a manual diagnostic.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "MojoAI"
   },
