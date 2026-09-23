@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-lane-windows-names-44e3
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/windows-names-0923
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T07:15:47.669Z
+- **Updated:** 2026-09-23T08:37:20.480Z
 
 ## Request
 

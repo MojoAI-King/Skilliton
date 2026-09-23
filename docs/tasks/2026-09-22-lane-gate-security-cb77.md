@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-22-lane-gate-security-cb77
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/gate-security-0922
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T23:14:33.686Z
+- **Updated:** 2026-09-23T08:37:19.225Z
 
 ## Request
 

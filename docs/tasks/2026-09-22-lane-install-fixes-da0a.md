@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-22-lane-install-fixes-da0a
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/install-fixes-0922
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T01:44:45.075Z
+- **Updated:** 2026-09-23T08:37:19.597Z
 
 ## Request
 

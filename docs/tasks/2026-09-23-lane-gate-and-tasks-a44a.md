@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-lane-gate-and-tasks-a44a
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/gate-and-tasks-0923
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T07:14:31.794Z
+- **Updated:** 2026-09-23T08:37:19.970Z
 
 ## Request
 

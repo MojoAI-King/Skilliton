@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-lane-security-loop-2e73
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/security-loop-0923
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T05:29:57.997Z
+- **Updated:** 2026-09-23T08:37:20.227Z
 
 ## Request
 

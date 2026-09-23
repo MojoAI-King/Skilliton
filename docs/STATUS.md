@@ -39,13 +39,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner |
 |---|---|---|---|---|
-| [2026-09-22-lane-gate-security-cb77](tasks/2026-09-22-lane-gate-security-cb77.md) | Lane gate-security | in-progress | lane/gate-security-0922 | unassigned |
-| [2026-09-22-lane-guard-security-68d3](tasks/2026-09-22-lane-guard-security-68d3.md) | Lane guard-security | in-progress | lane/guard-security-0922 | unassigned |
-| [2026-09-22-lane-hooks-abd3](tasks/2026-09-22-lane-hooks-abd3.md) | Lane hooks | in-progress | lane/hooks-0922 | unassigned |
-| [2026-09-22-lane-install-fixes-da0a](tasks/2026-09-22-lane-install-fixes-da0a.md) | Lane install-fixes | in-progress | lane/install-fixes-0922 | unassigned |
-| [2026-09-22-lane-meter-03dd](tasks/2026-09-22-lane-meter-03dd.md) | Lane meter | in-progress | lane/meter-0922 | unassigned |
-| [2026-09-22-lane-quality-91cd](tasks/2026-09-22-lane-quality-91cd.md) | Lane quality | in-progress | lane/quality-0922 | unassigned |
 | [2026-09-22-the-home-stretch-every-area-as-high-as-e-3732](tasks/2026-09-22-the-home-stretch-every-area-as-high-as-e-3732.md) | The home stretch: every area as high as evidence allows before the cold read | in-progress | main | unassigned |
-| [2026-09-23-lane-records-host-da4c](tasks/2026-09-23-lane-records-host-da4c.md) | Lane records-host | in-progress | lane/records-host-0923 | unassigned |
-| [2026-09-23-lane-security-loop-2e73](tasks/2026-09-23-lane-security-loop-2e73.md) | Lane security-loop | in-progress | lane/security-loop-0923 | unassigned |
 <!-- skilliton:index:tasks:end -->

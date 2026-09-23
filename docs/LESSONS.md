@@ -243,4 +243,5 @@ Lesson entries in `docs/lessons/`, sorted by ID. `skilliton index` writes this l
 | [2026-09-22-a-rewrite-over-every-file-walks-the-work-0230](lessons/2026-09-22-a-rewrite-over-every-file-walks-the-work-0230.md) | A rewrite over every file walks the worktrees nested inside the repository | accepted | 2026-09-22 |
 | [2026-09-22-a-self-test-that-builds-its-fixture-from-662b](lessons/2026-09-22-a-self-test-that-builds-its-fixture-from-662b.md) | A self-test that builds its fixture from the live record breaks the day the record gains the feature | accepted | 2026-09-22 |
 | [2026-09-22-an-awk-variable-named-rt-works-on-macos-d815](lessons/2026-09-22-an-awk-variable-named-rt-works-on-macos-d815.md) | An awk variable named RT works on macOS and is silently reset by GNU awk | accepted | 2026-09-22 |
+| [2026-09-23-a-whole-tree-content-scan-can-be-invalid-4895](lessons/2026-09-23-a-whole-tree-content-scan-can-be-invalid-4895.md) | A whole-tree content scan can be invalidated by the same run's own write to a tracked file it just scanned | proposed | 2026-09-23 |
 <!-- skilliton:index:lessons:end -->

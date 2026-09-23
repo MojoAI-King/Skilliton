@@ -110,8 +110,9 @@ These were guesses, written down so the run could confirm or refute them. The ho
   (evidence/live/windows/2026-09-23-hosted-runner-port.md): a check started by a bare name runs, and it does matter
   here. With `whoami.exe` copied into the project folder as `node.exe`, a check `["node", "-e", "process.exit(0)"]`
   failed where the same check passes without the decoy, so a program in the working folder is found before PATH.
-  Until backlog B79 resolves every bare name through PATH on Windows, a repository can stand a program of its own in
-  for a check's program.
+  Since workflow 0.22.0 the runtime looks every bare name up on PATH before it starts it on Windows (backlog B79:
+  `git`, `tar` and a policy check's program); until the decoy step passes on a run that includes that change, treat
+  a repository's own program standing in for a check's program as possible.
 - **The status line and the drift check** use `jq`, which Git for Windows does not bring. They are optional, and the
   check should say so rather than fail.
 
