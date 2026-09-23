@@ -39,5 +39,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner |
 |---|---|---|---|---|
-| [2026-09-23-second-review-batch-the-gate-protects-it-cd08](tasks/2026-09-23-second-review-batch-the-gate-protects-it-cd08.md) | Second review batch: the gate protects its check program, the guard's remaining gaps, the runner's shell, the history-bound tests, the freshness contract, the documents that ran ahead | in-progress | main | unassigned |
+| [2026-09-23-after-1-3-0-what-the-owner-does-next-b741](tasks/2026-09-23-after-1-3-0-what-the-owner-does-next-b741.md) | After 1.3.0: what the owner does next | in-progress | main | unassigned |
 <!-- skilliton:index:tasks:end -->
