@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-lane-docs-review-2-d153
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/docs-review-2-0923b
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T19:51:45.797Z
+- **Updated:** 2026-09-23T19:53:56.126Z
 
 ## Request
 
