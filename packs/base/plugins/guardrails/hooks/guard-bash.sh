@@ -538,7 +538,7 @@ check_config_hookspath() { # git config ... core.hooksPath <dir> changes which h
     case "$a" in --get|--get-all|--get-regexp|-l|--list|--show-origin|--show-scope|get) return 0 ;; esac
     case "$(printf '%s' "$a" | tr '[:upper:]' '[:lower:]')" in core.hookspath|core.hookspath=*) named=1 ;; esac
   done
-  [ "$named" = 1 ] && ask "Check first: this changes core.hooksPath, which decides which hooks git runs for every later commit and push in this repository; pointing it elsewhere skips this project's checks the way --no-verify does. A tool that installs its own hooks (husky, for example) sets it on purpose; confirm only if that is what this is."
+  [ "$named" = 1 ] && ask "Check first: this changes core.hooksPath, which decides which hooks git runs for every later commit and push in this repository; pointing it elsewhere skips this project's checks the way --no-verify does. A tool that installs its own hooks (husky, for example) sets it on purpose; confirm only if that is what this is." # skilliton-audit: allow verification-off the question naming the flag it compares the change with
   return 0
 }
 
