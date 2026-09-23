@@ -91,7 +91,7 @@ Then:
 
 ## 4. What is likely to break first
 
-These are guesses, written down so the run can confirm or refute them:
+These were guesses, written down so the run could confirm or refute them. The hosted-runner runs (evidence/live/windows/) answered three: paths with a space work, and the first failure was the plain Git folder check instead, now fixed; Git Bash is found; and bare program names matter (below). The launcher, file modes and the status line are still unrun:
 
 - **Paths.** The runtime builds paths with Node's own path handling, so `C:\Users\...` should be fine, but the
   launcher and the hooks pass paths through a shell, where a backslash is an escape character. A path with a space
@@ -106,10 +106,12 @@ These are guesses, written down so the run can confirm or refute them:
 - **The preflight check on Windows** looks for Git Bash through `CLAUDE_CODE_GIT_BASH_PATH`, then PATH, then beside
   `git.exe`. If it says Git for Windows was not found although it is installed, send the output of
   `which git` and `where.exe git`.
-- **Bare program names in the delivery policy.** A policy check such as `npm test` is started by name, and on
-  Windows a program started by name without a path can be found in the current folder before the PATH. `skilliton
-  gate` and the delivery gate run the same checks, so the run should show whether that matters here. Not verified
-  on Windows.
+- **Bare program names in the delivery policy.** Resolved on 2026-09-23 on a hosted runner
+  (evidence/live/windows/2026-09-23-hosted-runner-port.md): a check started by a bare name runs, and it does matter
+  here. With `whoami.exe` copied into the project folder as `node.exe`, a check `["node", "-e", "process.exit(0)"]`
+  failed where the same check passes without the decoy, so a program in the working folder is found before PATH.
+  Until backlog B79 resolves every bare name through PATH on Windows, a repository can stand a program of its own in
+  for a check's program.
 - **The status line and the drift check** use `jq`, which Git for Windows does not bring. They are optional, and the
   check should say so rather than fail.
 

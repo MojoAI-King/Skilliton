@@ -11,9 +11,9 @@ Kind: Living. Batch record. Area [03-any-environment](AREA.md).
 ## Acceptance
 
 - [x] the WINDOWS.md commands run and the output filed under evidence/live/windows/ (evidence: evidence/live/windows/2026-09-22-hosted-runner-first-run.md, GitHub Actions run 35803157274 on a hosted Windows runner)
-- [ ] each failure has a fix with a test, or a documented limitation
-- [ ] the bare program name item in WINDOWS.md section 4 is resolved from the run
-- [ ] docs/COVERAGE.md, docs/CLIENTS.md, IT-ALLOWLIST section 8 and B30 updated from the run
+- [x] each failure has a fix with a test, or a documented limitation (evidence: evidence/live/windows/2026-09-23-hosted-runner-port.md, GitHub Actions runs 35815835006 and 35822331594; the limitations are B79, B80 and two test fixtures that are POSIX only)
+- [x] the bare program name item in WINDOWS.md section 4 is resolved from the run (evidence: evidence/live/windows/2026-09-23-hosted-runner-port.md, the decoy step; docs/WINDOWS.md section 4 says it matters, backlog B79)
+- [x] docs/COVERAGE.md, docs/CLIENTS.md, IT-ALLOWLIST section 8 and B30 updated from the run (evidence: evidence/live/windows/2026-09-23-hosted-runner-port.md and those four places)
 
 ## Notes
 
