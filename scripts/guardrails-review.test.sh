@@ -272,6 +272,83 @@ expect "git commit -am x with a tracked file over the cap changed on disk (base:
 reason_has "  the reason names it" "small.txt is larger than 10 MB"
 expect "negative: an ordinary commit of a small clean file"  allow "$R" 'git commit -m x'
 
+# ---------------------------------------------------------------- N73
+section "N73: the verbs that discard uncommitted work ask"
+expect "git checkout -f (base: allow)"                  ask "$RP" 'git checkout -f'
+reason_has "  the reason says the edits cannot be recovered" "cannot be recovered"
+expect "git checkout -f feature (base: allow)"          ask "$RP" 'git checkout -f feature'
+expect "git checkout --forc feature (a start of --force) (base: allow)" ask "$RP" 'git checkout --forc feature'
+expect "git switch -f feature (base: allow)"            ask "$RP" 'git switch -f feature'
+expect "git switch --discard-changes feature (base: allow)" ask "$RP" 'git switch --discard-changes feature'
+expect "git switch -C feature main (base: allow)"       ask "$RP" 'git switch -C feature main'
+reason_has "  the reason names the branch" "moves the branch feature"
+expect "git checkout -B feature main (base: allow)"     ask "$RP" 'git checkout -B feature main'
+expect "git worktree remove --force <dir> (base: allow)" ask "$RP" "git worktree remove --force $TMP/wt"
+expect "git worktree remove -f <dir> (base: allow)"     ask "$RP" "git worktree remove -f $TMP/wt"
+expect "git rm -f README.md (base: allow)"              ask "$RP" 'git rm -f README.md'
+expect "git rm -rf src (base: allow)"                   ask "$RP" 'git rm -rf src'
+expect "git restore README.md (base: allow)"            ask "$RP" 'git restore README.md'
+reason_has "  the reason names the path" "git restore README.md throws away the uncommitted edits to README.md"
+expect "git restore -W README.md (base: allow)"         ask "$RP" 'git restore -W README.md'
+expect "git checkout -- README.md (base: allow)"        ask "$RP" 'git checkout -- README.md'
+expect "rm -rf .git (base: allow)"                      ask "$RP" 'rm -rf .git'
+reason_has "  the reason says it is the repository itself" "the repository itself"
+expect "git checkout -- . (as before) (base: ask)"      ask "$RP" 'git checkout -- .'
+expect "negative: git checkout feature"                 allow "$RP" 'git checkout feature'
+expect "negative: git checkout -b topic"                allow "$RP" 'git checkout -b topic'
+expect "negative: git switch -c topic"                  allow "$RP" 'git switch -c topic'
+expect "negative: git switch feature"                   allow "$RP" 'git switch feature'
+expect "negative: git worktree remove <dir> (git refuses a dirty one itself)" allow "$RP" "git worktree remove $TMP/wt"
+expect "negative: git rm --cached -f .env (keeps the file)" allow "$RP" 'git rm --cached -f .env'
+expect "negative: git rm README.md (git refuses when it has changes)" allow "$RP" 'git rm README.md'
+expect "negative: git restore --staged README.md (only unstages)" allow "$RP" 'git restore --staged README.md'
+
+section "N73: the other forms that delete or empty what Skilliton keeps are denied"
+expect "find docs -delete (base: allow)"                deny "$RP" 'find docs -delete'
+reason_has "  the reason names the record and the route" "skilliton remove --apply"
+expect "find . -name '*.md' -delete (base: allow)"      deny "$RP" "find . -name '*.md' -delete"
+expect "find docs -name '*.md' -exec rm {} + (base: allow)" deny "$RP" "find docs -name '*.md' -exec rm {} +"
+expect "find . -type f -delete at the root (base: allow)" deny "$RP" 'find . -type f -delete'
+expect "rm -rf docs/{tasks,decisions} (base: allow)"    deny "$RP" 'rm -rf docs/{tasks,decisions}'
+expect "rm -rf \"\$PWD/docs\" (base: allow)"             deny "$RP" 'rm -rf "$PWD/docs"'
+expect "rm -rf ./docs/../docs (base: deny)"             deny "$RP" 'rm -rf ./docs/../docs'
+expect "truncate -s 0 docs/STATUS.md (base: allow)"     deny "$RP" 'truncate -s 0 docs/STATUS.md'
+reason_has "  the reason says emptying" "emptying or writing over docs/STATUS.md"
+expect "echo > docs/STATUS.md (base: allow)"            deny "$RP" 'echo > docs/STATUS.md'
+expect ": > DECISIONS.md (base: allow)"                 deny "$RP" ': > DECISIONS.md'
+expect "cp /dev/null docs/STATUS.md (base: allow)"      deny "$RP" 'cp /dev/null docs/STATUS.md'
+expect "a heredoc onto CLAUDE.md (base: allow)"         deny "$RP" $'cat > CLAUDE.md <<EOF\n# new rules\nEOF'
+expect "a heredoc onto AGENTS.md, target after it (base: allow)" deny "$RP" $'cat <<EOF > AGENTS.md\n# new rules\nEOF'
+expect "echo x | tee CLAUDE.md (base: allow)"           deny "$RP" 'echo x | tee CLAUDE.md'
+expect "rsync -a --delete <src>/ docs/ (base: allow)"   deny "$RP" "rsync -a --delete $TMP/src/ docs/"
+expect "python3 -c shutil.rmtree('docs') (base: allow)" deny "$RP" "python3 -c \"import shutil; shutil.rmtree('docs')\""
+expect "perl -e 'unlink \"DECISIONS.md\"' (base: allow)" deny "$RP" "perl -e 'unlink \"DECISIONS.md\"'"
+expect "python3 -c os.remove('docs/HANDOFF.md') (base: allow)" deny "$RP" "python3 -c \"import os; os.remove('docs/HANDOFF.md')\""
+if [ -e "$RP/DOCS" ] && [ "$RP/docs" -ef "$RP/DOCS" ]; then
+  echo "note: this disk is case-insensitive (ls of DOCS resolves to docs), so DOCS and decisions.md are the records"
+  expect "rm -rf DOCS on a case-insensitive disk (base: allow)" deny "$RP" 'rm -rf DOCS'
+  expect "rm decisions.md on a case-insensitive disk (base: allow)" deny "$RP" 'rm decisions.md'
+  expect "rm -rf .SKILLITON on a case-insensitive disk (base: allow)" deny "$RP" 'rm -rf .SKILLITON'
+else
+  echo "note: this disk is case-sensitive, so DOCS and decisions.md are other names and are allowed"
+  expect "rm -rf DOCS on a case-sensitive disk is another folder" allow "$RP" 'rm -rf DOCS'
+  expect "rm decisions.md on a case-sensitive disk is another file" allow "$RP" 'rm decisions.md'
+fi
+expect "negative: echo more >> docs/STATUS.md (adds to it)" allow "$RP" "echo '- more' >> docs/STATUS.md"
+expect "negative: a heredoc appended to CLAUDE.md"      allow "$RP" $'cat <<EOF >> CLAUDE.md\n# more\nEOF'
+expect "negative: echo x | tee -a CLAUDE.md"            allow "$RP" 'echo x | tee -a CLAUDE.md'
+expect "negative: echo x > docs/new-notes.md (a new file)" allow "$RP" 'echo x > docs/new-notes.md'
+expect "negative: cp a new entry into docs/tasks/"      allow "$RP" "cp $TMP/new.md docs/tasks/"
+expect "negative: rsync without --delete into docs/"    allow "$RP" "rsync -a $TMP/src/ docs/"
+expect "negative: find . -name '*.tmp' -delete"         allow "$RP" "find . -name '*.tmp' -delete"
+expect "negative: find . -path './node_modules/*' -delete" allow "$RP" "find . -path './node_modules/*' -delete"
+expect "negative: rm -rf src/{a,b}"                     allow "$RP" 'rm -rf src/{a,b}'
+expect "negative: truncate -s 0 notes.txt"              allow "$RP" 'truncate -s 0 notes.txt'
+expect "negative: python3 -c os.remove('notes.txt')"    allow "$RP" "python3 -c \"import os; os.remove('notes.txt')\""
+expect "negative: rm notes.txt"                         allow "$RP" 'rm notes.txt'
+expect "negative: rm -rf build"                         allow "$RP" 'rm -rf build'
+expect "negative: echo hi > out.log"                    allow "$RP" 'echo hi > out.log'
+
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
 echo "RESULT: FAIL ($fails failed, $oks ok)"; exit 1

@@ -15,10 +15,12 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #          changing the permissions of .git/hooks; staging or
 #          committing a file whose name or added content looks like a secret; rm, rmdir, mv or
 #          git rm aimed at what Skilliton keeps in a project (the .skilliton folder, the record
-#          files, the entry folders, CLAUDE.md and AGENTS.md), for which the one route is
-#          skilliton remove --apply, run by a person
-#   ask    git commands that throw away uncommitted work: reset --hard, clean -f, checkout .,
-#          restore . (without --staged), stash drop, stash clear, branch -D
+#          files, the entry folders, CLAUDE.md and AGENTS.md), and find -delete, truncate, > onto, cp or mv
+#          onto, tee, rsync --delete and a program's rmtree or unlink aimed at them (N73), for which the one
+#          route is skilliton remove --apply, run by a person
+#   ask    git commands that throw away uncommitted work: reset --hard, clean -f, checkout ., checkout -f,
+#          checkout -- <path>, checkout -B, switch -f, switch --discard-changes, switch -C, restore <path>
+#          (without --staged), rm -f, worktree remove --force, stash drop, stash clear, branch -D, and rm -rf .git
 #          a force-push or rm -rf whose branch or path holds a variable it cannot resolve; HUSKY=0, SKIP= or
 #          LEFTHOOK=0 in front of a git commit;
 #          and a command that writes the settings file itself (.skilliton/config.json), because a rule
@@ -81,7 +83,7 @@ INSTRUCTION_FILES=$'CLAUDE.md\nAGENTS.md'
 NORM=""; PT_WHAT=""; PHYS=""
 DENY_REASON=""; ASK_REASON=""
 TOKS=(); SEGW=(); SEGR=(); ARGS=(); GARGS=(); PFX_GARGS=(); PA=(); FILES=()
-RT=$'\037'; REDIRS=""; UNSURE_MARK=$'\035'; TOK_UNSURE=0
+RT=$'\037'; AP=$'\034'; REDIRS=""; UNSURE_MARK=$'\035'; TOK_UNSURE=0
 EFF_DIR=""; GDIR=""; RESOLVED=""; CUR_BRANCH=""; SC_LETTERS=""; SC_NEXT=0
 SN_RULE=""; HIT_FILE=""; HIT_RULE=""; REASON=""; ESCAPED=""
 
@@ -99,8 +101,10 @@ GIT_WORD_RE='(^|[^A-Za-z0-9_.-]|\\[bfnrt])[Gg][Ii][Tt]([^A-Za-z0-9_/-]|$)'
 mentions_git() { [[ $1 =~ $GIT_WORD_RE ]]; }
 # The same shape for the programs that remove or move a path, so a command with neither git nor one of them costs
 # one regex and nothing else, as before.
-REMOVE_WORD_RE='(^|[^A-Za-z0-9_.-]|\\[bfnrt])(rm|rmdir|mv)([^A-Za-z0-9_/-]|$)'
-mentions_removal() { [[ $1 =~ $REMOVE_WORD_RE ]]; }
+REMOVE_WORD_RE='(^|[^A-Za-z0-9_.-]|\\[bfnrt])(rm|rmdir|mv|truncate|find|rsync|cp|tee|dd|sponge|install|ln|shred)([^A-Za-z0-9_/-]|$)'
+# The other ways a record is emptied or removed (N73): a > onto a Markdown file, and a program's own removal calls.
+RECORD_HINT_RE='rmtree|unlink|os[.]remove|rmSync|>[>|]?[[:space:]]*[^[:space:]]*[.][Mm][Dd]'
+mentions_removal() { [[ $1 =~ $REMOVE_WORD_RE ]] || [[ $1 =~ $RECORD_HINT_RE ]]; }
 # The settings file the rules come from (N30): a command that names both parts of its path is read, so a write to it
 # can be seen. A folder name alone costs nothing more than before. Letter case is folded: on a case-insensitive disk
 # (macOS, Windows) .Skilliton/Config.json is the same file.
@@ -365,7 +369,7 @@ AWK_TOKENIZER='
 # Inside a $( that opened within double quotes, the words are a command of their own (bash reads its quotes afresh), so
 # they are held in DEF and printed as their own segments after the segment that holds the quoted word, which goes on.
 function emit(x) { if (depth > 0) DEF = DEF x "\n"; else print x }
-function flush() { if (have) { if (skipnext == 2) emit(RDM tok); else if (!skipnext) emit(tok); skipnext = 0 } tok = ""; have = 0 }
+function flush() { if (have) { if (skipnext == 2) emit(RDM tok); else if (skipnext == 3) emit(RDM AP tok); else if (!skipnext) emit(tok); skipnext = 0 } tok = ""; have = 0 }
 function sep() { flush(); emit(SEP); skipnext = 0; if (depth == 0 && DEF != "") { printf "%s", DEF; DEF = "" } }
 # arith(k): $(( ... )) or (( ... )) from the first ( at k, added to the word as it is, so a << inside it is never a
 # heredoc. Returns the index of the closing paren; one that does not close on this line makes the result unsure.
@@ -395,7 +399,7 @@ function is_arith(k,   so, sc, pd, ch, r) {
 }
 function add(ch) { if (length(tok) < 4096) tok = tok ch; have = 1 }
 function at(k) { return substr(chunk, k - off, 1) }
-BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RDM = sprintf("%c", 31); UN = sprintf("%c", 29) }  # not RT: in GNU awk RT is a built-in reset on every record, which lost every redirection mark on Linux
+BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RDM = sprintf("%c", 31); UN = sprintf("%c", 29); AP = sprintf("%c", 28) }  # not RT: in GNU awk RT is a built-in reset on every record, which lost every redirection mark on Linux
 {
   n = split($0, L, "\n")
   q = ""; tok = ""; have = 0; skipnext = 0; nhd = 0; hdi = 0; cont = 0; depth = 0; DEF = ""; unsure = 0
@@ -428,7 +432,7 @@ BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RDM = sprintf("%c", 31); UN = spri
       if (c == "&") {
         d = at(i + 1)
         if (d == "&") { i++; sep(); continue }
-        if (d == ">") { flush(); i++; if (at(i + 1) == ">") i++; skipnext = 2; continue }
+        if (d == ">") { flush(); i++; if (at(i + 1) == ">") { i++; skipnext = 3 } else skipnext = 2; continue }
         sep(); continue
       }
       if (c == "|") { d = at(i + 1); if (d == "|" || d == "&") i++; sep(); continue }
@@ -464,16 +468,17 @@ BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RDM = sprintf("%c", 31); UN = spri
           continue
         }
         if (d == "(") { i++; if (depth > 0) PC[depth]++; sep(); continue }
-        rw = (c == ">") ? 2 : 1
-        if (c == ">" && (d == ">" || d == "|")) { i++; d = at(i + 1) }
-        if (c == "<" && d == ">") { i++; d = at(i + 1); rw = 2 }
+        rw = (c == ">") ? 2 : 1; app = 0
+        if (c == ">" && (d == ">" || d == "|")) { if (d == ">") app = 1; i++; d = at(i + 1) }
+        if (c == "<" && d == ">") { i++; d = at(i + 1); rw = 2; app = 1 }
         if (d == "&") {
           i++; k = 0; while (i < m && k < 16 && at(i + 1) ~ /[0-9-]/) { i++; k++ }
           if (k > 0 || rw == 1) continue   # >&2 and >&- copy a descriptor; >&file writes a file
         }
         # the word after a redirection is its target: a file written (>, >>, >|, <>, &>, >&file) is kept, marked with
-        # \037, so the settings file and a file written then staged can be seen; a file read (<) is dropped
-        skipnext = rw
+        # \037, so the settings file and a file written then staged can be seen; a file read (<) is dropped. A write that
+        # keeps what the file held (>>, <>, &>>) is also marked \034, so emptying a record can be told from adding to it
+        skipnext = (rw == 2 && app) ? 3 : rw
         continue
       }
       add(c)
@@ -532,14 +537,17 @@ walk_segments() { # runs analyze_segment on each segment, in order, so cd carrie
 }
 
 split_redirects() { # moves the marked redirection targets out of SEGW into SEGR, each as an absolute path when known
-  local t words=() r
+  local t words=() r app
   SEGR=()
   for t in "${SEGW[@]}"; do
     case "$t" in
       "$RT"*)
-        t=${t#"$RT"}
+        t=${t#"$RT"}; app=0
+        case "$t" in "$AP"*) t=${t#"$AP"}; app=1 ;; esac
         guarded_write "$t" write
         hooks_target "$t" "$EFF_DIR" && deny_hooks
+        # > onto a record file that exists empties it first (N73); >> only adds to it
+        if [ "$app" = 0 ]; then record_file_target "$t" "$EFF_DIR"; [ -z "$PT_WHAT" ] || deny_removal "$PT_WHAT" "writing over"; fi
         resolve_dir "$EFF_DIR" "$t"; r=$RESOLVED
         [ -z "$r" ] || { normalize_path "$r"; SEGR[${#SEGR[@]}]=$NORM; } ;;
       *) words[${#words[@]}]=$t ;;
@@ -825,14 +833,18 @@ analyze_segment() {
       cd|pushd) track_cd $((k + 1)); saved_dir=$EFF_DIR ;;
       git|*/git) analyze_git $((k + 1)) ;;
       rm|rmdir|*/rm|*/rmdir) check_remove $((k + 1)) ;;
-      mv|*/mv) check_move $((k + 1)); check_config_words $((k + 1)) dest; check_hooks_words $((k + 1)) ;;
+      mv|*/mv) check_move $((k + 1)); check_config_words $((k + 1)) dest; check_hooks_words $((k + 1)); check_overwrite $((k + 1)) dest ;;
       chmod|*/chmod) check_hooks_words $((k + 1)) ;;
-      truncate|*/truncate) check_config_words $((k + 1)) any; check_hooks_words $((k + 1)) ;;
+      truncate|*/truncate) check_config_words $((k + 1)) any; check_hooks_words $((k + 1)); check_overwrite $((k + 1)) any ;;
+      find|*/find) check_find $((k + 1)); scan_tail "$k" ;;
+      rsync|*/rsync) check_config_words $((k + 1)) dest; check_rsync $((k + 1)) ;;
+      tee|sponge|*/tee|*/sponge) check_config_words $((k + 1)) any; check_overwrite $((k + 1)) tee ;;
+      dd|*/dd) check_config_words $((k + 1)) any; check_overwrite $((k + 1)) any ;;
       sh|bash|zsh|dash|ksh|eval|xargs|*/sh|*/bash|*/zsh|*/dash|*/ksh|*/xargs) analyze_shell_string $((k + 1)) ;;
-      cp|install|ln|rsync|*/cp|*/install|*/ln|*/rsync) check_config_words $((k + 1)) dest ;;
-      tee|sponge|dd|touch|mkdir|*/tee|*/sponge|*/dd|*/touch|*/mkdir) check_config_words $((k + 1)) any ;;
+      cp|install|ln|*/cp|*/install|*/ln) check_config_words $((k + 1)) dest; check_overwrite $((k + 1)) dest ;;
+      touch|mkdir|*/touch|*/mkdir) check_config_words $((k + 1)) any ;;
       sed|gsed|*/sed|*/gsed) check_config_words $((k + 1)) inplace ;;
-      node|python|python3|perl|ruby|php|bun|deno|osascript|awk|gawk|*/node|*/python|*/python3|*/perl|*/ruby|*/php|*/bun|*/deno|*/osascript|*/awk|*/gawk) check_config_words $((k + 1)) text ;;
+      node|python|python3|perl|ruby|php|bun|deno|osascript|awk|gawk|*/node|*/python|*/python3|*/perl|*/ruby|*/php|*/bun|*/deno|*/osascript|*/awk|*/gawk) check_config_words $((k + 1)) text; check_program_text $((k + 1)) ;;
       *) scan_tail "$k" ;;
     esac
   fi
@@ -959,6 +971,8 @@ EOF
     reset) check_reset ;;
     clean) check_clean ;;
     checkout) check_checkout ;;
+    switch) check_switch ;;
+    worktree) check_worktree ;;
     restore) check_restore ;;
     stash) check_stash ;;
     branch) check_branch ;;
@@ -1732,22 +1746,80 @@ check_clean() {
   fi
 }
 
+DISCARD_ALL="Check first: this throws away every uncommitted edit to tracked files in this folder, and those edits cannot be recovered. Commit them or run git stash first if they might be wanted; confirm only if discarding them is intended."
 check_checkout() {
-  local j=0 n=${#ARGS[@]} w
+  local j=0 n=${#ARGS[@]} w force=0 endopts=0 paths="" reset=""
+  while [ "$j" -lt "$n" ]; do
+    w=${ARGS[$j]}; j=$((j + 1))
+    if [ "$endopts" = 0 ]; then
+      case "$w" in
+        --) endopts=1; continue ;;
+        -b|--orphan|--conflict|--pathspec-from-file) j=$((j + 1)); continue ;;
+        -B) reset=${ARGS[$j]:-a branch}; j=$((j + 1)); continue ;;
+        --force) force=1; continue ;;
+        --*) is_abbrev "$w" --force && force=1; continue ;;   # a start of --force is --force to git (N71)
+        -?*)
+          short_cluster "$w" bB ""
+          has_letter f && force=1
+          if [ "$SC_NEXT" = 1 ]; then has_letter B && reset=${ARGS[$j]:-a branch}; j=$((j + 1)); fi
+          continue ;;
+      esac
+    fi
+    if is_everything "$w"; then ask "$DISCARD_ALL"; return 0; fi
+    [ "$endopts" = 1 ] && paths="$paths${paths:+ }$w"
+  done
+  # N73: -f throws away every uncommitted edit on the way to the branch; -- <path> throws away the edits to that path
+  if [ "$force" = 1 ]; then
+    ask "Check first: git checkout -f throws away every uncommitted edit to tracked files on the way, and those edits cannot be recovered. Commit them or run git stash first if they might be wanted; confirm only if discarding them is intended."
+  elif [ -n "$paths" ]; then
+    ask "Check first: git checkout -- $paths throws away the uncommitted edits to $paths, and they cannot be recovered. Commit or stash them first if they might be wanted; confirm only if discarding them is intended."
+  elif [ -n "$reset" ]; then
+    ask "Check first: git checkout -B $reset moves the branch $reset to a new starting point when it already exists, and its commits that are on no other branch can be lost. Use git checkout -b for a new branch; confirm only if resetting $reset is intended."
+  fi
+}
+
+check_switch() { # git switch -f, --discard-changes, and -C (N73)
+  local j=0 n=${#ARGS[@]} w discard=0 reset=""
   while [ "$j" -lt "$n" ]; do
     w=${ARGS[$j]}; j=$((j + 1))
     case "$w" in
-      -b|-B|--orphan|--conflict|--pathspec-from-file) j=$((j + 1)); continue ;;
+      --) break ;;
+      -c|--create|--orphan) j=$((j + 1)) ;;
+      -C|--force-create) reset=${ARGS[$j]:-a branch}; j=$((j + 1)) ;;
+      --force-create=*) reset=${w#*=} ;;
+      --force|--discard-changes) discard=1 ;;
+      --*) { is_abbrev "$w" --discard-changes || is_abbrev "$w" --force; } && discard=1 ;;
+      -?*)
+        short_cluster "$w" cC ""
+        has_letter f && discard=1
+        if [ "$SC_NEXT" = 1 ]; then has_letter C && reset=${ARGS[$j]:-a branch}; j=$((j + 1)); fi ;;
     esac
-    if is_everything "$w"; then
-      ask "Check first: this throws away every uncommitted edit to tracked files in this folder, and those edits cannot be recovered. Commit them or run git stash first if they might be wanted; confirm only if discarding them is intended."
-      return 0
-    fi
   done
+  if [ "$discard" = 1 ]; then
+    ask "Check first: git switch with -f or --discard-changes throws away every uncommitted edit to tracked files on the way, and those edits cannot be recovered. Commit them or run git stash first if they might be wanted; confirm only if discarding them is intended."
+  elif [ -n "$reset" ]; then
+    ask "Check first: git switch -C $reset moves the branch $reset to a new starting point when it already exists, and its commits that are on no other branch can be lost. Use git switch -c for a new branch; confirm only if resetting $reset is intended."
+  fi
+}
+
+check_worktree() { # git worktree remove --force (N73)
+  local j=1 n=${#ARGS[@]} w force=0
+  [ "${ARGS[0]:-}" = remove ] || return 0
+  while [ "$j" -lt "$n" ]; do
+    w=${ARGS[$j]}; j=$((j + 1))
+    case "$w" in
+      --) break ;;
+      --force) force=1 ;;
+      --*) is_abbrev "$w" --force && force=1 ;;
+      -?*) case "$w" in *f*) force=1 ;; esac ;;
+    esac
+  done
+  [ "$force" = 1 ] || return 0
+  ask "Check first: git worktree remove --force deletes that worktree's folder even when it holds changes that were never committed or files git does not track, and they cannot be recovered. Commit or copy what is wanted there first; confirm only if losing it is intended."
 }
 
 check_restore() {
-  local j=0 n=${#ARGS[@]} w staged=0 worktree=0 everything=0 endopts=0
+  local j=0 n=${#ARGS[@]} w staged=0 worktree=0 everything=0 endopts=0 paths=""
   while [ "$j" -lt "$n" ]; do
     w=${ARGS[$j]}; j=$((j + 1))
     if [ "$endopts" = 0 ]; then
@@ -1766,9 +1838,14 @@ check_restore() {
       esac
     fi
     if is_everything "$w"; then everything=1; fi
+    paths="$paths${paths:+ }$w"
   done
-  if [ "$everything" = 1 ] && { [ "$staged" = 0 ] || [ "$worktree" = 1 ]; }; then
+  { [ "$staged" = 0 ] || [ "$worktree" = 1 ]; } || return 0
+  if [ "$everything" = 1 ]; then
     ask "Check first: git restore . throws away every uncommitted edit to tracked files in this folder, and those edits cannot be recovered. Commit them or run git stash first if they might be wanted (git restore --staged . only unstages, and is safe); confirm only if discarding them is intended."
+  elif [ -n "$paths" ]; then
+    # N73: one modified path is still a discard; every restore that touches the working tree asks
+    ask "Check first: git restore $paths throws away the uncommitted edits to $paths, and they cannot be recovered. Commit or stash them first if they might be wanted (git restore --staged only unstages, and is safe); confirm only if discarding them is intended."
   fi
 }
 
@@ -1853,9 +1930,35 @@ EOF
   return 1
 }
 
+NOCASE_FS=""; PT_FOLD=0
+detect_nocase_fs() { # sets NOCASE_FS, once per run: 1 when the project's disk treats letter case as the same name (macOS,
+  # Windows), measured by whether a differently cased spelling of something in the project is the same file
+  [ -z "$NOCASE_FS" ] || return 0
+  local p up
+  NOCASE_FS=0
+  for p in .git .skilliton docs CLAUDE.md; do
+    [ -e "$PROJECT_DIR/$p" ] || continue
+    up=$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]'); [ "$up" != "$p" ] || up=$(printf '%s' "$p" | tr '[:upper:]' '[:lower:]')
+    if [ -e "$PROJECT_DIR/$up" ] && [ "$PROJECT_DIR/$p" -ef "$PROJECT_DIR/$up" ]; then NOCASE_FS=1; fi
+    return 0
+  done
+  return 0
+}
+
 protected_target() { # protected_target <word> <base dir>: sets PT_WHAT to what would be lost, or "" when nothing of Skilliton's
+  # On a case-insensitive disk the names are compared in any letter case, so rm -rf DOCS is read as the docs it removes.
+  detect_nocase_fs
+  PT_FOLD=0
+  if [ "$NOCASE_FS" = 1 ] && ! shopt -q nocasematch; then shopt -s nocasematch; PT_FOLD=1; fi
+  protected_target_as_named "$@"
+  if [ "$PT_FOLD" = 1 ]; then shopt -u nocasematch; PT_FOLD=0; fi
+  return 0
+}
+
+protected_target_as_named() {
   local w=$1 base=$2 r rel proj
   PT_WHAT=""
+  expand_known "$w"; w=$EXPANDED   # "$PWD/docs" is the docs folder here
   case "$w" in
     *'$'*|*'`'*) case "$w" in *.skilliton*) PT_WHAT=$w ;; esac; return 0 ;;
   esac
@@ -1869,7 +1972,7 @@ protected_target() { # protected_target <word> <base dir>: sets PT_WHAT to what 
   fi
   resolve_dir "$base" "$w"; [ -n "$RESOLVED" ] || return 0
   normalize_path "$RESOLVED"; r=$NORM
-  case "$r/" in */.skilliton/*) case "$r" in "$proj"/*) PT_WHAT=${r#"$proj"/} ;; *) PT_WHAT=$r ;; esac; return 0 ;; esac
+  case "$r/" in */.skilliton/*) case "$r" in "$proj"/*) PT_WHAT=${r:$((${#proj} + 1))} ;; *) PT_WHAT=$r ;; esac; return 0 ;; esac
   # Without a configuration file this is not a prepared project, and a file at a record's path is an ordinary file.
   [ "$CFG_STATE" != default ] || return 0
   # A path spelled through a symlink (on macOS, /var for /private/var) is the same path: when both exist, compare
@@ -1879,7 +1982,7 @@ protected_target() { # protected_target <word> <base dir>: sets PT_WHAT to what 
   case "$r" in
     "$proj") PT_WHAT="the project folder $r" ;;
     "$proj"/*)
-      rel=${r#"$proj"/}
+      rel=${r:$((${#proj} + 1))}
       if record_covers "$INSTRUCTION_FILES" "$rel" 0 || record_covers "$PROTECT_RECORDS" "$rel" 0 || record_covers "$PROTECT_FOLDERS" "$rel" 1; then
         PT_WHAT=$rel
       fi ;;
@@ -1887,12 +1990,46 @@ protected_target() { # protected_target <word> <base dir>: sets PT_WHAT to what 
   return 0
 }
 
-deny_removal() { # deny_removal <what>
-  deny "Blocked: removing $1 would take away part of what Skilliton keeps in this project (the .skilliton folder, the record files, the entry folders, and the instruction files that carry the managed block), which is the project's memory. The one route that takes Skilliton out of a project is skilliton remove --apply, run by a person; it keeps the records and the history. If one file in there is really stale, say which and why, and let the person remove it. A team lead turns this rule off with \"protectRecords\": false under guardrails in .skilliton/config.json."
+brace_expand() { # brace_expand <word>: sets BRACED to the words the shell's brace expansion makes of it, one per line
+  # (docs/{tasks,decisions} is docs/tasks and docs/decisions); a word with no {a,b} is itself. At most 64 words.
+  local w=$1 i=0 n c depth=0 start=-1 parts=() cur="" pre post out="" p sub
+  n=${#w}
+  case "$w" in *'{'*','*'}'*) ;; *) BRACED=$w; return 0 ;; esac
+  while [ "$i" -lt "$n" ]; do
+    c=${w:$i:1}
+    if [ "$start" -lt 0 ]; then
+      [ "$c" = "{" ] && { start=$i; depth=1; cur=""; parts=(); }
+    else
+      case "$c" in
+        "{") depth=$((depth + 1)); cur="$cur$c" ;;
+        "}") depth=$((depth - 1))
+             if [ "$depth" = 0 ]; then
+               parts[${#parts[@]}]=$cur
+               if [ "${#parts[@]}" -gt 1 ]; then break; fi
+               start=-1   # {x} with no comma is not expanded; look for the next brace
+             else cur="$cur$c"; fi ;;
+        ",") if [ "$depth" = 1 ]; then parts[${#parts[@]}]=$cur; cur=""; else cur="$cur$c"; fi ;;
+        *) cur="$cur$c" ;;
+      esac
+    fi
+    i=$((i + 1))
+  done
+  if [ "$start" -lt 0 ] || [ "$i" -ge "$n" ] || [ "${#parts[@]}" -lt 2 ]; then BRACED=$w; return 0; fi
+  pre=${w:0:$start}; post=${w:$((i + 1))}
+  for p in "${parts[@]}"; do
+    brace_expand "$pre$p$post"; sub=$BRACED
+    out="$out$sub"$'\n'
+  done
+  out=${out%$'\n'}
+  BRACED=$(printf '%s\n' "$out" | head -n 64)
+}
+
+deny_removal() { # deny_removal <what> [<what is done to it>]
+  deny "Blocked: ${2:-removing} $1 would take away part of what Skilliton keeps in this project (the .skilliton folder, the record files, the entry folders, and the instruction files that carry the managed block), which is the project's memory. The one route that takes Skilliton out of a project is skilliton remove --apply, run by a person; it keeps the records and the history. If one file in there is really stale, say which and why, and let the person remove it. A team lead turns this rule off with \"protectRecords\": false under guardrails in .skilliton/config.json."
 }
 
 check_remove() { # check_remove <index of the first argument>: rm and rmdir, every path after the flags
-  local k=$1 n=${#SEGW[@]} w opts=1 rec=0 frc=0 vars=""
+  local k=$1 n=${#SEGW[@]} w opts=1 rec=0 frc=0 vars="" p
   while [ "$k" -lt "$n" ]; do
     w=${SEGW[$k]}; k=$((k + 1))
     if [ "$opts" = 1 ]; then
@@ -1904,16 +2041,282 @@ check_remove() { # check_remove <index of the first argument>: rm and rmdir, eve
         -?*) case "$w" in *[rR]*) rec=1 ;; esac; case "$w" in *f*) frc=1 ;; esac; continue ;;
       esac
     fi
-    hooks_target "$w" "$EFF_DIR" && deny_hooks
-    [ "$CFG_PR" = true ] || continue
-    protected_target "$w" "$EFF_DIR"
-    if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT"; return 0; fi
-    expand_known "$w"; case "$EXPANDED" in *'$'*|*'`'*) vars="$vars${vars:+, }$w" ;; esac
+    brace_expand "$w"
+    while IFS= read -r p; do
+      [ -n "$p" ] || continue
+      hooks_target "$p" "$EFF_DIR" && deny_hooks
+      [ "$CFG_PR" = true ] || continue
+      protected_target "$p" "$EFF_DIR"
+      if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT"; return 0; fi
+      expand_known "$p"; case "$EXPANDED" in *'$'*|*'`'*) vars="$vars${vars:+, }$p" ;; esac
+      # the repository itself: its whole history and every branch not pushed (N73)
+      resolve_dir "$EFF_DIR" "$p"
+      if [ -n "$RESOLVED" ]; then
+        normalize_path "$RESOLVED"
+        case "$NORM" in */.git) ask "Check first: this removes $p, the repository itself: its whole history, every branch and stash, and every commit that was never pushed. It cannot be undone. Confirm only if the repository is meant to go." ;; esac
+      fi
+    done <<EOF
+$BRACED
+EOF
   done
   # rm -rf of a path that holds a variable guardrails cannot resolve: what it removes cannot be known here (N71)
   if [ -n "$vars" ] && [ "$rec" = 1 ] && [ "$frc" = 1 ] && [ "$CFG_PR" = true ]; then
     ask "Check first: this rm -rf removes $vars, which holds a variable or a command substitution guardrails cannot resolve, so it cannot tell what would be deleted. Write the path out, or run echo on it first to see it; confirm only if it is not the project's records or anything else that is wanted."
   fi
+  return 0
+}
+
+record_file_target() { # record_file_target <word> <base>: sets PT_WHAT when the word names a record file, an instruction
+  # file or an entry that exists now, which writing over it or emptying it would lose (N73); "" otherwise. The
+  # settings file is left to its own rule, which asks.
+  local p
+  PT_WHAT=""
+  [ "$CFG_PR" = true ] || return 0
+  expand_known "$1"; p=$EXPANDED
+  resolve_dir "$2" "$p"; [ -n "$RESOLVED" ] || return 0
+  [ -f "$RESOLVED" ] || return 0
+  normalize_path "$RESOLVED"
+  local own=0
+  nocase_on; case "$NORM" in */.skilliton/*|*/.skillgate/config.json) own=1 ;; esac; nocase_off
+  [ "$own" = 0 ] || return 0
+  protected_target "$NORM" "$2"
+}
+
+check_overwrite() { # check_overwrite <index of the first argument> <any|dest|tee>: truncate, dd of=, tee without -a (any, tee)
+  # and cp, install, ln or mv onto (dest): a record file that exists is written over, which loses what it held (N73)
+  local k=$1 n=${#SEGW[@]} w mode=$2 plain=() tdir="" last i=0 app=0
+  [ "$CFG_PR" = true ] || return 0
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}; k=$((k + 1))
+    case "$mode" in
+      dest)
+        case "$w" in
+          -t|--target-directory) tdir=${SEGW[$k]:-}; k=$((k + 1)); continue ;;
+          --target-directory=*) tdir=${w#*=}; continue ;;
+          -t?*) tdir=${w#-t}; continue ;;
+          -*) continue ;;
+        esac ;;
+      tee) case "$w" in -a|--append|-*a*) app=1; continue ;; -*) continue ;; esac ;;
+      *) case "$w" in of=*) w=${w#of=} ;; -s|-r|--size|--reference) k=$((k + 1)); continue ;; -*) continue ;; esac ;;
+    esac
+    plain[${#plain[@]}]=$w
+  done
+  [ "${#plain[@]}" -gt 0 ] || return 0
+  case "$mode" in
+    dest)
+      if [ -n "$tdir" ]; then
+        while [ "$i" -lt "${#plain[@]}" ]; do
+          record_file_target "$tdir/${plain[$i]##*/}" "$EFF_DIR"
+          if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT" "writing over"; return 0; fi
+          i=$((i + 1))
+        done
+        return 0
+      fi
+      [ "${#plain[@]}" -gt 1 ] || return 0
+      last=${plain[$((${#plain[@]} - 1))]}
+      resolve_dir "$EFF_DIR" "$last"
+      if [ -n "$RESOLVED" ] && [ -d "$RESOLVED" ]; then
+        while [ "$i" -lt $((${#plain[@]} - 1)) ]; do
+          record_file_target "$last/${plain[$i]##*/}" "$EFF_DIR"
+          if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT" "writing over"; return 0; fi
+          i=$((i + 1))
+        done
+        return 0
+      fi
+      record_file_target "$last" "$EFF_DIR"
+      [ -z "$PT_WHAT" ] || deny_removal "$PT_WHAT" "writing over" ;;
+    tee) [ "$app" = 1 ] && return 0
+      for w in "${plain[@]}"; do record_file_target "$w" "$EFF_DIR"; if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT" "writing over"; return 0; fi; done ;;
+    *) for w in "${plain[@]}"; do record_file_target "$w" "$EFF_DIR"; if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT" "emptying or writing over"; return 0; fi; done ;;
+  esac
+  return 0
+}
+
+check_move() { # check_move <index of the first argument>: every source of mv; with -t every plain argument is one
+  [ "$CFG_PR" = true ] || return 0
+  local k=$1 n=${#SEGW[@]} w opts=1 target=0 count last i=0 p
+  PA=()
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}; k=$((k + 1))
+    if [ "$opts" = 1 ]; then
+      case "$w" in
+        --) opts=0; continue ;;
+        -t|--target-directory) target=1; k=$((k + 1)); continue ;;
+        -t?*|--target-directory=*) target=1; continue ;;
+        -*) continue ;;
+      esac
+    fi
+    PA[${#PA[@]}]=$w
+  done
+  count=${#PA[@]}; last=$((count - 1)); [ "$target" = 1 ] && last=$count
+  while [ "$i" -lt "$last" ]; do
+    brace_expand "${PA[$i]}"
+    while IFS= read -r p; do
+      [ -n "$p" ] || continue
+      protected_target "$p" "$EFF_DIR"
+      if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT"; return 0; fi
+    done <<EOF
+$BRACED
+EOF
+    i=$((i + 1))
+  done
+  return 0
+}
+
+check_git_rm() { # git rm [-r] [--cached] [-f] [--] <path>...: the paths are relative to where git runs
+  local n=${#ARGS[@]} k=0 w opts=1 p force=0 cached=0 paths=""
+  while [ "$k" -lt "$n" ]; do
+    w=${ARGS[$k]}; k=$((k + 1))
+    if [ "$opts" = 1 ]; then
+      case "$w" in
+        --) opts=0; continue ;;
+        --cached) cached=1; continue ;;
+        --force) force=1; continue ;;
+        --pathspec-from-file) k=$((k + 1)); continue ;;
+        --*) continue ;;
+        -?*) short_cluster "$w" "" ""; has_letter f && force=1; continue ;;
+      esac
+    fi
+    paths="$paths${paths:+ }$w"
+    [ "$CFG_PR" = true ] || continue
+    brace_expand "$w"
+    while IFS= read -r p; do
+      [ -n "$p" ] || continue
+      protected_target "$p" "$GDIR"
+      if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT"; return 0; fi
+    done <<EOF
+$BRACED
+EOF
+  done
+  # git rm -f deletes the file from disk even when it holds changes never committed (N73); --cached keeps the file
+  if [ "$force" = 1 ] && [ "$cached" = 0 ] && [ -n "$paths" ]; then
+    ask "Check first: git rm -f deletes $paths from disk even when it has changes that were never committed, and those changes cannot be recovered. Commit or stash them first, or use git rm --cached to stop tracking a file and keep it; confirm only if losing them is intended."
+  fi
+  return 0
+}
+
+check_find() { # check_find <index of the first argument>: find -delete, or -exec rm, over a folder that holds what
+  # Skilliton keeps, with a name test that matches one of those files or no name test at all (N73)
+  [ "$CFG_PR" = true ] || return 0
+  local k=$1 n=${#SEGW[@]} w starts=() names="" inames="" paths="" regex=0 deleting=0 s r c cands base abs shown what
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}
+    case "$w" in -*|'('|')'|'!'|',') break ;; esac
+    starts[${#starts[@]}]=$w; k=$((k + 1))
+  done
+  [ "${#starts[@]}" -gt 0 ] || starts=(.)
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}; k=$((k + 1))
+    case "$w" in
+      -delete) deleting=1 ;;
+      -exec|-execdir|-ok|-okdir) case "${SEGW[$k]:-}" in rm|*/rm|rmdir|*/rmdir|unlink|*/unlink|shred|*/shred) deleting=1 ;; esac ;;
+      -name) names="$names${SEGW[$k]:-}"$'\n'; k=$((k + 1)) ;;
+      -iname) inames="$inames${SEGW[$k]:-}"$'\n'; k=$((k + 1)) ;;
+      -path|-wholename) paths="$paths${SEGW[$k]:-}"$'\n'; k=$((k + 1)) ;;
+      -ipath|-iwholename) paths="$paths${SEGW[$k]:-}"$'\n'; k=$((k + 1)) ;;
+      -regex|-iregex) regex=1; k=$((k + 1)) ;;
+    esac
+  done
+  [ "$deleting" = 1 ] || return 0
+  normalize_path "$PROJECT_DIR"; base=$NORM
+  # what could be found: each record and instruction file, each entry folder with an entry in it, and the settings file
+  cands=".skilliton/config.json"$'\n'
+  if [ "$CFG_STATE" != default ]; then
+    cands="$cands$INSTRUCTION_FILES"$'\n'"$PROTECT_RECORDS"$'\n'
+    while IFS= read -r c; do [ -n "$c" ] && cands="$cands${c%/}"$'\n'"${c%/}/entry.md"$'\n'; done <<EOF
+$PROTECT_FOLDERS
+EOF
+  fi
+  for s in "${starts[@]}"; do
+    resolve_dir "$EFF_DIR" "$s"; [ -n "$RESOLVED" ] || continue
+    normalize_path "$RESOLVED"; r=$NORM
+    shown=${s%/}; [ -n "$shown" ] || shown=/
+    while IFS= read -r c; do
+      [ -n "$c" ] || continue
+      case "$base/$c" in "$r"|"$r"/*) ;; *) continue ;; esac
+      abs="$base/$c"
+      if [ "$abs" = "$r" ]; then what=$shown; else what="$shown/${abs:$((${#r} + 1))}"; fi
+      if find_matches "$c" "$what" "$names" "$inames" "$paths" "$regex"; then deny_removal "${c%/entry.md}" "deleting, with find,"; return 0; fi
+    done <<EOF
+$cands
+EOF
+  done
+  return 0
+}
+
+find_matches() { # find_matches <candidate> <the path find would print for it> <names> <inames> <paths> <regex>: 0 when
+  # the tests find was given could select the candidate. A test that is negated or joined with -o is read as selecting it.
+  local c=$1 printed=$2 b=${1##*/} p hit=1
+  [ -z "$3$4$5" ] && [ "$6" = 0 ] && return 0
+  [ "$6" = 1 ] && return 0
+  while IFS= read -r p; do [ -n "$p" ] || continue; case "$b" in $p) hit=0 ;; esac; done <<EOF
+$3
+EOF
+  nocase_on
+  while IFS= read -r p; do [ -n "$p" ] || continue; case "$b" in $p) hit=0 ;; esac; done <<EOF
+$4
+EOF
+  nocase_off
+  while IFS= read -r p; do [ -n "$p" ] || continue; case "$printed" in $p) hit=0 ;; esac; done <<EOF
+$5
+EOF
+  return $hit
+}
+
+check_rsync() { # check_rsync <index of the first argument>: rsync --delete into what Skilliton keeps, or
+  # --remove-source-files out of it (N73)
+  [ "$CFG_PR" = true ] || return 0
+  local k=$1 n=${#SEGW[@]} w del=0 rsf=0 plain=() i=0 last
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}; k=$((k + 1))
+    case "$w" in
+      --del|--delete|--delete-*) del=1; continue ;;
+      --remove-source-files) rsf=1; continue ;;
+      -e|--rsh|--exclude|--include|--filter|--files-from|--exclude-from|--include-from|-f) k=$((k + 1)); continue ;;
+      -*) continue ;;
+    esac
+    plain[${#plain[@]}]=$w
+  done
+  [ "${#plain[@]}" -ge 2 ] || return 0
+  last=${plain[$((${#plain[@]} - 1))]}
+  if [ "$del" = 1 ]; then
+    protected_target "$last" "$EFF_DIR"
+    if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT" "deleting files in, with rsync --delete,"; return 0; fi
+  fi
+  if [ "$rsf" = 1 ]; then
+    while [ "$i" -lt $((${#plain[@]} - 1)) ]; do
+      protected_target "${plain[$i]}" "$EFF_DIR"
+      if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT" "moving away, with rsync --remove-source-files,"; return 0; fi
+      i=$((i + 1))
+    done
+  fi
+  return 0
+}
+
+check_program_text() { # check_program_text <index of the first argument>: python3 -c, perl -e, node -e and the like whose
+  # text removes a file (rmtree, unlink, os.remove and their kin) and names what Skilliton keeps (N73)
+  [ "$CFG_PR" = true ] || return 0
+  local k=$1 n=${#SEGW[@]} w all="" rest q s
+  while [ "$k" -lt "$n" ]; do all="$all ${SEGW[$k]}"; k=$((k + 1)); done
+  case "$all" in *rmtree*|*unlink*|*os.remove*|*remove\(*|*rmdir*|*rmSync*|*rm_rf*|*rm_r*|*remove_dir*|*remove_file*|*removedirs*|*Remove-Item*) ;; *) return 0 ;; esac
+  # every quoted string in the text, and every plain word after it, is a path the program may be given
+  rest=$all
+  while :; do
+    case "$rest" in *"'"*|*'"'*) ;; *) break ;; esac
+    s=${rest%%[\'\"]*}; rest=${rest:${#s}}; q=${rest:0:1}; rest=${rest:1}
+    case "$rest" in *"$q"*) ;; *) break ;; esac
+    s=${rest%%"$q"*}; rest=${rest:$((${#s} + 1))}
+    [ -n "$s" ] || continue
+    protected_target "$s" "$EFF_DIR"
+    if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT" "removing, from inside a program,"; return 0; fi
+  done
+  k=$1
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}; k=$((k + 1))
+    case "$w" in -*|*' '*) continue ;; esac
+    protected_target "$w" "$EFF_DIR"
+    if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT" "removing, from inside a program,"; return 0; fi
+  done
   return 0
 }
 
@@ -1936,43 +2339,6 @@ check_hooks_words() { # check_hooks_words <index of the first argument>: mv, chm
     w=${SEGW[$k]}; k=$((k + 1))
     case "$w" in -*) continue ;; esac
     if hooks_target "$w" "$EFF_DIR"; then deny_hooks; return 0; fi
-  done
-  return 0
-}
-
-check_move() { # check_move <index of the first argument>: every source of mv; with -t every plain argument is one
-  [ "$CFG_PR" = true ] || return 0
-  local k=$1 n=${#SEGW[@]} w opts=1 target=0 count last i=0
-  PA=()
-  while [ "$k" -lt "$n" ]; do
-    w=${SEGW[$k]}; k=$((k + 1))
-    if [ "$opts" = 1 ]; then
-      case "$w" in
-        --) opts=0; continue ;;
-        -t|--target-directory) target=1; k=$((k + 1)); continue ;;
-        -t?*|--target-directory=*) target=1; continue ;;
-        -*) continue ;;
-      esac
-    fi
-    PA[${#PA[@]}]=$w
-  done
-  count=${#PA[@]}; last=$((count - 1)); [ "$target" = 1 ] && last=$count
-  while [ "$i" -lt "$last" ]; do
-    protected_target "${PA[$i]}" "$EFF_DIR"
-    if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT"; return 0; fi
-    i=$((i + 1))
-  done
-  return 0
-}
-
-check_git_rm() { # git rm [-r] [--cached] [--] <path>...: the paths are relative to where git runs
-  [ "$CFG_PR" = true ] || return 0
-  local n=${#ARGS[@]} k=0 w opts=1
-  while [ "$k" -lt "$n" ]; do
-    w=${ARGS[$k]}; k=$((k + 1))
-    if [ "$opts" = 1 ]; then case "$w" in --) opts=0; continue ;; -*) continue ;; esac; fi
-    protected_target "$w" "$GDIR"
-    if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT"; return 0; fi
   done
   return 0
 }
