@@ -46,3 +46,17 @@ Tasks B and C test what the guardrails do. Headless, a guardrails "ask" becomes 
 1. Agree the five tasks, or change them.
 2. Agree the model and the ceiling.
 3. Say "run the comparison". The next session builds the starting repositories, runs the 30 task runs, and files every result under `evidence/comparison/` with the transcripts' meter output. After that the owner reads the Usage screen for the same window.
+
+## The second run, fixed 2026-09-23 02:52 EDT before it runs
+
+The owner asked for numbers that show whether Skilliton helps, and the first run measured a cost: 20,000 to 30,000 more input tokens per session in task D. Backlog B65 shrinks the instruction block and the session-start context. The second run measures that change and one claim from a field report, with the same two setups, model, turn limit and runner as above.
+
+| Task | What the prompt asks | What is counted |
+|---|---|---|
+| D again | the same as task D, on the same fixture | input tokens per session, cache included, from the client's own totals; compared with the first run's six sessions, never stated as a percentage or a saving |
+| F. Orientation | "Where does this project stand, and what should I do next? Answer in five lines or fewer." The repository holds a handoff whose resume marker names the next step, an open task record, one uncommitted file, and about 30 source files; both setups hold the same files, prepared the same way, so the only difference is Skilliton's hooks and instruction block | input tokens, tool calls, and seconds per session, from the client's JSON; and whether the answer names the three facts (the next step, the open task, the uncommitted file), each checked by a fixed text match written into the runner before the run |
+
+- **Runs:** three of each task in each setup, 12 sessions. Every run is reported, a crash as a failure.
+- **Ceiling:** 4,000,000 input tokens counted with cache reads, or the 12 sessions, whichever comes first.
+- **No saving is stated from these counts.** Token counts are reported as counts. A money figure needs `scripts/token-cost.mjs` over the same window cross-checked against the Usage screen, which is the owner's reading.
+- The run is filed under `evidence/comparison/<date>/` beside the first, with every row in `results.jsonl`.
