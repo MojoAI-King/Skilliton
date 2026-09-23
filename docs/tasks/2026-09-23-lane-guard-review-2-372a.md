@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/guard-review-2-0923b
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T18:11:16.616Z
+- **Updated:** 2026-09-23T20:04:03.024Z
 
 ## Request
 
@@ -19,7 +19,7 @@ LANES.md, dispatched 2026-09-23: the items below are this lane's whole scope, an
 - [ ] N90. [TOUCH] A shell fed from a pipe, a decoder or a file asks: `| sh`, `| bash`, `| zsh`, `| dash`, `| sh -s`, `base64 -d | sh`, `base64 --decode | bash`, `xxd -r -p | sh`, `curl ... | sh`, `xargs sh -c`, `xargs -I{} bash -c`, `sh <file>`, `bash <file>` where the file is not a known check script under scripts/, `source <file>`, `. <file>`, `eval "$(...)"` (already asks; keep), `env -S`, `exec sh`: ask with a reason saying the guard cannot read what the shell will run; `git ... | cat` and `... | grep` stay allowed. Reproduced at the base: `echo "git push -f origin main" | sh` and `echo <base64> | base64 -d | sh` allowed silently. Cases in the review2 file.
 - [ ] N91. [TOUCH] Any write to, copy over, move over or removal of `.claude/settings.json` or `.claude/settings.local.json` asks, whatever the text says: `echo {} > .claude/settings.json`, `: > .claude/settings.json`, `rm .claude/settings.json`, `mv x .claude/settings.json`, `cp x .claude/settings.json`, `truncate`, `install`, `ln -sf`, `git rm .claude/settings.json`, `git checkout -- .claude/settings.json`, and the same under a path prefix; reading it (`cat`, `jq .`) stays allowed. Reproduced at the base: `echo {} > .claude/settings.json` and `rm .claude/settings.json` allowed. Cases in the review2 file.
 - [ ] N92. [TOUCH] A glob that can match a record path denies: guard-bash.sh: for `rm`, `rmdir`, `mv`, `find -delete`, `rsync --delete` and the redirections, a word holding `*`, `?` or `[` is matched with bash's own pattern matching (`[[ <record path> == <pattern> ]]`, case-folded on a case-insensitive disk) against every record path the guard protects (`docs/`, `docs/tasks`, `docs/decisions`, `docs/lessons`, the status, backlog, handoff files, DECISIONS.md, CLAUDE.md, AGENTS.md, `.skilliton`, `.skilliton/config.json`) and their parents; a match denies; `rm -rf *` and `rm -rf ./*` and `rm -rf .*` at the project root ask; a glob that cannot match a record (`rm -rf dist/*`, `rm -f *.log`) stays allowed. Reproduced at the base: `rm -rf docs/*`, `rm -rf docs/t*`, `rm -rf d*cs/tasks` allowed silently. Cases in the review2 file.
-- [ ] N93. [TOUCH] The wall-clock cases leave the correctness suite: the two cases at scripts/guardrails.test.sh lines 1018 and 1023 ("both input shapes ... (limit 5s)") move to scripts/guardrails-timing.test.sh with the load-aware NOT RUN from N88; scripts/guardrails.test.sh shrinks and its pin in scripts/lint.test.mjs is lowered to the new count. Three independent runs saw that case red at 6 s and 9 s under load and green alone. The timing file's CI step runs it on the runner, where the load is low.
+- [x] N93. [TOUCH] The wall-clock cases leave the correctness suite: the two cases at scripts/guardrails.test.sh lines 1018 and 1023 ("both input shapes ... (limit 5s)") move to scripts/guardrails-timing.test.sh with the load-aware NOT RUN from N88; scripts/guardrails.test.sh shrinks and its pin in scripts/lint.test.mjs is lowered to the new count. Three independent runs saw that case red at 6 s and 9 s under load and green alone. The timing file's CI step runs it on the runner, where the load is low.
 - [ ] N94. [TOUCH] The hook header agrees with the client matrix: guard-bash.sh line 9 says "Codex CLI runs the same plugin hook"; docs/CLIENTS.md and README say Codex runs no hooks shipped in a plugin (a team that configures its own Codex hook may point it at this script, and then every ask is a deny). Reword the header line and the Codex sentence in SKILL.md to that. No test; docs.test passes.
 
 ## Decisions
@@ -28,9 +28,16 @@ not yet written
 
 ## Checkpoints
 
+### 2026-09-23T20:04:03.024Z
+
+- **State:** N93 done: the two wall-clock cases moved from scripts/guardrails.test.sh to scripts/guardrails-timing.test.sh, which judges a time limit only when the one-minute load is at most four times the CPU count and reports NOT RUN with the load otherwise; pin lowered 1027 to 1015; CI step added
+- **Evidence:** bash scripts/guardrails-timing.test.sh exit 0 (4 ok); a one-CPU copy printed NOT RUN for both limits and exit 0; bash scripts/guardrails.test.sh exit 0 (670 ok); node scripts/lint.test.mjs exit 0
+- **Next:** N88, the 64 KB cap
+- **Git:** lane/guard-review-2-0923b @ a3b5acd, 5 uncommitted
+
 ## Handoff
 
-- **State:** not yet written
-- **Next:** not yet written
-- **Blocked:** not yet written
-- **Watch out:** not yet written
+- **State:** N93 done: the two wall-clock cases moved from scripts/guardrails.test.sh to scripts/guardrails-timing.test.sh, which judges a time limit only when the one-minute load is at most four times the CPU count and reports NOT RUN with the load otherwise; pin lowered 1027 to 1015; CI step added. Evidence: bash scripts/guardrails-timing.test.sh exit 0 (4 ok); a one-CPU copy printed NOT RUN for both limits and exit 0; bash scripts/guardrails.test.sh exit 0 (670 ok); node scripts/lint.test.mjs exit 0.
+- **Next:** N88, the 64 KB cap
+- **Blocked:** nothing
+- **Watch out:** nothing known

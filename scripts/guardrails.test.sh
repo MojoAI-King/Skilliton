@@ -1008,19 +1008,7 @@ expect_managed "protectRecords false: the same Write" allow "$MB" Write "$(ti --
 printf '{"version":1}\n' > "$MB/.skilliton/config.json"
 expect_managed "the rule back on: the same Write"       deny  "$MB" Write "$(ti --arg p "$MB/CLAUDE.md" '{file_path:$p, content:"# Project\n"}')"
 rm -f "$R/CLAUDE.md"
-
-# ---------------------------------------------------------------- size and time
-section "large commands finish well inside the 10 second hook timeout"
-big_body=$(printf 'git push --force origin main\n%.0s' $(seq 1 30000))
-start=$(date +%s)
-expect "heredoc of $(printf '%s' "$big_body" | wc -c | tr -d ' ') bytes" allow "$R" "cat <<'EOF' > big.txt"$'\n'"$big_body"$'\n'"EOF"
-elapsed=$(( $(date +%s) - start ))
-if [ "$elapsed" -le 5 ]; then ok "  both input shapes finished in ${elapsed}s (limit 5s)"; else bad "  both input shapes took ${elapsed}s (limit 5s)"; fi
-long_line=$(head -c 400000 /dev/zero | tr '\0' 'x')
-start=$(date +%s)
-expect "400000-byte single line, then a force-push" deny "$R" "echo \"$long_line\" && git push --force origin main"
-elapsed=$(( $(date +%s) - start ))
-if [ "$elapsed" -le 5 ]; then ok "  both input shapes finished in ${elapsed}s (limit 5s)"; else bad "  both input shapes took ${elapsed}s (limit 5s)"; fi
+# The wall-clock cases are in scripts/guardrails-timing.test.sh, which judges a time limit only on a quiet machine (N93).
 
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
