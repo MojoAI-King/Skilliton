@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T15:50:45.469Z
+- **Updated:** 2026-09-23T16:15:34.016Z
 
 ## Request
 
@@ -42,9 +42,16 @@ not yet written
 - **Next:** Merge guard-review after its red team pass; bump guardrails to 0.9.0 and workflow to 0.23.0; changelog; full checks.mjs; the owner's answer on the history rewrite; release 1.2.0; the local regrade
 - **Git:** main @ dce7d89, 0 uncommitted
 
+### 2026-09-23T16:15:34.016Z
+
+- **State:** All four lanes merged and pushed; guardrails 0.9.0 and workflow 0.23.0 bumped with the changelog's Unreleased entries; main at df19d80. Not done: the full check run on the merged tree (running), the red team's second probe of the new guard (running), the history rewrite the owner approved (strip the co-author trailers, re-sign the three release tags, the owner force-pushes), release 1.2.0, the local regrade
+- **Evidence:** Guard lane on the rebased tree: lint, lint-shape, allowlist, docs, names, scrub, deadcode, footprint, git-config, guardrails.test (676 ok), guardrails-bypass.test (143 ok, review file 199 ok), hook-fixture each exit 0; the lane's own full checks.mjs 76 pass 0 fail 2 skipped; audit 0 findings in 734 files; CI green through 26ea74d, runs on 25526a0 and df19d80 being watched
+- **Next:** Read the full check verdict and the red team result; run the rewrite script; hand the owner the two force-push commands; release 1.2.0 on the rewritten history; regrade
+- **Git:** main @ df19d80, 0 uncommitted
+
 ## Handoff
 
-- **State:** Three of four lanes merged and pushed (docs, writers, hygiene); the README leads with what it saves, measured; the release test's cleanup flake fixed; main at dce7d89. Not done: the guard lane (N70 to N72 committed, N73 in progress, red team pass to follow), the plugin version bumps, the changelog, the full check run on the merged tree, the 1.2.0 release. Open owner decision: rewrite history to strip the 311 co-author trailers before 1.2.0, or leave them. Evidence: Hygiene lane on the rebased tree: fast checks each exit 0, preflight + prepare-interrupt + prepare tests 67 pass 0 fail, allowlist self-test exit 0; release.test 27 pass 0 fail after the fix; audit 0 findings in 732 files; CI green on 786f036, failed on 20683d8 at the release pin test's cleanup (ENOTEMPTY, the flake now fixed), rerun and the run on dce7d89 being watched.
-- **Next:** Merge guard-review after its red team pass; bump guardrails to 0.9.0 and workflow to 0.23.0; changelog; full checks.mjs; the owner's answer on the history rewrite; release 1.2.0; the local regrade
+- **State:** All four lanes merged and pushed; guardrails 0.9.0 and workflow 0.23.0 bumped with the changelog's Unreleased entries; main at df19d80. Not done: the full check run on the merged tree (running), the red team's second probe of the new guard (running), the history rewrite the owner approved (strip the co-author trailers, re-sign the three release tags, the owner force-pushes), release 1.2.0, the local regrade. Evidence: Guard lane on the rebased tree: lint, lint-shape, allowlist, docs, names, scrub, deadcode, footprint, git-config, guardrails.test (676 ok), guardrails-bypass.test (143 ok, review file 199 ok), hook-fixture each exit 0; the lane's own full checks.mjs 76 pass 0 fail 2 skipped; audit 0 findings in 734 files; CI green through 26ea74d, runs on 25526a0 and df19d80 being watched.
+- **Next:** Read the full check verdict and the red team result; run the rewrite script; hand the owner the two force-push commands; release 1.2.0 on the rewritten history; regrade
 - **Blocked:** nothing
 - **Watch out:** nothing known
