@@ -32,7 +32,7 @@ function trapped(t) {
   const ctx = { base, repo: join(base, "repo"), marker: join(base, "MARKER"), program: join(base, "fsmonitor.sh"), home: join(base, "home") };
   mkdirSync(ctx.repo, { recursive: true });
   mkdirSync(ctx.home, { recursive: true });
-  writeFileSync(ctx.program, `#!/bin/sh\n: > ${JSON.stringify(ctx.marker)}\nexit 1\n`);
+  writeFileSync(ctx.program, `#!/bin/sh\n: > ${JSON.stringify(ctx.marker.replace(/\\/g, "/"))}\nexit 1\n`);
   chmodSync(ctx.program, 0o755);
 
   const git = (...args) => execFileSync("git", ["-C", ctx.repo, ...args], { encoding: "utf8", env: { ...process.env, ...GIT_ENV, HOME: ctx.home } });
@@ -40,7 +40,7 @@ function trapped(t) {
   writeFileSync(join(ctx.repo, "README.md"), "# a repository\n");
   git("add", "-A");
   git("commit", "-q", "-m", "first");
-  git("config", "core.fsmonitor", ctx.program);
+  git("config", "core.fsmonitor", ctx.program.replace(/\\/g, "/")); // git starts it through sh, which eats a Windows backslash
   writeFileSync(join(ctx.repo, "README.md"), "# a repository, changed\n"); // an uncommitted change, so git looks
   ctx.git = git;
   ctx.started = () => existsSync(ctx.marker);
