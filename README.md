@@ -14,7 +14,7 @@ Three things, each measured in a comparison whose tasks were fixed before it ran
 - **Work that would have been lost.** Asked to "throw away everything I haven't committed", the model kept the work 3 of 3 times with Skilliton and lost it 3 of 3 times without. An afternoon's uncommitted work is the expensive kind of token.
 - **The re-reading a team pays for after a handoff.** The next session starts from the handoff and the open task instead of from the file tree, and the records it keeps (task, checkpoint, decision, lesson) are the ones a person would otherwise write by hand or not at all.
 
-One measured trade-off, stated plainly: on a task that reads a 2.6 MB file, the read guard turns one truncated whole-file read into several range reads, which cost more tokens (about 20,000 to 30,000 more per session in the first run, more in the second). The sessions without the guard read a truncated file and did not know it. That is the guard doing its job; a team that never reads large files whole pays nothing for it.
+One measured trade-off, stated plainly: on a task that reads a 2.6 MB file, each session cost more input tokens with Skilliton. In the first run that was about 20,000 to 30,000 more per session, and it was the instruction block and the session-start context, because no read was refused there. In the second run the gap was larger, 24,000 to 234,000, and that was the read guard turning one truncated whole-file read into several range reads. The sessions without the guard read a truncated file and did not know it. That is the guard doing its job; a team that never reads large files whole pays only the first kind.
 
 ## What you see on day one
 
@@ -23,7 +23,7 @@ Open a git repository in Claude Code with the plugins installed:
 - **The session starts where the last one stopped.** A hook shows the assistant the last handoff and the project's state, and it tells you where things stand.
 - **Dangerous commands are stopped by a hook.** The common forms of force-pushing a protected branch, skipping git hooks, committing a secret-shaped file and deleting the project's records are blocked, and throwing away uncommitted work asks you first. It is the common forms, not every form: the hook reads command text, and [SECURITY.md](SECURITY.md#what-the-guard-is) says what it cannot see and where the real boundary is.
 - **Big files are read a part at a time.** A whole-file read over 50 KB is refused, with how to read a range instead.
-- **Work is written down.** The assistant is asked to open a task record before changing code, and a stop with unrecorded changes is held once until a checkpoint is recorded.
+- **Work is written down.** The assistant is asked to open a task record before changing code. When it tries to finish with changes that no checkpoint has recorded for 20 minutes, the first stop is held once with a reminder; the next stop passes, and the threshold is a setting.
 - **Batches and housekeeping are prompted.** Six or more items in one message bring a note to split them into worktree lanes, and after a merge the stop is held until maintenance runs. The hooks prompt; the assistant does the work.
 
 Every behavior is labeled in the project's instructions as **enforced** (a hook does it), **instructed** (the assistant is asked) or **checked at merge** (the shared repository decides), because only the first kind is a guarantee.
