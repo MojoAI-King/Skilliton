@@ -78,7 +78,7 @@ verdict() {
 CODEX_LEAD='Blocked: this command would normally need your confirmation. Codex cannot ask for confirmation from a hook, so it was blocked. If you meant it, run it yourself in your terminal. The confirmation would have said:'
 OVERRIDE_NOTE='Note: SKILLITON_GUARDRAILS_CLIENT is set, but not to claude-code or codex, so it was ignored and the client was worked out from the hook input.'
 
-jstr() { printf '%s' "$1" | jq -Rs .; }
+jstr() { printf '%s' "$1" | jq -Rs .; }; native() { if command -v cygpath >/dev/null 2>&1; then cygpath -m "$1"; else printf '%s' "$1"; fi; } # native: a path as a Windows client sends it (C:/...) to the Node write guards; unchanged elsewhere
 TRANSCRIPT_JSON=$(jstr "$TMP/transcript.jsonl"); SCRATCH_JSON=$(jstr "$TMP/scratchpad")
 # payload <cwd> <command>: Claude-shaped. The top-level keys are the PreToolUse input keys measured
 # from Claude Code 2.1.273 (no model, no turn_id); the values are placeholders.
@@ -890,7 +890,7 @@ payload_write() {
   local key=file_path
   case "$2" in NotebookEdit) key=notebook_path ;; esac
   printf '{"session_id":"guardrails-test","transcript_path":%s,"cwd":%s,"scratchpad_dir":%s,"permission_mode":"default","hook_event_name":"PreToolUse","tool_name":%s,"tool_input":{"%s":%s,"content":"placeholder"},"tool_use_id":"toolu_guardrails_test"}' \
-    "$TRANSCRIPT_JSON" "$(jstr "$1")" "$SCRATCH_JSON" "$(jstr "$2")" "$key" "$(jstr "$3")"
+    "$TRANSCRIPT_JSON" "$(jstr "$(native "$1")")" "$SCRATCH_JSON" "$(jstr "$2")" "$key" "$(jstr "$(native "$3")")"
 }
 # write_hook: runs the write guard by path on $TMP/payload.json, exactly as the client does.
 write_hook() { OUT=$(env "$@" "$WHOOK" < "$TMP/payload.json" 2>"$TMP/stderr"); RC=$?; read_result; }
@@ -936,7 +936,7 @@ printf '{"tool_name":"Write"}\n' > "$TMP/payload.json";                  write_h
 printf '{"tool_name":"Write","tool_input":{}}\n' > "$TMP/payload.json";  write_hook; judge claude "no path in tool_input" allow
 payload_write "$LANE_WT" Bash "$LANE_WT/docs/HANDOFF.md" > "$TMP/payload.json"
 write_hook; judge claude "a tool this hook is not for" allow
-printf '{"tool_name":"Write","cwd":%s,"tool_input":{"file_path":%s}}\n' "$(jstr "$LANE_WT")" "$(jstr "$LANE_WT/docs/HANDOFF.md")" > "$TMP/payload.json"
+printf '{"tool_name":"Write","cwd":%s,"tool_input":{"file_path":%s}}\n' "$(jstr "$(native "$LANE_WT")")" "$(jstr "$(native "$LANE_WT/docs/HANDOFF.md")")" > "$TMP/payload.json"
 write_hook; judge claude "the smallest payload that still names a reserved path" deny
 printf 'not json at all\n' > "$LANE_WT/.skilliton/config.json"
 expect_write "a configuration that does not parse" allow "$LANE_WT" Write "$LANE_WT/docs/HANDOFF.md"
@@ -966,7 +966,7 @@ printf '# Plain\n' > "$MB/README.md"
 # payload_tool <cwd> <tool> <tool_input JSON>: Claude-shaped PreToolUse input with the tool input given whole.
 payload_tool() {
   printf '{"session_id":"guardrails-test","transcript_path":%s,"cwd":%s,"scratchpad_dir":%s,"permission_mode":"default","hook_event_name":"PreToolUse","tool_name":%s,"tool_input":%s,"tool_use_id":"toolu_guardrails_test"}' \
-    "$TRANSCRIPT_JSON" "$(jstr "$1")" "$SCRATCH_JSON" "$(jstr "$2")" "$3"
+    "$TRANSCRIPT_JSON" "$(jstr "$(native "$1")")" "$SCRATCH_JSON" "$(jstr "$2")" "$3"
 }
 managed_hook() { OUT=$(env "$@" "$MHOOK" < "$TMP/payload.json" 2>"$TMP/stderr"); RC=$?; read_result; }
 # expect_managed <label> <deny|allow> <cwd> <tool> <tool_input JSON>
