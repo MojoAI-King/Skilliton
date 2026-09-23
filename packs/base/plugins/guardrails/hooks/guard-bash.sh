@@ -16,7 +16,8 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #          committing a file whose name or added content looks like a secret; rm, rmdir, mv or
 #          git rm aimed at what Skilliton keeps in a project (the .skilliton folder, the record
 #          files, the entry folders, CLAUDE.md and AGENTS.md), and find -delete, truncate, > onto, cp or mv
-#          onto, tee, rsync --delete and a program's rmtree or unlink aimed at them (N73), for which the one
+#          onto, tee, rsync --delete and a program's rmtree or unlink aimed at them (N73), and an in-place editor
+#          (sed -i, perl -i, gawk -i inplace, ex, ed, sponge) aimed at them (N89), for which the one
 #          route is skilliton remove --apply, run by a person
 #   ask    git commands that throw away uncommitted work: reset --hard, clean -f, checkout ., checkout -f,
 #          checkout -- <path>, checkout -B, switch -f, switch --discard-changes, switch -C, restore <path>
@@ -110,6 +111,9 @@ REMOVE_WORD_RE='(^|[^A-Za-z0-9_.-]|\\[bfnrt])(rm|rmdir|mv|truncate|find|rsync|cp
 # The other ways a record is emptied or removed (N73): a > onto a Markdown file, and a program's own removal calls.
 RECORD_HINT_RE='rmtree|unlink|os[.]remove|rmSync|>[>|]?[[:space:]]*[^[:space:]]*[.][Mm][Dd]'
 mentions_removal() { [[ $1 =~ $REMOVE_WORD_RE ]] || [[ $1 =~ $RECORD_HINT_RE ]]; }
+# The editors that write a file back over itself (N89), read only so that one aimed at a record can be seen.
+EDIT_WORD_RE='(^|[^A-Za-z0-9_.-]|\\[bfnrt])(sed|gsed|perl|awk|gawk|ex|ed)([^A-Za-z0-9_/-]|$)'
+mentions_editor() { [[ $1 =~ $EDIT_WORD_RE ]]; }
 # The settings file the rules come from (N30): a command that names both parts of its path is read, so a write to it
 # can be seen. A folder name alone costs nothing more than before. Letter case is folded: on a case-insensitive disk
 # (macOS, Windows) .Skilliton/Config.json is the same file.
@@ -848,8 +852,11 @@ analyze_segment() {
       sh|bash|zsh|dash|ksh|eval|xargs|*/sh|*/bash|*/zsh|*/dash|*/ksh|*/xargs) analyze_shell_string $((k + 1)) ;;
       cp|install|ln|*/cp|*/install|*/ln) check_config_words $((k + 1)) dest; check_overwrite $((k + 1)) dest ;;
       touch|mkdir|*/touch|*/mkdir) check_config_words $((k + 1)) any ;;
-      sed|gsed|*/sed|*/gsed) check_config_words $((k + 1)) inplace ;;
-      node|python|python3|perl|ruby|php|bun|deno|osascript|awk|gawk|*/node|*/python|*/python3|*/perl|*/ruby|*/php|*/bun|*/deno|*/osascript|*/awk|*/gawk) check_config_words $((k + 1)) text; check_program_text $((k + 1)) ;;
+      sed|gsed|*/sed|*/gsed) check_config_words $((k + 1)) inplace; check_inplace $((k + 1)) sed ;;
+      perl|*/perl) check_config_words $((k + 1)) text; check_program_text $((k + 1)); check_inplace $((k + 1)) perl ;;
+      awk|gawk|*/awk|*/gawk) check_config_words $((k + 1)) text; check_program_text $((k + 1)); check_inplace $((k + 1)) awk ;;
+      ex|ed|*/ex|*/ed) check_inplace $((k + 1)) "${SEGW[$k]##*/}" ;;
+      node|python|python3|ruby|php|bun|deno|osascript|*/node|*/python|*/python3|*/ruby|*/php|*/bun|*/deno|*/osascript) check_config_words $((k + 1)) text; check_program_text $((k + 1)) ;;
       *) scan_tail "$k" ;;
     esac
   fi
@@ -2150,6 +2157,53 @@ check_overwrite() { # check_overwrite <index of the first argument> <any|dest|te
   return 0
 }
 
+check_inplace() { # check_inplace <index of the first argument> <sed|perl|awk|ex|ed>: an editor that writes the files it is
+  # given back over themselves (N89): sed -i, perl -i, gawk -i inplace, and ex and ed, which always do. A record file,
+  # an instruction file or an entry among its words is denied as writing over one is. Every word that is not an option
+  # is looked at, the script included: a script is not the name of a record file that exists, so reading it as one
+  # costs nothing, and it saves telling a script from a file for five programs. sed without -i prints and is left alone.
+  local k=$1 n=${#SEGW[@]} w how=$2 inplace=0 opts=1 words=() rest l
+  [ "$CFG_PR" = true ] || return 0
+  case "$how" in ex|ed) inplace=1 ;; esac
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}; k=$((k + 1))
+    if [ "$opts" = 1 ]; then
+      case "$how:$w" in
+        *:--) opts=0; continue ;;
+        sed:--in-place|sed:--in-place=*) inplace=1; continue ;;
+        sed:--expression|sed:--file|awk:--file|awk:--assign) k=$((k + 1)); continue ;;
+        awk:--include=inplace|awk:-iinplace|awk:--include=inplace.awk) inplace=1; continue ;;
+        awk:--include|awk:-i) case "${SEGW[$k]:-}" in inplace|inplace.awk) inplace=1 ;; esac; k=$((k + 1)); continue ;;
+        awk:-f|awk:-v) k=$((k + 1)); continue ;;
+        ex:-c|ex:-S|ex:-u|ex:-U|ex:-i|ex:-T|ex:-t|ex:-w|ex:-W|ed:-p) k=$((k + 1)); continue ;;
+        *:--*|ex:+*) continue ;;
+        sed:-?*|perl:-?*)
+          # a cluster such as -ni or -pi: i is in-place (what follows it is the backup suffix); a letter that takes a
+          # value (sed -e -f, perl -e -E) ends the cluster, and when nothing follows it the next word is that value
+          rest=${w#-}
+          while [ -n "$rest" ]; do
+            l=${rest%"${rest#?}"}; rest=${rest#?}
+            case "$how:$l" in
+              *:i) inplace=1; break ;;
+              sed:[ef]|perl:[eE]) [ -n "$rest" ] || k=$((k + 1)); break ;;
+              perl:[0-9lICMmxdD]) break ;;
+            esac
+          done
+          continue ;;
+        *:-?*) continue ;;
+      esac
+    fi
+    words[${#words[@]}]=$w
+  done
+  [ "$inplace" = 1 ] || return 0
+  for w in ${words[@]+"${words[@]}"}; do
+    case "$how" in ex|ed) guarded_write "$w" inplace ;; esac
+    record_file_target "$w" "$EFF_DIR"
+    if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT" "editing in place"; return 0; fi
+  done
+  return 0
+}
+
 check_move() { # check_move <index of the first argument>: every source of mv; with -t every plain argument is one
   [ "$CFG_PR" = true ] || return 0
   local k=$1 n=${#SEGW[@]} w opts=1 target=0 count last i=0 p
@@ -2370,7 +2424,7 @@ main_pretooluse() {
   # Input longer than the cap (N88) skips the quick look at the raw text, which alone costs a noticeable part of a
   # second on a few megabytes; the command is read out of it below and asks there when it is over the cap too.
   if [ "${#GUARD_RAW}" -le "$CMD_MAX_BYTES" ]; then
-    mentions_git "$GUARD_RAW" || mentions_removal "$GUARD_RAW" || mentions_config "$GUARD_RAW" || mentions_hookfile "$GUARD_RAW" || exit 0
+    mentions_git "$GUARD_RAW" || mentions_removal "$GUARD_RAW" || mentions_config "$GUARD_RAW" || mentions_hookfile "$GUARD_RAW" || mentions_editor "$GUARD_RAW" || exit 0
   fi
   # BASH_ENV names a file bash runs before the first line of any script it starts, including this one, so a file
   # that only says `exit 0` ends this check before it begins and the client reads the silence as an allow. Nothing
@@ -2400,7 +2454,7 @@ main_pretooluse() {
     emit_decision ask "Check first: this command is too long for guardrails to read: it is ${#IN_CMD} bytes, and the limit is $CMD_MAX_BYTES bytes (64 KB), because reading one longer than that can run past the hook's time limit. Nothing in it was checked. Read it yourself, or split it into shorter commands, and confirm only if every part is what you intend."
     exit 0
   fi
-  mentions_git "$IN_CMD" || mentions_removal "$IN_CMD" || mentions_config "$IN_CWD $IN_CMD" || mentions_hookfile "$IN_CWD $IN_CMD" || exit 0
+  mentions_git "$IN_CMD" || mentions_removal "$IN_CMD" || mentions_config "$IN_CWD $IN_CMD" || mentions_hookfile "$IN_CWD $IN_CMD" || mentions_editor "$IN_CMD" || exit 0
   for t in git awk grep find; do
     if ! command -v "$t" >/dev/null 2>&1; then
       emit_decision ask "Check first: guardrails cannot inspect git commands because $t is not installed, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."

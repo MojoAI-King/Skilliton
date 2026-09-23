@@ -307,6 +307,10 @@ section "the 2026-09-23 cold review cases (scripts/guardrails-review.test.sh)"
 if [ "$LABEL" = "guard-bash.sh (shipped)" ]; then bash "$here/guardrails-review.test.sh"; else bash "$here/guardrails-review.test.sh" --hook "$HOOK"; fi
 review_rc=$?
 if [ "$review_rc" -eq 0 ]; then ok "guardrails-review.test.sh passed"; else bad "guardrails-review.test.sh exited $review_rc (its FAIL lines are above)"; fi
+section "the second 2026-09-23 review cases (scripts/guardrails-review2.test.sh, N89 to N92)"
+if [ "$LABEL" = "guard-bash.sh (shipped)" ]; then bash "$here/guardrails-review2.test.sh"; else bash "$here/guardrails-review2.test.sh" --hook "$HOOK"; fi
+review2_rc=$?
+if [ "$review2_rc" -eq 0 ]; then ok "guardrails-review2.test.sh passed"; else bad "guardrails-review2.test.sh exited $review2_rc (its FAIL lines are above)"; fi
 
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
