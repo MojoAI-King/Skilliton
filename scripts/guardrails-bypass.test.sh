@@ -300,6 +300,14 @@ expect "git config --local core.hooksPath .husky asks" ask  "$RH" 'git config --
 expect "negative: git config --get core.hooksPath"     allow "$RH" 'git config --get core.hooksPath'
 expect "negative: git config user.name x"              allow "$RH" 'git config user.name x'
 
+# ---------------------------------------------------------------- the 2026-09-23 cold review (N70 to N73)
+# Its cases are in scripts/guardrails-review.test.sh, because this file would pass the line ceiling holding them; they
+# run here so the CI step that runs this file runs them too, against the same hook.
+section "the 2026-09-23 cold review cases (scripts/guardrails-review.test.sh)"
+if [ "$LABEL" = "guard-bash.sh (shipped)" ]; then bash "$here/guardrails-review.test.sh"; else bash "$here/guardrails-review.test.sh" --hook "$HOOK"; fi
+review_rc=$?
+if [ "$review_rc" -eq 0 ]; then ok "guardrails-review.test.sh passed"; else bad "guardrails-review.test.sh exited $review_rc (its FAIL lines are above)"; fi
+
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
 echo "RESULT: FAIL ($fails failed, $oks ok)"; exit 1

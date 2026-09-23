@@ -17,7 +17,9 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #   ask    git commands that throw away uncommitted work: reset --hard, clean -f, checkout .,
 #          restore . (without --staged), stash drop, stash clear, branch -D
 #          and a command that writes the settings file itself (.skilliton/config.json), because a rule
-#          turned off there is a person's decision (the Write and Edit half is managed-block-guard.mjs)
+#          turned off there is a person's decision (the Write and Edit half is managed-block-guard.mjs); a command that
+#          writes the client's settings file (.claude/settings.json or settings.local.json) with hooks,
+#          disableAllHooks or enabledPlugins in play, or creates the .skilliton-off opt-out file (N70)
 #   allow  everything else, by printing nothing
 # Under Codex every "ask" is written as "deny", with a reason that says so, because Codex cannot ask
 # for confirmation from a hook: the command would run anyway. See detect_client.
@@ -98,6 +100,10 @@ nocase_on() { NOCASE_WAS=0; shopt -q nocasematch && NOCASE_WAS=1; shopt -s nocas
 nocase_off() { [ "$NOCASE_WAS" = 1 ] || shopt -u nocasematch; }
 mentions_config() { local r=1; nocase_on; case "$1" in *.skilliton*config.json*|*.skillgate*config.json*|*config.json*.skilliton*|*config.json*.skillgate*) r=0 ;; esac; nocase_off; return $r; }
 CONFIG_ASK="Check first: this command writes to the guardrails settings file (.skilliton/config.json), which is where the rules read whether they are on and which branches they protect. Turning a rule off or unprotecting a branch is a person's decision, made in their own editor or terminal. Confirm only if this change keeps every rule and every protected branch as it is."
+# The files that switch hooks off without touching the rules (N70): the client's settings file, which names the hooks,
+# the plugins that are on, and disableAllHooks, and the opt-out file that keeps every workflow hook silent. The words
+# are compared in any letter case.
+mentions_hookfile() { local r=1; nocase_on; case "$1" in *.claude*settings*.json*|*skilliton-off*) r=0 ;; esac; nocase_off; return $r; }
 
 json_escape() { # sets ESCAPED to $1 as the inside of a JSON string
   local s=$1 bs='\' q='"'
@@ -167,7 +173,7 @@ guard_exit() {
     elif [ -n "$DENY_REASON" ]; then
       # a segment already decided to block before the failure; a crash must not soften that
       emit_decision deny "$DENY_REASON"
-    elif mentions_git "$GUARD_RAW" || mentions_config "$GUARD_RAW"; then
+    elif mentions_git "$GUARD_RAW" || mentions_config "$GUARD_RAW" || mentions_hookfile "$GUARD_RAW"; then
       emit_decision ask "Check first: guardrails stopped with an internal error (exit $rc) while checking this git command, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
     fi
   fi
@@ -522,7 +528,7 @@ split_redirects() { # moves the marked redirection targets out of SEGW into SEGR
     case "$t" in
       "$RT"*)
         t=${t#"$RT"}
-        names_config "$t" "$EFF_DIR" && ask "$CONFIG_ASK"
+        guarded_write "$t" write
         resolve_dir "$EFF_DIR" "$t"; r=$RESOLVED
         [ -z "$r" ] || { normalize_path "$r"; SEGR[${#SEGR[@]}]=$NORM; } ;;
       *) words[${#words[@]}]=$t ;;
@@ -560,14 +566,14 @@ names_config() { # names_config <word> <base>: 0 when the word names the guardra
 check_config_words() { # check_config_words <index of the first argument> <any|text|inplace|dest>: a program that writes
   # a file it is given (tee, dd of=, sed -i, cp to a destination) or runs code it is given (node -e) asks when that
   # names the settings file. "text" reads every word, options included, because the path may sit inside a program.
-  local k=$1 n=${#SEGW[@]} w mode=$2 inplace=0 hit=0 last="" tdir="" srcs=0 dest
+  local k=$1 n=${#SEGW[@]} w mode=$2 inplace=0 hit=0 last="" tdir="" srcs=0 dest words=() plain=() i=0 folder
   while [ "$k" -lt "$n" ]; do
     w=${SEGW[$k]}; k=$((k + 1))
     case "$mode" in
-      text) names_config "$w" "$EFF_DIR" && hit=1 ;;
+      text) words[${#words[@]}]=$w ;;
       any|inplace)
         case "$w" in -i*|--in-place*) inplace=1; continue ;; of=*) w=${w#of=} ;; -*) continue ;; esac
-        names_config "$w" "$EFF_DIR" && hit=1 ;;
+        words[${#words[@]}]=$w ;;
       dest)
         case "$w" in
           -t|--target-directory) tdir=${SEGW[$k]:-}; k=$((k + 1)); continue ;;
@@ -576,26 +582,137 @@ check_config_words() { # check_config_words <index of the first argument> <any|t
           -*) continue ;;
         esac
         [ -z "$last" ] || case "${last##*/}" in config.json) srcs=1 ;; esac
+        [ -z "$last" ] || plain[${#plain[@]}]=$last
         last=$w ;;
     esac
   done
-  [ "$mode" = inplace ] && [ "$inplace" = 0 ] && hit=0
-  if [ "$mode" = dest ]; then
-    # the destination is the -t folder, else the last word; a config.json copied into a settings folder is a write too
-    dest=$last
-    if [ -n "$tdir" ]; then dest=$tdir; case "${last##*/}" in config.json) srcs=1 ;; esac; fi
-    if [ -n "$dest" ] && names_config "$dest" "$EFF_DIR"; then hit=1
-    elif [ -n "$dest" ] && [ "$srcs" = 1 ]; then
-      resolve_dir "$EFF_DIR" "$dest"
-      if [ -n "$RESOLVED" ]; then normalize_path "$RESOLVED"; case "$NORM" in */.skilliton|*/.skillgate) hit=1 ;; esac; fi
-    fi
+  if [ "$mode" != dest ]; then
+    [ "$mode" = inplace ] && [ "$inplace" = 0 ] && return 0
+    while [ "$i" -lt "${#words[@]}" ]; do guarded_write "${words[$i]}" "$mode"; i=$((i + 1)); done
+    return 0
   fi
-  [ "$hit" = 1 ] && ask "$CONFIG_ASK"
+  # the destination is the -t folder, else the last word; a config.json copied into a settings folder is a write too
+  dest=$last
+  if [ -n "$tdir" ]; then dest=$tdir; [ -z "$last" ] || plain[${#plain[@]}]=$last; case "${last##*/}" in config.json) srcs=1 ;; esac; fi
+  [ -n "$dest" ] || return 0
+  if names_config "$dest" "$EFF_DIR"; then hit=1
+  elif [ "$srcs" = 1 ]; then
+    resolve_dir "$EFF_DIR" "$dest"
+    if [ -n "$RESOLVED" ]; then normalize_path "$RESOLVED"; case "$NORM" in */.skilliton|*/.skillgate) hit=1 ;; esac; fi
+  fi
+  [ "$hit" = 1 ] && { ask "$CONFIG_ASK"; return 0; }
+  # the client's settings file and the opt-out file, as the destination itself or as the name a source keeps in a folder
+  folder=""
+  resolve_dir "$EFF_DIR" "$dest"
+  if [ -n "$RESOLVED" ]; then normalize_path "$RESOLVED"; { [ -n "$tdir" ] || [ -d "$NORM" ]; } && folder=$NORM; fi
+  if [ -z "$folder" ]; then guarded_write "$dest" dest ${plain[@]+"${plain[@]}"}; return 0; fi
+  while [ "$i" -lt "${#plain[@]}" ]; do
+    guarded_write "$folder/${plain[$i]##*/}" dest "${plain[$i]}"
+    i=$((i + 1))
+  done
   return 0
+}
+
+expand_known() { # expand_known <word>: sets EXPANDED to the word with a leading $PWD or $CLAUDE_PROJECT_DIR (bare or in
+  # braces) replaced by what it holds for this command: the folder the segment runs in, or the project
+  local a=$1 v rest
+  EXPANDED=$a
+  case "$a" in
+    '${PWD}'*) v=$EFF_DIR; rest=${a#'${PWD}'} ;;
+    '$PWD'*) v=$EFF_DIR; rest=${a#'$PWD'} ;;
+    '${CLAUDE_PROJECT_DIR}'*) v=${CLAUDE_PROJECT_DIR:-}; rest=${a#'${CLAUDE_PROJECT_DIR}'} ;;
+    '$CLAUDE_PROJECT_DIR'*) v=${CLAUDE_PROJECT_DIR:-}; rest=${a#'$CLAUDE_PROJECT_DIR'} ;;
+    *) return 0 ;;
+  esac
+  case "$rest" in ''|/*) ;; *) return 0 ;; esac   # $PWDX is another variable
+  [ -n "$v" ] && EXPANDED=$v$rest
+  return 0
+}
+
+names_settings() { # names_settings <word>: 0 when the word names the client's settings file; sets NS_FILE to its short
+  # name and NS_PATH to where it is, when that can be worked out
+  local r=1 w=$1
+  NS_FILE=""; NS_PATH=""
+  nocase_on
+  case "$w" in
+    *.claude/settings.local.json*) r=0; NS_FILE=.claude/settings.local.json ;;
+    *.claude/settings.json*) r=0; NS_FILE=.claude/settings.json ;;
+  esac
+  resolve_dir "$EFF_DIR" "$w"
+  if [ -n "$RESOLVED" ]; then
+    normalize_path "$RESOLVED"
+    case "$NORM" in
+      */.claude/settings.local.json) r=0; NS_FILE=.claude/settings.local.json; NS_PATH=$NORM ;;
+      */.claude/settings.json) r=0; NS_FILE=.claude/settings.json; NS_PATH=$NORM ;;
+    esac
+  fi
+  [ "$r" = 0 ] && [ -z "$NS_PATH" ] && [ -n "$EFF_DIR" ] && NS_PATH="$EFF_DIR/$NS_FILE"   # named inside a program's text
+  nocase_off
+  [ "$r" = 0 ]
+}
+
+names_optout() { # names_optout <word>: 0 when the word names the opt-out file (.skilliton-off at a repository's root, or
+  # skilliton-off inside its Git folder); sets NO_FILE to the name shown
+  local r=1
+  NO_FILE=""
+  nocase_on
+  case "$1" in
+    *.skilliton-off*) r=0; NO_FILE=.skilliton-off ;;
+    *.git/skilliton-off*) r=0; NO_FILE=.git/skilliton-off ;;
+  esac
+  if [ "$r" = 1 ]; then
+    resolve_dir "$EFF_DIR" "$1"
+    if [ -n "$RESOLVED" ]; then normalize_path "$RESOLVED"; case "$NORM" in */.git/skilliton-off) r=0; NO_FILE=.git/skilliton-off ;; esac; fi
+  fi
+  nocase_off
+  [ "$r" = 0 ]
+}
+
+HOOK_WORD=""
+hook_word() { # hook_word <text>: sets HOOK_WORD to the first of disableAllHooks, enabledPlugins and hooks the text holds
+  HOOK_WORD=""
+  nocase_on
+  case "$1" in
+    *disableallhooks*) HOOK_WORD=disableAllHooks ;;
+    *enabledplugins*) HOOK_WORD=enabledPlugins ;;
+    *hooks*) HOOK_WORD=hooks ;;
+  esac
+  nocase_off
+}
+
+# guarded_write <word> <write|any|inplace|dest|text|shell> [source...]: the word names a file this segment writes (or,
+# for text and shell, a program's text that may write it). The guardrails settings file asks as before; the client's
+# settings file asks when the command's text, the file as it is now, or a file copied onto it holds one of the words
+# that switch hooks off; the opt-out file always asks. A program's text is judged by the command's words alone, because
+# naming the file there is as likely to be a read.
+guarded_write() {
+  local w=$1 how=$2 where="" s text=""; shift 2
+  if names_config "$w" "$EFF_DIR"; then ask "$CONFIG_ASK"; return 0; fi
+  if names_optout "$w"; then
+    ask "Check first: this command creates $NO_FILE, and while that file is there every workflow hook in this repository stays silent: the session start shows no handoff, no checkpoint or maintain reminder fires, and nothing is recorded. Keeping a repository out of Skilliton is a person's decision; confirm only if that is what was asked for."
+    return 0
+  fi
+  names_settings "$w" || return 0
+  hook_word "$IN_CMD"; [ -z "$HOOK_WORD" ] || where="the command's own text"
+  for s in "$@"; do
+    [ -z "$where" ] || break
+    resolve_dir "$EFF_DIR" "$s"
+    if [ -z "$RESOLVED" ] || [ ! -f "$RESOLVED" ] || [ ! -r "$RESOLVED" ]; then
+      ask "Check first: this command writes $NS_FILE from $s, which guardrails could not read, so it could not tell whether the change turns hooks or plugins off. That file tells Claude Code which hooks and plugins run in this project. Read the file yourself and confirm only if it keeps every hook and plugin running."
+      return 0
+    fi
+    text=$(head -c 1048576 "$RESOLVED" 2>/dev/null); hook_word "$text"; [ -z "$HOOK_WORD" ] || where="$s, which it copies there"
+  done
+  if [ -z "$where" ] && [ "$how" != text ] && [ -n "$NS_PATH" ] && [ -f "$NS_PATH" ]; then
+    text=$(head -c 1048576 "$NS_PATH" 2>/dev/null); hook_word "$text"; [ -z "$HOOK_WORD" ] || where="the file as it is now"
+  fi
+  [ -n "$where" ] || return 0
+  ask "Check first: this command writes $NS_FILE, and $where holds $HOOK_WORD. That file tells Claude Code which hooks and plugins run in this project; a change to hooks, disableAllHooks or enabledPlugins there can switch off the guardrails and every workflow hook for every later command, with nothing said. That is a person's decision, made in their own editor. Confirm only if this change keeps every hook and plugin running."
 }
 
 resolve_dir() { # resolve_dir <base> <dir>: sets RESOLVED, or "" when it cannot be known
   local base=$1 a=$2
+  expand_known "$a"; a=$EXPANDED   # $PWD/x and $CLAUDE_PROJECT_DIR/x are known here; any other variable is not
   case "$a" in
     *'$'*|*'`'*) RESOLVED="" ;;
     '~') RESOLVED=${HOME:-} ;;
@@ -691,7 +808,7 @@ analyze_segment() {
       mv|*/mv) check_move $((k + 1)); check_config_words $((k + 1)) dest ;;
       sh|bash|zsh|dash|ksh|eval|xargs|*/sh|*/bash|*/zsh|*/dash|*/ksh|*/xargs) analyze_shell_string $((k + 1)) ;;
       cp|install|ln|rsync|*/cp|*/install|*/ln|*/rsync) check_config_words $((k + 1)) dest ;;
-      tee|truncate|sponge|dd|*/tee|*/truncate|*/sponge|*/dd) check_config_words $((k + 1)) any ;;
+      tee|truncate|sponge|dd|touch|mkdir|*/tee|*/truncate|*/sponge|*/dd|*/touch|*/mkdir) check_config_words $((k + 1)) any ;;
       sed|gsed|*/sed|*/gsed) check_config_words $((k + 1)) inplace ;;
       node|python|python3|perl|ruby|php|bun|deno|osascript|awk|gawk|*/node|*/python|*/python3|*/perl|*/ruby|*/php|*/bun|*/deno|*/osascript|*/awk|*/gawk) check_config_words $((k + 1)) text ;;
       *) scan_tail "$k" ;;
@@ -733,6 +850,7 @@ analyze_shell_string() { # analyze_shell_string <index after the shell or eval w
   local k=$1 n=${#SEGW[@]} rest=""
   while [ "$k" -lt "$n" ]; do rest="$rest ${SEGW[$k]}"; k=$((k + 1)); done
   if mentions_config "$rest"; then ask "$CONFIG_ASK"; return 0; fi
+  if mentions_hookfile "$rest"; then guarded_write "$rest" shell; [ -z "$ASK_REASON" ] || return 0; fi
   mentions_git "$rest" || return 0
   ask "Check first: this command hands a string that names git to a shell or to eval, and guardrails cannot read inside such a string. Read it yourself and confirm only if it is what you intend; to have it checked, run the git command directly instead."
 }
@@ -1587,7 +1705,7 @@ main_pretooluse() {
   local t note=""
   GUARD_RAW=$(cat)
   case "${SKILLITON_GUARDRAILS:-}" in [Oo][Ff][Ff]) exit 0 ;; esac
-  mentions_git "$GUARD_RAW" || mentions_removal "$GUARD_RAW" || mentions_config "$GUARD_RAW" || exit 0
+  mentions_git "$GUARD_RAW" || mentions_removal "$GUARD_RAW" || mentions_config "$GUARD_RAW" || mentions_hookfile "$GUARD_RAW" || exit 0
   # BASH_ENV names a file bash runs before the first line of any script it starts, including this one, so a file
   # that only says `exit 0` ends this check before it begins and the client reads the silence as an allow. Nothing
   # inside a script can prevent that, because the file has already run; what is left is to say it while it can still
@@ -1611,7 +1729,7 @@ main_pretooluse() {
     emit_decision ask "Check first: guardrails could not read this command from the hook input, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
     exit 0
   fi
-  mentions_git "$IN_CMD" || mentions_removal "$IN_CMD" || mentions_config "$IN_CWD $IN_CMD" || exit 0
+  mentions_git "$IN_CMD" || mentions_removal "$IN_CMD" || mentions_config "$IN_CWD $IN_CMD" || mentions_hookfile "$IN_CWD $IN_CMD" || exit 0
   for t in git awk grep find; do
     if ! command -v "$t" >/dev/null 2>&1; then
       emit_decision ask "Check first: guardrails cannot inspect git commands because $t is not installed, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
