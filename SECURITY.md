@@ -27,14 +27,14 @@ The guardrails hook is a seatbelt against an assistant's ordinary and accidental
 
 Each is a way the hook's reading of command text falls short of the actions it names in "Blocked" and "Asks for confirmation first" above. One line each, with the release that is expected to carry the fix:
 
-- **Option prefixes** the hook does not recognize as the flag they abbreviate (a `--force` or `--no-verify` spelled with an unhandled prefix or bundling) are not read as that flag: fixed in guardrails 0.9.0 and workflow 0.23.0, in progress.
-- **`--no-force` given after `--force-with-lease`** does not cancel the force-push it follows, because the hook does not read flag order the way git does: fixed in guardrails 0.9.0 and workflow 0.23.0, in progress.
-- **`git -c <config>` on a push, and a push run through a configured alias**, can change push behavior (for example a rewritten `push` alias, or `-c protocol.version=...`) the hook does not account for: fixed in guardrails 0.9.0 and workflow 0.23.0, in progress.
-- **A path or flag value holding an unresolved shell variable** (`$VAR`, not a command substitution) is judged by its literal text, not by what it expands to at run time: fixed in guardrails 0.9.0 and workflow 0.23.0, in progress.
-- **The commit-path size cap** (files over 10 MB checked by name only, see "Limits" in the guardrails skill) can pass a large secret-shaped file the content scan would otherwise catch: fixed in guardrails 0.9.0 and workflow 0.23.0, in progress.
-- **The discard verbs** asked for confirmation (`git reset --hard`, `git clean -f`, `git checkout .`, and the rest in "Asks for confirmation first") have forms the hook does not yet recognize as the same command: fixed in guardrails 0.9.0 and workflow 0.23.0, in progress.
-- **The record-deletion forms** guarded under "Removing what Skilliton keeps" have equivalent commands (beyond `rm`, `rmdir`, `mv`, `git rm`) that reach the same result without matching the guarded verb list: fixed in guardrails 0.9.0 and workflow 0.23.0, in progress.
-- **A symlinked gate log or skills folder** lets a write land outside the path the hook checked, because the hook resolves a removal path through symbolic links only when the path already exists, not every path it reads: fixed in guardrails 0.9.0 and workflow 0.23.0, in progress.
+- **Option prefixes** the hook does not recognize as the flag they abbreviate (a `--force` or `--no-verify` spelled with an unhandled prefix or bundling) are not read as that flag: fixed in guardrails 0.9.0 and workflow 0.23.0, released in 1.2.0.
+- **`--no-force` given after `--force-with-lease`** does not cancel the force-push it follows, because the hook does not read flag order the way git does: fixed in guardrails 0.9.0 and workflow 0.23.0, released in 1.2.0.
+- **`git -c <config>` on a push, and a push run through a configured alias**, can change push behavior (for example a rewritten `push` alias, or `-c protocol.version=...`) the hook does not account for: fixed in guardrails 0.9.0 and workflow 0.23.0, released in 1.2.0.
+- **A path or flag value holding an unresolved shell variable** (`$VAR`, not a command substitution) is judged by its literal text, not by what it expands to at run time: fixed in guardrails 0.9.0 and workflow 0.23.0, released in 1.2.0.
+- **The commit-path size cap** (files over 10 MB checked by name only, see "Limits" in the guardrails skill) can pass a large secret-shaped file the content scan would otherwise catch: fixed in guardrails 0.9.0 and workflow 0.23.0, released in 1.2.0.
+- **The discard verbs** asked for confirmation (`git reset --hard`, `git clean -f`, `git checkout .`, and the rest in "Asks for confirmation first") have forms the hook does not yet recognize as the same command: fixed in guardrails 0.9.0 and workflow 0.23.0, released in 1.2.0.
+- **The record-deletion forms** guarded under "Removing what Skilliton keeps" have equivalent commands (beyond `rm`, `rmdir`, `mv`, `git rm`) that reach the same result without matching the guarded verb list: fixed in guardrails 0.9.0 and workflow 0.23.0, released in 1.2.0.
+- **A symlinked gate log or skills folder** lets a write land outside the path the hook checked, because the hook resolves a removal path through symbolic links only when the path already exists, not every path it reads: fixed in guardrails 0.9.0 and workflow 0.23.0, released in 1.2.0.
 
 ## What it is not
 
