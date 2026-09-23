@@ -124,7 +124,7 @@ function parseArgs(argv, spec, command) {
 // permission, or a sandbox that denies stat) is skipped like a missing one, because a later PATH entry may hold the tool.
 const UNINSPECTABLE = new Set(["ENOENT", "ENOTDIR", "EACCES", "EPERM", "ELOOP", "ENAMETOOLONG"]);
 function which(tool) {
-  const exts = process.platform === "win32" ? (process.env.PATHEXT || ".EXE;.CMD;.BAT").split(";") : [""];
+  const exts = process.platform === "win32" && !/\.(exe|cmd|bat|com)$/i.test(tool) ? (process.env.PATHEXT || ".EXE;.CMD;.BAT").split(";") : [""];
   for (const dir of (process.env.PATH || "").split(delimiter)) {
     if (!dir) continue;
     for (const ext of exts) {

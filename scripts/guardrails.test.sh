@@ -98,12 +98,12 @@ read_result() { # sets DECISION, REASON_TEXT and NOTICE_TEXT (a systemMessage, w
   DECISION=allow; REASON_TEXT=""; NOTICE_TEXT=""
   case "$OUT" in
     '') DECISION=allow ;;
-    '{"systemMessage":'*) DECISION=allow; NOTICE_TEXT=$(printf '%s' "$OUT" | jq -r '.systemMessage // empty' 2>/dev/null) ;;
+    '{"systemMessage":'*) DECISION=allow; NOTICE_TEXT=$(printf '%s' "$OUT" | jq -r '.systemMessage // empty' 2>/dev/null); NOTICE_TEXT=${NOTICE_TEXT//$'\r\n'/$'\n'} ;;
     *'"permissionDecision":"deny"'*) DECISION=deny ;;
     *'"permissionDecision":"ask"'*) DECISION=ask ;;
     *) DECISION="unrecognized output" ;;
   esac
-  [ -n "$OUT" ] && REASON_TEXT=$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.permissionDecisionReason // empty' 2>/dev/null)
+  [ -n "$OUT" ] && REASON_TEXT=$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.permissionDecisionReason // empty' 2>/dev/null); REASON_TEXT=${REASON_TEXT//$'\r\n'/$'\n'} # jq.exe writes CRLF inside a value
   return 0
 }
 

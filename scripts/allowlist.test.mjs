@@ -2,12 +2,11 @@
 // allowlist.test.mjs: docs/IT-ALLOWLIST.md matches the code (backlog B26).
 //
 // The allow list tells IT what to allow on a managed laptop, and it is worth nothing the day the code starts a program
-// it does not name, so three checks read the code itself (scripts/inventory.mjs), never a copy of it:
+// it does not name, so three checks read the code (scripts/inventory.mjs), never a copy of it:
 //
 //   programs  every program the plugins, their hooks, the launchers and the command line start is named in section 1,
-//             and every program section 1 names is started somewhere or has an entry below saying who starts it. A
-//             call whose program is not a string literal is listed in DYNAMIC_CALLS with what it starts, and a call
-//             this test cannot classify fails rather than being skipped.
+//             and every program section 1 names is started somewhere or has an entry below saying who starts it.
+//             A call whose program is not a literal is in DYNAMIC_CALLS with what it starts; one this test cannot classify fails.
 //   reach     every place the code reaches outside a repository (homedir(), $HOME, tmpdir(), $TMPDIR) is listed in
 //             OUTSIDE_A_REPOSITORY with the section 2 location it belongs to, and a new one fails.
 //   writes    a scenario under an empty home folder runs the commands and hooks that set up a machine and work in a
@@ -559,6 +558,7 @@ function copyTree(from, to, skipped = []) {
 }
 
 export function measureWrites() {
+  if (process.platform === "win32") return { notRun: "the scenario builds a PATH of symbolic links and #!/bin/sh stand-ins, which Windows does not run; it is measured on macOS and Linux" };
   const git = toolPath("git"), keygen = toolPath("ssh-keygen");
   if (!git || !keygen) return { notRun: `${git ? "ssh-keygen" : "git"} was not found on PATH, and the writes check needs it` };
   const base = realpathSync(mkdtempSync(join(tmpdir(), "skilliton-allowlist-")));

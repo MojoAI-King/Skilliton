@@ -27,7 +27,7 @@ import { accessSync, closeSync, constants as fsConstants, mkdirSync, mkdtempSync
 import { randomBytes } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
-import { BACKUPS, PLUGIN_ROOT, isDir, refuse, statOrNull, tilde, which } from "./core.mjs";
+import { BACKUPS, PLUGIN_ROOT, isDir, refuse, statOrNull, tilde, which, windowsCmdLine } from "./core.mjs";
 import { noProxyInUse, proxyInUse, realHome } from "./journal.mjs";
 import { runGit, trustDir } from "./trust.mjs";
 import { joinDir } from "./join.mjs";
@@ -104,7 +104,7 @@ const state = (name, area, s, detail, action, blocks = null) => ({ area, name, s
 // the one part of the check that is asynchronous.
 function startOnce(file, args, timeoutMs) {
   return new Promise((resolve) => {
-    const group = process.platform !== "win32";
+    const group = process.platform !== "win32", via = windowsCmdLine(file, args); if (via) [file, args] = via; // a .cmd, as in core.mjs
     let child = null, timer = null, grace = null, settled = false, timedOut = false, escaped = false, tooMuchOutput = false;
     let stdout = "", stderr = "";
     const stop = () => {
@@ -122,7 +122,7 @@ function startOnce(file, args, timeoutMs) {
     try {
       // A program asked for its version must leave nothing behind: a Node program (npm, for one) writes a compile cache
       // under the temporary folder unless told not to, and the preflight check promises to write nothing.
-      child = spawn(file, args, { stdio: ["ignore", "pipe", "pipe"], detached: group, windowsHide: true, env: { ...process.env, NODE_DISABLE_COMPILE_CACHE: "1" } });
+      child = spawn(file, args, { stdio: ["ignore", "pipe", "pipe"], detached: group, windowsHide: true, windowsVerbatimArguments: Boolean(via), env: { ...process.env, NODE_DISABLE_COMPILE_CACHE: "1" } });
     } catch (e) { done({ error: e, code: e.code ?? null, status: null }); return; }
     LIVE.add(stop);
     installCleanup();

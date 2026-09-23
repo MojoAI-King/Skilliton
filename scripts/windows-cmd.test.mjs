@@ -7,7 +7,7 @@ import { windowsCmdLine } from "../packs/base/plugins/workflow/runtime/lib/core.
 test("a .cmd launcher on Windows goes through cmd.exe with the path quoted", () => {
   assert.deepEqual(windowsCmdLine("C:\\npm\\prefix\\claude.CMD", ["--version"], "win32", "C:\\Windows\\system32\\cmd.exe"),
     ["C:\\Windows\\system32\\cmd.exe", ["/d", "/s", "/c", '""C:\\npm\\prefix\\claude.CMD" --version"']]);
-  assert.deepEqual(windowsCmdLine("C:\\Program Files\\x\\tool.bat", [], "win32", undefined), ["cmd.exe", ["/d", "/s", "/c", '""C:\\Program Files\\x\\tool.bat""']]);
+  assert.deepEqual(windowsCmdLine("C:\\Program Files\\x\\tool.bat", [], "win32", ""), ["cmd.exe", ["/d", "/s", "/c", '""C:\\Program Files\\x\\tool.bat""']]);
 });
 
 test("anything else is started as before", () => {
