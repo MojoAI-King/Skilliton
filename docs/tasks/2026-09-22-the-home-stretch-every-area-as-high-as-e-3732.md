@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-22-the-home-stretch-every-area-as-high-as-e-3732
-- **State:** in-progress
+- **State:** merged
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T15:06:07.569Z
+- **Updated:** 2026-09-23T18:14:07.487Z
 
 ## Request
 

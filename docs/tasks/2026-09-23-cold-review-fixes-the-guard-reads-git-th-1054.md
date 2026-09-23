@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-cold-review-fixes-the-guard-reads-git-th-1054
-- **State:** in-progress
+- **State:** merged
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T17:44:46.277Z
+- **Updated:** 2026-09-23T18:14:07.308Z
 
 ## Request
 
