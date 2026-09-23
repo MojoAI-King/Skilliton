@@ -142,6 +142,9 @@ jobs:
       - name: Guardrails hook
         run: bash scripts/guardrails.test.sh
 
+      - name: Guardrails hook, the ways past it found in review (pattern refspecs, deletes, wrappers, the config, quotes)
+        run: bash scripts/guardrails-bypass.test.sh
+
       - name: Onboarding CLI
         run: node scripts/skilliton.test.mjs
 

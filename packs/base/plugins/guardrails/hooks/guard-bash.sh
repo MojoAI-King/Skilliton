@@ -804,7 +804,20 @@ check_push() {
     [ "$force" = 1 ] || [ "$plus" = 1 ] || continue
     case "$r" in *:*) dst=${r##*:} ;; *) dst=$r ;; esac
     [ -n "$dst" ] || continue
-    dst=${dst#refs/heads/}
+    # git reads heads/main on the remote side as refs/heads/main (measured 2026-09-22: a real remote's main was
+    # force-updated by HEAD:heads/main), so both prefixes come off before the name is compared.
+    dst=${dst#refs/}
+    dst=${dst#heads/}
+    case "$dst" in
+      *'*'*)
+        # a pattern refspec (refs/heads/*) reaches every branch it matches, which is every protected one it can
+        first=${CFG_PB%%$'\n'*}
+        if [ -n "$first" ]; then
+          deny "Blocked: this force-push names a pattern ($dst), which would overwrite every branch it matches on the remote, including the shared $first branch, and could erase other people's work. Push your own branch by name without --force and open a pull request instead."
+          return 0
+        fi
+        continue ;;
+    esac
     if [ "$dst" = HEAD ] || [ "$dst" = "@" ]; then
       if ! current_branch; then
         ask "Check first: guardrails could not tell which branch this force-push would overwrite. Run git branch --show-current to see where you are, and confirm only if it is not a shared branch such as main."
