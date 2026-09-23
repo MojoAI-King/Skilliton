@@ -329,4 +329,5 @@ Decision entries in `docs/decisions/`, sorted by ID. `skilliton index` writes th
 | [2026-09-23-applicability-signals-match-import-shape-bcbd](docs/decisions/2026-09-23-applicability-signals-match-import-shape-bcbd.md) | Applicability signals match import-shaped code, not bare library names | proposed | 2026-09-23 |
 | [2026-09-23-n47-secrets-allowlist-freshness-folds-in-419c](docs/decisions/2026-09-23-n47-secrets-allowlist-freshness-folds-in-419c.md) | N47 secrets allowlist freshness folds into the file manifest, not raw record sources | proposed | 2026-09-23 |
 | [2026-09-23-the-night-s-release-is-1-1-0-not-1-0-1-b-46b5](docs/decisions/2026-09-23-the-night-s-release-is-1-1-0-not-1-0-1-b-46b5.md) | The night's release is 1.1.0, not 1.0.1, by the release skill's own rule | accepted | 2026-09-23 |
+| [2026-09-23-the-team-settings-template-does-not-auto-ba3c](docs/decisions/2026-09-23-the-team-settings-template-does-not-auto-ba3c.md) | The team settings template does not auto-update plugins | proposed | 2026-09-23 |
 <!-- skilliton:index:decisions:end -->

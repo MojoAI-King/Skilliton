@@ -40,5 +40,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 | ID | Title | State | Branch | Owner |
 |---|---|---|---|---|
 | [2026-09-22-the-home-stretch-every-area-as-high-as-e-3732](tasks/2026-09-22-the-home-stretch-every-area-as-high-as-e-3732.md) | The home stretch: every area as high as evidence allows before the cold read | in-progress | main | unassigned |
-| [2026-09-23-lane-code-clarity-3584](tasks/2026-09-23-lane-code-clarity-3584.md) | Lane code-clarity | in-progress | lane/code-clarity-0923 | unassigned |
+| [2026-09-23-cold-review-fixes-the-guard-reads-git-th-1054](tasks/2026-09-23-cold-review-fixes-the-guard-reads-git-th-1054.md) | Cold review fixes: the guard reads git the way git does, the writers stay inside the repository, the limits are disclosed | in-progress | main | unassigned |
 <!-- skilliton:index:tasks:end -->
