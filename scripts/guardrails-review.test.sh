@@ -160,6 +160,92 @@ expect "bash -c 'touch .skilliton-off' (base: allow)"  ask "$RP" "bash -c 'touch
 expect "negative: touch notes.txt"                     allow "$RP" 'touch notes.txt'
 expect "negative: ls -a .skilliton-off"                allow "$RP" 'ls -a .skilliton-off'
 
+# ---------------------------------------------------------------- N71
+section "N71: the push forms, run for real against a bare remote, then asked of the hook"
+# The one place this file runs a command under test: each push below is run in a throwaway work repository against a
+# throwaway bare remote in the temp dir, whose main is set back before every run, so the case shows whether git
+# itself force-updated main with that spelling. A spelling git refuses as ambiguous is still refused by the hook.
+RW="$TMP/push-work"; RB="$TMP/push-remote.git"
+git init -q --bare "$RB" && new_repo "$RW" && git -C "$RW" remote add origin "$RB" && git -C "$RW" push -q origin main feature 2>/dev/null \
+  || { echo "FAIL: could not build the bare remote fixture"; exit 1; }
+BASE_SHA=$(git -C "$RW" rev-parse main); git -C "$RW" commit -q --amend -m rewritten; NEW_SHA=$(git -C "$RW" rev-parse main)
+push_case() { # push_case <label> <deny|ask|allow> <forced|kept|either> <command>
+  local label=$1 want=$2 git_says=$3 cmd=$4 after result
+  git -C "$RB" update-ref refs/heads/main "$BASE_SHA"; git -C "$RW" update-ref refs/remotes/origin/main "$BASE_SHA"
+  (cd "$RW" && bash -c "$cmd") >/dev/null 2>&1
+  after=$(git -C "$RB" rev-parse refs/heads/main)
+  if [ "$after" = "$NEW_SHA" ]; then result=forced; else result=kept; fi
+  if [ "$git_says" != either ] && [ "$result" != "$git_says" ]; then bad "$label: run for real, git $result main, expected $git_says"
+  else ok "$label: run for real, git $result main"; fi
+  expect "$label" "$want" "$RW" "$cmd"
+}
+push_case "git push --forc origin main (base: allow)"      deny either 'git push --forc origin main'
+push_case "git push --f origin main (base: allow)"         deny either 'git push --f origin main'
+push_case "git push --force-w origin main (base: deny)"    deny forced 'git push --force-w origin main'
+push_case "git push --mir origin (base: allow)"            deny forced 'git push --mir origin'
+push_case "git push origin --force-with-lease --no-force HEAD:main (base: allow)" deny forced 'git push origin --force-with-lease --no-force HEAD:main'
+push_case "git push -f origin : (the matching refspec) (base: allow)" deny forced 'git push -f origin :'
+push_case "git -c remote.origin.push=+main push (base: allow)" deny forced 'git -c remote.origin.push=+main push'
+push_case "git -c remote.origin.push=+HEAD push (no branch, on main) (base: allow)" deny forced 'git -c remote.origin.push=+HEAD push'
+push_case "GIT_CONFIG_KEY_0=remote.origin.push +main (base: allow)" deny forced 'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.push GIT_CONFIG_VALUE_0=+main git push'
+push_case "git -c alias.p='push -f origin main' p (base: allow)" deny forced "git -c alias.p='push -f origin main' p"
+reason_has "  the reason names the alias and what it was read as" "alias"
+push_case "git -c alias.s='!git push -f origin main' s (base: allow)" deny forced "git -c alias.s='!git push -f origin main' s"
+push_case "GIT_CONFIG_PARAMETERS alias (base: allow)"     deny forced "GIT_CONFIG_PARAMETERS=\"'alias.p'='push -f origin main'\" git p"
+push_case "x=main; git push -f origin \$x (base: allow)"   ask forced 'x=main; git push -f origin $x'
+reason_has "  the reason names the variable" 'names $x'
+push_case "for b in main; do git push -f origin \$b; done (base: allow)" ask forced 'for b in main; do git push -f origin $b; done'
+push_case "git push -f origin \$(git branch --show-current) (base: deny)" ask forced 'git push -f origin $(git branch --show-current)'
+push_case "negative: git push --force --no-force origin main (--no-force takes back --force)" allow kept 'git push --force --no-force origin main'
+push_case "negative: git push origin main (not a fast-forward, git refuses)" allow kept 'git push origin main'
+
+section "N71: option starts, -c configuration, variables, and hook skips, asked of the hook only"
+expect "git commit --no-ver -m x (base: allow)"         deny "$R" 'git commit --no-ver -m x'
+expect "git commit --n -m x (a start of --no-verify) (base: allow)" deny "$R" 'git commit --n -m x' # skilliton-audit: allow verification-off a test case that sends the flag to the guard
+expect "git push --no-v origin feature (base: allow)"   deny "$R" 'git push --no-v origin feature'
+expect "git push --de origin main (as before) (base: deny)" deny "$RF" 'git push --de origin main'
+expect "git -c remote.origin.push=main push asks (base: allow)" ask "$RF" 'git -c remote.origin.push=main push'
+reason_has "  the reason names remote.<name>.push" "remote.<name>.push"
+expect "git -c push.default=upstream push -f on feature asks (base: allow)" ask "$RF" 'git -c push.default=upstream push -f'
+expect "git -c alias.c='commit --no-verify' c (base: allow)" deny "$R" "git -c alias.c='commit --no-verify' c -m x" # skilliton-audit: allow verification-off a test case that sends the flag to the guard inside an alias
+expect "git -c alias.pp='push origin feature' pp asks (base: allow)" ask "$R" "git -c alias.pp='push origin feature' pp"
+expect "git --config-env=alias.p=VAR p asks (base: allow)" ask "$R" 'git --config-env=alias.p=MYALIAS p'
+expect "git --config-env remote.origin.push=VAR push asks (base: allow)" ask "$R" 'git --config-env remote.origin.push=MYPUSH push'
+expect "rm -rf \$x asks (base: allow)"                  ask "$R" 'rm -rf $x'
+expect "rm -rf \"\${dir}/build\" asks (base: allow)"     ask "$R" 'rm -rf "${dir}/build"'
+expect "rm -rf \$'x' (ANSI-C quoting) asks (base: allow)" ask "$R" "rm -rf \$'x'"
+expect "git merge --no-verify feature (base: allow)"    deny "$R" 'git merge --no-verify feature' # skilliton-audit: allow verification-off a test case that sends the flag to the guard
+expect "git rebase --no-verify main (base: allow)"      deny "$R" 'git rebase --no-verify main' # skilliton-audit: allow verification-off a test case that sends the flag to the guard
+expect "git am --no-verify x.patch (base: allow)"       deny "$R" 'git am --no-verify x.patch' # skilliton-audit: allow verification-off a test case that sends the flag to the guard
+expect "git am -n x.patch (am's -n is the same flag) (base: allow)" deny "$R" 'git am -n x.patch'
+expect "git cherry-pick --no-verify abc (base: allow)"  deny "$R" 'git cherry-pick --no-verify abc' # skilliton-audit: allow verification-off a test case that sends the flag to the guard
+expect "git revert --no-verify abc (base: allow)"       deny "$R" 'git revert --no-verify abc' # skilliton-audit: allow verification-off a test case that sends the flag to the guard
+expect "git pull --no-verify (base: allow)"             deny "$R" 'git pull --no-verify' # skilliton-audit: allow verification-off a test case that sends the flag to the guard
+expect "HUSKY=0 git commit -m x (base: allow)"          ask "$R" 'HUSKY=0 git commit -m x'
+reason_has "  the reason names the setting" "HUSKY=0"
+expect "SKIP=all git commit -m x (base: allow)"         ask "$R" 'SKIP=all git commit -m x'
+expect "LEFTHOOK=0 git commit -m x (base: allow)"       ask "$R" 'LEFTHOOK=0 git commit -m x'
+expect "rm .git/hooks/pre-commit (base: allow)"         deny "$R" 'rm .git/hooks/pre-commit'
+expect "rm -rf .git/hooks (base: allow)"                deny "$R" 'rm -rf .git/hooks'
+expect "cd .git && rm hooks/pre-commit (base: allow)"   deny "$R" 'cd .git && rm hooks/pre-commit'
+expect "mv .git/hooks/pre-commit elsewhere (base: allow)" deny "$R" "mv .git/hooks/pre-commit $TMP/x"
+expect "chmod -x .git/hooks/pre-commit (base: allow)"   deny "$R" 'chmod -x .git/hooks/pre-commit'
+expect "truncate -s 0 .git/hooks/pre-push (base: allow)" deny "$R" 'truncate -s 0 .git/hooks/pre-push'
+expect "git reset --har HEAD~1 (a start of --hard) (base: allow)" ask "$R" 'git reset --har HEAD~1'
+expect "git clean --fo (a start of --force) (base: allow)" ask "$R" 'git clean --fo'
+expect "git branch --del --forc feature (base: allow)"  ask "$R" 'git branch --del --forc feature'
+expect "negative: git merge --no-verify-signatures feature (another option)" allow "$R" 'git merge --no-verify-signatures feature' # skilliton-audit: allow verification-off a test case that sends the flag to the guard
+expect "negative: git merge -n feature (merge's -n is --no-stat)" allow "$R" 'git merge -n feature'
+expect "negative: git push --follow-tags origin main"   allow "$R" 'git push --follow-tags origin main'
+expect "negative: git push --dry-run origin main"       allow "$R" 'git push --dry-run origin main'
+expect "negative: git push origin \$branch without force" allow "$R" 'git push origin $branch'
+expect "negative: git -c alias.l='log --oneline' l"     allow "$R" "git -c alias.l='log --oneline' l"
+expect "negative: git -c user.name=a commit -m x"       allow "$R" 'git -c user.name=a commit -m x'
+expect "negative: HUSKY=1 git commit -m x"              allow "$R" 'HUSKY=1 git commit -m x'
+expect "negative: rm \"\$x\" (not recursive and forced)" allow "$R" 'rm "$x"'
+expect "negative: rm -rf \"\$PWD/node_modules\" (\$PWD is known)" allow "$R" 'rm -rf "$PWD/node_modules"'
+expect "negative: rm .git/index.lock"                   allow "$R" 'rm .git/index.lock'
+
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
 echo "RESULT: FAIL ($fails failed, $oks ok)"; exit 1

@@ -9,13 +9,18 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 # Claude Code sends the proposed Bash command as JSON on stdin; Codex CLI runs the same plugin hook
 # with the same tool_name and tool_input.command. This script reads the command text and answers
 # with one decision:
-#   deny   force-pushing a protected branch; skipping git hooks with --no-verify; staging or
+#   deny   force-pushing a protected branch (a start of a long option read as git reads it, and -c configuration
+#          and aliases for the one command read as what they push, N71); skipping git hooks with --no-verify on
+#          commit, push, merge, rebase, am, cherry-pick, revert or pull, or by removing, moving, emptying or
+#          changing the permissions of .git/hooks; staging or
 #          committing a file whose name or added content looks like a secret; rm, rmdir, mv or
 #          git rm aimed at what Skilliton keeps in a project (the .skilliton folder, the record
 #          files, the entry folders, CLAUDE.md and AGENTS.md), for which the one route is
 #          skilliton remove --apply, run by a person
 #   ask    git commands that throw away uncommitted work: reset --hard, clean -f, checkout .,
 #          restore . (without --staged), stash drop, stash clear, branch -D
+#          a force-push or rm -rf whose branch or path holds a variable it cannot resolve; HUSKY=0, SKIP= or
+#          LEFTHOOK=0 in front of a git commit;
 #          and a command that writes the settings file itself (.skilliton/config.json), because a rule
 #          turned off there is a person's decision (the Write and Edit half is managed-block-guard.mjs); a command that
 #          writes the client's settings file (.claude/settings.json or settings.local.json) with hooks,
@@ -32,9 +37,10 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #   quotes and backslashes, skips heredoc bodies, reads redirection targets apart from the words, and follows cd, pushd,
 #   and git -C, and reads past env, sudo, nice, timeout, exec, caffeinate, stdbuf, ionice and time with the values
 #   their options take; after a program it does not know, a later git, rm or mv that would be stopped asks. It is not
-#   a shell parser: it does not expand variables, globs, aliases, or
-#   functions, and it does not look inside scripts, bash -c strings, eval, xargs, a backtick
-#   substitution inside double quotes, or git aliases (a $( inside double quotes is read as the
+#   a shell parser: it does not expand variables (other than a leading $PWD or $CLAUDE_PROJECT_DIR), globs, aliases,
+#   or functions, and it does not look inside scripts, bash -c strings, eval, xargs, a backtick
+#   substitution inside double quotes, or git aliases from a configuration file (one set with -c on the command
+#   itself is read as what it runs; a $( inside double quotes is read as the
 #   command it is, and $(( )) is arithmetic, never a heredoc; an unclosed one asks); a shell, eval or xargs string that
 #   names git asks instead of allowing in silence. It stops ordinary and accidental
 #   commands, not a command someone has deliberately hidden.
@@ -103,7 +109,8 @@ CONFIG_ASK="Check first: this command writes to the guardrails settings file (.s
 # The files that switch hooks off without touching the rules (N70): the client's settings file, which names the hooks,
 # the plugins that are on, and disableAllHooks, and the opt-out file that keeps every workflow hook silent. The words
 # are compared in any letter case.
-mentions_hookfile() { local r=1; nocase_on; case "$1" in *.claude*settings*.json*|*skilliton-off*) r=0 ;; esac; nocase_off; return $r; }
+# The git hooks folder is named here too, so chmod or truncate aimed at it is read (N71).
+mentions_hookfile() { local r=1; nocase_on; case "$1" in *.claude*settings*.json*|*skilliton-off*|*.git/hooks*) r=0 ;; esac; nocase_off; return $r; }
 
 json_escape() { # sets ESCAPED to $1 as the inside of a JSON string
   local s=$1 bs='\' q='"'
@@ -430,7 +437,8 @@ BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RDM = sprintf("%c", 31); UN = spri
         }
         if (c == "(" && at(i + 1) == "(" && (!have || substr(tok, length(tok), 1) == "$") && is_arith(i)) { i = arith(i); continue }
         if (depth > 0) { if (c == "(") PC[depth]++; else if (c == ")") PC[depth]-- }
-        if (c == "(" && have && substr(tok, length(tok), 1) == "$") { tok = substr(tok, 1, length(tok) - 1); if (tok == "") have = 0 }
+        # an unquoted $( leaves $() in the word it stood in, so a branch or a path that comes from it reads as unknown
+        if (c == "(" && have && substr(tok, length(tok), 1) == "$") { tok = tok "()" }
         sep(); continue
       }
       if (c == "<" || c == ">") {
@@ -529,6 +537,7 @@ split_redirects() { # moves the marked redirection targets out of SEGW into SEGR
       "$RT"*)
         t=${t#"$RT"}
         guarded_write "$t" write
+        hooks_target "$t" "$EFF_DIR" && deny_hooks
         resolve_dir "$EFF_DIR" "$t"; r=$RESOLVED
         [ -z "$r" ] || { normalize_path "$r"; SEGR[${#SEGR[@]}]=$NORM; } ;;
       *) words[${#words[@]}]=$t ;;
@@ -742,7 +751,7 @@ wrapper_values() {
 
 analyze_segment() {
   local n=${#SEGW[@]} k=0 w wrapper="" name val last duration=0 saved_dir=$EFF_DIR
-  PFX_GARGS=(); PFX_HOOKSPATH=0
+  PFX_GARGS=(); PFX_HOOKSPATH=0; PFX_CONFIG=""; PFX_CK=(); PFX_CV=(); PFX_HOOKSKIP=""
   # skip what can stand in front of a command: VAR=value, the wrappers that run the rest of the line and their
   # options (with the value an option takes), timeout's duration, and keywords
   while [ "$k" -lt "$n" ]; do
@@ -790,7 +799,16 @@ analyze_segment() {
         case "$name" in
           GIT_CONFIG_KEY_*|GIT_CONFIG_PARAMETERS)
             # GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath ... sets for one command what -c sets
-            case "$(printf '%s' "${w#*=}" | tr '[:upper:]' '[:lower:]')" in *core.hookspath*) PFX_HOOKSPATH=1 ;; esac ;;
+            case "$(printf '%s' "${w#*=}" | tr '[:upper:]' '[:lower:]')" in *core.hookspath*) PFX_HOOKSPATH=1 ;; esac
+            val=${w#*=}
+            case "$name" in
+              GIT_CONFIG_PARAMETERS) config_parameters "$val" ;;
+              *) case "${name#GIT_CONFIG_KEY_}" in ''|*[!0-9]*) ;; *) PFX_CK[${name#GIT_CONFIG_KEY_}]=$val ;; esac ;;
+            esac ;;
+          GIT_CONFIG_VALUE_*) case "${name#GIT_CONFIG_VALUE_}" in ''|*[!0-9]*) ;; *) PFX_CV[${name#GIT_CONFIG_VALUE_}]=${w#*=} ;; esac ;;
+          HUSKY|LEFTHOOK|HUSKY_SKIP_HOOKS|SKIP)
+            # the hook managers' own switches (husky, lefthook, pre-commit), which skip the hooks the way --no-verify does
+            case "$name=${w#*=}" in HUSKY=0|HUSKY=false|LEFTHOOK=0|LEFTHOOK=false|HUSKY_SKIP_HOOKS=?*|SKIP=?*) PFX_HOOKSKIP=$w ;; esac ;;
           GIT_DIR|GIT_WORK_TREE)
             val=${w#*=}; resolve_dir "$EFF_DIR" "$val"; [ -n "$RESOLVED" ] && val=$RESOLVED
             if [ "$name" = GIT_DIR ]; then PFX_GARGS[${#PFX_GARGS[@]}]="--git-dir=$val"; else PFX_GARGS[${#PFX_GARGS[@]}]="--work-tree=$val"; fi ;;
@@ -805,10 +823,12 @@ analyze_segment() {
       cd|pushd) track_cd $((k + 1)); saved_dir=$EFF_DIR ;;
       git|*/git) analyze_git $((k + 1)) ;;
       rm|rmdir|*/rm|*/rmdir) check_remove $((k + 1)) ;;
-      mv|*/mv) check_move $((k + 1)); check_config_words $((k + 1)) dest ;;
+      mv|*/mv) check_move $((k + 1)); check_config_words $((k + 1)) dest; check_hooks_words $((k + 1)) ;;
+      chmod|*/chmod) check_hooks_words $((k + 1)) ;;
+      truncate|*/truncate) check_config_words $((k + 1)) any; check_hooks_words $((k + 1)) ;;
       sh|bash|zsh|dash|ksh|eval|xargs|*/sh|*/bash|*/zsh|*/dash|*/ksh|*/xargs) analyze_shell_string $((k + 1)) ;;
       cp|install|ln|rsync|*/cp|*/install|*/ln|*/rsync) check_config_words $((k + 1)) dest ;;
-      tee|truncate|sponge|dd|touch|mkdir|*/tee|*/truncate|*/sponge|*/dd|*/touch|*/mkdir) check_config_words $((k + 1)) any ;;
+      tee|sponge|dd|touch|mkdir|*/tee|*/sponge|*/dd|*/touch|*/mkdir) check_config_words $((k + 1)) any ;;
       sed|gsed|*/sed|*/gsed) check_config_words $((k + 1)) inplace ;;
       node|python|python3|perl|ruby|php|bun|deno|osascript|awk|gawk|*/node|*/python|*/python3|*/perl|*/ruby|*/php|*/bun|*/deno|*/osascript|*/awk|*/gawk) check_config_words $((k + 1)) text ;;
       *) scan_tail "$k" ;;
@@ -873,19 +893,34 @@ track_cd() { # track_cd <index of the first argument>
 }
 
 analyze_git() { # analyze_git <index after the word git>
-  local k=$1 n=${#SEGW[@]} w
+  local k=$1 n=${#SEGW[@]} w i aliases line
   GDIR=$EFF_DIR
   GARGS=(${PFX_GARGS[@]+"${PFX_GARGS[@]}"})
   local hookspath=${PFX_HOOKSPATH:-0}
+  GC_PUSH=""; GC_PUSH_SEEN=0; GC_PUSH_UNKNOWN=0; GC_PUSHDEFAULT=0; GC_ALIAS=""; GC_ALIAS_UNKNOWN=0; GC_HOOKSPATH=0
+  # configuration handed to this one command through the environment: GIT_CONFIG_PARAMETERS, and the KEY_n and
+  # VALUE_n pairs of GIT_CONFIG_COUNT (N71)
+  while IFS= read -r line; do [ -z "$line" ] || note_git_config "${line%%=*}" "${line#*=}" 1; done <<EOF
+$PFX_CONFIG
+EOF
+  for i in ${PFX_CK[@]+"${!PFX_CK[@]}"}; do
+    if [ -n "${PFX_CV[$i]+x}" ]; then note_git_config "${PFX_CK[$i]}" "${PFX_CV[$i]}" 1; else note_git_config "${PFX_CK[$i]}" "" 0; fi
+  done
   while [ "$k" -lt "$n" ]; do
     w=${SEGW[$k]}
     case "$w" in
       -c|--config-env)
         # `-c core.hooksPath=<dir>` points git at other hooks, which skips this project's hooks the way --no-verify does
         case "$(printf '%s' "${SEGW[$((k + 1))]:-}" | tr '[:upper:]' '[:lower:]')" in core.hookspath=*) hookspath=1 ;; esac
+        line=${SEGW[$((k + 1))]:-}
+        if [ "$w" = -c ]; then note_git_config "${line%%=*}" "${line#*=}" 1; else note_git_config "${line%%=*}" "" 0; fi
         k=$((k + 2)) ;;
       -c*|--config-env=*)
         case "$(printf '%s' "$w" | tr '[:upper:]' '[:lower:]')" in -ccore.hookspath=*|--config-env=core.hookspath=*) hookspath=1 ;; esac
+        case "$w" in
+          -c*) line=${w#-c}; note_git_config "${line%%=*}" "${line#*=}" 1 ;;
+          *) line=${w#--config-env=}; note_git_config "${line%%=*}" "" 0 ;;   # the value is read from a variable
+        esac
         k=$((k + 1)) ;;
       -C)
         if [ $((k + 1)) -lt "$n" ]; then resolve_dir "$GDIR" "${SEGW[$((k + 1))]}"; GDIR=$RESOLVED; fi
@@ -902,11 +937,19 @@ analyze_git() { # analyze_git <index after the word git>
   [ "$k" -lt "$n" ] || return 0
   w=${SEGW[$k]}
   ARGS=("${SEGW[@]:$((k + 1))}")
+  [ "$GC_HOOKSPATH" = 1 ] && hookspath=1
   if [ "$hookspath" = 1 ] && [ "$CFG_NV" = true ]; then
     case "$w" in commit|push|merge|rebase|am|cherry-pick|revert|pull)
       deny "Blocked: core.hooksPath set for this command (with -c or GIT_CONFIG_KEY_) points git at a different hooks folder, which skips this project's safety checks the same way --no-verify does. Run the command without it, and if a check fails, fix what it reports instead of skipping it." ;; # skilliton-audit: allow verification-off the refusal message naming the override it just blocked
     esac
   fi
+  if [ -n "$PFX_HOOKSKIP" ] && [ "$CFG_NV" = true ]; then
+    case "$w" in commit|push|merge|rebase|am|cherry-pick|revert|pull)
+      ask "Check first: $PFX_HOOKSKIP in front of this git $w tells the project's hook manager (husky, lefthook or pre-commit) to skip its hooks, which skips this project's checks the way --no-verify does. Run it without that setting, and if a check fails, fix what it reports; confirm only if a person asked for the hooks to be skipped this once." ;; # skilliton-audit: allow verification-off the question naming the flag it compares the switch with
+    esac
+  fi
+  aliases=$GC_ALIAS
+  [ "$GC_ALIAS_UNKNOWN" = 1 ] && ask "Check first: this command defines a git alias for itself from an environment variable (--config-env), which guardrails cannot read, so it cannot tell what the alias runs. Read it yourself and confirm only if it is what you intend."
   case "$w" in
     push) check_push ;;
     commit) check_commit ;;
@@ -919,8 +962,100 @@ analyze_git() { # analyze_git <index after the word git>
     branch) check_branch ;;
     rm) check_git_rm ;;
     config) check_config_hookspath ;;
+    merge|rebase|am|cherry-pick|revert|pull) check_verb_noverify "$w" ;;
   esac
+  # an alias set for this command runs whatever its body says, under any name: its body is read as the command it is
+  while IFS= read -r line; do [ -z "$line" ] || check_alias_body "$line"; done <<EOF
+$aliases
+EOF
   return 0
+}
+
+config_parameters() { # config_parameters <text>: adds each key=value of git's GIT_CONFIG_PARAMETERS ('key'='value' or
+  # 'key=value', separated by spaces) to PFX_CONFIG; text with no quote at all is read as one key=value
+  local s=$1 key val guard=0
+  case "$s" in *"'"*) ;; *) PFX_CONFIG="$PFX_CONFIG$s"$'\n'; return 0 ;; esac
+  while [ -n "$s" ] && [ "$guard" -lt 64 ]; do
+    guard=$((guard + 1))
+    s=${s#"${s%%[! ]*}"}
+    [ -n "$s" ] || break
+    case "$s" in
+      "'"*"'"*) s=${s#\'}; key=${s%%\'*}; s=${s#*\'} ;;
+      *"'"*) break ;;   # a quote that does not close
+      *) key=${s%% *}; s=${s#"$key"} ;;
+    esac
+    val=""
+    case "$s" in "='"*"'"*) s=${s#=\'}; val=${s%%\'*}; s=${s#*\'}; key="$key=$val" ;; esac
+    PFX_CONFIG="$PFX_CONFIG$key"$'\n'
+  done
+}
+
+note_git_config() { # note_git_config <key> <value> <1: the value is known>: configuration set for one git command that
+  # changes what a push or a commit does (N71). Keys are compared in any letter case, as git does.
+  local key=$1 val=$2 known=$3
+  nocase_on
+  case "$key" in
+    core.hookspath) GC_HOOKSPATH=1 ;;
+    remote.*.push) GC_PUSH_SEEN=1; if [ "$known" = 1 ]; then GC_PUSH="$GC_PUSH$val"$'\n'; else GC_PUSH_UNKNOWN=1; fi ;;
+    push.default) GC_PUSHDEFAULT=1 ;;
+    alias.*) if [ "$known" = 1 ]; then GC_ALIAS="$GC_ALIAS$val"$'\n'; else GC_ALIAS_UNKNOWN=1; fi ;;
+  esac
+  nocase_off
+}
+
+check_verb_noverify() { # check_verb_noverify <verb>: --no-verify on merge, rebase, am, cherry-pick, revert and pull (N71) # skilliton-audit: allow verification-off the guard's own rule for the flag it blocks
+  [ "$CFG_NV" = true ] || return 0
+  local j=0 n=${#ARGS[@]} w nv=0
+  while [ "$j" -lt "$n" ]; do
+    w=${ARGS[$j]}; j=$((j + 1))
+    case "$w" in
+      --) break ;;
+      --verify) nv=0 ;;
+      --*) is_abbrev "$w" --no-verify && nv=1 ;; # skilliton-audit: allow verification-off the guard's own parser for the flag it blocks
+      -?*) [ "$1" = am ] && { short_cluster "$w" CpS ""; has_letter n && nv=1; } ;;   # only for am is -n the same flag
+    esac
+  done
+  [ "$nv" = 1 ] || return 0
+  deny "Blocked: --no-verify on git $1 skips this project's safety checks (the git hooks that run while it works). Run it without --no-verify, and if a check fails, fix what it reports instead of skipping it." # skilliton-audit: allow verification-off the refusal message naming the flag it just blocked
+}
+
+check_alias_body() { # check_alias_body <body>: -c alias.<name>=<body> on this command (N71). The body is read as the
+  # command it runs: "push -f origin main" as git push -f origin main, "!..." as a shell command line.
+  local body=$1 text d a verbs=0
+  case "$body" in '!'*) text=${body#!} ;; *) text="git $body" ;; esac
+  case "$body" in *push*|*commit*|*reset*|*checkout*|*clean*|*'branch -D'*|*--no-verify*) verbs=1 ;; esac # skilliton-audit: allow verification-off the guard's own reader of the flag in an alias
+  analyze_text "$text"; d=$AT_DENY; a=$AT_ASK
+  if [ -n "$d" ]; then
+    deny "Blocked: this command defines a git alias for itself (-c alias...) that runs \"$body\", and guardrails read that as: $d"
+  elif [ -n "$a" ]; then
+    ask "Check first: this command defines a git alias for itself (-c alias...) that runs \"$body\", and guardrails read that as: $a"
+  elif [ "$verbs" = 1 ]; then
+    ask "Check first: this command defines a git alias for itself (-c alias...) that runs \"$body\", which pushes, commits or discards work, and guardrails cannot be sure it has read an alias the way git runs it. Run the git command directly instead, so it can be checked; confirm only if it is what you intend."
+  fi
+}
+
+ANALYZE_DEPTH=0
+analyze_text() { # analyze_text <command text>: runs the whole check on a command line of its own, from where this
+  # segment runs, and sets AT_DENY and AT_ASK to what it decided; the state of the command being checked is kept
+  local s_toks s_segw s_segr s_args
+  s_toks=(${TOKS[@]+"${TOKS[@]}"})
+  s_segw=(${SEGW[@]+"${SEGW[@]}"})
+  s_segr=(${SEGR[@]+"${SEGR[@]}"})
+  s_args=(${ARGS[@]+"${ARGS[@]}"})
+  local s_cmd=$IN_CMD s_cwd=$IN_CWD s_eff=$EFF_DIR s_redirs=$REDIRS s_gdir=$GDIR s_deny=$DENY_REASON s_ask=$ASK_REASON s_uns=$TOK_UNSURE
+  AT_DENY=""; AT_ASK=""
+  if [ "$ANALYZE_DEPTH" -ge 3 ]; then AT_ASK="Check first: aliases inside aliases are nested too deep for guardrails to follow."; return 0; fi
+  ANALYZE_DEPTH=$((ANALYZE_DEPTH + 1))
+  IN_CMD=$1; IN_CWD=$EFF_DIR; DENY_REASON=""; ASK_REASON=""; TOK_UNSURE=0
+  if tokenize; then walk_segments; else ASK_REASON="Check first: guardrails could not split it into its parts."; fi
+  [ "$TOK_UNSURE" = 0 ] || ask "Check first: guardrails could not tell where a quote in it ends."
+  AT_DENY=$DENY_REASON; AT_ASK=$ASK_REASON
+  ANALYZE_DEPTH=$((ANALYZE_DEPTH - 1))
+  TOKS=(${s_toks[@]+"${s_toks[@]}"})
+  SEGW=(${s_segw[@]+"${s_segw[@]}"})
+  SEGR=(${s_segr[@]+"${s_segr[@]}"})
+  ARGS=(${s_args[@]+"${s_args[@]}"})
+  IN_CMD=$s_cmd; IN_CWD=$s_cwd; EFF_DIR=$s_eff; REDIRS=$s_redirs; GDIR=$s_gdir; DENY_REASON=$s_deny; ASK_REASON=$s_ask; TOK_UNSURE=$s_uns
 }
 
 # ---------------------------------------------------------------- helpers for the rules
@@ -985,10 +1120,11 @@ short_cluster() { # short_cluster <-abc> <letters that take a value> <letters wh
 }
 has_letter() { case "$SC_LETTERS" in *"$1"*) return 0 ;; esac; return 1; }
 
-long_opt() { # long_opt <word> <full option> <shortest abbreviation git accepts>
+is_abbrev() { # is_abbrev <word> <full long option>: 0 when the word, before any =, is the option or a start of it that git
+  # would take as that option. Git takes any unambiguous start (measured on 2.51: --mir is --mirror, --force-w is
+  # --force-with-lease); a start that could be more than one option is refused by git, and is read here as each of them.
   local w=${1%%=*}
-  [ "$w" = "$2" ] && return 0
-  [ "${#w}" -ge "${#3}" ] || return 1
+  case "$w" in --?*) ;; *) return 1 ;; esac
   case "$2" in "$w"*) return 0 ;; esac
   return 1
 }
@@ -1189,37 +1325,47 @@ EOF
 # ---------------------------------------------------------------- deny rules
 
 check_push() {
-  local n=${#ARGS[@]} j=0 w force=0 delete=0 mirror=0 all=0 noverify=0 endopts=0 remote_seen=0 refs="" r plus del dst branches b target first
+  local n=${#ARGS[@]} j=0 w plain=0 lease=0 incl=0 force=0 delete=0 mirror=0 all=0 noverify=0 endopts=0 remote_seen=0 refs="" r plus del dst branches b target first
+  local vars="" matching=0 fromcfg=0
   while [ "$j" -lt "$n" ]; do
     w=${ARGS[$j]}; j=$((j + 1))
     if [ "$endopts" = 0 ]; then
       case "$w" in
         --) endopts=1; continue ;;
-        --force) force=1; continue ;;
-        --no-force) force=0; continue ;;
-        --mirror) mirror=1; continue ;;
+        --force) plain=1; continue ;;
+        # --no-force takes back --force only: an earlier --force-with-lease or --force-if-includes still forces (N71;
+        # measured on git 2.51: --force-with-lease --no-force HEAD:main force-updates main)
+        --no-force) plain=0; continue ;;
+        --no-force-with-lease) lease=0; continue ;;
+        --no-force-if-includes) incl=0; continue ;;
         --no-mirror) mirror=0; continue ;;
-        --delete) delete=1; continue ;;
-        --all|--branches) all=1; continue ;;
-        --no-verify) noverify=1; continue ;; # skilliton-audit: allow verification-off the guard's own parser for the flag it blocks
+        --no-delete) delete=0; continue ;;
+        --no-all|--no-branches) all=0; continue ;;
         --verify) noverify=0; continue ;;
         --repo|--receive-pack|--exec|--push-option|--recurse-submodules) j=$((j + 1)); continue ;;
         --*)
-          if long_opt "$w" --force-with-lease --force-w; then force=1
-          elif long_opt "$w" --delete --de; then delete=1
-          elif long_opt "$w" --no-verify --no-veri; then noverify=1 # skilliton-audit: allow verification-off the guard's own parser for the abbreviated form of the flag it blocks
-          fi
+          # git takes any unambiguous start of a long option as that option; a start that could be a dangerous one is
+          # read as it, and as every dangerous one it could be (N71)
+          is_abbrev "$w" --force && plain=1
+          is_abbrev "$w" --force-with-lease && lease=1
+          is_abbrev "$w" --force-if-includes && incl=1
+          is_abbrev "$w" --mirror && mirror=1
+          is_abbrev "$w" --delete && delete=1
+          { is_abbrev "$w" --all || is_abbrev "$w" --branches; } && all=1
+          is_abbrev "$w" --no-verify && noverify=1 # skilliton-audit: allow verification-off the guard's own parser for the abbreviated form of the flag it blocks
           continue ;;
         -?*)
           short_cluster "$w" o ""
-          has_letter f && force=1
+          has_letter f && plain=1
           has_letter d && delete=1
           [ "$SC_NEXT" = 1 ] && j=$((j + 1))
           continue ;;
       esac
     fi
+    case "$w" in *'$'*|*'`'*) vars="$vars${vars:+, }$w" ;; esac
     if [ "$remote_seen" = 0 ]; then remote_seen=1; else refs="$refs$w"$'\n'; fi
   done
+  { [ "$plain" = 1 ] || [ "$lease" = 1 ] || [ "$incl" = 1 ]; } && force=1
 
   if [ "$noverify" = 1 ] && [ "$CFG_NV" = true ]; then
     deny "Blocked: --no-verify skips this project's safety checks (the git hooks that run before a push). Push without --no-verify, and if a check fails, fix what it reports instead of skipping it." # skilliton-audit: allow verification-off the refusal message naming the flag it just blocked
@@ -1234,16 +1380,36 @@ check_push() {
     return 0
   fi
 
+  # an unresolved variable where the remote or a branch goes: which branch a force-push or a delete reaches cannot be
+  # known here, the same rule as for a command substitution (N71)
+  if [ -n "$vars" ]; then
+    if [ "$force" = 1 ] || [ "$delete" = 1 ] || case "$refs" in +*|*$'\n'+*|:*|*$'\n':*) true ;; *) false ;; esac; then
+      ask "Check first: this push names $vars, which guardrails cannot resolve (a variable or a command substitution), so it cannot tell which branch it would overwrite or delete. Run git branch --show-current and write the branch out by name; confirm only if it is not a shared branch such as main."
+    fi
+  fi
+
+  # remote.<name>.push set for this command decides what a push with no refspec updates (N71)
+  if [ "$GC_PUSH_SEEN" = 1 ]; then
+    ask "Check first: this push sets remote.<name>.push for itself (with -c or GIT_CONFIG_...), which changes which branches it updates and whether it forces them. Push the branch by name instead; confirm only if no shared branch such as main is overwritten."
+    [ -n "$refs" ] || { refs=$GC_PUSH; fromcfg=1; }
+  fi
+  if [ "$GC_PUSHDEFAULT" = 1 ] && [ "$force" = 1 ]; then
+    ask "Check first: this force-push sets push.default for itself, which changes which branch a push with no branch named updates, so guardrails cannot tell which one it would overwrite. Push the branch by name; confirm only if it is not a shared branch such as main."
+  fi
+
   # named refspecs: [+]src:dst or [+]name; a leading + forces that one refspec. A delete (--delete, -d, or a refspec
   # with an empty source such as :main) takes the branch off the remote, which loses as much as a force-push does.
   while IFS= read -r r; do
     [ -n "$r" ] || continue
+    case "$r" in *'$'*|*'`'*) continue ;; esac   # asked about above
     plus=0; del=$delete
     case "$r" in +*) plus=1; r=${r#+} ;; esac
+    # ":" alone (or "+:") is the matching refspec: every branch that exists on both sides
+    if [ "$r" = ":" ]; then { [ "$force" = 1 ] || [ "$plus" = 1 ]; } && matching=1; continue; fi
     case "$r" in :*) del=1 ;; esac
     [ "$force" = 1 ] || [ "$plus" = 1 ] || [ "$del" = 1 ] || continue
     case "$r" in *:*) dst=${r##*:} ;; *) dst=$r ;; esac
-    [ -n "$dst" ] || continue
+    [ -n "$dst" ] || dst=HEAD   # a refspec with no branch (+HEAD:, from remote.<name>.push) pushes the current one
     # git reads heads/main on the remote side as refs/heads/main (measured 2026-09-22: a real remote's main was
     # force-updated by HEAD:heads/main), so both prefixes come off before the name is compared.
     dst=${dst#refs/}
@@ -1268,6 +1434,8 @@ check_push() {
     if is_protected "$dst"; then
       if [ "$del" = 1 ]; then
         deny "Blocked: this would delete the shared $dst branch on the remote and could erase other people's work. Delete only branches of your own; if $dst really has to go, the person who looks after it removes it."
+      elif [ "$fromcfg" = 1 ]; then
+        deny "Blocked: remote.<name>.push, set for this command, makes this push force-update the shared $dst branch and could erase other people's work. Push your branch by name without --force and open a pull request instead."
       else
         deny "Blocked: this would force-push over the shared $dst branch and could erase other people's work. Push your branch without --force and open a pull request instead."
       fi
@@ -1276,6 +1444,7 @@ check_push() {
   done <<EOF
 $refs
 EOF
+  if [ "$matching" = 1 ]; then all=1; force=1; fi
   [ "$force" = 1 ] || return 0
 
   if [ "$all" = 1 ]; then
@@ -1285,7 +1454,7 @@ EOF
     fi
     while IFS= read -r b; do
       if is_protected "$b"; then
-        deny "Blocked: git push --all with --force would force-push every branch, including the shared $b branch, and could erase other people's work. Push your own branch by name without --force and open a pull request instead."
+        deny "Blocked: git push --all with --force (or the matching refspec \":\" forced) would force-push every branch, including the shared $b branch, and could erase other people's work. Push your own branch by name without --force and open a pull request instead."
         return 0
       fi
     done <<EOF
@@ -1296,6 +1465,7 @@ EOF
 
   # no branch named: git pushes the current branch
   [ -z "$refs" ] || return 0
+  [ -z "$vars" ] || return 0   # a variable in the remote's place may carry a branch too; asked about above
   if ! current_branch; then
     ask "Check first: guardrails could not tell which branch this force-push would overwrite. Run git branch --show-current to see where you are, and confirm only if it is not a shared branch such as main."
     return 0
@@ -1325,7 +1495,7 @@ check_commit() {
         --verify) noverify=0; continue ;;
         --all) all=1; continue ;;
         --message|--file|--reuse-message|--reedit-message|--template|--author|--date|--cleanup|--trailer|--fixup|--squash|--pathspec-from-file) j=$((j + 1)); continue ;;
-        --*) if long_opt "$w" --no-verify --no-veri; then noverify=1; fi; continue ;; # skilliton-audit: allow verification-off the guard's own parser for the abbreviated form of the flag it blocks
+        --*) if is_abbrev "$w" --no-verify; then noverify=1; fi; continue ;; # skilliton-audit: allow verification-off the guard's own parser for the abbreviated form of the flag it blocks
         -?*)
           short_cluster "$w" mFcCt Su
           has_letter n && noverify=1
@@ -1462,7 +1632,7 @@ check_reset() {
   while [ "$j" -lt "$n" ]; do
     case "${ARGS[$j]}" in
       --) return 0 ;;
-      --hard)
+      --h|--ha|--har|--hard|--hard=*)
         ask "Check first: git reset --hard throws away every change that has not been committed, and it cannot be undone. To keep that work, commit it or run git stash first; confirm only if losing it is intended."
         return 0 ;;
     esac
@@ -1477,6 +1647,7 @@ check_clean() {
     case "$w" in
       --) break ;;
       --force) force=1 ;;
+      --f|--fo|--for|--forc) force=1 ;;   # a start of --force is --force to git (N71)
       --dry-run) dry=1 ;;
       --exclude) j=$((j + 1)) ;;
       --*) ;;
@@ -1558,6 +1729,7 @@ check_branch() {
       --delete) del=1 ;;
       --force) force=1 ;;
       --set-upstream-to|--format|--sort) j=$((j + 1)) ;;
+      --*) is_abbrev "$w" --delete && del=1; is_abbrev "$w" --force && force=1 ;;   # a start of either is that option to git (N71)
       --*) ;;
       -?*)
         short_cluster "$w" u ""
@@ -1651,13 +1823,50 @@ deny_removal() { # deny_removal <what>
 }
 
 check_remove() { # check_remove <index of the first argument>: rm and rmdir, every path after the flags
-  [ "$CFG_PR" = true ] || return 0
-  local k=$1 n=${#SEGW[@]} w opts=1
+  local k=$1 n=${#SEGW[@]} w opts=1 rec=0 frc=0 vars=""
   while [ "$k" -lt "$n" ]; do
     w=${SEGW[$k]}; k=$((k + 1))
-    if [ "$opts" = 1 ]; then case "$w" in --) opts=0; continue ;; -*) continue ;; esac; fi
+    if [ "$opts" = 1 ]; then
+      case "$w" in
+        --) opts=0; continue ;;
+        --recursive) rec=1; continue ;;
+        --force) frc=1; continue ;;
+        --*) continue ;;
+        -?*) case "$w" in *[rR]*) rec=1 ;; esac; case "$w" in *f*) frc=1 ;; esac; continue ;;
+      esac
+    fi
+    hooks_target "$w" "$EFF_DIR" && deny_hooks
+    [ "$CFG_PR" = true ] || continue
     protected_target "$w" "$EFF_DIR"
     if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT"; return 0; fi
+    expand_known "$w"; case "$EXPANDED" in *'$'*|*'`'*) vars="$vars${vars:+, }$w" ;; esac
+  done
+  # rm -rf of a path that holds a variable guardrails cannot resolve: what it removes cannot be known here (N71)
+  if [ -n "$vars" ] && [ "$rec" = 1 ] && [ "$frc" = 1 ] && [ "$CFG_PR" = true ]; then
+    ask "Check first: this rm -rf removes $vars, which holds a variable or a command substitution guardrails cannot resolve, so it cannot tell what would be deleted. Write the path out, or run echo on it first to see it; confirm only if it is not the project's records or anything else that is wanted."
+  fi
+  return 0
+}
+
+hooks_target() { # hooks_target <word> <base>: 0 when the word is the .git/hooks folder or a file in it (N71)
+  case "$1" in *.git/hooks|*.git/hooks/*) return 0 ;; esac
+  resolve_dir "$2" "$1"; [ -n "$RESOLVED" ] || return 1
+  normalize_path "$RESOLVED"
+  case "$NORM" in */.git/hooks|*/.git/hooks/*) return 0 ;; esac
+  return 1
+}
+
+deny_hooks() {
+  [ "$CFG_NV" = true ] || return 0
+  deny "Blocked: this removes, moves, empties or changes the permissions of the git hooks in .git/hooks, the checks git runs before a commit or a push, which skips them the way --no-verify does. Leave the hooks in place; if one fails, fix what it reports, and if a hook really has to change, the person who looks after the project changes it." # skilliton-audit: allow verification-off the refusal message naming the flag it compares the change with
+}
+
+check_hooks_words() { # check_hooks_words <index of the first argument>: mv, chmod and truncate aimed at .git/hooks (N71)
+  local k=$1 n=${#SEGW[@]} w
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}; k=$((k + 1))
+    case "$w" in -*) continue ;; esac
+    if hooks_target "$w" "$EFF_DIR"; then deny_hooks; return 0; fi
   done
   return 0
 }

@@ -574,7 +574,7 @@ expect "rm .skilliton-old (only starts like the folder)" allow "$RCFG" 'rm -rf .
 expect "rm -rf . from a subfolder (nothing of Skilliton's below it)" allow "$RCFG/sub" 'rm -rf .' CLAUDE_PROJECT_DIR="$RCFG"
 expect "mv src/a.js src/b.js"                       allow "$RCFG" 'mv src/a.js src/b.js'
 expect "mv a new entry INTO the tasks folder"       allow "$RCFG" 'mv new.md docs/tasks/'
-expect "a variable path that cannot be resolved"    allow "$RCFG" 'rm -rf "$TMP/x"'
+expect "rm -rf of a variable path asks (N71; allow before)" ask "$RCFG" 'rm -rf "$TMP/x"'
 expect "the word rm in text"                        allow "$RCFG" 'echo rm docs'
 expect "git rm of ordinary source"                  allow "$RCFG" 'git rm src/old.js'
 expect "in a repository with no configuration, the records are not records" allow "$R" 'rm -rf docs'
