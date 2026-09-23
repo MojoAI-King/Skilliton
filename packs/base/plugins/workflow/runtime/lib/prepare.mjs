@@ -210,7 +210,7 @@ function acquireLock(root, command, created) {
   let fd;
   try { fd = openSync(info.abs, "wx", 0o600); } catch (e) {
     removeCreatedFolders(created);
-    if (e.code === "EEXIST") refuse(`${LOCK_REL} exists, so another prepare, migrate, remove, record or index run may be writing this project. Nothing was written. If no other run is active (for example after a crash), delete ${LOCK_REL} and run again`);
+    if (e.code === "EEXIST") refuse(`${LOCK_REL} exists, so another prepare, migrate, remove, record or index run may be writing this project. Nothing was written. Recover: read ${LOCK_REL} for the process id it names, confirm that process is gone (a crash leaves it in the lock but not running), then delete ${LOCK_REL} and run again`);
     throw new OperationFailed(`the lock file ${LOCK_REL} could not be created (${e.code ?? "error"}); nothing was written`);
   }
   try { writeFileSync(fd, `skilliton ${command}, process ${process.pid}, started ${new Date().toISOString()}\n`); } catch { /* the lock holds by existing */ }
