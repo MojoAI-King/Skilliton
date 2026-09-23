@@ -819,7 +819,7 @@ test("a check that cannot start or that times out rejects the push, and a timed-
 
     // A check that never finishes, with a child process holding its output open.
     writeFiles(t, { "tools/finish.mjs": hangs });
-    commit(sb, t, "A check that never finishes");
+    commit(sb, t, "A check that never finishes, approved (the gate protects the files a check runs)", { sign: s.approver });
     const hung = push(sb, t, "origin", "main");
     assert.notEqual(hung.code, 0, hung.all);
     assert.match(hung.all, /skilliton delivery: check "runs" passed/);

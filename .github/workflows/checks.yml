@@ -234,6 +234,9 @@ jobs:
       - name: The delivery gate cannot be switched off or rewritten by what a push carries
         run: node --test scripts/delivery-integrity.test.mjs
 
+      - name: The delivery gate protects the program that runs its checks
+        run: node --test scripts/delivery-protect.test.mjs
+
       - name: The self-running audit (six rules, planted flaws, the pre-push hook)
         run: node scripts/audit.test.mjs
 

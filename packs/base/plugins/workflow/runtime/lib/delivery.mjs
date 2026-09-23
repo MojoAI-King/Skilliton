@@ -34,6 +34,7 @@ import { readWorking } from "./audit-run.mjs";
 import { LEGACY_POLICY_FILE } from "./legacy-names.mjs";
 import { checkRemovals } from "./delivery-persist.mjs";
 import { gateChanges, gateFingerprint } from "./delivery-integrity.mjs";
+import { blobAt, changedPaths, checkProtectedPaths } from "./delivery-protect.mjs";
 import {
   CURRENT_FORMAT, LEGACY_FORMAT, POLICY_FILE, matchPolicyPath, parsePolicyText, readApproversFile, validBranchName,
 } from "./delivery-policy.mjs";
@@ -186,19 +187,7 @@ function commitsBetween(git, oldId, newId) {
   return git(["rev-list", "--reverse", "--topo-order", "--parents", `${oldId}..${newId}`]).stdout
     .split("\n").filter(Boolean).map((line) => { const [id, parent = null] = line.split(" "); return { id, parent }; });
 }
-
-// The blob id at commit:path, or null when the path is absent there.
-function blobAt(git, commit, path) {
-  const r = git(["rev-parse", "--verify", "-q", `${commit}:${path}`], { allowExit: "any" });
-  return r.status === 0 ? r.stdout.trim() : null;
-}
-
-function changedPaths(git, id, parent) {
-  const args = parent
-    ? ["diff-tree", "-r", "-z", "--no-commit-id", "--name-only", "--no-renames", parent, id]
-    : ["diff-tree", "-r", "-z", "--root", "--no-commit-id", "--name-only", "--no-renames", id];
-  return git(args).stdout.split("\0").filter(Boolean);
-}
+// blobAt and changedPaths live in lib/delivery-protect.mjs.
 
 // ---------- materializing a commit ----------
 
@@ -377,8 +366,12 @@ async function evaluateUpdate(ctx, update) {
     // Both policy files are always guarded, whichever one governs the branch, so a commit cannot add a weaker policy
     // under the other name without an approver's signature.
     const guarded = [...policy.policyPaths, POLICY_FILE, LEGACY_POLICY_FILE];
-    const approved = [];
+    // The program the checks run is held first, before anything else is read or run (lib/delivery-protect.mjs).
     const pushed = commitsBetween(git, oldId, newId);
+    const held = checkProtectedPaths({ git, oldId, newId, policy, commits: pushed, guarded, signatureStatus: (id) => signatureStatus(ctx, id) });
+    if (held.reason) return reject(held.reason);
+    notChecked.push(...held.notChecked);
+    const approved = [];
     for (const { id, parent } of pushed) {
       const touched = changedPaths(git, id, parent).filter((path) => matchPolicyPath(path, guarded));
       if (!touched.length) continue;

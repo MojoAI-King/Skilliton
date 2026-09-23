@@ -17,7 +17,7 @@ export const DRAFT_FILE = ".skilliton/delivery.draft.json";
 export const POLICY_SCHEMA = "skilliton.delivery/1";
 export const DEFAULT_TIMEOUT_SECONDS = 600;
 const MAX_TIMEOUT_SECONDS = 86400;
-const POLICY_KEYS = ["schema", "protectedBranches", "checks", "policyPaths", "audit"];
+const POLICY_KEYS = ["schema", "protectedBranches", "checks", "policyPaths", "protectedPaths", "audit"];
 const AUDIT_KEYS = ["enabled"];
 const CHECK_KEYS = ["name", "command", "timeoutSeconds"];
 const CHECK_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 ._:+/-]{0,63}$/;
@@ -117,6 +117,17 @@ function policyProblems(value, { file = POLICY_FILE, schema = POLICY_SCHEMA } = 
       problems.push(`"policyPaths" must cover ${file} itself; otherwise a change to the policy would need no approval`);
     }
   }
+
+  // Optional (lib/delivery-protect.mjs): the paths whose change needs an approver's signed commit because the checks
+  // run them. Absent, the gate protects every file a check command names plus .github/workflows/.
+  if (value.protectedPaths !== undefined) {
+    if (!Array.isArray(value.protectedPaths)) problems.push(`"protectedPaths" must be an array of repository paths (a trailing "/" means a folder; a file is matched exactly)`);
+    else {
+      value.protectedPaths.forEach((entry, i) => {
+        if (!validPolicyPath(entry)) problems.push(`"protectedPaths"[${i}] ${JSON.stringify(entry)} is not a repository-relative path`);
+      });
+    }
+  }
   return problems;
 }
 
@@ -133,6 +144,7 @@ export function parsePolicyText(text, format = CURRENT_FORMAT) {
       protectedBranches: [...value.protectedBranches],
       checks: value.checks.map((c) => ({ name: c.name, command: [...c.command], timeoutSeconds: c.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS })),
       policyPaths: [...value.policyPaths],
+      ...(value.protectedPaths !== undefined ? { protectedPaths: [...value.protectedPaths] } : {}),
       audit: { enabled: value.audit?.enabled ?? true },
     },
   };
@@ -159,6 +171,7 @@ export function describePolicy(policy) {
   const lines = [`protected branches: ${policy.protectedBranches.join(", ")}`];
   for (const c of policy.checks) lines.push(`check "${c.name}": ${c.command.join(" ")} (timeout ${c.timeoutSeconds}s)`);
   lines.push(`policy paths (a change needs an approver signature once the gate is installed): ${policy.policyPaths.join(", ")}`);
+  lines.push(`protected paths (a change needs an approver's signed commit): ${policy.protectedPaths ? (policy.protectedPaths.join(", ") || "none") : "every file a check command names, and .github/workflows/"}`);
   lines.push(`audit: ${policy.audit.enabled ? "a finding in a file the push changed rejects the push" : "off; the gate does not read the changed files"}`);
   return lines;
 }
