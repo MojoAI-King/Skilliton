@@ -74,7 +74,7 @@ jobs:
           printf '{"session_id":"win1","source":"startup","cwd":"%s","hook_event_name":"SessionStart"}' "$PWD" | CLAUDE_PLUGIN_ROOT="$P" bash "$P/hooks/session-start-handoff.sh"; echo "handoff hook exit $?"
           printf '{"session_id":"win1","source":"startup","cwd":"%s","hook_event_name":"SessionStart"}' "$PWD" | CLAUDE_PLUGIN_ROOT="$P" "$P/bin/skilliton" hook session-start | head -12; echo "session-start hook exit ${PIPESTATUS[1]}"
           G="$K/packs/base/plugins/guardrails"
-          for c in "git status" "git commit --no-verify -m test" "git push --force origin main" "git checkout -- ."; do
+          for c in "git status" "git commit --no-verify -m test" "git push --force origin main" "git checkout -- ."; do # skilliton-audit: allow verification-off a test case that sends the flag to the guard
             printf '{"session_id":"win1","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"%s"}}' "$PWD" "$c" | CLAUDE_PLUGIN_ROOT="$G" bash "$G/hooks/guard-bash.sh" > out.json; echo "guard [$c] exit $? output: $(head -c 300 out.json)"
           done
       - name: A delivery check started by a bare program name

@@ -43,6 +43,7 @@ Every document says its Kind near the top. **Living** is kept current and is saf
 | The report card: 123 acceptance items in ten areas, one batch file each, bars generated from the ticks | [REPORT_CARD.md](REPORT_CARD.md) and [areas/](areas/); what only the owner can do is collected in [OWNER_WALKTHROUGH.md](OWNER_WALKTHROUGH.md) |
 | Tonight's owner tests before the 2026-09-23 meeting: each with the command, what you should see and the minutes it takes | [OWNER_TESTS.md](OWNER_TESTS.md), with the longer list in [OWNER_WALKTHROUGH.md](OWNER_WALKTHROUGH.md) |
 | The proposed answers to this repository's fifteen security applicability decisions, with the reason for each and the commands that record them once the owner accepts | [SECURITY_PROPOSAL.md](SECURITY_PROPOSAL.md) |
+| The proposed protocol for the measured comparison (tasks, the two setups, runs, measure and ceiling), agreed by the owner before any run | [COMPARISON_PROTOCOL.md](COMPARISON_PROTOCOL.md) |
 | One task record per piece of work, with acceptance criteria and checkpoints | [tasks/](tasks/) |
 | What was built, measured and then not shipped, with the scores | [not-shipped.md](not-shipped.md) |
 | Superseded documents (Reference): the goal instructions the build ran under, its integration steps, the first-day prompt, the three unshipped skills' text, and the prototype's own plan and handoff | [archive/](archive/) |

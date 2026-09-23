@@ -1,6 +1,6 @@
 # Installing Skilliton
 
-Kind: Living. Written for two readers: a person installing Skilliton, and an AI coding agent a person has asked to install it. Every command below was run on 2026-09-22 on macOS with Claude Code 2.1.278 unless a step says otherwise.
+Kind: Living. Written for two readers: a person installing Skilliton, and an AI coding agent a person has asked to install it. Every command below was run on 2026-09-22 on macOS with Claude Code 2.1.278, by a rehearsal that installed from GitHub into an empty configuration; the steps that need a signed-in session were measured in the owner's own sessions.
 
 ## What you need
 
@@ -34,7 +34,7 @@ node scripts/checks.mjs
 
 ## 2. Try it in your own Claude Code
 
-**Install the four plugins** from this repository's marketplace. Each command prints `Successfully installed`:
+**Install the four plugins** from this repository's marketplace. The first command prints `Successfully added marketplace`, and each install prints `Successfully installed plugin`:
 
 ```bash
 claude plugin marketplace add MojoAI-King/Skilliton
@@ -60,7 +60,7 @@ claude plugin install code-quality@skilliton
 | Before code changes | The assistant writes a task record with acceptance criteria | asked of the assistant |
 | Every shell command | Force-pushes to protected branches, `--no-verify`, secret-shaped commits and deleting Skilliton's records are blocked; commands that throw away uncommitted work ask you first | enforced by a hook |
 | A whole-file read over 50 KB | Refused, with how to read a range instead | enforced by a hook |
-| Finishing with changes and no recent checkpoint | The stop is held once and the assistant is asked to record where the work stands | enforced by a hook |
+| Finishing with uncommitted changes, no checkpoint, and at least 20 minutes since the session started or the last checkpoint (`checkpoints.minMinutes` in `.skilliton/config.json`) | The stop is held once and the assistant is asked to record where the work stands | enforced by a hook |
 | Six or more separate items in one message | The assistant is told to split them into lanes with `/workflow:dispatch` first | enforced note, the assistant does the work |
 | Before a commit | `/workflow:review` summarizes what changed, what could break and what was tested | asked of the assistant |
 
@@ -68,7 +68,17 @@ Type `/` to see the skills: `workflow:task`, `workflow:review`, `workflow:handof
 
 **This path follows the repository's main branch.** Nothing checks the installed files against a signed release; path 3 does.
 
-**To take it out again:** in each prepared repository, ask the assistant to run `skilliton remove` (a preview), and run `skilliton remove --apply` yourself: it takes out the managed block and the settings and keeps every record. Then `claude plugin uninstall <plugin>@skilliton` for each plugin. An empty `.skilliton-off` file at a repository's root keeps Skilliton out of that one repository.
+**To take it out again:** in each prepared repository, ask the assistant to run `skilliton remove` (a preview), then `skilliton remove --apply`. It takes out the managed block from CLAUDE.md and AGENTS.md (delete either file if nothing else was in it) and keeps every record and `.skilliton/config.json` (add `--config` to delete that too). Then remove the plugins and the marketplace:
+
+```bash
+claude plugin uninstall workflow@skilliton
+claude plugin uninstall guardrails@skilliton
+claude plugin uninstall context-hygiene@skilliton
+claude plugin uninstall code-quality@skilliton
+claude plugin marketplace remove skilliton
+```
+
+**Two lines you may see that are not errors.** `[context-hygiene] SKILLITON_LESSONS not set or file missing; injecting nothing.` means the optional personal checklist is not set up; it is reported rather than hidden. `skilliton doctor` on this path marks the base plugin check UNVERIFIED and exits 1, because it compares against a company skills repository that path 2 does not have; the other lines are what to read.
 
 ## 3. Roll it out to a team
 
@@ -80,7 +90,7 @@ node ~/company-skills/scripts/skilliton.mjs join --from <join file>           # 
 node ~/company-skills/scripts/skilliton.mjs join --from <join file> --apply   # install, pin, verify
 ```
 
-The join file carries the company name, the skills repository's address and the approvers' public signing keys, and no secret. It comes from the company, never from the repository, so that whoever can change the repository cannot also change who is trusted. After a join, every repository a session opens on that machine is prepared at its first session start, and `skilliton verify` checks the installed files against the signed release.
+The join file carries the company name, the skills repository's address and the approvers' public signing keys, and no secret. It comes from the company, never from the repository, so that whoever can change the repository cannot also change who is trusted. After a join, every repository a session opens on that machine is prepared at its first session start, and `skilliton verify` checks the installed files against the signed release. An empty `.skilliton-off` file at a repository's root keeps that one repository from being prepared automatically. The company side of this path, including `skilliton company join-file`, which writes the join file, is in [docs/RELEASING.md](docs/RELEASING.md).
 
 ## If you are an AI agent installing this for someone
 
@@ -92,7 +102,8 @@ Follow path 2 unless the person names a company join file, in which case follow 
 4. **Plugins load at the next session start.** After installing, tell the person to start a new session (or run `/reload-plugins`), because this one does not have them.
 5. **Preview before writing.** Every `skilliton` command that writes shows its change first and writes only with `--apply`. Show the preview, and add `--apply` only after the person agrees. Nothing is prepared without a yes.
 6. **Leave the new files uncommitted** for the person to read, unless they ask you to commit them.
-7. **Verify** in the new session: the first reply should mention a "Project state" block, and `which skilliton` in the Bash tool should resolve to a path under the plugin cache. If either is absent, report it as not working and point to [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+7. **Verification happens in the new session, which is a different conversation from yours.** Tell the person to start it and type: `hello, then run which skilliton`. The first reply should mention a "Project state" block, and `which skilliton` should print a path under the plugin cache (`.../plugins/cache/skilliton/workflow/<version>/bin/skilliton`), after `~/.local/bin` if the machine has joined. If either is missing, report it as not working and point to [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md). Do not treat `skilliton doctor` exiting 1 on path 2 as a failed install (see "Two lines you may see" above).
+8. **The stop reminder waits 20 minutes** by default, so trying it right after install shows nothing. That is the setting, not a fault.
 
 A person can hand this whole job to their agent with one message:
 

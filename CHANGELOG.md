@@ -4,7 +4,11 @@ Kind: Living. One entry per signed release, from its manifest under `releases/`,
 
 ## Unreleased (main since 1.0.0)
 
-Nothing yet.
+- **Security (workflow 0.22.0):** the shared-branch gate can no longer be switched off with a replace ref: every git call it makes sets `GIT_NO_REPLACE_OBJECTS=1`, and updates to `refs/replace/` are rejected. A push whose checks rewrite the gate's hook, approvers file or `skilliton.*` settings is rejected. Only SSH signatures count, with the other verifiers pinned off. `join` no longer prints a credential typed into a URL. Found by an adversarial review on 2026-09-22; each fix has a test that failed before it.
+- **The stop hook (workflow 0.22.0):** a clean working tree is never held for a checkpoint; before this, committing the checkpoint's own records triggered a reminder on a clean tree.
+- **The release skill (workflow 0.22.0):** the checks run again on the manifest commit before `release sign` (B64).
+- **The meter** prices `claude-opus-5-5` from the published pricing page (B63), and `scripts/token-direction.mjs` tables requests, context, compactions, read-guard refusals and gate runs per day.
+- **INSTALL.md** for a person or an agent, a README front door, `docs/ARCHITECTURE.md`, and `scripts/checks.mjs` running inside a linked worktree.
 
 ## 1.0.0, 2026-09-22
 

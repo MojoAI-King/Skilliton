@@ -107,7 +107,7 @@ It does not prove:
 - that the checks are good tests, or that anything they do not test works;
 - who pushed, or that the person holding an approver key reviewed the change (a signature proves possession of the key);
 - anything about refs that are not protected, or about ref changes made on the server without a push (for example `git update-ref` run directly in the bare repository, or another tool writing to it), which do not run hooks;
-- isolation: the checks run the pushed code on the server with the permissions of the account that runs the hook. Use an account and machine you are willing to let that code run on.
+- isolation: the checks run the pushed code under the same account as the gate, with nothing isolating them from it, so a check can write anything that account can write, including this repository's pre-receive hook, its approvers file, its git configuration and the Skilliton runtime the hook starts. Since workflow 0.22.0 the gate compares its hook, its approvers file and its `skilliton.*` and `core.hooksPath` settings before and after the checks and rejects a push that changed any of them. It does not undo the change, does not see a change put back before the checks end, and does not watch the runtime's files. **Run the gate under an account that cannot write its own hook, its approvers file or the runtime**, on a machine you are willing to let pushed code run on.
 
 ### Known limits
 

@@ -107,6 +107,10 @@ jobs:
 
       - name: Usage meter (the reference part reports NOT RUN here; the transcripts are on one machine)
         run: node scripts/token-cost.test.mjs --reference
+      - name: Usage meter prices every model the transcripts name
+        run: node --test scripts/token-cost-models.test.mjs
+      - name: Token direction-of-travel counts (gate runs, read-guard refusals, compactions)
+        run: node --test scripts/token-direction.test.mjs
       - name: Read guard hook (context-hygiene)
         run: node --test scripts/read-guard.test.mjs
       - name: Gate command (checks as a verdict, output in a log)

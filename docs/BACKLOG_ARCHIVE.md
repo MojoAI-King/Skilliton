@@ -6,6 +6,8 @@ Each closed item keeps its ID, outcome, closure date and evidence.
 
 | ID | Outcome | Closed | Evidence |
 |---|---|---|---|
+| B63 | The meter prices claude-opus-5-5 from the published pricing page, retrieved 2026-09-22, with the source beside the table; a window using it is no longer marked incomplete | 2026-09-22 | lane meter N1 (44094e1), scripts/token-cost-models.test.mjs |
+| B64 | The release skill runs the full check list again on the manifest commit and reads its exit status before `release sign`, because the manifest is itself a change to the tree | 2026-09-22 | lane hooks N5 (969f2c0), packs/base/plugins/workflow/skills/release/SKILL.md step 2 |
 | B35 | The records are written as the work happens: checkpoints write the handoff and indexes (workflow 0.9.0), `skilliton maintain --apply` does the rest of the mechanical half, and the stop hook asks for maintenance once per commit after a merge or a day of commits (workflow 0.19.0), so the end-of-session pass is the judgment half only. The owner's before and after minutes stay open as batch 01-02's last item and are on docs/OWNER_TESTS.md | 2026-09-22 | workflow 0.19.0; `evidence/live/2026-09-22-maintain-automation-live.md`; batch 01-02 |
 | B39 | No formatter, by decision: the dependency-free lint and the scrub check are the shape checks | 2026-09-22 | decision 2026-09-22-this-repository-has-no-formatter-and-the-4991 |
 | B40 | The subprocess teardown stays copied in the gate and the delivery gate, by decision, with its allow-list row naming the decision | 2026-09-22 | decision 2026-09-22-the-subprocess-teardown-stays-copied-in-a0d3; `scripts/deadcode.mjs` ALLOWED_DUPLICATE |

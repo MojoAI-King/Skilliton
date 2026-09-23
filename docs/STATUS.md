@@ -39,5 +39,8 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner | Updated |
 |---|---|---|---|---|---|
-| [2026-09-22-release-1-0-0-and-the-demonstration-fix-ce38](tasks/2026-09-22-release-1-0-0-and-the-demonstration-fix-ce38.md) | Release 1.0.0 and the demonstration fix | in-progress | main | unassigned | 2026-09-22T22:12:47.128Z |
+| [2026-09-22-lane-gate-security-cb77](tasks/2026-09-22-lane-gate-security-cb77.md) | Lane gate-security | in-progress | lane/gate-security-0922 | unassigned | 2026-09-22T23:14:33.686Z |
+| [2026-09-22-lane-hooks-abd3](tasks/2026-09-22-lane-hooks-abd3.md) | Lane hooks | in-progress | lane/hooks-0922 | unassigned | 2026-09-22T22:50:50.407Z |
+| [2026-09-22-lane-meter-03dd](tasks/2026-09-22-lane-meter-03dd.md) | Lane meter | in-progress | lane/meter-0922 | unassigned | 2026-09-22T23:10:11.061Z |
+| [2026-09-22-the-home-stretch-every-area-as-high-as-e-3732](tasks/2026-09-22-the-home-stretch-every-area-as-high-as-e-3732.md) | The home stretch: every area as high as evidence allows before the cold read | in-progress | main | unassigned | 2026-09-22T22:42:54.178Z |
 <!-- skilliton:index:tasks:end -->
