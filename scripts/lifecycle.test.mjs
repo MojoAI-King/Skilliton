@@ -1805,9 +1805,8 @@ test("checkpoint --handoff on main rewrites RESUME HERE byte for byte, the task 
   assert.match(r.out, /^handoff: written to docs\/HANDOFF\.md; backups of the previous versions are under /m);
   assert.ok(task.includes("- **State:** Half done. Evidence: tests pass.\n- **Next:** Finish the form\n- **Blocked:** waiting on review\n- **Watch out:** nothing.\n"), task);
   const index = readFileSync(join(p, "docs", "STATUS.md"), "utf8");
-  const updated = /^- \*\*Updated:\*\* (.+)$/m.exec(task)[1];
   assert.ok(index.includes("<!-- skilliton:index:tasks:start -->"), index);
-  assert.ok(index.includes(`| [${id}](tasks/${id}.md) | Resume on main | in-progress | main | unassigned | ${updated} |`), `the index carries the Updated the checkpoint wrote\n${index}`);
+  assert.ok(index.includes(`| [${id}](tasks/${id}.md) | Resume on main | in-progress | main | unassigned |`), `no Updated column (index-churn.test.mjs)\n${index}`);
   assert.match(r.out, /^indexes: written docs\/STATUS\.md \(tasks index: 1 open task\(s\) of 1\)$/m);
   assert.equal(readEvents(p, env).filter((e) => e.event === "checkpoint").length, 1);
   assert.equal(readEvents(p, env)[0].fingerprint, fingerprint(p, env), "the event records the fingerprint after every write");

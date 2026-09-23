@@ -288,10 +288,10 @@ test("index regenerates the three managed sections, lists open tasks only, and n
   const lessonsSection = section("lessons", [LESSONS_INTRO, "", "| ID | Title | Status | Date |", "|---|---|---|---|", `| [${lessonId}](lessons/${lessonId}.md) | A piped gate hid a failure | accepted | ${lessonId.slice(0, 10)} |`]);
   assert.equal(read(ctx, "docs/LESSONS.md"), `# Our lessons\r\nWritten by people.\r\n\r\n${lessonsSection.replace(/\n/g, "\r\n")}`, "a record without markers gets the section appended, in its own line endings");
 
-  const tasksSection = section("tasks", [TASKS_INTRO, "", "| ID | Title | State | Branch | Owner | Updated |", "|---|---|---|---|---|---|",
-    "| [2026-09-01-open-work-aa11](tasks/2026-09-01-open-work-aa11.md) | Open work | in-progress | main | dev | 2026-09-01T10:00:00Z |",
-    "| [2026-09-02-blocked-work-bb22](tasks/2026-09-02-blocked-work-bb22.md) | Blocked work | blocked | (missing) | (missing) | (missing) |",
-    "| [2026-09-05-odd-state-ee55](tasks/2026-09-05-odd-state-ee55.md) | Odd state | someday | (missing) | (missing) | (missing) |"]);
+  const tasksSection = section("tasks", [TASKS_INTRO, "", "| ID | Title | State | Branch | Owner |", "|---|---|---|---|---|",
+    "| [2026-09-01-open-work-aa11](tasks/2026-09-01-open-work-aa11.md) | Open work | in-progress | main | dev |",
+    "| [2026-09-02-blocked-work-bb22](tasks/2026-09-02-blocked-work-bb22.md) | Blocked work | blocked | (missing) | (missing) |",
+    "| [2026-09-05-odd-state-ee55](tasks/2026-09-05-odd-state-ee55.md) | Odd state | someday | (missing) | (missing) |"]);
   const status = read(ctx, "docs/STATUS.md");
   assert.ok(status.endsWith(tasksSection), status);
   assert.doesNotMatch(status, /merged-work|dropped-work/, "closed tasks are not listed");

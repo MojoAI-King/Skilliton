@@ -162,6 +162,9 @@ jobs:
       - name: Tasks, checkpoints, status and lifecycle hooks
         run: node scripts/lifecycle.test.mjs
 
+      - name: The tasks index does not churn on a checkpoint that changes nothing the table shows
+        run: node --test scripts/index-churn.test.mjs
+
       - name: When maintenance is due (the handoff behind, a merge, a day)
         run: node --test scripts/maintain-due.test.mjs
 

@@ -62,6 +62,11 @@ const cell = (value) => (value === null || value === undefined || value === "" ?
 // The managed section for one index, with "\n" line endings and a final newline. entries are already sorted by ID
 // and, for tasks, already limited to open tasks. The output depends only on its arguments, so every clone that holds
 // the same entries writes the same bytes.
+//
+// The tasks table has no Updated column: that time changes on every checkpoint even when nothing in the table itself
+// changed (added, renamed, or changed state or branch), so a column that reprints it made every checkpoint rewrite
+// this record. The task's own Updated line is unaffected; only the index dropped the column (docs/decisions/2026-09-19,
+// checked against a fixture: two checkpoints on one task, first index run, second index run, byte for byte compared).
 export function renderIndexSection(kind, { dir, recordPath, entries }) {
   const link = (id) => posix.relative(posix.dirname(recordPath), `${dir}/${id}.md`);
   const lines = [indexStartMarker(kind)];
@@ -69,8 +74,8 @@ export function renderIndexSection(kind, { dir, recordPath, entries }) {
     lines.push(`Open tasks in ${code(`${dir}/`)} (every state except ${CLOSED_TASK_STATES.slice(0, -1).join(", ")} and ${CLOSED_TASK_STATES.at(-1)}), sorted by ID. ${code("skilliton index")} writes this list from the task records; edit the task records, not the list.`, "");
     if (!entries.length) lines.push("No open tasks.");
     else {
-      lines.push("| ID | Title | State | Branch | Owner | Updated |", "|---|---|---|---|---|---|");
-      for (const e of entries) lines.push(`| [${e.id}](${link(e.id)}) | ${cell(e.title)} | ${cell(e.state)} | ${cell(e.branch)} | ${cell(e.owner)} | ${cell(e.updated)} |`);
+      lines.push("| ID | Title | State | Branch | Owner |", "|---|---|---|---|---|");
+      for (const e of entries) lines.push(`| [${e.id}](${link(e.id)}) | ${cell(e.title)} | ${cell(e.state)} | ${cell(e.branch)} | ${cell(e.owner)} |`);
     }
   } else {
     const noun = kind === "decisions" ? "decision" : "lesson";

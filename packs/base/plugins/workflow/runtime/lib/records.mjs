@@ -117,7 +117,10 @@ export function readEntries(project, kind, { overlay = null } = {}) {
       if (state === null) problems.push(`${rel} has no **State:** line, so it is listed as open`);
       else if (!TASK_STATES.includes(state)) problems.push(`${rel} has the state "${shown(state)}", which is not one of ${TASK_STATES.join(", ")}, so it is listed as open`);
       if (state !== null && CLOSED_TASK_STATES.includes(state)) continue;
-      entries.push({ id, path: rel, title, state, branch: fields.Branch ?? null, owner: fields.Owner ?? null, updated: fields.Updated ?? null });
+      // No "updated" field: the index table it feeds (renderIndexSection) dropped the Updated column, because that
+      // time changes on every checkpoint even when nothing the table shows changed, which made every checkpoint
+      // rewrite the status record. The task record itself keeps its own Updated line.
+      entries.push({ id, path: rel, title, state, branch: fields.Branch ?? null, owner: fields.Owner ?? null });
     } else {
       if (fields.Status === undefined) problems.push(`${rel} has no **Status:** line`);
       entries.push({ id, path: rel, title, status: fields.Status ?? null, date: fields.Date ?? null });
