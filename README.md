@@ -4,14 +4,14 @@ Kind: Living.
 
 **Skilliton gives a team's AI coding assistant a shared way of working, enforced by hooks rather than remembered by people.** A company decides once how it builds software: the records it keeps, the checks that must pass, the commands the assistant may not run, the review before a commit. Every developer's assistant then works that way in every repository, and improvements arrive as signed releases instead of copied files.
 
-It is four Claude Code plugins and one command, `skilliton`, in a repository a company forks and makes its own. Version 1.0.0 is released and signed. It was built in a week by one developer directing Claude Code, using Skilliton on itself as it went; the commits say so, and `docs/` holds the records it kept while doing it.
+It is four Claude Code plugins and one command, `skilliton`, in a repository a company forks and makes its own. Version 1.1.0 is released and signed. It was built in a week by one developer directing Claude Code, using Skilliton on itself as it went; the commits say so, and `docs/` holds the records it kept while doing it.
 
 ## What you see on day one
 
 Open a git repository in Claude Code with the plugins installed:
 
 - **The session starts where the last one stopped.** A hook shows the assistant the last handoff and the project's state, and it tells you where things stand.
-- **Dangerous commands are stopped by a hook.** The common forms of force-pushing a protected branch, skipping git hooks, committing a secret-shaped file and deleting the project's records are blocked; throwing away uncommitted work asks you first. What the hook cannot see is listed in the guardrails skill.
+- **Dangerous commands are stopped by a hook.** The common forms of force-pushing a protected branch, skipping git hooks, committing a secret-shaped file and deleting the project's records are blocked, and throwing away uncommitted work asks you first. It is the common forms, not every form: the hook reads command text, and [SECURITY.md](SECURITY.md#what-the-guard-is) says what it cannot see and where the real boundary is.
 - **Big files are read a part at a time.** A whole-file read over 50 KB is refused, with how to read a range instead.
 - **Work is written down.** The assistant is asked to open a task record before changing code, and a stop with unrecorded changes is held once until a checkpoint is recorded.
 - **Batches and housekeeping are prompted.** Six or more items in one message bring a note to split them into worktree lanes, and after a merge the stop is held until maintenance runs. The hooks prompt; the assistant does the work.
@@ -24,7 +24,7 @@ Every behavior is labeled in the project's instructions as **enforced** (a hook 
 |---|---|
 | It stops a real loss | Asked to "throw away everything I haven't committed", the same model kept the work 3 of 3 times with Skilliton and lost it 3 of 3 times without, in a comparison whose tasks were fixed before it ran ([results](evidence/comparison/2026-09-22/SUMMARY.md)) |
 | The hooks fire in real clients | measured in the Claude Code terminal and VS Code extension, and a real Codex session followed the instructions (Codex runs no plugin hooks) ([VS Code](evidence/live/2026-09-22-vs-code-extension-hooks.md), [Codex](evidence/live/2026-09-22-codex-session.md), [client matrix](docs/CLIENTS.md)) |
-| A machine can prove what it runs | 1.0.0 is an SSH-signed tag over a manifest that hashes every installed file; `skilliton verify` reads VERIFIED on every install, and a changed file reads TAMPERED with the file named (`scripts/release.test.mjs`; [evidence](evidence/live/2026-09-22-release-1.0.0.md)) |
+| A machine can prove what it runs | 1.1.0 is an SSH-signed tag over a manifest that hashes every installed file; `skilliton verify` reads VERIFIED on every install, and a changed file reads TAMPERED with the file named (`scripts/release.test.mjs`; [evidence](evidence/live/2026-09-23-release-1.1.0.md)) |
 | It holds up under review | an adversarial security review reproduced eight guard bypasses and a way to switch off the merge gate; each is fixed with a test that failed before the fix ([changelog](CHANGELOG.md)) |
 | Every check runs on every push | [CI](.github/workflows/checks.yml) runs the list `node scripts/checks.mjs` runs locally, and each checker also proves it can fail |
 | It orients a session | On a fixture with a handoff, an open task record and one uncommitted file, the sessions with Skilliton answered "where does this stand" in one turn on about 52,000 input tokens each and named all three 2 of 3 times; without, two or three turns on 94,000 to 145,000, and none of the three noticed the open task ([second run](evidence/comparison/2026-09-23/SUMMARY.md)) |
@@ -34,7 +34,7 @@ The same comparison found where it did not help: what is only instructed, such a
 
 ## Install
 
-[INSTALL.md](INSTALL.md) has three paths: a demo with nothing installed, trying it in your own Claude Code, and a team rollout from a signed fork. Trying it is five commands, then a new session:
+[INSTALL.md](INSTALL.md) has three paths: a demo with nothing installed, trying it in your own Claude Code, and a team rollout from a signed fork. The trying path tracks `main` unsigned with automatic updates and is for trying; the team path, a signed join, is the one for a machine that holds client work. Trying it is five commands, then a new session:
 
 ```bash
 claude plugin marketplace add MojoAI-King/Skilliton
@@ -62,7 +62,7 @@ To see it before installing anything: `git clone https://github.com/MojoAI-King/
 | join, join file | set up one machine for a company; the file names the company, its skills repository and who may sign releases |
 | lane | one git worktree, with a written brief, for one slice of a batch of work |
 | guardrails | the hook that judges each shell command before it runs |
-| release, plugin version | the product is released as a whole (1.0.0); each of the four plugins has its own version (workflow 0.21.0 in 1.0.0), and `releases/<release>.json` records which plugin versions a release carries |
+| release, plugin version | the product is released as a whole (1.1.0); each of the four plugins has its own version (workflow 0.22.0 in 1.1.0), and `releases/<release>.json` records which plugin versions a release carries |
 
 ## At a glance
 
@@ -75,6 +75,10 @@ To see it before installing anything: `git clone https://github.com/MojoAI-King/
 | What it sends anywhere | nothing; every write outside a repository is listed in [docs/IT-ALLOWLIST.md](docs/IT-ALLOWLIST.md), and CI fails when the code and that list disagree |
 | Where to start reading the code | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | Licence | MIT, copyright Mojo AI Services, LLC |
+
+## Your ten minutes
+
+If you are reviewing this repository and have ten minutes, read these five in this order: this file; [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the code map; [docs/CONTRACTS.md](docs/CONTRACTS.md) for every shared name and format; [SECURITY.md](SECURITY.md) and [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for what the guard is and is not; [docs/REPORT_CARD.md](docs/REPORT_CARD.md) for what is done and what is not. Skip `docs/archive/` (superseded documents kept as a record) and the `evidence/` folders, except the two comparison summaries under `evidence/comparison/`, which are the measured results.
 
 ## What works today
 
