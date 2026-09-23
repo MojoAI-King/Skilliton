@@ -964,8 +964,11 @@ known_check_script() { # known_check_script <word>: 0 when the word is a file un
   while :; do case "$rest" in *"$base"*) count=$((count + 1)); rest=${rest#*"$base"} ;; *) break ;; esac; done
   [ "$count" -le 1 ] || return 1
   rel=${f#"$proj"/}
-  git -C "$proj" ls-files --error-unmatch -- "$rel" >/dev/null 2>&1 || return 1
-  git -C "$proj" diff --quiet HEAD -- "$rel" >/dev/null 2>&1 || return 1
+  # through g(), which takes out the environment's git settings and turns core.fsmonitor off, so the repository's own
+  # configuration cannot start a program from here; no external diff or text conversion runs either
+  local GDIR=$proj GARGS=() G_IN=""
+  g ls-files --error-unmatch -- "$rel" >/dev/null || return 1
+  g diff --quiet --no-ext-diff --no-textconv HEAD -- "$rel" >/dev/null || return 1
   return 0
 }
 
