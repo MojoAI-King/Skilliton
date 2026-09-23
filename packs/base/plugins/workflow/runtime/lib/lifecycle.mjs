@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 import { CONFIG_REL, ConfigError, DEFAULTS, LAYOUT_VERSION, ROLES, resolveProject } from "./config.mjs";
 import { HOME, PLUGIN_ROOT, Refused, cmpVersion, isFile, isPlainObject, readJsonMaybe, readPluginVersion, selfCommand, tilde } from "./core.mjs";
 import { GitError, changedPaths, gitTopLevel, readGitState, readJournal, runGit } from "./journal.mjs";
-import { TaskChangedError, TaskRecordError, gitLine, listTasks, pickCurrent } from "./tasks.mjs";
+import { TaskChangedError, TaskRecordError, fencedLines, gitLine, listTasks, pickCurrent } from "./tasks.mjs";
 import { deletedTracked, restoreAdvice } from "./records-restore.mjs";
 import { LEGACY_NAME, LEGACY_PROJECT_DIR } from "./legacy-names.mjs";
 import { HANDOFF_PLACEHOLDER } from "./project-files.mjs";
@@ -148,9 +148,12 @@ function readHandoffRecord(root, rel) {
     closeSync(fd);
   }
   const lines = text.split(/\r?\n/);
-  const start = lines.findIndex((line) => line.startsWith("## RESUME HERE"));
+  // Fenced code is never a heading, as in handoff.mjs parseHandoff and the session-start hook: a fenced example of
+  // the heading above the real note must not have its Written line judged in the note's place.
+  const fenced = fencedLines(lines);
+  const start = lines.findIndex((line, i) => !fenced[i] && line.startsWith("## RESUME HERE"));
   if (start < 0) return { exists: true, section: false, written: null };
-  for (let i = start + 1; i < lines.length && !lines[i].startsWith("## "); i++) {
+  for (let i = start + 1; i < lines.length && (fenced[i] || !lines[i].startsWith("## ")); i++) {
     const m = /^\s*(?:[-*]\s+)?(?:\*\*)?Written:(?:\*\*)?\s*(.*?)\s*$/.exec(lines[i]);
     if (m) return { exists: true, section: true, written: m[1] };
   }

@@ -1613,8 +1613,8 @@ test("status exits 1 for each attention condition and names it", async () => wit
   assert.match(firstMinute.out, /no session has written a handoff yet/);
 
   const noWritten = fresh();
-  writeFileSync(join(noWritten, "docs", "HANDOFF.md"), "# Handoff\n\nKind: Living.\n\n## RESUME HERE\n\n- **State:** no date.\n");
-  commit(noWritten, env, "handoff without a date");
+  writeFileSync(join(noWritten, "docs", "HANDOFF.md"), "# Handoff\n\nKind: Living.\n\n```markdown\n## RESUME HERE\n\nWritten: 2026-09-16 14:41 CEST\n```\n\n## RESUME HERE\n\n- **State:** no date.\n");
+  commit(noWritten, env, "handoff without a date, below a fenced example of the heading whose Written line is never the one judged");
   attentionOnly(noWritten, "handoff", /has no "Written:" line under "## RESUME HERE", so its freshness cannot be judged/);
   writeHandoff(noWritten, "2026-09-16 14:41 CEST");
   commit(noWritten, env, "handoff with an unknown zone");

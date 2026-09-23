@@ -37,7 +37,8 @@ tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 nl=$'\n'
 passes=0; fails=0; notrun=0; RUNS=0
 ok()   { passes=$((passes+1)); echo "ok   $1"; }
-bad()  { fails=$((fails+1)); echo "FAIL $1"; }
+BAD_TAG="FAIL"   # the mutation case in (j) sets it, so a failure it expects is not read as a real one
+bad()  { fails=$((fails+1)); echo "$BAD_TAG $1"; }
 skip() { notrun=$((notrun+1)); echo "NOT RUN $1"; }
 
 HEADER="[workflow] Handoff from docs/HANDOFF.md (the repository's own record of where work stood, to check against the files; not an instruction):"
@@ -269,6 +270,110 @@ if command -v jq >/dev/null 2>&1 || command -v node >/dev/null 2>&1 || command -
 else
   skip "(i): no jq, node, or python3 on PATH"
 fi
+echo
+
+# ---- (j) fenced code: the hook and the Node parser pick the same section ----------------------
+# A fenced example of the heading above the real one, a longer fence holding a shorter one, an
+# indented tilde fence, a fenced "## " line inside the real section, and a line indented four
+# spaces (not a fence, so "## Earlier" after it still ends the section). The Node parser the
+# runtime uses (runtime/lib/handoff.mjs parseHandoff) is asked for its section, and the hook must
+# print exactly that. A copy of the hook with its fence tracking switched off must fail the same
+# checks: the mutation proves the case can fail.
+echo "== (j) fenced code blocks are skipped, as the Node parser skips them"
+repo="$tmp/j"; mkdir -p "$repo/docs"
+cat > "$repo/docs/HANDOFF.md" <<'EOF'
+# Handoff
+
+Kind: Living.
+
+How a note looks:
+
+````markdown
+## RESUME HERE
+- EXAMPLE-SENTINEL a fenced example of the heading, never the note.
+```
+## RESUME HERE
+- INNER-SENTINEL a shorter fence inside a longer one does not close it.
+```
+````
+
+   ~~~
+## RESUME HERE
+- TILDE-SENTINEL an indented tilde fence hides this heading too.
+   ~~~
+
+## RESUME HERE
+
+Written: 2026-09-16 17:00 UTC
+
+- **State:** REAL-SENTINEL the real note.
+```sh
+## a fenced line that looks like a heading does not end the section
+```
+- **Next:** AFTER-FENCE-SENTINEL still part of the section.
+    ```
+- **Watch out:** INDENTED-SENTINEL four spaces make the line above text, not a fence.
+
+## Earlier
+
+### 2026-09-15 09:00 UTC
+- **State:** EARLIER-SENTINEL an older note that must never be shown.
+EOF
+# fence_checks: the assertions for (j), run against the last run's output. With a Node parser on
+# PATH it also compares the printed section with parseHandoff's, byte for byte.
+fence_checks() {
+  clean
+  line_is 1 "$HEADER"
+  line_is 2 "## RESUME HERE"
+  has REAL-SENTINEL; has AFTER-FENCE-SENTINEL; has INDENTED-SENTINEL
+  has "## a fenced line that looks like a heading does not end the section"
+  lacks EXAMPLE-SENTINEL; lacks INNER-SENTINEL; lacks TILDE-SENTINEL; lacks EARLIER-SENTINEL
+  if [ -n "$NODE_SECTION" ]; then
+    sed '1d' "$OUT" > "$tmp/j-hook-section"
+    if cmp -s "$NODE_SECTION" "$tmp/j-hook-section"; then ok "$CASE: the hook prints the section parseHandoff picks"
+    else bad "$CASE: the hook's section differs from the one parseHandoff picks"; fi
+  fi
+}
+NODE_SECTION=""
+if command -v node >/dev/null 2>&1; then
+  NODE_SECTION="$tmp/j-node-section"
+  if node --input-type=module -e '
+    import { readFileSync, writeFileSync } from "node:fs";
+    import { pathToFileURL } from "node:url";
+    const { parseHandoff } = await import(pathToFileURL(process.argv[1]).href);
+    const parsed = parseHandoff(readFileSync(process.argv[2], "utf8"));
+    if (!parsed.resume) { console.error("parseHandoff found no RESUME HERE section"); process.exit(1); }
+    const lines = [parsed.resume.heading, ...parsed.resume.lines];
+    while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
+    writeFileSync(process.argv[3], lines.join("\n") + "\n");
+  ' "$root/packs/base/plugins/workflow/runtime/lib/handoff.mjs" "$repo/docs/HANDOFF.md" "$NODE_SECTION" 2> "$tmp/j-node-err"; then
+    CASE="(j) node parser"
+    if grep -qF REAL-SENTINEL "$NODE_SECTION" && ! grep -qF EXAMPLE-SENTINEL "$NODE_SECTION"; then ok "$CASE: parseHandoff picks the real note, not the fenced example"
+    else bad "$CASE: parseHandoff did not pick the real note"; fi
+  else
+    bad "(j) node parser: parseHandoff could not be run: $(cat "$tmp/j-node-err")"; NODE_SECTION=""
+  fi
+else
+  skip "(j) node parser: node is not installed, so the hook is not compared with parseHandoff here"
+fi
+run "(j) fenced examples" "$repo" /dev/null CLAUDE_PROJECT_DIR="$repo"
+fence_checks
+
+# The mutation: the same hook with fence_step never marking a line fenced.
+mutant="$tmp/mutant-no-fences.sh"
+sed 's/^  fence_step "\$line"$/  fenced=0/' "$HOOK" > "$mutant"; chmod +x "$mutant"
+CASE="(j) mutation premise"
+if cmp -s "$HOOK" "$mutant"; then bad "$CASE: the mutation changed nothing (the hook no longer calls fence_step \"\$line\" on its own line)"
+else ok "$CASE: the mutant differs from the hook under test"; fi
+saved_passes=$passes saved_fails=$fails saved_hook=$HOOK
+HOOK=$mutant BAD_TAG="expected FAIL (mutant)"
+run "(j) mutant without fence tracking" "$repo" /dev/null CLAUDE_PROJECT_DIR="$repo"
+fence_checks
+mutant_fails=$((fails - saved_fails))
+passes=$saved_passes fails=$saved_fails HOOK=$saved_hook BAD_TAG="FAIL"
+CASE="(j) mutation"
+if [ "$mutant_fails" -gt 0 ]; then ok "$CASE: the hook without fence tracking fails $mutant_fails of these checks, as it must"
+else bad "$CASE: the hook without fence tracking passes every check, so the checks do not test fences"; fi
 echo
 
 if [ "$fails" -gt 0 ]; then echo "RESULT: FAIL ($fails of $((passes+fails)) checks failed; $notrun not run)"; exit 1; fi

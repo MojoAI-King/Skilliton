@@ -6,6 +6,11 @@
 # line that starts with "## ". The heading is matched as a line prefix, never exactly: an exact
 # match in this repo's other session-start hook found nothing when the real heading carried a
 # suffix, and injected an empty line, silently.
+# Lines inside a fenced code block (``` or ~~~, as runtime/lib/tasks.mjs fencedLines reads them)
+# are never a heading here, so a fenced example of the heading above the real one is not shown
+# in its place, and a fenced "## " line inside the section does not end it. The Node parser
+# (runtime/lib/handoff.mjs parseHandoff) picks the same section; scripts/handoff-hook.test.sh
+# compares the two.
 #
 # Project dir:  $CLAUDE_PROJECT_DIR, else "cwd" from the hook's stdin JSON (read with jq, node,
 #               or python3, whichever is found first), else $PWD.
@@ -157,19 +162,60 @@ fi
 
 # 4. Extract the section. Byte semantics from here on, so maxBytes means bytes.
 LC_ALL=C
+
+# fence_step <line>: sets fenced=1 when the line is part of a fenced code block (its opening and
+# closing lines included), else 0, and keeps the open fence in $fence. The same rule as
+# fencedLines in runtime/lib/tasks.mjs: a fence line is up to three spaces, then three or more
+# backticks or tildes; a block closes on a line of the same character, at least as long, with
+# nothing but white space after it.
+fence=""
+fenced=0
+fence_step() {
+  local rest=${1%$'\r'} ch run=""
+  case "$rest" in
+    "   "*) rest=${rest:3} ;;
+    "  "*) rest=${rest:2} ;;
+    " "*) rest=${rest:1} ;;
+  esac
+  ch=${rest:0:1}
+  case "$ch" in
+    '`'|'~') while [ "${rest:0:1}" = "$ch" ]; do run="$run$ch"; rest=${rest:1}; done ;;
+  esac
+  [ "${#run}" -ge 3 ] || run=""
+  if [ -n "$fence" ]; then
+    fenced=1
+    if [ -n "$run" ] && [ "${run:0:1}" = "${fence:0:1}" ] && [ "${#run}" -ge "${#fence}" ]; then
+      case "$rest" in
+        *[![:space:]]*) ;;
+        *) fence="" ;;
+      esac
+    fi
+  elif [ -n "$run" ]; then
+    fenced=1
+    fence=$run
+  else
+    fenced=0
+  fi
+}
+
 found=0
 truncated=0
 section=""
 while IFS= read -r line || [ -n "$line" ]; do
+  fence_step "$line"
   if [ "$found" -eq 0 ]; then
-    case "$line" in
-      "## RESUME HERE"*) found=1; section="$line$nl" ;;
-    esac
+    if [ "$fenced" -eq 0 ]; then
+      case "$line" in
+        "## RESUME HERE"*) found=1; section="$line$nl" ;;
+      esac
+    fi
     continue
   fi
-  case "$line" in
-    "## "*) break ;;
-  esac
+  if [ "$fenced" -eq 0 ]; then
+    case "$line" in
+      "## "*) break ;;
+    esac
+  fi
   section="$section$line$nl"
   if [ "${#section}" -gt "$max" ]; then truncated=1; break; fi
 done < "$path"
