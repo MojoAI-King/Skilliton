@@ -23,6 +23,7 @@ import { chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readF
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { basename, dirname, join, resolve } from "node:path";
 import { PLUGIN_ROOT, Refused, refuse, isPlainObject, clone, sameJson, tilde, argPath, which, runProgram, cmpVersion, readPluginVersion, selfCommand } from "./core.mjs";
+import { samePath } from "./path-form.mjs";
 import { HARNESS_FILES, HARNESS_TEMPLATE, planHarnessFile, readHarnessTemplate } from "./harness.mjs";
 import { CONFIG_REL, ConfigError, LAYOUT_VERSION, PROJECT_DIR, ROLES, resolveProject, templateVars, validRelPath } from "./config.mjs";
 import {
@@ -76,9 +77,8 @@ export function resolveGitRoot(dirInput) {
   let topReal;
   try { topReal = realpathSync.native(top); } catch { refuse(`git reported the repository root ${argPath(top)}, which cannot be opened`); }
   if (topReal !== root) refuse(`${argPath(root)} is inside the Git repository ${argPath(topReal)} but is not its root. Run again with --dir ${argPath(topReal)}`);
-  let gitReal = null;
-  try { gitReal = realpathSync(gitDir); } catch { /* reported below */ }
-  if (gitReal !== gitDir || !lstatSync(gitDir).isDirectory()) refuse(`the Git folder ${argPath(gitDir)} is not a plain folder (it goes through a symbolic link or cannot be opened), and Skilliton keeps its private backups there`);
+  let gitReal = null; try { gitReal = realpathSync(gitDir); } catch { /* reported below */ }
+  if (!samePath(gitReal, gitDir) || !lstatSync(gitDir).isDirectory()) refuse(`the Git folder ${argPath(gitDir)} is not a plain folder (it goes through a symbolic link or cannot be opened), and Skilliton keeps its private backups there`);
   return { root, gitDir };
 }
 
