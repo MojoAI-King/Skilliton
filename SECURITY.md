@@ -20,4 +20,4 @@ The security evidence register keeps observations tied to file fingerprints and 
 
 ## Supported versions
 
-The current signed release and the one before it. `releases/` holds every manifest; a withdrawn release is marked there and `verify` reports it.
+The current signed release and the one before it. `releases/` holds every manifest. A withdrawn release is marked by a signed `skilliton-withdrawn/<version>` tag, not by a change under `releases/`: `skilliton release list` shows it as withdrawn, and `verify` reports its installs as WITHDRAWN.

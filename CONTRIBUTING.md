@@ -7,12 +7,12 @@ Skilliton is MIT-licensed and takes changes by pull request. A change carries th
 ## Run the checks
 
 ```bash
-node scripts/checks.mjs            # every check CI runs, one step at a time, verdict per step, logs under .git/skilliton/checks/
+node scripts/checks.mjs            # CI's list of checks (two run only in CI and are named), verdict per step, logs under .git/skilliton/checks/
 node scripts/checks.mjs --list     # the steps, without running them
-node scripts/checks.mjs --only lint
+node scripts/checks.mjs --only "Size ceiling"   # only the steps whose name contains this text (case-sensitive)
 ```
 
-The runner reads the list from `.github/workflows/checks.yml`, so there is one list. Most checkers carry a `--self-test` that plants a defect and requires red; a change to a checker keeps that true. `docs/MAINTAIN.md` lists the same commands one by one with what each one holds.
+The runner reads the list from `.github/workflows/checks.yml`, so there is one list. Most checkers carry a `--self-test` that plants a defect and requires red; a change to a checker keeps that true. `node scripts/checks.mjs --list` prints them; `docs/MAINTAIN.md` step 2 says how to add one.
 
 ## What a change needs
 
