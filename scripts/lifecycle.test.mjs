@@ -99,10 +99,10 @@ function cli(cwd, args, env, { entry = CLI } = {}) {
   const r = spawnSync(process.execPath, [entry, ...args], { cwd, env, encoding: "utf8" });
   return { code: r.status, out: r.stdout, err: r.stderr, all: `${r.stdout}${r.stderr}` };
 }
-
+const launch = (bin, args) => (process.platform === "win32" ? ["bash", [bin, ...args]] : [bin, args]); // Windows: through Git Bash, as a client starts a hook
 function hook(cwd, event, payload, env, { bin = BIN, raw = undefined } = {}) {
   const input = raw !== undefined ? raw : JSON.stringify({ cwd, hook_event_name: event, ...payload });
-  const r = spawnSync(bin, ["hook", event], { cwd, env, input, encoding: "utf8" });
+  const r = spawnSync(...launch(bin, ["hook", event]), { cwd, env, input, encoding: "utf8" });
   return { code: r.status, out: r.stdout, err: r.stderr, all: `${r.stdout}${r.stderr}`, error: r.error };
 }
 
@@ -1393,7 +1393,7 @@ test("outside a git repository every hook prints one line and exits 0", async ()
   assert.equal(quiet.code, 0, quiet.all);
   assert.equal(quiet.out, "", "user-prompt-submit outside a repository adds nothing to the conversation");
 
-  const wrongEvent = spawnSync(BIN, ["hook", "pre-tool-use"], { cwd: plain, env, input: "{}", encoding: "utf8" });
+  const wrongEvent = spawnSync(...launch(BIN, ["hook", "pre-tool-use"]), { cwd: plain, env, input: "{}", encoding: "utf8" });
   assert.equal(wrongEvent.status, 0, "an unknown event never exits 2, which would block the client");
   assert.match(wrongEvent.stderr, /expects exactly one of session-start, stop, pre-compact, session-end, user-prompt-submit/);
 }));
