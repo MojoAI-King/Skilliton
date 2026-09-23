@@ -16,6 +16,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chmodSync, copyFileSync, cpSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
@@ -25,7 +26,9 @@ const repo = join(here, '..');
 const cli = join(here, 'skilliton.mjs');
 const pluginDir = join(repo, 'packs', 'base', 'plugins', 'workflow');
 const engine = await import(pathToFileURL(join(pluginDir, 'runtime', 'lib', 'security.mjs')).href);
-const PROTOTYPE_COMMIT = 'c3fec4bdbc5b6712db3ed49478a6b6828662283b';
+// The prototype runtime, snapshotted: `git show c739bba:scripts/security-evidence.mjs` (c3fec4b before the 2026-09-23 rewrite).
+const PROTOTYPE_RUNTIME = join(here, 'fixtures', 'prototype-v1', 'security-evidence.mjs');
+const { PROTOTYPE_RUNTIME_SHA256 } = await import(pathToFileURL(join(pluginDir, 'runtime', 'lib', 'prototype-v1.mjs')).href);
 const SECURITY = '.skilliton/security';
 const START = '<!-- skilliton:security-findings:start -->';
 const END = '<!-- skilliton:security-findings:end -->';
@@ -564,14 +567,11 @@ test('expiry from the project config, or from the control in the catalog, makes 
 });
 
 test('records written by the prototype runtime still validate (record schema 1)', (t) => {
-  const prototype = spawnSync('git', ['-C', repo, 'show', `${PROTOTYPE_COMMIT}:scripts/security-evidence.mjs`], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
-  if (prototype.status !== 0) {
-    t.skip(`the prototype at ${PROTOTYPE_COMMIT} is not in this clone's history (a shallow clone?), so this was not checked`);
-    return;
-  }
+  const prototype = readFileSync(PROTOTYPE_RUNTIME);
+  assert.equal(createHash('sha256').update(prototype).digest('hex'), PROTOTYPE_RUNTIME_SHA256, 'fixture: the snapshot is the prototype runtime release, byte for byte');
   const dir = fixture(t);
   const script = join(dirname(dir), 'prototype-security-evidence.mjs');
-  writeFileSync(script, prototype.stdout);
+  writeFileSync(script, prototype);
   // The prototype keeps its register under the earlier .skillgate/ folder; migration 0003 moves the records unchanged.
   cpSync(join(dir, '.skilliton'), join(dir, '.skillgate'), { recursive: true });
   const p = spawnSync(process.execPath, [script, 'record', '--dir', dir, ...observation.slice(1), '--apply'], { encoding: 'utf8' });

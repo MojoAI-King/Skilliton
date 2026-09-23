@@ -22,8 +22,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 const REPO = join(here, "..");
 const CLI = join(here, "skilliton.mjs");
 const GUARD = join(REPO, "packs", "base", "plugins", "guardrails", "hooks", "guard-bash.sh");
-const EARLIER = "e5900d5";
+// The last commit before the rename. It was e5900d5 until the history rewrite of 2026-09-23, which kept its tree and
+// author date and gave it this hash; e5900d5 is in no clone made since.
+const EARLIER = "62f21b6";
 const HAS_EARLIER = spawnSync("git", ["-C", REPO, "cat-file", "-e", `${EARLIER}^{commit}`]).status === 0;
+// A shallow clone is the one case where the commit may be missing and the tests may skip. Anywhere else a missing
+// commit is a failure with its reason (earlierRelease), never a skip that lets the run read PASS.
+const SHALLOW = spawnSync("git", ["-C", REPO, "rev-parse", "--is-shallow-repository"], { encoding: "utf8" }).stdout?.trim() === "true";
+const EARLIER_SKIP = !HAS_EARLIER && SHALLOW ? `NOT RUN: this clone is shallow, so commit ${EARLIER} (the earlier release) is not in it` : false;
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const GIT_ENV = { GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "Skilliton Test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "Skilliton Test", GIT_COMMITTER_EMAIL: "test@example.invalid" };
 
@@ -52,6 +58,7 @@ function sg(ctx, args, { env = {}, cli = CLI, cwd = ctx.dir } = {}) {
 
 // The earlier release's runtime, skills repository files and command line, extracted from Git history.
 function earlierRelease(ctx) {
+  if (!HAS_EARLIER) assert.fail(`commit ${EARLIER} (the last commit before the rename, e5900d5 before the 2026-09-23 history rewrite) is not in this clone, and the clone is not shallow, so the earlier release could not be built from history`);
   mkdirSync(ctx.earlier, { recursive: true });
   const archive = spawnSync("git", ["-C", REPO, "archive", "--format=tar", EARLIER, "packs/base/plugins/workflow", "scripts/skillgate.mjs", "templates", ".claude-plugin"], { maxBuffer: 256 * 1024 * 1024 });
   assert.equal(archive.status, 0, `fixture: git archive ${EARLIER}: ${archive.stderr}`);
@@ -99,7 +106,7 @@ const read = (ctx, rel) => readFileSync(join(ctx.dir, rel), "utf8");
 
 // ---------------------------------------------------------------- migration 0003
 
-test("a project the earlier release prepared is refused by other commands, migrates to the Skilliton names, and rolls back exactly", { skip: !HAS_EARLIER && `NOT RUN: commit ${EARLIER} is not in this clone` }, (t) => {
+test("a project the earlier release prepared is refused by other commands, migrates to the Skilliton names, and rolls back exactly", { skip: EARLIER_SKIP }, (t) => {
   const ctx = fixture(t);
   earlierProject(ctx);
   assert.match(read(ctx, "CLAUDE.md"), /^<!-- skillgate:harness:start v1 -->$/m, "fixture: the earlier release wrote its markers");
@@ -159,7 +166,7 @@ test("a project the earlier release prepared is refused by other commands, migra
   assert.deepEqual(snapshot(ctx.dir), before, "every file, including the ignored evidence, is back as the earlier release left it");
 });
 
-test("migration 0003 refuses what it cannot move safely, and changes nothing", { skip: !HAS_EARLIER && `NOT RUN: commit ${EARLIER} is not in this clone` }, (t) => {
+test("migration 0003 refuses what it cannot move safely, and changes nothing", { skip: EARLIER_SKIP }, (t) => {
   const ctx = fixture(t);
   earlierProject(ctx);
   const attempt = (label, setup, message, undo) => {
@@ -208,7 +215,7 @@ test("migration 0003 refuses what it cannot move safely, and changes nothing", {
   }
 });
 
-test("review regressions: evidence stays out of Git, receipts cannot be bent, and nothing is silently replaced", { skip: !HAS_EARLIER && `NOT RUN: commit ${EARLIER} is not in this clone` }, (t) => {
+test("review regressions: evidence stays out of Git, receipts cannot be bent, and nothing is silently replaced", { skip: EARLIER_SKIP }, (t) => {
   // A hand edit inside the earlier block, with no instructions receipt to compare against, is refused.
   const edited = fixture(t);
   earlierProject(edited);
@@ -283,7 +290,7 @@ test("review regressions: evidence stays out of Git, receipts cannot be bent, an
   assert.deepEqual(snapshot(dated.dir), datedBefore);
 });
 
-test("an unreadable earlier configuration is never quoted, and the stop reminder still runs before the migration", { skip: !HAS_EARLIER && `NOT RUN: commit ${EARLIER} is not in this clone` }, (t) => {
+test("an unreadable earlier configuration is never quoted, and the stop reminder still runs before the migration", { skip: EARLIER_SKIP }, (t) => {
   const ctx = fixture(t);
   earlierProject(ctx);
   writeFileSync(join(ctx.dir, ".skillgate", "config.json"), '{"prepare": {"version": 2}, "apiToken": FAKE-SECRET-VALUE-0000}\n');
@@ -301,7 +308,7 @@ test("an unreadable earlier configuration is never quoted, and the stop reminder
   assert.doesNotMatch(stop.stderr, /not evaluated/, `the reminder is evaluated on a project under the earlier names: ${stop.stderr}`);
 });
 
-test("harness refuses a block written under the earlier names instead of adding a second one", { skip: !HAS_EARLIER && `NOT RUN: commit ${EARLIER} is not in this clone` }, (t) => {
+test("harness refuses a block written under the earlier names instead of adding a second one", { skip: EARLIER_SKIP }, (t) => {
   const ctx = fixture(t);
   const old = earlierRelease(ctx);
   writeFileSync(join(ctx.dir, "CLAUDE.md"), "# Notes\n");
@@ -315,7 +322,7 @@ test("harness refuses a block written under the earlier names instead of adding 
   assert.deepEqual(snapshot(ctx.dir), before, "nothing was added or removed");
 });
 
-test("files under .skillgate whose names differ only in letter case are refused, where the file system allows both", { skip: !HAS_EARLIER && `NOT RUN: commit ${EARLIER} is not in this clone` }, (t) => {
+test("files under .skillgate whose names differ only in letter case are refused, where the file system allows both", { skip: EARLIER_SKIP }, (t) => {
   const ctx = fixture(t);
   earlierProject(ctx);
   writeFileSync(join(ctx.dir, ".skillgate", "Notes.txt"), "one\n");

@@ -116,12 +116,32 @@ test("the frozen prototype values agree with the byte-for-byte fixture copies", 
   assert.equal(proto.prototypeBlock("text\n\n"), `${proto.PROJECT_MARKER_START}\ntext\n${proto.PROJECT_MARKER_END}`);
 });
 
-test("the fixture files are byte-for-byte copies of commit 23aae41", (t) => {
-  const available = spawnSync("git", ["-C", REPO, "cat-file", "-e", "23aae41^{commit}"], { env: BASE_ENV }).status === 0;
-  if (!available) { t.skip("NOT RUN: commit 23aae41 is not in this clone (for example a shallow checkout), so the fixtures could not be compared with it"); return; }
-  for (const name of ["prepare.mjs", "project-files.mjs", "security-evidence.mjs"]) {
-    const original = execFileSync("git", ["-C", REPO, "show", `23aae41:scripts/${name}`], { env: BASE_ENV });
-    assert.ok(original.equals(readFileSync(join(FIXTURE, name))), `scripts/fixtures/prototype-v1/${name} differs from 23aae41`);
+// The fixtures are the snapshot: their sha256 is pinned here, so they are checked in every checkout, history or not.
+// They were copied from the prototype release, 23aae41 until the history rewrite of 2026-09-23, which kept its tree and
+// author date and gave it the hash below; 23aae41 is in no clone made since.
+const SNAPSHOT_COMMIT = "0bc2a05";
+const SNAPSHOT_SHA256 = {
+  "prepare.mjs": "a0cc78b368c6d51ece535908096edf98f7b5c29334668d06ac013c3fcc954de6",
+  "project-files.mjs": "b423e0f58fb0c33a0d520de9fb22a98a96f81d7c9895f933601bf55b9448b3c6",
+  "security-evidence.mjs": "6467f1a0230c687f2448d82b0623c91d9d80f24a33d6a467f6269f5e23807daf",
+};
+
+test("the fixture files hold the bytes snapshotted from the prototype release", () => {
+  assert.equal(SNAPSHOT_SHA256["security-evidence.mjs"], proto.PROTOTYPE_RUNTIME_SHA256, "the pinned runtime digest is the one migration 0002 recognises");
+  for (const [name, digest] of Object.entries(SNAPSHOT_SHA256)) assert.equal(sha256(readFileSync(join(FIXTURE, name))), digest, `scripts/fixtures/prototype-v1/${name} is not the snapshot`);
+});
+
+test(`the fixture files are byte-for-byte copies of commit ${SNAPSHOT_COMMIT}`, (t) => {
+  const available = spawnSync("git", ["-C", REPO, "cat-file", "-e", `${SNAPSHOT_COMMIT}^{commit}`], { env: BASE_ENV }).status === 0;
+  if (!available) {
+    // A shallow clone is the one case that may skip; anywhere else the history the fixtures came from is missing, which is a failure.
+    const shallow = spawnSync("git", ["-C", REPO, "rev-parse", "--is-shallow-repository"], { env: BASE_ENV, encoding: "utf8" }).stdout?.trim() === "true";
+    if (shallow) { t.skip(`NOT RUN: this clone is shallow, so commit ${SNAPSHOT_COMMIT} is not in it; the pinned digests above still checked the fixtures`); return; }
+    assert.fail(`commit ${SNAPSHOT_COMMIT} (the prototype release, 23aae41 before the 2026-09-23 history rewrite) is not in this clone, and the clone is not shallow`);
+  }
+  for (const name of Object.keys(SNAPSHOT_SHA256)) {
+    const original = execFileSync("git", ["-C", REPO, "show", `${SNAPSHOT_COMMIT}:scripts/${name}`], { env: BASE_ENV });
+    assert.ok(original.equals(readFileSync(join(FIXTURE, name))), `scripts/fixtures/prototype-v1/${name} differs from ${SNAPSHOT_COMMIT}`);
   }
 });
 
