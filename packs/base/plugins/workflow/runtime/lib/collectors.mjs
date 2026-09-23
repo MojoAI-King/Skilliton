@@ -18,7 +18,7 @@ import { samePath } from './path-form.mjs';
 import {
   LIMIT, PRIVATE_EVIDENCE_DIR, SECRET_SHAPES, SecurityRefusal,
   appendEvidence, closeEvidenceFile, createEvidenceFile, createRecord, digest, fingerprintAttachment, inspectPath,
-  newBudget, readCatalog, readRepositoryFile, refusalText, renderManifest, textField,
+  newBudget, readCatalog, readRepositoryFile, refusalText, relativePath, renderManifest, textField,
 } from './security.mjs';
 
 // Secret shapes whose match is a gap by itself; the others need a person's review (see collectSecrets).
@@ -28,6 +28,8 @@ const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const DELIVERY_REL = '.skilliton/delivery.json';
 export const DELIVERY_SCHEMA = 'skilliton.delivery/1';
 const DELIVERY_LIMIT = 256 * 1024;
+export const SECRETS_ALLOW_REL = '.skilliton/security/secrets-allow.json';
+const SECRETS_ALLOW_LIMIT = 256 * 1024;
 const DEFAULT_TIMEOUT_SECONDS = 600;
 const BRANCH_RE = /^(?!.*\.\.)(?!\/)(?!.*\/$)[A-Za-z0-9._/-]{1,100}$/;
 
@@ -301,11 +303,55 @@ const SKIP_REASONS = {
   UNREADABLE_PATH: 'could not be read',
 };
 
+// One allowlist entry, checked field by field so a bad file names the entry index and the field, never the value it
+// held. path/rule/reason follow the same rules as the rest of the security evidence engine (a safe repository path, a
+// rule the secrets collector actually uses, a reason that is not empty, not too long, not padded and not itself
+// secret-shaped); line or sha256, never both, is how an entry survives the matched line moving (line) or the matched
+// line's number staying put while its content is not what mattered (sha256, a hash of the line, never the line itself).
+function validateAllowlistEntry(e, i, ruleNames) {
+  const bad = (detail) => fail('INVALID_SECRETS_ALLOWLIST', `entry ${i}: ${detail}`);
+  if (e === null || typeof e !== 'object' || Array.isArray(e)) bad('is not an object');
+  const hasLine = Object.hasOwn(e, 'line');
+  const hasSha = Object.hasOwn(e, 'sha256');
+  if (!hasLine && !hasSha) bad('needs a "line" or a "sha256" field');
+  if (hasLine && hasSha) bad('cannot have both "line" and "sha256"');
+  for (const k of ['path', 'rule', 'reason']) if (!Object.hasOwn(e, k)) bad(`is missing "${k}"`);
+  const allowed = new Set(['path', 'rule', 'reason', hasLine ? 'line' : 'sha256']);
+  for (const k of Object.keys(e)) if (!allowed.has(k)) bad(`has an unknown key "${k}"`);
+  try { relativePath(e.path); } catch { bad('"path" is not a safe repository-relative path'); }
+  if (typeof e.rule !== 'string' || !ruleNames.includes(e.rule)) bad(`"rule" is not one of the secrets collector's rules (${ruleNames.join(', ')})`);
+  if (hasLine && !(Number.isInteger(e.line) && e.line >= 1)) bad('"line" is not a positive whole number');
+  if (hasSha && !/^[a-f0-9]{64}$/.test(e.sha256)) bad('"sha256" is not a 64-character lowercase hex digest');
+  if (!textField(e.reason, 500)) bad('"reason" is empty, too long, has surrounding spaces or control characters, or looks like a secret');
+  return { path: e.path, rule: e.rule, line: hasLine ? e.line : null, sha256: hasSha ? e.sha256 : null, reason: e.reason };
+}
+
+// { exists, entries, fingerprint }. Absent file: an empty, unfingerprinted allowlist, so a project with none behaves
+// exactly as it did before this existed. A present file is fingerprinted whether or not it allows anything, so editing
+// it (adding, removing or changing a reason) makes the next secrets record stale, the same way editing the delivery
+// policy makes the tests record stale.
+// exists, entries, fingerprint ({ path, sha256 }), and the size/mtimeMs a file manifest line also needs: the allowlist
+// is folded into the secrets collector's own file manifest (never into the record's sources directly), because a
+// source path is checked as an attachment and refused as SENSITIVE_PATH for containing "secret" in its own name,
+// while a path a manifest lists is re-verified without that check (lib/security.mjs verifyManifest).
+export function readSecretsAllowlist(root, budget = newBudget()) {
+  if (!inspectPath(root, SECRETS_ALLOW_REL)) return { exists: false, entries: [], fingerprint: null, size: null, mtimeMs: null };
+  const { buffer, stat } = readRepositoryFile(root, SECRETS_ALLOW_REL, budget, SECRETS_ALLOW_LIMIT);
+  const fingerprint = { path: SECRETS_ALLOW_REL, sha256: digest(buffer) };
+  let data;
+  try { data = JSON.parse(buffer.toString('utf8')); } catch { fail('INVALID_SECRETS_ALLOWLIST', 'the file is not valid JSON'); }
+  if (!Array.isArray(data)) fail('INVALID_SECRETS_ALLOWLIST', 'the file does not hold a JSON array');
+  const ruleNames = SECRET_SHAPES.map((s) => s.rule);
+  const entries = data.map((e, i) => validateAllowlistEntry(e, i, ruleNames));
+  return { exists: true, entries, fingerprint, size: stat.size, mtimeMs: stat.mtimeMs };
+}
+
 export function collectSecrets(root, { control, reviewer, apply = false } = {}) {
   const budget = newBudget();
   const catalog = readCatalog(root, budget);
   const controlId = requireControl(catalog, control, 'secrets');
   const reviewerLabel = reviewerFor('secrets', reviewer);
+  const allowlist = readSecretsAllowlist(root, budget);
   const top = runGit(root, ['rev-parse', '--show-toplevel']);
   if (top.status !== 0) fail('NOT_A_GIT_REPOSITORY');
   // Both sides resolved natively: on Windows the project folder can arrive as a short 8.3 name (RUNNER~1) while git
@@ -347,20 +393,34 @@ export function collectSecrets(root, { control, reviewer, apply = false } = {}) 
     const { buffer, stat } = read;
     if (buffer.subarray(0, 8000).includes(0)) { skipped.push({ path: rel, reason: 'binary (a zero byte in its first 8000 bytes)' }); continue; }
     buffer.toString('latin1').split('\n').forEach((line, i) => {
-      for (const { rule, re } of SECRET_SHAPES) if (re.test(line)) hits.push({ path: rel, line: i + 1, rule });
+      for (const { rule, re } of SECRET_SHAPES) if (re.test(line)) hits.push({ path: rel, line: i + 1, rule, lineSha256: digest(Buffer.from(line, 'latin1')) });
     });
     entries.push({ sha256: digest(buffer), size: stat.size, mtimeMs: stat.mtimeMs, path: rel });
   }
   if (!entries.length) fail('NOTHING_TO_SCAN', `${tracked.length} tracked file(s), none readable as text`);
 
+  // An allowlist entry is matched by path and rule, and then by the line number or by a hash of the matched line's own
+  // bytes (never the bytes themselves): a hit that matches moves out of "matches" into "allowed", kept and shown with
+  // its reason and never dropped, the same as an inline allow does for the audit (lib/audit.mjs). An entry that
+  // matches nothing this run is reported as unused; it never changes the assessment.
+  const usedEntries = new Set();
+  const matches = [], allowedHits = [];
+  for (const hit of hits) {
+    const entry = allowlist.entries.find((e) => e.path === hit.path && e.rule === hit.rule
+      && (e.line !== null ? e.line === hit.line : e.sha256 === hit.lineSha256));
+    if (entry) { usedEntries.add(entry); allowedHits.push({ hit, reason: entry.reason }); } else matches.push(hit);
+  }
+  const unusedEntries = allowlist.entries.filter((e) => !usedEntries.has(e));
+
   const byRule = {};
-  for (const h of hits) byRule[h.rule] = (byRule[h.rule] ?? 0) + 1;
+  for (const h of matches) byRule[h.rule] = (byRule[h.rule] ?? 0) + 1;
   // Specific shapes (a private key block, a provider token prefix, a JSON web token) are a gap to act on. Generic
   // shapes (an assignment to a secret-sounding name, a bearer header, a long encoded run) match hashes, lockfiles and
   // test fixtures in almost every repository, so on their own they need a person's review rather than a gap: measured
-  // on this repository, 60 generic matches and no specific one.
-  const specific = hits.filter((h) => HIGH_CONFIDENCE_RULES.includes(h.rule));
-  const assessment = specific.length ? 'gap' : hits.length ? 'needs-human' : 'observed';
+  // on this repository, 60 generic matches and no specific one. An allowed hit, whatever its rule, never drives this:
+  // only a match that is not allowed can make the assessment a gap.
+  const specific = matches.filter((h) => HIGH_CONFIDENCE_RULES.includes(h.rule));
+  const assessment = specific.length ? 'gap' : matches.length ? 'needs-human' : 'observed';
   let manifest = null;
   const report = createEvidenceFile(root, 'leak-scan', startedAt);
   keepOutputs([report.rel], () => {
@@ -372,16 +432,24 @@ export function collectSecrets(root, { control, reviewer, apply = false } = {}) 
         'Scope: the files git ls-files lists, read from the working tree (uncommitted edits included; untracked files are not scanned).',
         `Rules: ${SECRET_SHAPES.map((s) => s.rule).join(', ')}. These are the evidence engine's secret shapes; a match is a shape to review, not a confirmed secret.`,
         `Tracked files: ${tracked.length}. Scanned as text: ${entries.length}. Not scanned: ${skipped.length}.`,
-        `Lines matching a rule: ${hits.length}.`,
+        `Lines matching a rule: ${hits.length}${allowlist.exists ? ` (${matches.length} not allowed, ${allowedHits.length} allowed with a reason)` : ''}.`,
         `Specific rules (a match is a gap): ${HIGH_CONFIDENCE_RULES.join(', ')}. Generic rules (matches need a person's review): ${SECRET_SHAPES.map((x) => x.rule).filter((r) => !HIGH_CONFIDENCE_RULES.includes(r)).join(', ')}.`,
         `Result: ${assessment === 'gap' ? `gap (${specific.length} line(s) matched a specific secret shape; each needs action)` : assessment === 'needs-human' ? 'needs-human (only generic shapes matched; a person decides whether any is a secret)' : 'observed (no scanned line matched a rule)'}`,
         '',
         'Matches by rule:',
-        ...(hits.length ? Object.entries(byRule).map(([rule, n]) => `  ${rule}: ${n}`) : ['  none']),
+        ...(matches.length ? Object.entries(byRule).map(([rule, n]) => `  ${rule}: ${n}`) : ['  none']),
         '',
         'Matches (file:line rule; the matched text is never written):',
-        ...(hits.length ? hits.map((h) => `  ${h.path}:${h.line} ${h.rule}`) : ['  none']),
+        ...(matches.length ? matches.map((h) => `  ${h.path}:${h.line} ${h.rule}`) : ['  none']),
         '',
+        ...(allowlist.exists ? [
+          `Allowed by ${SECRETS_ALLOW_REL} (file:line rule and its reason; the matched text is never written):`,
+          ...(allowedHits.length ? allowedHits.map(({ hit, reason }) => `  ${hit.path}:${hit.line} ${hit.rule}: ${reason}`) : ['  none']),
+          '',
+          `Unused allowlist entries (${SECRETS_ALLOW_REL}; matched nothing this run):`,
+          ...(unusedEntries.length ? unusedEntries.map((e) => `  ${e.path} ${e.rule} (${e.line !== null ? `line ${e.line}` : `sha256 ${e.sha256}`}): ${e.reason}`) : ['  none']),
+          '',
+        ] : []),
         'Not scanned:',
         ...(skipped.length ? skipped.map((s) => `  ${s.path} (${s.reason})`) : ['  none']),
         '',
@@ -389,20 +457,29 @@ export function collectSecrets(root, { control, reviewer, apply = false } = {}) 
     } finally { closeEvidenceFile(report.fd); }
     manifest = createEvidenceFile(root, 'leak-scan-files', startedAt);
   });
+  // The allowlist's own line, when it exists, so verifyManifest re-checks it: editing the file (adding, removing or
+  // changing a reason) then makes this record stale, the same way a changed scanned file does.
+  const manifestEntries = allowlist.exists
+    ? [...entries, { sha256: allowlist.fingerprint.sha256, size: allowlist.size, mtimeMs: allowlist.mtimeMs, path: SECRETS_ALLOW_REL }]
+    : entries;
+  const manifestDescription = allowlist.exists
+    ? `Files the secrets collector scanned as text, and the allowlist file (its edits also mark this record stale), at ${startedAt.toISOString()}`
+    : `Files the secrets collector scanned as text at ${startedAt.toISOString()}`;
   keepOutputs([report.rel, manifest.rel], () => {
-    try { appendEvidence(manifest.fd, renderManifest(entries, `Files the secrets collector scanned as text at ${startedAt.toISOString()}`)); } finally { closeEvidenceFile(manifest.fd); }
+    try { appendEvidence(manifest.fd, renderManifest(manifestEntries, manifestDescription)); } finally { closeEvidenceFile(manifest.fd); }
   });
 
-  const files = new Set(hits.map((h) => h.path)).size;
-  const detailed = hits.length
-    ? `${hits.length} line(s) in ${files} file(s) matched a secret shape (${Object.entries(byRule).map(([rule, n]) => `${rule} ${n}`).join(', ')}); ${entries.length} of ${tracked.length} tracked files scanned as text.`
-    : `No scanned line matched a secret shape; ${entries.length} of ${tracked.length} tracked files scanned as text, ${skipped.length} not scanned (listed in the report).`;
-  const brief = specific.length ? `${specific.length} line(s) matched a specific secret shape.` : hits.length ? `${hits.length} line(s) matched only generic secret shapes; review needed.` : 'No scanned line matched a secret shape.';
+  const files = new Set(matches.map((h) => h.path)).size;
+  const allowedNote = allowlist.exists && allowedHits.length ? ` ${allowedHits.length} line(s) allowed by ${SECRETS_ALLOW_REL}.` : '';
+  const detailed = matches.length
+    ? `${matches.length} line(s) in ${files} file(s) matched a secret shape (${Object.entries(byRule).map(([rule, n]) => `${rule} ${n}`).join(', ')}); ${entries.length} of ${tracked.length} tracked files scanned as text.${allowedNote}`
+    : `No unallowed line matched a secret shape; ${entries.length} of ${tracked.length} tracked files scanned as text, ${skipped.length} not scanned (listed in the report).${allowedNote}`;
+  const brief = specific.length ? `${specific.length} line(s) matched a specific secret shape.` : matches.length ? `${matches.length} line(s) matched only generic secret shapes; review needed.` : 'No unallowed line matched a secret shape.';
   const record = recordOrExplain(root, catalog, {
     controlId, assessment, note: collectorNote('secrets', versions, detailed, brief), reviewer: reviewerLabel,
     sources: [manifest.rel], artifacts: [report.rel],
   }, [report.rel, manifest.rel]);
-  return { applied: true, plan, report: report.rel, manifest: manifest.rel, record, counts: { tracked: tracked.length, scanned: entries.length, skipped: skipped.length, hits: hits.length, files, byRule } };
+  return { applied: true, plan, report: report.rel, manifest: manifest.rel, record, counts: { tracked: tracked.length, scanned: entries.length, skipped: skipped.length, hits: matches.length, files, byRule, allowed: allowedHits.length, unused: unusedEntries.length } };
 }
 
 // ---------- delivery policy ----------

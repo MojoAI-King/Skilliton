@@ -64,6 +64,7 @@ const REFUSALS = {
   NOT_A_GIT_REPOSITORY: 'the project folder is not inside a git repository',
   NOT_REPOSITORY_ROOT: 'the project folder is not the root of its git repository',
   NOTHING_TO_SCAN: 'no tracked file could be scanned',
+  INVALID_SECRETS_ALLOWLIST: 'the secrets allowlist .skilliton/security/secrets-allow.json does not match its schema (a JSON array of objects, each with a repository-relative "path", a "rule" the secrets collector uses, either a whole-number "line" or a 64-character "sha256" of the matched line, and a non-empty "reason", 1 to 500 characters, no control characters, not secret-shaped, and no other keys); values are not shown',
   COLLECTION_INTERRUPTED: 'the collection was interrupted before it finished, so nothing was recorded',
   RECORD_NOT_WRITTEN: 'the collector saved its output, but the observation record was not written',
 };

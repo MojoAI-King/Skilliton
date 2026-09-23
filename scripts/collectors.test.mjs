@@ -15,6 +15,7 @@ import { delimiter, dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..');
@@ -290,6 +291,120 @@ test('secrets collector: refuses outside a repository root or when the catalog l
     assert.deepEqual(evidenceFiles(folder), []);
     assert.deepEqual(records(folder), []);
   }
+});
+
+// ---------------------------------------------------------------- secrets allowlist (N47)
+
+const ALLOW = '.skilliton/security/secrets-allow.json';
+const writeAllow = (dir, entries) => writeFileSync(join(dir, ALLOW), JSON.stringify(entries));
+
+test('secrets allowlist: an entry allowed by line number moves the hit into Allowed with its reason, and the key is still never printed', (t) => {
+  const dir = project(t, { git: true });
+  const fakeKey = 'gh' + 'p_' + 'Y'.repeat(36);
+  writeFileSync(join(dir, 'config.js'), `export const key = "${fakeKey}";\n`);
+  gitIn(dir, 'add', '.');
+  writeAllow(dir, [{ path: 'config.js', rule: 'known-token-prefix', line: 1, reason: 'synthetic test fixture, not a real key' }]);
+  const r = collect(dir, 'secrets', ['--apply']);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.out.includes(fakeKey), false);
+  const [rec] = records(dir);
+  assert.equal(rec.assessment, 'observed');
+  const report = readFileSync(join(dir, rec.artifacts[0].path), 'utf8');
+  assert.equal(report.includes(fakeKey), false);
+  assert.match(report, /^Matches \(file:line rule; the matched text is never written\):\n {2}none$/m);
+  assert.match(report, new RegExp(`^Allowed by ${ALLOW.replace(/\./g, '\\.')} .*:\\n {2}config\\.js:1 known-token-prefix: synthetic test fixture, not a real key$`, 'm'));
+  const manifest = readFileSync(join(dir, rec.sources[0].path), 'utf8');
+  assert.match(manifest, new RegExp(`${ALLOW.replace(/\./g, '\\.')}$`, 'm'), 'the allowlist file is one of the manifest lines, so editing it makes the record stale');
+  assert.match(status(dir).out, row('SG-SECRETS-IN-SOURCE', 'undecided', 'observed', 'current'));
+});
+
+test('secrets allowlist: an entry allowed by sha256 of the matched line still allows it when the line number moves', (t) => {
+  const dir = project(t, { git: true });
+  const fakeKey = 'gh' + 'p_' + 'V'.repeat(36);
+  const lineText = `export const key = "${fakeKey}";`;
+  writeFileSync(join(dir, 'config.js'), `// a leading comment shifts the line number\n${lineText}\n`);
+  gitIn(dir, 'add', '.');
+  const sha256 = createHash('sha256').update(Buffer.from(lineText, 'latin1')).digest('hex');
+  writeAllow(dir, [{ path: 'config.js', rule: 'known-token-prefix', sha256, reason: 'synthetic fixture, matched by content' }]);
+  const r = collect(dir, 'secrets', ['--apply']);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.out.includes(fakeKey), false);
+  const [rec] = records(dir);
+  assert.equal(rec.assessment, 'observed');
+});
+
+test('secrets allowlist: an unallowed specific hit is still a gap even while another line is allowed', (t) => {
+  const dir = project(t, { git: true });
+  const allowedKey = 'gh' + 'p_' + 'U'.repeat(36);
+  const gapKey = 'gh' + 'p_' + 'T'.repeat(36);
+  writeFileSync(join(dir, 'allowed.js'), `export const key = "${allowedKey}";\n`);
+  writeFileSync(join(dir, 'leaked.js'), `export const key = "${gapKey}";\n`);
+  gitIn(dir, 'add', '.');
+  writeAllow(dir, [{ path: 'allowed.js', rule: 'known-token-prefix', line: 1, reason: 'synthetic fixture' }]);
+  const r = collect(dir, 'secrets', ['--apply']);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.out.includes(allowedKey), false);
+  assert.equal(r.out.includes(gapKey), false);
+  const [rec] = records(dir);
+  assert.equal(rec.assessment, 'gap');
+  const report = readFileSync(join(dir, rec.artifacts[0].path), 'utf8');
+  assert.match(report, /^ {2}leaked\.js:1 known-token-prefix$/m);
+  assert.doesNotMatch(report, /^ {2}allowed\.js:1 known-token-prefix$/m);
+});
+
+test('secrets allowlist: an entry that matches nothing this run is reported as unused', (t) => {
+  const dir = project(t, { git: true });
+  gitIn(dir, 'add', '.');
+  writeAllow(dir, [{ path: 'app.js', rule: 'known-token-prefix', line: 5, reason: 'nothing here now' }]);
+  const r = collect(dir, 'secrets', ['--apply']);
+  assert.equal(r.code, 0, r.out);
+  const [rec] = records(dir);
+  const report = readFileSync(join(dir, rec.artifacts[0].path), 'utf8');
+  assert.match(report, /^ {2}app\.js known-token-prefix \(line 5\): nothing here now$/m);
+});
+
+test('secrets allowlist: editing the file makes the secrets record stale', (t) => {
+  const dir = project(t, { git: true });
+  const fakeKey = 'gh' + 'p_' + 'W'.repeat(36);
+  writeFileSync(join(dir, 'config.js'), `export const key = "${fakeKey}";\n`);
+  gitIn(dir, 'add', '.');
+  writeAllow(dir, [{ path: 'config.js', rule: 'known-token-prefix', line: 1, reason: 'synthetic fixture' }]);
+  assert.equal(collect(dir, 'secrets', ['--apply']).code, 0);
+  assert.match(status(dir).out, row('SG-SECRETS-IN-SOURCE', 'undecided', 'observed', 'current'));
+  writeAllow(dir, [{ path: 'config.js', rule: 'known-token-prefix', line: 1, reason: 'a different reason now' }]);
+  assert.match(status(dir).out, row('SG-SECRETS-IN-SOURCE', 'undecided', 'observed', 'stale'));
+});
+
+test('secrets allowlist: an invalid file refuses naming the entry index and field, and writes nothing', (t) => {
+  const dir = project(t, { git: true });
+  gitIn(dir, 'add', '.');
+  const cases = [
+    [{ path: 'app.js', rule: 'known-token-prefix', line: 1 }, /entry 0: is missing "reason"/],
+    [{ path: 'app.js', rule: 'known-token-prefix', line: 1, reason: '' }, /entry 0: "reason" is empty/],
+    [{ path: 'app.js', rule: 'known-token-prefix', line: 1, reason: 'ok', extra: true }, /entry 0: has an unknown key "extra"/],
+    [{ path: '../outside', rule: 'known-token-prefix', line: 1, reason: 'ok' }, /entry 0: "path" is not a safe repository-relative path/],
+    [{ path: 'app.js', rule: 'not-a-real-rule', line: 1, reason: 'ok' }, /entry 0: "rule" is not one of the secrets collector's rules/],
+    [{ path: 'app.js', rule: 'known-token-prefix', reason: 'ok' }, /entry 0: needs a "line" or a "sha256" field/],
+    [{ path: 'app.js', rule: 'known-token-prefix', line: 1, sha256: 'a'.repeat(64), reason: 'ok' }, /entry 0: cannot have both "line" and "sha256"/],
+    [{ path: 'app.js', rule: 'known-token-prefix', line: 0, reason: 'ok' }, /entry 0: "line" is not a positive whole number/],
+    [{ path: 'app.js', rule: 'known-token-prefix', sha256: 'not-hex', reason: 'ok' }, /entry 0: "sha256" is not a 64-character lowercase hex digest/],
+  ];
+  for (const [entry, pattern] of cases) {
+    writeAllow(dir, [entry]);
+    const r = collect(dir, 'secrets', ['--apply']);
+    assert.equal(r.code, 2, r.out);
+    assert.match(r.out, pattern);
+    assert.deepEqual(evidenceFiles(dir), []);
+    assert.deepEqual(records(dir), []);
+  }
+  writeFileSync(join(dir, ALLOW), '{ not json');
+  const badJson = collect(dir, 'secrets', ['--apply']);
+  assert.equal(badJson.code, 2, badJson.out);
+  assert.match(badJson.out, /INVALID_SECRETS_ALLOWLIST/);
+  writeFileSync(join(dir, ALLOW), JSON.stringify({ not: 'an array' }));
+  const notArray = collect(dir, 'secrets', ['--apply']);
+  assert.equal(notArray.code, 2, notArray.out);
+  assert.match(notArray.out, /does not hold a JSON array/);
 });
 
 // ---------------------------------------------------------------- delivery policy
