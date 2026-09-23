@@ -341,7 +341,7 @@ AWK_TOKENIZER='
 # Inside a $( that opened within double quotes, the words are a command of their own (bash reads its quotes afresh), so
 # they are held in DEF and printed as their own segments after the segment that holds the quoted word, which goes on.
 function emit(x) { if (depth > 0) DEF = DEF x "\n"; else print x }
-function flush() { if (have) { if (skipnext == 2) emit(RT tok); else if (!skipnext) emit(tok); skipnext = 0 } tok = ""; have = 0 }
+function flush() { if (have) { if (skipnext == 2) emit(RDM tok); else if (!skipnext) emit(tok); skipnext = 0 } tok = ""; have = 0 }
 function sep() { flush(); emit(SEP); skipnext = 0; if (depth == 0 && DEF != "") { printf "%s", DEF; DEF = "" } }
 # arith(k): $(( ... )) or (( ... )) from the first ( at k, added to the word as it is, so a << inside it is never a
 # heredoc. Returns the index of the closing paren; one that does not close on this line makes the result unsure.
@@ -357,7 +357,7 @@ function arith(k,   pd, ch) {
 }
 function add(ch) { if (length(tok) < 4096) tok = tok ch; have = 1 }
 function at(k) { return substr(chunk, k - off, 1) }
-BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RT = sprintf("%c", 31); UN = sprintf("%c", 29) }
+BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RDM = sprintf("%c", 31); UN = sprintf("%c", 29) }  # not RT: in GNU awk RT is a built-in reset on every record, which lost every redirection mark on Linux
 {
   n = split($0, L, "\n")
   q = ""; tok = ""; have = 0; skipnext = 0; nhd = 0; hdi = 0; cont = 0; depth = 0; DEF = ""; unsure = 0
