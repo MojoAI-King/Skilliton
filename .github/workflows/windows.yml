@@ -120,41 +120,44 @@ jobs:
           set +e
           K="$HOME/First Last/skilliton"; cd "$HOME/windows try"
           out=$(node "$K/scripts/skilliton.mjs" status --dir . 2>&1); code=$?; echo "$out"
-          if [ "$code" = 0 ] && echo "$out" | grep -q "OK         layout: layout"; then echo "PASS status (exit $code)"; exit 0; fi
+          # On macOS a freshly prepared project gives exit 1 (security evidence needs attention) with the layout OK.
+          if [ "$code" = 1 ] && echo "$out" | grep -q "^OK         layout: layout 3" && echo "$out" | grep -q "^ATTENTION  security:"; then echo "PASS status (exit $code, as on macOS)"; exit 0; fi
           echo "FAIL status (exit $code)"; exit 1
       - name: "behavior: the session-start handoff hook prints the handoff"
         continue-on-error: true
         run: |
           set +e
-          K="$HOME/First Last/skilliton"; P="$K/packs/base/plugins/workflow"; cd "$HOME/windows try"
-          out=$(printf '{"session_id":"win1","source":"startup","cwd":"%s","hook_event_name":"SessionStart"}' "$PWD" | CLAUDE_PLUGIN_ROOT="$P" bash "$P/hooks/session-start-handoff.sh" 2>&1); code=$?; echo "$out" | head -20
+          K="$HOME/First Last/skilliton"; P="$K/packs/base/plugins/workflow"; cd "$HOME/windows try"; W=$(cygpath -w "$PWD" | sed 's/\\/\\\\/g') # the cwd as a Windows client sends it, JSON-escaped
+          out=$(printf '{"session_id":"win1","source":"startup","cwd":"%s","hook_event_name":"SessionStart"}' "$W" | CLAUDE_PLUGIN_ROOT="$P" bash "$P/hooks/session-start-handoff.sh" 2>&1); code=$?; echo "$out" | head -20
           if [ "$code" = 0 ] && [ -n "$out" ]; then echo "PASS handoff hook (exit $code)"; exit 0; fi
           echo "FAIL handoff hook (exit $code, $(printf %s "$out" | wc -c) bytes)"; exit 1
       - name: "behavior: hook session-start prints the Project state block"
         continue-on-error: true
         run: |
           set +e
-          K="$HOME/First Last/skilliton"; P="$K/packs/base/plugins/workflow"; cd "$HOME/windows try"
-          out=$(printf '{"session_id":"win1","source":"startup","cwd":"%s","hook_event_name":"SessionStart"}' "$PWD" | CLAUDE_PLUGIN_ROOT="$P" "$P/bin/skilliton" hook session-start 2>&1); code=$?; echo "$out" | head -14
+          K="$HOME/First Last/skilliton"; P="$K/packs/base/plugins/workflow"; cd "$HOME/windows try"; W=$(cygpath -w "$PWD" | sed 's/\\/\\\\/g') # the cwd as a Windows client sends it, JSON-escaped
+          out=$(printf '{"session_id":"win1","source":"startup","cwd":"%s","hook_event_name":"SessionStart"}' "$W" | CLAUDE_PLUGIN_ROOT="$P" "$P/bin/skilliton" hook session-start 2>&1); code=$?; echo "$out" | head -14
           if [ "$code" = 0 ] && echo "$out" | grep -q "Project state" && echo "$out" | grep -q "Branch: main"; then echo "PASS session-start (exit $code)"; exit 0; fi
           echo "FAIL session-start (exit $code)"; exit 1
       - name: "behavior: hook stop asks for a checkpoint after an edit"
         continue-on-error: true
         run: |
           set +e
-          K="$HOME/First Last/skilliton"; P="$K/packs/base/plugins/workflow"; cd "$HOME/windows try"
+          K="$HOME/First Last/skilliton"; P="$K/packs/base/plugins/workflow"; cd "$HOME/windows try"; W=$(cygpath -w "$PWD" | sed 's/\\/\\\\/g')
           echo "an edit" >> README.md
-          out=$(printf '{"session_id":"win1","cwd":"%s","hook_event_name":"Stop","stop_hook_active":false}' "$PWD" | CLAUDE_PLUGIN_ROOT="$P" "$P/bin/skilliton" hook stop 2>&1); code=$?; echo "$out" | head -c 400; echo
+          out=$(printf '{"session_id":"win1","cwd":"%s","hook_event_name":"Stop","stop_hook_active":false}' "$W" | CLAUDE_PLUGIN_ROOT="$P" "$P/bin/skilliton" hook stop 2>&1); code=$?; echo "$out" | head -c 400; echo
           if [ "$code" = 0 ] && echo "$out" | grep -q '"decision":"block"' && echo "$out" | grep -q "checkpoint reminder"; then echo "PASS stop (exit $code)"; exit 0; fi
           echo "FAIL stop (exit $code)"; exit 1
       - name: "behavior: the guard hook, four commands"
         continue-on-error: true
         run: |
           set +e
-          K="$HOME/First Last/skilliton"; G="$K/packs/base/plugins/guardrails"; cd "$HOME/windows try"
+          # The four cases, kept in a file so the diagnosis step below runs exactly the same ones.
+          cat > "$HOME/guard-cases.sh" <<'CASES'
+          K="$HOME/First Last/skilliton"; G="$K/packs/base/plugins/guardrails"; cd "$HOME/windows try"; W=$(cygpath -w "$PWD" | sed 's/\\/\\\\/g')
           fails=0
           guard() { # $1 command, $2 expected decision (none, deny or ask)
-            out=$(printf '{"session_id":"win1","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"%s"}}' "$PWD" "$1" | CLAUDE_PLUGIN_ROOT="$G" bash "$G/hooks/guard-bash.sh" 2>&1); code=$?
+            out=$(printf '{"session_id":"win1","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"%s"}}' "$W" "$1" | CLAUDE_PLUGIN_ROOT="$G" bash "$G/hooks/guard-bash.sh" 2>&1); code=$?
             got=$(printf %s "$out" | sed -n 's/.*"permissionDecision":"\([a-z]*\)".*/\1/p'); got=${got:-none}
             if [ "$code" = 0 ] && [ "$got" = "$2" ]; then echo "PASS guard [$1]: $got"; else echo "FAIL guard [$1]: exit $code, decision $got, expected $2; output: $(printf %s "$out" | head -c 300)"; fails=$((fails+1)); fi
           }
@@ -162,8 +165,22 @@ jobs:
           guard "git commit --no-verify -m t" deny # skilliton-audit: allow verification-off a test case that sends the flag to the guard
           guard "git push --force origin main" deny
           guard "git checkout -- ." ask
+          CASES
+          . "$HOME/guard-cases.sh"
           [ "$fails" = 0 ] && { echo "PASS guard (4 of 4)"; exit 0; }
           echo "FAIL guard ($fails of 4 wrong)"; exit 1
+      - name: "diagnosis: the same four with jq writing LF line ends (jq -b)"
+        continue-on-error: true
+        run: |
+          set +e
+          # A native jq.exe ends each output line with CRLF unless given -b, so the hook's read of "none\r" fails and every
+          # command asks. A jq that always gets -b, first on PATH, tests the change proposed for guard-bash.sh.
+          real=$(command -v jq); echo "jq is $real ($(jq --version))"; printf 'a\n' | jq -r . | od -c | head -1
+          mkdir -p "$HOME/jq-lf" && printf '#!/usr/bin/bash\nexec "%s" -b "$@"\n' "$real" > "$HOME/jq-lf/jq" && chmod +x "$HOME/jq-lf/jq"
+          export PATH="$HOME/jq-lf:$PATH"; printf 'a\n' | jq -r . | od -c | head -1
+          . "$HOME/guard-cases.sh"
+          [ "$fails" = 0 ] && { echo "PASS guard with jq -b (4 of 4)"; exit 0; }
+          echo "FAIL guard with jq -b ($fails of 4 wrong)"; exit 1
       - name: A delivery check started by a bare program name
         continue-on-error: true
         run: |
