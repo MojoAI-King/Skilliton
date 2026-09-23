@@ -1,6 +1,6 @@
 # How Skilliton works
 
-Kind: Living. For anyone meeting Skilliton for the first time: a company lead deciding whether to use it, a reviewer, or a new builder. Updated 2026-09-20. Each step links to the run that proved it; the milestones are in [PLAN.md](../PLAN.md) section 7.
+Kind: Living. For anyone meeting Skilliton for the first time: a company lead deciding whether to use it, a reviewer, or a new builder. Updated 2026-09-23. Each step links to the run that proved it; the milestones are in [PLAN.md](../PLAN.md) section 7.
 
 **Skilliton is a skeleton your company forks.** Your copy holds how your company builds software: its skills, checks, record keeping and security evidence. You release versions of it, every person's Claude Code or Codex installs that version, and the assistant then works the company's way in any repository they open. Lessons learned in projects come back to your copy as proposals, and nothing changes for developers until you release it.
 
@@ -73,7 +73,7 @@ node scripts/skilliton.mjs new-skill <plugin> <skill> --pack <company> --descrip
 - **`company init`** names your marketplace, sets its owner, and points the team settings template at your fork. Without it, projects would keep installing the upstream plugins instead of yours.
 - **`new-plugin`** creates a plugin in your pack, lists it in the catalog so people can install it, and turns it on in the team settings.
 - **`new-skill`** writes a skill skeleton for you to fill in. To bring in a skill you already have, use `node scripts/skilliton.mjs import <folder> --into <plugin> --pack <company> --apply`, which first scans it for names, secrets and home paths. Both commands preview without `--apply` and write nothing.
-- `company init` and `new-plugin` show their change and write nothing until you add `--apply`. `new-skill` creates the skill straight away.
+- `company init`, `new-plugin`, `new-skill` and `import` show their change and write nothing until you add `--apply`.
 
 Then keep, or leave out, what comes prepackaged:
 
@@ -118,14 +118,14 @@ Once per computer, from a clone of the company's repository:
 
 ```bash
 git clone https://github.com/<owner>/<repo> ~/company-skills
-node ~/company-skills/scripts/skilliton.mjs join --company <company> --signers <file from your company>           # preview
-node ~/company-skills/scripts/skilliton.mjs join --company <company> --signers <file from your company> --apply   # set up
+node ~/company-skills/scripts/skilliton.mjs join --from <join file>           # preview
+node ~/company-skills/scripts/skilliton.mjs join --from <join file> --apply   # set up
 ```
 
 `join` sets up every coding tool it finds, Claude Code and Codex:
 
 - it adds the company marketplace and installs the plugins the company's settings turn on;
-- it trusts the company's release signers, from a file the company gives you separately, never from the repository;
+- it trusts the company's release signers, from the join file the company gives you separately, never from the repository;
 - it puts a `skilliton` command in `~/.local/bin` for the terminal, and tells you when that folder is not on your PATH (it never edits your shell profile);
 - it ends by running `skilliton verify` for each tool.
 
@@ -160,7 +160,7 @@ skilliton prepare --dir <project> --apply  # write
 - It keeps existing status, backlog, decision, lesson and handoff files, and creates the missing ones marked "not yet assessed".
 - It writes the team's instructions into `CLAUDE.md` and `AGENTS.md` between markers, leaving your own text alone, and sets up the security register.
 - Running it again changes nothing, and `skilliton remove` takes Skilliton out again while keeping every record.
-- Today a person or the assistant starts it; having the first session offer it is milestone M8.
+- On a machine that has joined, the first session start prepares the repository and says what it wrote ([measured](../evidence/live/2026-09-22-auto-prepare-live.md)); elsewhere the session start offers to ([measured](../evidence/live/2026-09-22-unprepared-repo-session-start.md)), and a person or the assistant runs it.
 
 **Every day after that:**
 
@@ -213,14 +213,14 @@ A proposal is not policy: it changes nothing until the company reviews it, tests
 | Session start, checkpoint reminder and guardrails in real Claude Code sessions | measured, headless | [live sessions](../evidence/rehearsals/2026-09-16-live-clients/SUMMARY.md) |
 | The delivery gate accepting a good change and rejecting a combined break | measured in tests and the demo | `node scripts/autopilot-demo.mjs` |
 | One-command machine setup with `join`, and `join --undo`, on Claude Code and Codex, ending VERIFIED | measured, installing from a local folder | [machine rehearsal](../evidence/rehearsals/2026-09-17-machine/SUMMARY.md) |
-| Installing from a GitHub source | measured on this public repository, on both tools; it has no signed release yet, so verify reports UNKNOWN VERSION | same rehearsal, step J8 |
+| Installing from a GitHub source | measured on this public repository, on both tools, before any release was signed (step J8). Release 1.0.0 is now signed: a fresh clone from GitHub shows it approved, and `verify` reads VERIFIED on Claude Code on the maintainer's machine | same rehearsal, step J8; [release 1.0.0](../evidence/live/2026-09-22-release-1.0.0.md) |
 | Company plugins arriving from device-managed settings, with no developer command | measured on a clean Linux container without a login: active from the third session start, or the first with a first-login install; macOS not yet run | [enrollment rehearsal](../evidence/rehearsals/2026-09-17-enrollment/SUMMARY.md) |
 | Working alongside company endpoint security (application allowlisting, endpoint detection, inspecting proxies) | [IT-ALLOWLIST.md](IT-ALLOWLIST.md) is read from the code and held to it by a test; `skilliton preflight` checks a laptop before setup and is proved against blocks made on purpose; **not tested under any product** | B29 in [BACKLOG.md](BACKLOG.md) |
-| Running on Windows | decided and built in theory (Git for Windows, one implementation of every hook); **no Windows machine has run anything** | [WINDOWS.md](WINDOWS.md), B30 |
-| Dispatching work into lane worktrees | the command, the briefs and every refusal are measured over fixture repositories; **no real dispatch has been run, no lane agent has been launched from a brief, and no lane report has been collected** | [COVERAGE.md](COVERAGE.md), the dispatch section |
+| Running on Windows | Git for Windows, one implementation of every hook. On a GitHub-hosted Windows runner, preflight, prepare, status, every session hook and the guard's decisions pass; **not supported yet** (B79), and no Claude Code session has run on Windows | [WINDOWS.md](WINDOWS.md), [the hosted runner](../evidence/live/windows/2026-09-23-hosted-runner-port.md), B30 |
+| Dispatching work into lane worktrees | the command, the briefs and every refusal are measured over fixture repositories; one real dispatch ran on 2026-09-21: two lanes, each worked by an agent given its brief, both reported done and were merged | [COVERAGE.md](COVERAGE.md), the dispatch section; [the first real dispatch](../evidence/live/2026-09-21-dispatch.md) |
 | A skills clone pinned to a signed release, and moved between releases | measured in tests: the move up, down and to the newest, and thirteen refusals including an unsigned tag, a tag re-made on another commit and a dirty clone. **A client's own plugin download cannot be pinned**: neither marketplace command takes a ref (measured 2026-09-21 on 2.1.276), and `verify` is what reports a mismatch | `scripts/release.test.mjs`; [the decision](decisions/2026-09-21-pinning-pins-the-clone-because-a-client-2fa4.md) |
-| Lifecycle hooks on Codex | not observed | [CLIENTS.md](CLIENTS.md) |
-| The GitHub delivery adapter on a hosted repository | documented, not proved | [DELIVERY.md](DELIVERY.md) |
+| Lifecycle hooks on Codex | a real Codex 0.156.0 session in a prepared repository ran none of Skilliton's hooks; the instructions and the skills reached the model. Whether a plugin hook runs once a person trusts it is **not verified** | [the Codex session](../evidence/live/2026-09-22-codex-session.md), [CLIENTS.md](CLIENTS.md) |
+| The GitHub delivery adapter on a hosted repository | rehearsed once, on 2026-09-21, on a throwaway repository: a direct push to `main` refused, and a pull request with a failing check blocked from merging. A clean change merging was not run | [the hosted run](../evidence/live/2026-09-21-hosted-delivery-gate.md), [DELIVERY.md](DELIVERY.md) |
 | A real new builder following these docs | not started (M5) | [protocol](rehearsals/NEW_BUILDER.md) |
 | Any cost or usage saving | not claimed | [DECISIONS.md](../DECISIONS.md) O2 |
 

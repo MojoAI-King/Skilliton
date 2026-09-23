@@ -48,7 +48,7 @@ For a company with an IT department, that file and command are what an endpoint 
 
 An AI assistant is billed on how much it reads and writes. Two habits inflate that: reading enormous files whole when a page would do, and pasting the entire output of a test run into the conversation. Skilliton refuses the first and routes the second into a log file, showing only the verdict. It also keeps its notes small and structured so that when the assistant's memory fills up, what it needs is a short note rather than a long transcript.
 
-Does that lower the bill? It should. The honest answer is that it has not yet been measured properly. The repository includes a meter that reads the assistant's own usage logs, and the rule inside the project is that no number leaves the building until the meter's figure has been checked against the real bill. Ask for that comparison after a month of use; do not accept an estimate.
+Does that lower the bill? That has not been shown, and the one measurement so far points the other way. In a comparison run on 2026-09-22 (evidence/comparison/2026-09-22/SUMMARY.md), each session of the task that measured it used about 20,000 to 30,000 more input tokens (the units an assistant is billed in) with Skilliton than without, because of the instructions and the start-of-session summary it adds; making those smaller is backlog item B65. The repository includes a meter that reads the assistant's own usage logs, and the rule inside the project is that no number leaves the building until the meter's figure has been checked against the real bill. Ask for that comparison after a month of use; do not accept an estimate.
 
 ## What has been proven, and what has not
 

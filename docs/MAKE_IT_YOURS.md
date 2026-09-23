@@ -6,7 +6,7 @@ The skills, hooks and checks are the same for every company; what differs is a s
 
 | What is particular to a company | Where it lives | How it is changed |
 |---|---|---|
-| The company's name and the marketplace its machines install from | `.claude-plugin/marketplace.json`, `packs/base/plugins/workflow/templates/project-settings.json` | `node scripts/skilliton.mjs company init --name <company> --marketplace-repo <owner>/<repo> --apply` |
+| The company's name and the marketplace its machines install from | `.claude-plugin/marketplace.json`, `templates/project-settings.json` | `node scripts/skilliton.mjs company init --name <company> --marketplace-repo <owner>/<repo> --apply` |
 | Who may approve a release | An `allowed_signers` file the company keeps outside the repository, one SSH public key per approver | `trust add` on each machine, or the join file below, which carries it |
 | The one file a machine joins with | Written outside every working tree, handed out by device management or an internal page, never through the repository | `company join-file --name <company> --signers <file> --out <path> --apply`; add `--prepare offer` for a company that wants to be asked before a repository is prepared |
 | Where developers keep their repositories | Nowhere: a repository is prepared at its first session start wherever it is. For repositories already on a machine, one sweep of that folder | The loop in "Preparing everything already on a machine" below, with the folder changed |

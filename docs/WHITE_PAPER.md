@@ -1,6 +1,6 @@
 # Skilliton: a shared way of working for a team's AI coding assistants
 
-Kind: Living. Technical white paper, written 2026-09-22 against the repository at that date. Every figure is measured on that tree or says it is not; the section "What is measured and what is not" is the honest boundary.
+Kind: Living. Technical white paper, written 2026-09-22 against the repository at that date and brought up to date on 2026-09-23. Every figure is measured on that tree, or on the tree of the date it names, or says it is not; the section "What is measured and what is not" is the honest boundary.
 
 ## Abstract
 
@@ -88,13 +88,13 @@ Device management (Jamf, Intune) drops the join file and runs steps 6 and 7 at l
 
 ## 5. Quality of the repository itself
 
-The repository is prepared with its own product and runs 58 check steps in CI on every push, each as its own step; `scripts/checks.mjs` runs the same list locally from the CI file, so there is one list. Most checkers carry a `--self-test` that plants a defect and requires red, so a green run is evidence rather than a silent pass. A lint holds the runtime's shape: a 600-line ceiling with pinned exceptions that may only shrink, no unused import, no `console.log` in a runtime, every command module exporting `help` and `run`, no `package.json` outside fixtures. A dead-code check fails on any export nothing reaches and names the modules it could not follow. The IT allow list, the small-footprint rules (no network code, no administrator rights, nothing left running, no system paths), the name scrub, the dash rule and the backlog's relationship with its archive are each a test. The audit runs over the whole tree. A cold review by a reader with no session context is the gate before a release, and each of its items is shipped or deferred with a written reason.
+The repository is prepared with its own product and runs 73 check steps in CI on every push (counted 2026-09-23 with `node scripts/checks.mjs --list`), each as its own step; `scripts/checks.mjs` runs the same list locally from the CI file, so there is one list. Most checkers carry a `--self-test` that plants a defect and requires red, so a green run is evidence rather than a silent pass. A lint holds the runtime's shape: a 600-line ceiling with pinned exceptions that may only shrink, no unused import, no `console.log` in a runtime, every command module exporting `help` and `run`, no `package.json` outside fixtures. A dead-code check fails on any export nothing reaches and names the modules it could not follow. The IT allow list, the small-footprint rules (no network code, no administrator rights, nothing left running, no system paths), the name scrub, the dash rule and the backlog's relationship with its archive are each a test. The audit runs over the whole tree. A cold review by a reader with no session context is the gate before a release, and each of its items is shipped or deferred with a written reason.
 
 ## 6. What is measured and what is not
 
-**Measured, with the evidence in the repository.** Every hook firing in a live Claude Code session in the VS Code extension (session start block, read guard refusal, stop reminder, skill list). Guardrail denials and asks over 549 checks and a live force-push denial. Fork, rename, a company plugin, a signed release verified from a fresh clone, install and update in a clean client configuration from a public and a private repository. The delivery gate rejecting a planted flaw against a local bare repository and blocking a defective pull request on a hosted repository with branch protection. One real two-lane dispatch, both lanes under their 120000-token ceiling by the meter's definition (107161 and 115485). Layout migrations with preview, receipt and rollback. The meter reproducing a known window.
+**Measured, with the evidence in the repository.** Every hook firing in a live Claude Code session in the VS Code extension (session start block, read guard refusal, stop reminder, skill list). Guardrail denials and asks over 549 checks and a live force-push denial. Fork, rename, a company plugin, a signed release verified from a fresh clone, install and update in a clean client configuration from a public and a private repository. The delivery gate rejecting a planted flaw against a local bare repository and blocking a defective pull request on a hosted repository with branch protection. One real two-lane dispatch, both lanes under their 120000-token ceiling by the meter's definition (107161 and 115485). Layout migrations with preview, receipt and rollback. The meter reproducing a known window. A comparison fixed before it ran: uncommitted work kept in 3 of 3 runs with Skilliton against 0 of 3 without, and about 20,000 to 30,000 more input tokens per session with Skilliton in the task that counted them (evidence/comparison/2026-09-22/SUMMARY.md). A real Codex 0.156.0 session in a prepared repository, in which the instructions and skills reached the model and none of Skilliton's hooks ran (evidence/live/2026-09-22-codex-session.md). The commands, preparation and every hook on a GitHub-hosted Windows runner (evidence/live/windows/2026-09-23-hosted-runner-port.md).
 
-**Not measured.** A real team using it: one repository on one machine is the live user, and no new builder has been onboarded from the documents alone. Codex lifecycle hooks in a real session. Windows, a clean macOS account, a Cursor session. The device-management scripts. A lane launched through the brief's own `--agent` line. Any usage or cost saving.
+**Not measured.** A real team using it: one repository on one machine is the live user, and no new builder has been onboarded from the documents alone. Whether a Codex plugin hook runs once a person trusts it. A Claude Code session on Windows, a clean macOS account, a Cursor session. The device-management scripts. A lane launched through the brief's own `--agent` line. Any usage or cost saving.
 
 ## 7. Limits stated plainly
 
@@ -109,8 +109,8 @@ The repository is prepared with its own product and runs 58 check steps in CI on
 |---|---|
 | Language | JavaScript (Node.js 22 or later, the version CI runs; ES modules) for commands and engines; Bash for the hooks that must start in under a second |
 | Dependencies | None; no build step; no network code of its own |
-| Size | About 40,000 lines of runtime, hooks and tests; 58 check steps in CI |
+| Size | About 40,000 lines of runtime, hooks and tests; 73 check steps in CI (2026-09-23) |
 | Clients | Claude Code, measured (terminal and VS Code extension). Codex: installs, sees skills, runs no plugin hooks. Cursor: documented only |
-| Platforms | macOS and Linux exercised; Windows has a written first run, not yet tried |
+| Platforms | macOS and Linux exercised; Windows runs on a GitHub-hosted runner and is not supported until backlog item B79 is fixed |
 | Licence | MIT |
 | Where it writes | `docs/IT-ALLOWLIST.md`, held equal to the code by a test |

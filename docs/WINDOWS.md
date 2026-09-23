@@ -1,8 +1,9 @@
 # Windows: what to install, what to run, and what to send back
 
-Kind: Living. Written for the first Windows run. **Nothing here has been measured on Windows yet.** Every step below is
-read from Claude Code's documentation (retrieved 2026-09-17) and from the code; the point of the run is to find out
-which parts are wrong. A step that fails is the result, not a mistake: copy what it said.
+Kind: Living. Written for the first Windows run. **Every command below has run on a GitHub-hosted Windows runner
+(evidence/live/windows/); a Claude Code session, a developer's workstation and the `skilliton.cmd` launcher have
+not.** The rest is read from Claude Code's documentation (retrieved 2026-09-17) and from the code; the point of the run
+is to find out which parts are wrong. A step that fails is the result, not a mistake: copy what it said.
 
 ## Why Git for Windows
 
@@ -13,7 +14,8 @@ machine without Git Bash should fail loudly rather than hand a shell script to P
 `docs/decisions/2026-09-17-windows-is-supported-through-git-for-win-cb9e.md`. One hook is a Node script rather than a
 shell script: the context-hygiene read guard (`hooks/read-guard.mjs`), started by its first line `#!/usr/bin/env node`
 through the same `bash`. Git Bash resolves that line through its own `/usr/bin/env`, which needs `node` on the PATH Git
-Bash sees; this is unmeasured on Windows like every other hook here, and the check below covers it.
+Bash sees; the read guard was not among the hooks run on the hosted runner, so this is unmeasured on Windows, and the
+check below covers it.
 
 Git for Windows also brings most of what the allow list needs: `bash`, `awk`, `sed`, `grep`, `tr`, `wc`, `cat`,
 `find`, `xargs`, `tar`, `ssh-keygen` and `git` itself.
@@ -99,7 +101,7 @@ These were guesses, written down so the run could confirm or refute them. The ho
 - **The terminal command.** `join` writes a POSIX shell script at `~/.local/bin/skilliton`, which Git Bash can run,
   and on Windows also `skilliton.cmd` beside it, for PowerShell and the Command Prompt. The `.cmd` file's content is
   pinned by a unit test (`scripts/join.test.mjs`, the platform injected through `SKILLITON_PLATFORM`), and undo
-  removes it; it has not yet been run on Windows, so its first run is part of the owner pass below. If `~/.local/bin`
+  removes it; it has not yet been run on Windows, so its first run is part of walkthrough step 9 (docs/OWNER_WALKTHROUGH.md). If `~/.local/bin`
   is not on PATH there, the fallback is still `node <clone>\scripts\skilliton.mjs`.
 - **File modes.** Windows has no execute bit, so `verify` may report files it expects to be executable. Say what it
   reports.
@@ -120,4 +122,5 @@ These were guesses, written down so the run could confirm or refute them. The ho
 
 Update `docs/COVERAGE.md` (the operating system row), `docs/CLIENTS.md` (which shell runs a hook), the Windows lines in
 `docs/IT-ALLOWLIST.md` section 8, and `docs/BACKLOG.md` B30, each with what was run, on which versions, and on which
-Windows build. Until then, every document says Windows is unmeasured.
+Windows build. Until then, every document says Windows is not supported: the hosted runner has run the commands and
+the hooks, but no Claude Code session has run on Windows, and backlog item B79 is open.

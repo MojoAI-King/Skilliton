@@ -21,9 +21,10 @@ paragraph above and nothing from the tables below, and read the placeholder as "
 6. For the per-batch view, run `skilliton usage` rather than reading the meter by hand: it runs the meter's own test
    first, then the meter once per batch that merged, and prints one row per window. Two limits are worth knowing
    before the numbers are read. The meter buckets by day, so a row is whole days, from the day after the previous
-   batch merged through the day this one merged; and in this repository every merge so far landed on one day
-   (2026-09-16, measured 2026-09-20), so `skilliton usage` here is one row covering everything up to that day. The
-   per-batch scorecard starts telling batches apart in a repository whose batches merge on different days.
+   batch merged through the day this one merged; and in this repository the merge commits landed on two days
+   (13 on 2026-09-16 and 2 on 2026-09-21), and later lanes were merged without a merge commit, so `skilliton usage`
+   here shows two rows and no row after 2026-09-21 (measured 2026-09-23: "2 batch row(s) from 15 merge(s)"). The
+   per-batch scorecard tells batches apart only where each batch lands as a merge commit.
 
 ## Recorded
 

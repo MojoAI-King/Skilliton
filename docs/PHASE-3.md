@@ -134,7 +134,7 @@ M8 (already on the roadmap) covers the first minute in a new repository. M11 cov
 |---|---|---|
 | Opening a repository never prepared | Offer preparation in plain words, preview it, apply it on a yes, start the first task; draft a merge policy from the detected test commands for a person to confirm (M8) | SessionStart hook (measured event) |
 | Opening any prepared repository | Show where things stand and the one next step (built) | SessionStart hook (measured) |
-| A prompt with six or more separate items | Suggest splitting the work with dispatch before writing code | UserPromptSubmit hook adds a note (built 2026-09-20 with fixture tests; the event is documented and delivery to a plugin hook is not yet seen here) |
+| A prompt with six or more separate items | Suggest splitting the work with dispatch before writing code | UserPromptSubmit hook adds a note (built 2026-09-20 with fixture tests; delivery to a plugin hook measured 2026-09-22 on Claude Code 2.1.278, headless: evidence/live/2026-09-22-dispatch-automation-live.md) |
 | Before context is compacted | Write a checkpoint snapshot (task, decisions, next step) so nothing is lost | PreCompact hook (event recorded today; the snapshot is new) |
 | After compaction | Show the task and the snapshot again | SessionStart with source compact (measured 2026-09-18, live rehearsal L6, headless; its Project state reached the model after the boundary) |
 | Finishing with unrecorded changes | Ask for a checkpoint (built) | Stop hook (measured) |
@@ -218,7 +218,7 @@ The owner will show how a company would use Skilliton. The plan agreed in conver
 4. **A developer session:** Claude Code opens with the project state, turns a request into a task, has a force-push blocked by guardrails, and writes a handoff.
 5. **The merge check:** a change that passes alone and breaks once combined is rejected, as `node scripts/autopilot-demo.mjs` shows offline.
 
-Not claimed in it: device-management delivery with no developer command, the merge check running on GitHub itself (B4), Windows (B30), work alongside endpoint security (B29), any time or cost saving, and tools beyond Claude Code and Codex. The kit (the sample application, a scripted run of the five steps and a talk track) is not built yet.
+Not claimed in it: device-management delivery with no developer command, Windows (B30), work alongside endpoint security (B29), any time or cost saving, and tools beyond Claude Code and Codex. The kit is built: `node scripts/demo-day.mjs` runs the five steps on disposable folders, and [DEMO.md](DEMO.md) is the talk track.
 
 ## Belief check
 
@@ -231,7 +231,7 @@ What the owner described, checked against what can be built and proven. None of 
 | Routine work runs by itself as people develop | **TRUE where hooks exist, with a limit**: a hook can show, remind, refuse to stop or add a note, and the assistant does the work | Stated per tool; the merge gate is the only layer a developer cannot switch off |
 | Automatic compaction saves money | **UNVERIFIED**, and may be false for some work | Measured in M14 before any statement |
 | A security skill audits for gaps automatically | **TRUE for defined checks**, not for "all gaps" | Stated as what the audit checks; never "secure" |
-| It runs dispatch when needed and explains what to run next | **TRUE on Claude Code as a suggestion**: documented prompt hook, not yet run here | Measured in M11 |
+| It runs dispatch when needed and explains what to run next | **TRUE on Claude Code as a suggestion**: the prompt hook, measured 2026-09-22 on Claude Code 2.1.278, headless (evidence/live/2026-09-22-dispatch-automation-live.md) | The interactive extension is not measured; whether the assistant follows the note every time is three runs, one per version |
 | People who build with AI but lack team experience are missing this step | **UNVERIFIED** (no user outside the author yet) | M5 participant; the demonstration audience |
 
 ## What Phase 3 will not do

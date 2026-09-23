@@ -14,7 +14,7 @@ what was actually measured instead of taking this file's word for it.
 ## What was measured
 
 Judge model sonnet, three runs per arm, six runs per case, on the tree at commit `1242dcb`.
-Evidence, with every grader's result per run: [`evidence/1242dcb`](../evidence/).
+Evidence, with every grader's result per run: [`evidence/1242dcb`](../evidence/1242dcb/).
 
 | Skill | Case | with | without | Delta | Shipped |
 | --- | --- | --- | --- | --- | --- |

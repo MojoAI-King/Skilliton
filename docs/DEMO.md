@@ -85,14 +85,18 @@ failing check named.
 
 Say these plainly if they come up, rather than being caught by them:
 
-- **No time or cost saving.** Nothing has been measured (PLAN.md M14). Do not say "faster" or "cheaper".
+- **No time or cost saving.** The one measured comparison found that, in the task that counted tokens, each session
+  with Skilliton used about 20,000 to 30,000 more input tokens than without, and it reports no time comparison
+  ([SUMMARY.md](../evidence/comparison/2026-09-22/SUMMARY.md)). Do not say "faster" or "cheaper".
 - **Endpoint security:** not tested under any product (B29).
-- **Windows:** the approach is decided and nothing has been run there yet (B30, [WINDOWS.md](WINDOWS.md)).
+- **Windows:** measured on a hosted Windows runner, not supported until B79 is fixed, and no Claude Code session has
+  run on Windows (B30, [WINDOWS.md](WINDOWS.md), [the hosted run](../evidence/live/windows/2026-09-23-hosted-runner-port.md)).
 - **Device management:** the Claude Code half is measured in a container, with no login; a real Intune or Jamf tenant
   is untested (B22).
 - **Other tools:** Claude Code and Codex are measured; Cursor and the rest are documented, not run (docs/CLIENTS.md).
-- **The merge check on GitHub:** the gate is proved on a real shared repository locally; the hosted adapter is
-  documented, not rehearsed (B4).
+- **The merge check on GitHub:** the gate is proved on a real shared repository locally, and the hosted adapter was
+  rehearsed once on a throwaway repository: a direct push refused and a failing pull request blocked; a clean change
+  merging was not run ([the hosted run](../evidence/live/2026-09-21-hosted-delivery-gate.md)).
 - **Security:** the audit checks named things. Never say "secure" or "compliant".
 
 If someone asks a question you cannot answer with something you have run, say "I have not measured that", and say
