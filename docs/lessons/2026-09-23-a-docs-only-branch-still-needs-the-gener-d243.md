@@ -16,7 +16,7 @@ scripts/living-docs.mjs generates STATUS's milestone table from PLAN.md section 
 
 ## The fix
 
-f1623ad regenerated the table on main (`node scripts/living-docs.mjs --apply`).
+19d0f48 regenerated the table on main (`node scripts/living-docs.mjs --apply`).
 
 ## The rule
 

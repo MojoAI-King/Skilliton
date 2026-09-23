@@ -16,7 +16,7 @@ CI failed on a7bc8f6 at "The audit over every file this repository has ever chan
 
 ## The fix
 
-e8e156e added the inline marker `# skilliton-audit: allow verification-off <reason>` on that line. The order of the last step is now commit, audit, push.
+fd4dc3a added the inline marker `# skilliton-audit: allow verification-off <reason>` on that line. The order of the last step is now commit, audit, push.
 
 ## The rule
 
