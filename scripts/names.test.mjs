@@ -76,11 +76,20 @@ export const ALLOWED_FILE_LINES = [
   ["PLAN.md", /formerly Skillgate/, "says what the product used to be called"],
 ];
 
+// Folders that hold exact copies of product files, kept at their original paths below the folder. A copy is checked
+// under the rules of the file it copies, never waved through as a folder: the earlier name passes in a copy only where
+// the product file itself may carry it, so a file added there that copies nothing gets no pass.
+export const MIRRORED_FOLDERS = [
+  ["site/design/product-sources/", "the website's copies of product files at the release it quotes, which its own checks hash"],
+];
+const rulePathOf = (path) => { const m = MIRRORED_FOLDERS.find(([f]) => path.startsWith(f)); return m ? path.slice(m[0].length) : path; };
+
 export function findViolations(files) {
   const violations = [];
   for (const { path, text } of files) {
-    if (ALLOWED_PATHS.some(([p]) => (p.endsWith("/") ? path.startsWith(p) : path === p))) continue;
-    const sections = ALLOWED_SECTIONS.filter(([p]) => p === path).map(([, heading]) => heading);
+    const rules = rulePathOf(path);
+    if (ALLOWED_PATHS.some(([p]) => (p.endsWith("/") ? rules.startsWith(p) : rules === p))) continue;
+    const sections = ALLOWED_SECTIONS.filter(([p]) => p === rules).map(([, heading]) => heading);
     let sectionLevel = 0; // the heading level of the allowed section the line is in, or 0
     text.split("\n").forEach((line, i) => {
       const heading = /^(#{1,6}) /.exec(line);
@@ -88,7 +97,7 @@ export function findViolations(files) {
       const inSection = sectionLevel > 0;
       if (inSection || !WORD.test(line)) return;
       if (ALLOWED_LINES.some(([re]) => re.test(line))) return;
-      if (ALLOWED_FILE_LINES.some(([p, re]) => p === path && re.test(line))) return;
+      if (ALLOWED_FILE_LINES.some(([p, re]) => p === rules && re.test(line))) return;
       violations.push({ path, line: i + 1, text: line.trim().slice(0, 160) });
     });
     if (WORD.test(path) && !ALLOWED_LINES.some(([re]) => re.test(path))) violations.push({ path, line: 0, text: "(the file name itself)" });
@@ -128,6 +137,9 @@ function selfTest() {
     { name: "an earlier command in the current handoff note fails", files: [{ path: "docs/HANDOFF.md", text: "## RESUME HERE\n\nrun skillgate status\n\n## Earlier\n\nskillgate status\n" }], expect: 1 },
     { name: "an allowed section passes, subsections included", files: [{ path: "docs/HANDOFF.md", text: "## Earlier\n\n### 2026-09-16\nskillgate status\n" }], expect: 0 },
     { name: "the same line outside that section fails", files: [{ path: "docs/CONTRACTS.md", text: "## 15. Codex adapter\n\n| .skillgate/ | refused |\n" }], expect: 1 },
+    { name: "a mirrored copy passes where the file it copies may use the name", files: [{ path: "site/design/product-sources/docs/CONTRACTS.md", text: "## 16. The earlier names\n\n| .skillgate/ | migrated |\n" }], expect: 0 },
+    { name: "a mirrored copy fails where the file it copies may not", files: [{ path: "site/design/product-sources/docs/CONTRACTS.md", text: "## 15. Codex adapter\n\n| .skillgate/ | refused |\n" }], expect: 1 },
+    { name: "a file in the mirror folder that copies nothing allowed fails", files: [{ path: "site/design/product-sources/notes.md", text: "skillgate status\n" }], expect: 1 },
   ];
   let failed = 0;
   for (const c of cases) {
