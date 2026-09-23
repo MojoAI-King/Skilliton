@@ -157,7 +157,6 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          # The four cases, kept in a file so the diagnosis step below runs exactly the same ones.
           cat > "$HOME/guard-cases.sh" <<'CASES'
           K="$HOME/First Last/skilliton"; G="$K/packs/base/plugins/guardrails"; cd "$HOME/windows try"; W=$(cygpath -w "$PWD" | sed 's/\\/\\\\/g')
           fails=0
@@ -174,26 +173,6 @@ jobs:
           . "$HOME/guard-cases.sh"
           [ "$fails" = 0 ] && { echo "PASS guard (4 of 4)"; exit 0; }
           echo "FAIL guard ($fails of 4 wrong)"; exit 1
-      - name: "diagnosis: the same four with jq writing LF line ends (jq -b)"
-        continue-on-error: true
-        run: |
-          set +e
-          # A native jq.exe ends each output line with CRLF unless given -b, so the hook's read of "none\r" fails and every
-          # command asks. A jq that always gets -b, first on PATH, tests the change proposed for guard-bash.sh.
-          real=$(command -v jq); echo "jq is $real ($(jq --version))"; printf 'a\n' | jq -r . | od -c | head -1
-          mkdir -p "$HOME/jq-lf" && printf '#!/usr/bin/bash\nexec "%s" -b "$@"\n' "$real" > "$HOME/jq-lf/jq" && chmod +x "$HOME/jq-lf/jq"
-          export PATH="$HOME/jq-lf:$PATH"; printf 'a\n' | jq -r . | od -c | head -1
-          . "$HOME/guard-cases.sh"
-          [ "$fails" = 0 ] && { echo "PASS guard with jq -b (4 of 4)"; exit 0; }
-          echo "FAIL guard with jq -b ($fails of 4 wrong)"; exit 1
-      - name: "diagnosis: handoff-hook.test and guardrails.test with jq writing LF (jq -b)"
-        continue-on-error: true
-        run: |
-          set +e
-          # What still fails once the jq line ends are fixed; python3 prints CRLF too in the handoff hook, so its case stays.
-          export PATH="$HOME/jq-lf:$PATH"; cd "$HOME/First Last/skilliton"
-          bash scripts/handoff-hook.test.sh > "$HOME/hh-lf.txt" 2>&1; echo "handoff-hook.test exit $?"; grep '^FAIL' "$HOME/hh-lf.txt"; tail -1 "$HOME/hh-lf.txt"
-          bash scripts/guardrails.test.sh > "$HOME/gr-lf.txt" 2>&1; echo "guardrails.test exit $?"; grep '^FAIL' "$HOME/gr-lf.txt" | head -60; tail -1 "$HOME/gr-lf.txt"
       - name: A delivery check started by a bare program name
         continue-on-error: true
         run: |
