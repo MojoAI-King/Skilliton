@@ -216,12 +216,18 @@ function checkAutoUpdate(c) {
 // ---------------------------------------------------------------- the harness block in this project
 
 function readHarnessVars(c) {
-  try { c.harnessVars = templateVars(resolveProject(c.dir, { allowLegacy: true })); } catch (e) { if (!(e instanceof ConfigError)) throw e; c.varsProblem = e.message; }
+  try {
+    const project = resolveProject(c.dir, { allowLegacy: true });
+    c.harnessVars = templateVars(project);
+    c.unprepared = project.layoutVersion === null && !project.legacyNames;
+  } catch (e) { if (!(e instanceof ConfigError)) throw e; c.varsProblem = e.message; }
 }
 
 function checkHarnessFile(c, name) {
   const { report, dirArg } = c;
-  const writeHarness = `write the harness block: ${selfCommand()} harness --apply${dirArg}`;
+  // A project that was never prepared gets the block from prepare, which writes the records the block names too.
+  const writeHarness = c.unprepared ? `prepare the project, which writes the harness block and its records: ${selfCommand()} prepare --apply${dirArg}`
+    : `write the harness block: ${selfCommand()} harness --apply${dirArg}`;
   if (!c.harnessTemplate) { report("UNVERIFIED", name, "not compared: the harness template could not be read", { required: true, next: "reinstall the workflow plugin, or restore packs/base/plugins/workflow/templates/harness.md in the skills repo" }); return; }
   if (!c.harnessVars) { report("UNVERIFIED", name, `not compared: the block names this project's record files, and the project configuration cannot be used (${c.varsProblem})`, { required: true, next: "fix .skilliton/config.json as described, then run doctor again" }); return; }
   const path = join(c.dir, name);
@@ -298,14 +304,31 @@ function checkProjectSettings(c) {
 
 // ---------------------------------------------------------------- tools the hooks call
 
-// A tool is required only when a hook file in this repo calls it.
+// The hooks read their JSON input with the first of these they find, so one of them is enough; node is always one,
+// because the runtime itself runs on node.
+const JSON_READERS = ["jq", "node", "python3"];
+
+// A missing JSON reader while another is here: a hook that names all three falls back; one that names only this tool
+// calls it directly (the status line and the drift check need jq) and says so when it runs, so it is a note, not a block.
+function reportOtherReader(c, tool, reader, hookFiles, users) {
+  const fallback = new Set(hookFiles.filter((f) => JSON_READERS.every((t) => referencesTool(f.text, t))).map((f) => f.name));
+  const direct = users.filter((name) => !fallback.has(name));
+  const falls = `the hooks that read JSON with the first of ${JSON_READERS.join(", ")} they find use ${reader}`;
+  if (!direct.length) { c.report("OK", tool, `not installed, and not needed: ${falls}`); return; }
+  c.report("WARN", tool, `not installed; ${falls}, and ${direct.join(", ")} call ${tool} directly and say it is missing when they run`);
+}
+
+// A tool is required only when a hook file in this repo calls it, and a JSON reader only when none of them is found.
 function checkHookTools(c) {
   const hookFiles = SKILLS_REPO ? listHookFiles(SKILLS_REPO) : listPluginHookFiles(PLUGIN_ROOT);
-  for (const tool of ["jq", "node", "python3", "git"]) {
+  const reader = JSON_READERS.find((tool) => which(tool));
+  for (const tool of [...JSON_READERS, "git"]) {
     const found = which(tool);
     const users = hookFiles.filter((f) => referencesTool(f.text, tool)).map((f) => f.name);
-    const usage = users.length ? `called by ${users.length} hook file(s): ${users.join(", ")}` : `no hook file in this repo calls it today (checked ${hookFiles.length})`;
+    const usage = users.length ? `called by ${users.length} hook file(s): ${users.join(", ")}`
+      : `no hook file in this repo calls it today (checked ${hookFiles.length})`;
     if (found) c.report("OK", tool, `${tilde(found)}; ${usage}`);
+    else if (users.length && JSON_READERS.includes(tool) && reader) reportOtherReader(c, tool, reader, hookFiles, users);
     else if (users.length) c.report("MISSING", tool, `not found on PATH; ${usage}`, { required: true, next: `install ${tool}` });
     else c.report("WARN", tool, `not found on PATH; ${usage}`);
   }

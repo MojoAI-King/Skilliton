@@ -159,6 +159,9 @@ jobs:
       - name: Doctor from an installed copy (the marketplace's catalog, CLAUDE_CONFIG_DIR)
         run: node --test scripts/doctor-installed.test.mjs scripts/windows-cmd.test.mjs
 
+      - name: Doctor names one JSON reader as enough, and sends an unprepared repository to prepare
+        run: node --test scripts/doctor-tools.test.mjs
+
       - name: A bare program name resolves against PATH on Windows before it starts (B79)
         run: node --test scripts/resolve-program.test.mjs
 
