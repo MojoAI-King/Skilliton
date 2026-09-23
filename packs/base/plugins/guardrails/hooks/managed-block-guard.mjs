@@ -19,6 +19,15 @@
 // that is not a repository, a repository with no Skilliton configuration, a file with no block, an edit whose
 // old_string does not occur (the client refuses that edit itself), or a file that cannot be read.
 //
+// It also guards the file the rules come from (N30, 2026-09-22). guard-bash.sh reads its settings from
+// .skilliton/config.json (or the earlier .skillgate/config.json) in the working tree, so an assistant that could write
+// "blockForcePush": false there could turn the rule off and then run the command. A Write, Edit or MultiEdit of that
+// file is refused when its result turns a guardrails key from true (or absent) to false, or takes a name out of
+// protectedBranches; turning a rule off is a person's decision, made in their own editor or terminal. This half is not
+// switched off by protectRecords, because a setting that could switch off the guard on its own setting guards nothing.
+// A result that is not JSON is judged by its text, since the Bash guard's readers differ in what they accept. The shell
+// half (a redirection, tee, cp, or a node -e naming the file) is in guard-bash.sh, which asks.
+//
 // Input (Claude Code hooks reference, PreToolUse): JSON on stdin with tool_name and tool_input. Write carries
 // file_path and content; Edit carries file_path, old_string, new_string and replace_all; MultiEdit carries file_path
 // and edits, a list of the same three fields. Output: nothing to let the write go ahead, or hookSpecificOutput with
@@ -32,6 +41,45 @@ const INSTRUCTION_FILES = new Set(["CLAUDE.md", "AGENTS.md"]);
 const START_MARKER = "<!-- skilliton:harness:start";
 const END_MARKER = "<!-- skilliton:harness:end";
 const CONFIG_FILE = join(".skilliton", "config.json");
+const SETTINGS_DIRS = new Set([".skilliton", ".skillgate"]);
+const RULE_KEYS = ["blockForcePush", "blockNoVerify", "blockSecretFiles", "protectRecords"];
+const DEFAULT_BRANCHES = ["main", "master"];
+const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+
+// The rules a settings text leaves off and the branches it protects, read the way guard-bash.sh reads them: only a
+// JSON false turns a rule off, and protectedBranches replaces the defaults only when it is a list. branches is null
+// when the text is not JSON and so the list cannot be known; off is then every key the text sets to false.
+function settingsOf(text, unreadableIsDefault) {
+  if (text === null) return { off: new Set(), branches: DEFAULT_BRANCHES };
+  let value;
+  try { value = JSON.parse(text); } catch {
+    if (unreadableIsDefault) return { off: new Set(), branches: DEFAULT_BRANCHES };
+    return { off: new Set(RULE_KEYS.filter((k) => new RegExp(`"${k}"\\s*:\\s*false`).test(text))), branches: null };
+  }
+  const g = isObject(value) && isObject(value.guardrails) ? value.guardrails : {};
+  return {
+    off: new Set(RULE_KEYS.filter((k) => g[k] === false)),
+    branches: Array.isArray(g.protectedBranches) ? g.protectedBranches.filter((b) => typeof b === "string") : DEFAULT_BRANCHES,
+  };
+}
+
+// The reason to refuse a write of the settings file, or "" when the write keeps every rule and every protected branch.
+function settingsRefusal(tool, input, file) {
+  let current = null;
+  try { current = readFileSync(file, "utf8"); } catch { current = null; }
+  const after = resultOf(tool, input, current ?? "");
+  if (after === null) return "";
+  const before = settingsOf(current, true);
+  const next = settingsOf(after, false);
+  const turnedOff = [...next.off].filter((k) => !before.off.has(k));
+  const dropped = next.branches === null ? [] : before.branches.filter((b) => !next.branches.includes(b));
+  if (turnedOff.length === 0 && dropped.length === 0) return "";
+  const what = [
+    ...turnedOff.map((k) => `set "${k}" to false`),
+    ...(dropped.length ? [`take ${dropped.join(", ")} out of protectedBranches`] : []),
+  ].join(" and ");
+  return `guardrails settings guard: this ${tool} would ${what} in ${file}, the file the guardrails read their settings from. Turning a rule off or unprotecting a branch is a person's decision: they make that change in their own editor or terminal, not the assistant. Leave the setting as it is and say what you need and why. This guard sees the assistant's own file-writing tool calls; a shell command that writes the file asks for confirmation through the Bash guard.`;
+}
 
 // The repository root is the nearest folder up from the file that has a .git, whether file (a linked worktree) or folder.
 function findRoot(from) {
@@ -78,9 +126,14 @@ process.stdin.on("end", () => {
   if (!payload || typeof payload !== "object" || !TOOLS.has(payload.tool_name)) return;
   const input = payload.tool_input;
   if (!input || typeof input !== "object" || typeof input.file_path !== "string" || !input.file_path) return;
-  if (!INSTRUCTION_FILES.has(basename(input.file_path))) return;
   const cwd = typeof payload.cwd === "string" && payload.cwd ? payload.cwd : process.cwd();
   const file = isAbsolute(input.file_path) ? resolve(input.file_path) : resolve(cwd, input.file_path);
+  if (basename(file) === "config.json" && SETTINGS_DIRS.has(basename(dirname(file)))) {
+    const reason = settingsRefusal(payload.tool_name, input, file);
+    if (reason) process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } })}\n`);
+    return;
+  }
+  if (!INSTRUCTION_FILES.has(basename(input.file_path))) return;
 
   const root = findRoot(dirname(file));
   if (!root) return;                                            // not a repository

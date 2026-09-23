@@ -34,6 +34,7 @@ These throw away work that was never committed: `git reset --hard`, `git clean -
 { "guardrails": { "protectedBranches": ["main", "master"], "blockForcePush": true, "blockNoVerify": true, "blockSecretFiles": true, "protectRecords": true } }
 ```
 
+- A person makes these changes in their own editor or terminal. A `Write` or `Edit` by the assistant that would turn a rule off or take a name out of `protectedBranches` is refused, and a shell command that writes the file (a redirection, `tee`, `cp`, `sed -i`, or a `node -e` or `python3 -c` naming it) asks first.
 - Only `false` turns a rule off. `protectedBranches` takes names or simple patterns such as `release/*`. `protectRecords` covers both the shell rule and the managed block guard.
 - The confirm-first prompts have no switch.
 - `SKILLITON_GUARDRAILS=off` in the environment turns every check off for one session, and the session start message says so.

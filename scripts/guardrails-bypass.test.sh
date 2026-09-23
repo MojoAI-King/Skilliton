@@ -150,6 +150,61 @@ expect "negative: brew install git"                    allow "$R"  'brew install
 expect "negative: which git rm mv"                     allow "$R"  'which git rm mv'
 expect "negative: echo git push -f origin main (echo runs nothing)" allow "$RF" 'echo git push -f origin main'
 
+# ---------------------------------------------------------------- N30
+section "N30: writing the settings file the rules come from"
+CF="$RP/.skilliton/config.json"
+expect "echo ... > .skilliton/config.json asks"        ask  "$RP" "echo '{\"guardrails\":{\"blockForcePush\":false}}' > .skilliton/config.json"
+reason_has "  the reason says a person makes that change" "a person's decision, made in their own editor or terminal"
+expect "printf ... >> ./.skilliton/config.json asks"   ask  "$RP" "printf x >> ./.skilliton/config.json"
+expect "cd .skilliton && echo {} > config.json asks"   ask  "$RP" "cd .skilliton && echo '{}' > config.json"
+expect "cat <<EOF > .skilliton/config.json asks"       ask  "$RP" $'cat <<EOF > .skilliton/config.json\n{}\nEOF'
+expect "echo {} >& .skilliton/config.json asks"        ask  "$RP" "echo '{}' >& .skilliton/config.json"
+expect "node -e writeFileSync(...) asks"               ask  "$RP" "node -e \"require('fs').writeFileSync('.skilliton/config.json','{}')\""
+expect "python3 -c open(...) asks"                     ask  "$RP" "python3 -c \"open('.skilliton/config.json','w').write('{}')\""
+expect "echo {} | tee .skilliton/config.json asks"     ask  "$RP" "echo '{}' | tee .skilliton/config.json"
+expect "cp /tmp/x .skilliton/config.json asks"         ask  "$RP" "cp /tmp/x .skilliton/config.json"
+expect "cp /tmp/config.json .skilliton/ asks"          ask  "$RP" "cp /tmp/config.json .skilliton/"
+expect "mv new.json .skilliton/config.json asks"       ask  "$RP" "mv new.json .skilliton/config.json"
+expect "sed -i s/true/false/ .skilliton/config.json asks" ask "$RP" "sed -i '' s/true/false/ .skilliton/config.json"
+expect "bash -c 'echo > .skilliton/config.json' asks"  ask  "$RP" "bash -c 'echo {} > .skilliton/config.json'"
+expect "the earlier .skillgate/config.json asks too"   ask  "$RP" "echo '{}' > .skillgate/config.json"
+expect "negative: cat .skilliton/config.json"          allow "$RP" 'cat .skilliton/config.json'
+expect "negative: jq . .skilliton/config.json"         allow "$RP" 'jq .guardrails .skilliton/config.json'
+expect "negative: sed -n p .skilliton/config.json (no -i)" allow "$RP" 'sed -n p .skilliton/config.json'
+expect "negative: cp .skilliton/config.json /tmp/backup.json" allow "$RP" 'cp .skilliton/config.json /tmp/backup.json'
+expect "negative: echo hi > other/config.json"         allow "$RP" 'echo hi > other/config.json'
+
+# write_guard <label> <deny|allow> <tool> <jq program building tool_input, $p the path> [path, default the settings file]:
+# the write guard, run by path the way the client does. The program is passed as it is, not inside "$(...)": bash 3.2
+# misreads a double quote inside single quotes inside a quoted command substitution, which is the N32 shape.
+write_guard() {
+  local label=$1 want=$2 tool=$3 input
+  input=$(jq -cn --arg p "${5:-$CF}" "$4") || { bad "$label: the test's own jq program did not build"; return 0; }
+  jq -cn --arg cwd "$RP" --arg t "$tool" --argjson i "$input" '{session_id:"t",cwd:$cwd,hook_event_name:"PreToolUse",tool_name:$t,tool_input:$i}' > "$TMP/payload.json"
+  OUT=$(node "$MHOOK" < "$TMP/payload.json" 2>/dev/null); RC=$?
+  read_result
+  if [ "$RC" -ne 0 ]; then bad "$label: write guard exited $RC"; return 0; fi
+  if [ "$DECISION" = "$want" ]; then ok "$label -> $want"; else bad "$label -> expected $want, got $DECISION${REASON_TEXT:+ [reason: $REASON_TEXT]}"; fi
+}
+printf '{"guardrails":{"protectedBranches":["main","release/*"]},"handoff":{"file":"docs/HANDOFF.md"}}\n' > "$CF"
+write_guard "Write that sets blockForcePush false"          deny  Write '{file_path:$p, content:"{\"guardrails\":{\"blockForcePush\":false}}"}'
+reason_has "  the reason names the key and says a person makes the change" '"blockForcePush" to false'
+write_guard "Write that drops release/* from protectedBranches" deny Write '{file_path:$p, content:"{\"guardrails\":{\"protectedBranches\":[\"main\"]}}"}'
+write_guard "Write of text that is not JSON but sets a rule false" deny Write '{file_path:$p, content:"{\"guardrails\":{\"blockNoVerify\": false,}}"}'
+write_guard "Edit that turns protectRecords off"             deny  Edit  '{file_path:$p, old_string:"{\"protectedBranches\"", new_string:"{\"protectRecords\":false,\"protectedBranches\""}'
+write_guard "Edit that empties protectedBranches"            deny  Edit  '{file_path:$p, old_string:"[\"main\",\"release/*\"]", new_string:"[]"}'
+write_guard "MultiEdit whose second edit adds blockSecretFiles false" deny MultiEdit '{file_path:$p, edits:[{old_string:"docs/HANDOFF.md", new_string:"docs/H.md"},{old_string:"{\"protectedBranches\"", new_string:"{\"blockSecretFiles\":false,\"protectedBranches\""}]}'
+write_guard "Write by a path relative to the cwd"            deny  Write '{file_path:$p, content:"{\"guardrails\":{\"protectRecords\":false}}"}' .skilliton/config.json
+write_guard "negative: Write that keeps every rule and branch" allow Write '{file_path:$p, content:"{\"guardrails\":{\"protectedBranches\":[\"main\",\"release/*\",\"next\"]},\"handoff\":{\"file\":\"x.md\"}}"}'
+write_guard "negative: Edit outside the guardrails section"  allow Edit  '{file_path:$p, old_string:"docs/HANDOFF.md", new_string:"docs/NEXT.md"}'
+write_guard "negative: Write of another config.json"         allow Write '{file_path:$p, content:"{\"guardrails\":{\"blockForcePush\":false}}"}' "$RP/app/config.json"
+printf '{"guardrails":{"blockForcePush":false}}\n' > "$CF"
+write_guard "negative: a rule a person already turned off stays off" allow Write '{file_path:$p, content:"{\"guardrails\":{\"blockForcePush\":false},\"x\":1}"}'
+write_guard "turning a second rule off is still refused"      deny  Write '{file_path:$p, content:"{\"guardrails\":{\"blockForcePush\":false,\"blockNoVerify\":false}}"}'
+rm -f "$CF"
+write_guard "a new settings file that turns a rule off"       deny  Write '{file_path:$p, content:"{\"guardrails\":{\"blockForcePush\":false}}"}'
+printf '{}\n' > "$CF"
+
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
 echo "RESULT: FAIL ($fails failed, $oks ok)"; exit 1

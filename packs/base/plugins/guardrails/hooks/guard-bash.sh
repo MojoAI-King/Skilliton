@@ -16,6 +16,8 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #          skilliton remove --apply, run by a person
 #   ask    git commands that throw away uncommitted work: reset --hard, clean -f, checkout .,
 #          restore . (without --staged), stash drop, stash clear, branch -D
+#          and a command that writes the settings file itself (.skilliton/config.json), because a rule
+#          turned off there is a person's decision (the Write and Edit half is managed-block-guard.mjs)
 #   allow  everything else, by printing nothing
 # Under Codex every "ask" is written as "deny", with a reason that says so, because Codex cannot ask
 # for confirmation from a hook: the command would run anyway. See detect_client.
@@ -25,7 +27,7 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #
 # What it can see, stated as a limit rather than left to be discovered:
 #   It reads the command TEXT. It splits on && || ; | & newlines and parentheses, respects
-#   quotes and backslashes, skips heredoc bodies, drops redirections, and follows cd, pushd,
+#   quotes and backslashes, skips heredoc bodies, reads redirection targets apart from the words, and follows cd, pushd,
 #   and git -C, and reads past env, sudo, nice, timeout, exec, caffeinate, stdbuf, ionice and time with the values
 #   their options take; after a program it does not know, a later git, rm or mv that would be stopped asks. It is not
 #   a shell parser: it does not expand variables, globs, aliases, or
@@ -63,7 +65,8 @@ PROTECT_FOLDERS=$'docs/tasks\ndocs/decisions\ndocs/lessons'
 INSTRUCTION_FILES=$'CLAUDE.md\nAGENTS.md'
 NORM=""; PT_WHAT=""; PHYS=""
 DENY_REASON=""; ASK_REASON=""
-TOKS=(); SEGW=(); ARGS=(); GARGS=(); PA=(); FILES=()
+TOKS=(); SEGW=(); SEGR=(); ARGS=(); GARGS=(); PA=(); FILES=()
+RT=$'\037'; REDIRS=""
 EFF_DIR=""; GDIR=""; RESOLVED=""; CUR_BRANCH=""; SC_LETTERS=""; SC_NEXT=0
 SN_RULE=""; HIT_FILE=""; HIT_RULE=""; REASON=""; ESCAPED=""
 
@@ -83,6 +86,10 @@ mentions_git() { [[ $1 =~ $GIT_WORD_RE ]]; }
 # one regex and nothing else, as before.
 REMOVE_WORD_RE='(^|[^A-Za-z0-9_.-]|\\[bfnrt])(rm|rmdir|mv)([^A-Za-z0-9_/-]|$)'
 mentions_removal() { [[ $1 =~ $REMOVE_WORD_RE ]]; }
+# The settings file the rules come from (N30): a command that names both parts of its path is read, so a write to it
+# can be seen. A folder name alone costs nothing more than before.
+mentions_config() { case "$1" in *.skilliton*config.json*|*.skillgate*config.json*|*config.json*.skilliton*|*config.json*.skillgate*) return 0 ;; esac; return 1; }
+CONFIG_ASK="Check first: this command writes to the guardrails settings file (.skilliton/config.json), which is where the rules read whether they are on and which branches they protect. Turning a rule off or unprotecting a branch is a person's decision, made in their own editor or terminal. Confirm only if this change keeps every rule and every protected branch as it is."
 
 json_escape() { # sets ESCAPED to $1 as the inside of a JSON string
   local s=$1 bs='\' q='"'
@@ -152,7 +159,7 @@ guard_exit() {
     elif [ -n "$DENY_REASON" ]; then
       # a segment already decided to block before the failure; a crash must not soften that
       emit_decision deny "$DENY_REASON"
-    elif mentions_git "$GUARD_RAW"; then
+    elif mentions_git "$GUARD_RAW" || mentions_config "$GUARD_RAW"; then
       emit_decision ask "Check first: guardrails stopped with an internal error (exit $rc) while checking this git command, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
     fi
   fi
@@ -326,11 +333,11 @@ EOF
 # reason (this awk's substr() measures the whole string on every call). Words are capped at
 # 4096 characters: flags, paths, and branch names are short, and the cap keeps time linear.
 AWK_TOKENIZER='
-function flush() { if (have) { if (skipnext) skipnext = 0; else print tok } tok = ""; have = 0 }
+function flush() { if (have) { if (skipnext == 2) print RT tok; else if (!skipnext) print tok; skipnext = 0 } tok = ""; have = 0 }
 function sep() { flush(); print SEP; skipnext = 0 }
 function add(ch) { if (length(tok) < 4096) tok = tok ch; have = 1 }
 function at(k) { return substr(chunk, k - off, 1) }
-BEGIN { RS = "\001"; SEP = sprintf("%c", 30) }
+BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RT = sprintf("%c", 31) }
 {
   n = split($0, L, "\n")
   q = ""; tok = ""; have = 0; skipnext = 0; nhd = 0; hdi = 0; cont = 0
@@ -358,7 +365,7 @@ BEGIN { RS = "\001"; SEP = sprintf("%c", 30) }
       if (c == "&") {
         d = at(i + 1)
         if (d == "&") { i++; sep(); continue }
-        if (d == ">") { flush(); i++; if (at(i + 1) == ">") i++; skipnext = 1; continue }
+        if (d == ">") { flush(); i++; if (at(i + 1) == ">") i++; skipnext = 2; continue }
         sep(); continue
       }
       if (c == "|") { d = at(i + 1); if (d == "|" || d == "&") i++; sep(); continue }
@@ -387,10 +394,16 @@ BEGIN { RS = "\001"; SEP = sprintf("%c", 30) }
           continue
         }
         if (d == "(") { i++; sep(); continue }
+        rw = (c == ">") ? 2 : 1
         if (c == ">" && (d == ">" || d == "|")) { i++; d = at(i + 1) }
-        if (c == "<" && d == ">") { i++; d = at(i + 1) }
-        if (d == "&") { i++; k = 0; while (i < m && k < 16 && at(i + 1) ~ /[0-9-]/) { i++; k++ } continue }
-        skipnext = 1
+        if (c == "<" && d == ">") { i++; d = at(i + 1); rw = 2 }
+        if (d == "&") {
+          i++; k = 0; while (i < m && k < 16 && at(i + 1) ~ /[0-9-]/) { i++; k++ }
+          if (k > 0 || rw == 1) continue   # >&2 and >&- copy a descriptor; >&file writes a file
+        }
+        # the word after a redirection is its target: a file written (>, >>, >|, <>, &>, >&file) is kept, marked with
+        # \037, so the settings file and a file written then staged can be seen; a file read (<) is dropped
+        skipnext = rw
         continue
       }
       add(c)
@@ -423,18 +436,86 @@ EOF
 }
 
 walk_segments() { # runs analyze_segment on each segment, in order, so cd carries forward
-  local n=${#TOKS[@]} i=0 start=0
-  EFF_DIR=$IN_CWD
+  local n=${#TOKS[@]} i=0 start=0 redir=0
+  EFF_DIR=$IN_CWD; REDIRS=""
   while [ "$i" -le "$n" ]; do
     if [ "$i" -eq "$n" ] || [ "${TOKS[$i]}" = "$SEP" ]; then
       if [ "$i" -gt "$start" ]; then
-        SEGW=("${TOKS[@]:$start:$((i - start))}")
+        SEGW=("${TOKS[@]:$start:$((i - start))}"); SEGR=()
+        [ "$redir" = 1 ] && split_redirects
         analyze_segment
       fi
-      start=$((i + 1))
+      start=$((i + 1)); redir=0
+    else
+      case "${TOKS[$i]}" in "$RT"*) redir=1 ;; esac
     fi
     i=$((i + 1))
   done
+}
+
+split_redirects() { # moves the marked redirection targets out of SEGW into SEGR, each as an absolute path when known
+  local t words=() r
+  SEGR=()
+  for t in "${SEGW[@]}"; do
+    case "$t" in
+      "$RT"*)
+        t=${t#"$RT"}
+        names_config "$t" "$EFF_DIR" && ask "$CONFIG_ASK"
+        case "$t" in /dev/*) continue ;; esac
+        resolve_dir "$EFF_DIR" "$t"; r=$RESOLVED
+        [ -z "$r" ] || { normalize_path "$r"; SEGR[${#SEGR[@]}]=$NORM; } ;;
+      *) words[${#words[@]}]=$t ;;
+    esac
+  done
+  SEGW=(${words[@]+"${words[@]}"})
+}
+
+names_config() { # names_config <word> <base>: 0 when the word names the guardrails settings file, by its text or its path
+  case "$1" in
+    *.skilliton*config.json*|*.skillgate*config.json*) return 0 ;;
+    *'$'*|*'`'*) return 1 ;;
+  esac
+  resolve_dir "$2" "$1"; [ -n "$RESOLVED" ] || return 1
+  normalize_path "$RESOLVED"
+  case "$NORM" in */.skilliton/config.json|*/.skillgate/config.json) return 0 ;; esac
+  return 1
+}
+
+check_config_words() { # check_config_words <index of the first argument> <any|text|inplace|dest>: a program that writes
+  # a file it is given (tee, dd of=, sed -i, cp to a destination) or runs code it is given (node -e) asks when that
+  # names the settings file. "text" reads every word, options included, because the path may sit inside a program.
+  local k=$1 n=${#SEGW[@]} w mode=$2 inplace=0 hit=0 last="" tdir="" srcs=0 dest
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}; k=$((k + 1))
+    case "$mode" in
+      text) names_config "$w" "$EFF_DIR" && hit=1 ;;
+      any|inplace)
+        case "$w" in -i*|--in-place*) inplace=1; continue ;; of=*) w=${w#of=} ;; -*) continue ;; esac
+        names_config "$w" "$EFF_DIR" && hit=1 ;;
+      dest)
+        case "$w" in
+          -t|--target-directory) tdir=${SEGW[$k]:-}; k=$((k + 1)); continue ;;
+          --target-directory=*) tdir=${w#*=}; continue ;;
+          -t?*) tdir=${w#-t}; continue ;;
+          -*) continue ;;
+        esac
+        [ -z "$last" ] || case "${last##*/}" in config.json) srcs=1 ;; esac
+        last=$w ;;
+    esac
+  done
+  [ "$mode" = inplace ] && [ "$inplace" = 0 ] && hit=0
+  if [ "$mode" = dest ]; then
+    # the destination is the -t folder, else the last word; a config.json copied into a settings folder is a write too
+    dest=$last
+    if [ -n "$tdir" ]; then dest=$tdir; case "${last##*/}" in config.json) srcs=1 ;; esac; fi
+    if [ -n "$dest" ] && names_config "$dest" "$EFF_DIR"; then hit=1
+    elif [ -n "$dest" ] && [ "$srcs" = 1 ]; then
+      resolve_dir "$EFF_DIR" "$dest"
+      if [ -n "$RESOLVED" ]; then normalize_path "$RESOLVED"; case "$NORM" in */.skilliton|*/.skillgate) hit=1 ;; esac; fi
+    fi
+  fi
+  [ "$hit" = 1 ] && ask "$CONFIG_ASK"
+  return 0
 }
 
 resolve_dir() { # resolve_dir <base> <dir>: sets RESOLVED, or "" when it cannot be known
@@ -520,8 +601,12 @@ analyze_segment() {
       cd|pushd) track_cd $((k + 1)); saved_dir=$EFF_DIR ;;
       git|*/git) analyze_git $((k + 1)) ;;
       rm|rmdir|*/rm|*/rmdir) check_remove $((k + 1)) ;;
-      mv|*/mv) check_move $((k + 1)) ;;
+      mv|*/mv) check_move $((k + 1)); check_config_words $((k + 1)) dest ;;
       sh|bash|zsh|dash|ksh|eval|xargs|*/sh|*/bash|*/zsh|*/dash|*/ksh|*/xargs) analyze_shell_string $((k + 1)) ;;
+      cp|install|ln|rsync|*/cp|*/install|*/ln|*/rsync) check_config_words $((k + 1)) dest ;;
+      tee|truncate|sponge|dd|*/tee|*/truncate|*/sponge|*/dd) check_config_words $((k + 1)) any ;;
+      sed|gsed|*/sed|*/gsed) check_config_words $((k + 1)) inplace ;;
+      node|python|python3|perl|ruby|php|bun|deno|osascript|awk|gawk|*/node|*/python|*/python3|*/perl|*/ruby|*/php|*/bun|*/deno|*/osascript|*/awk|*/gawk) check_config_words $((k + 1)) text ;;
       *) scan_tail "$k" ;;
     esac
   fi
@@ -560,6 +645,7 @@ analyze_shell_string() { # analyze_shell_string <index after the shell or eval w
   # to ask: the earlier behaviour was to allow with no output, which read as "checked" (security walkthrough, 2026-09-21).
   local k=$1 n=${#SEGW[@]} rest=""
   while [ "$k" -lt "$n" ]; do rest="$rest ${SEGW[$k]}"; k=$((k + 1)); done
+  if mentions_config "$rest"; then ask "$CONFIG_ASK"; return 0; fi
   mentions_git "$rest" || return 0
   ask "Check first: this command hands a string that names git to a shell or to eval, and guardrails cannot read inside such a string. Read it yourself and confirm only if it is what you intend; to have it checked, run the git command directly instead."
 }
@@ -1348,7 +1434,7 @@ main_pretooluse() {
   local t note=""
   GUARD_RAW=$(cat)
   case "${SKILLITON_GUARDRAILS:-}" in [Oo][Ff][Ff]) exit 0 ;; esac
-  mentions_git "$GUARD_RAW" || mentions_removal "$GUARD_RAW" || exit 0
+  mentions_git "$GUARD_RAW" || mentions_removal "$GUARD_RAW" || mentions_config "$GUARD_RAW" || exit 0
   # BASH_ENV names a file bash runs before the first line of any script it starts, including this one, so a file
   # that only says `exit 0` ends this check before it begins and the client reads the silence as an allow. Nothing
   # inside a script can prevent that, because the file has already run; what is left is to say it while it can still
@@ -1372,7 +1458,7 @@ main_pretooluse() {
     emit_decision ask "Check first: guardrails could not read this command from the hook input, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
     exit 0
   fi
-  mentions_git "$IN_CMD" || mentions_removal "$IN_CMD" || exit 0
+  mentions_git "$IN_CMD" || mentions_removal "$IN_CMD" || mentions_config "$IN_CWD $IN_CMD" || exit 0
   for t in git awk grep find; do
     if ! command -v "$t" >/dev/null 2>&1; then
       emit_decision ask "Check first: guardrails cannot inspect git commands because $t is not installed, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
