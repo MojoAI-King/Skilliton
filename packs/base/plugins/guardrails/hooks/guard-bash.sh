@@ -6,9 +6,10 @@
 SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 # guard-bash.sh: the guardrails PreToolUse hook for the Bash tool.
 #
-# Claude Code sends the proposed Bash command as JSON on stdin; Codex CLI runs the same plugin hook
-# with the same tool_name and tool_input.command. This script reads the command text and answers
-# with one decision:
+# Claude Code sends the proposed Bash command as JSON on stdin. Codex CLI runs no hooks shipped in a plugin
+# (docs/CLIENTS.md); a team that configures its own Codex hook may point it at this script, which then reads the same
+# tool_name and tool_input.command, and every ask is written as a deny (below). This script reads the command text
+# and answers with one decision:
 #   deny   force-pushing a protected branch (a start of a long option read as git reads it, and -c configuration
 #          and aliases for the one command read as what they push, N71); skipping git hooks with --no-verify on
 #          commit, push, merge, rebase, am, cherry-pick, revert or pull, or by removing, moving, emptying or
@@ -152,7 +153,7 @@ json_escape() { # sets ESCAPED to $1 as the inside of a JSON string
 }
 
 # detect_client: sets GUARD_CLIENT to codex or claude-code, and CLIENT_NOTE when the override is unusable.
-# Why: Codex CLI runs this same hook, but its hooks documentation says permissionDecision "ask" is
+# Why: a Codex hook a team configures itself may run this script, and Codex's hooks documentation says permissionDecision "ask" is
 # parsed but not supported yet (the hook run is marked failed and the tool call continues), so an
 # ask under Codex would be silent permission.
 # Signals, all from Codex's hooks documentation: every hook input carries session_id,

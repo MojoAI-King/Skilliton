@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/guard-review-2-0923b
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T21:12:33.582Z
+- **Updated:** 2026-09-23T21:13:07.587Z
 
 ## Request
 
@@ -20,7 +20,7 @@ LANES.md, dispatched 2026-09-23: the items below are this lane's whole scope, an
 - [x] N91. [TOUCH] Any write to, copy over, move over or removal of `.claude/settings.json` or `.claude/settings.local.json` asks, whatever the text says: `echo {} > .claude/settings.json`, `: > .claude/settings.json`, `rm .claude/settings.json`, `mv x .claude/settings.json`, `cp x .claude/settings.json`, `truncate`, `install`, `ln -sf`, `git rm .claude/settings.json`, `git checkout -- .claude/settings.json`, and the same under a path prefix; reading it (`cat`, `jq .`) stays allowed. Reproduced at the base: `echo {} > .claude/settings.json` and `rm .claude/settings.json` allowed. Cases in the review2 file.
 - [x] N92. [TOUCH] A glob that can match a record path denies: guard-bash.sh: for `rm`, `rmdir`, `mv`, `find -delete`, `rsync --delete` and the redirections, a word holding `*`, `?` or `[` is matched with bash's own pattern matching (`[[ <record path> == <pattern> ]]`, case-folded on a case-insensitive disk) against every record path the guard protects (`docs/`, `docs/tasks`, `docs/decisions`, `docs/lessons`, the status, backlog, handoff files, DECISIONS.md, CLAUDE.md, AGENTS.md, `.skilliton`, `.skilliton/config.json`) and their parents; a match denies; `rm -rf *` and `rm -rf ./*` and `rm -rf .*` at the project root ask; a glob that cannot match a record (`rm -rf dist/*`, `rm -f *.log`) stays allowed. Reproduced at the base: `rm -rf docs/*`, `rm -rf docs/t*`, `rm -rf d*cs/tasks` allowed silently. Cases in the review2 file.
 - [x] N93. [TOUCH] The wall-clock cases leave the correctness suite: the two cases at scripts/guardrails.test.sh lines 1018 and 1023 ("both input shapes ... (limit 5s)") move to scripts/guardrails-timing.test.sh with the load-aware NOT RUN from N88; scripts/guardrails.test.sh shrinks and its pin in scripts/lint.test.mjs is lowered to the new count. Three independent runs saw that case red at 6 s and 9 s under load and green alone. The timing file's CI step runs it on the runner, where the load is low.
-- [ ] N94. [TOUCH] The hook header agrees with the client matrix: guard-bash.sh line 9 says "Codex CLI runs the same plugin hook"; docs/CLIENTS.md and README say Codex runs no hooks shipped in a plugin (a team that configures its own Codex hook may point it at this script, and then every ask is a deny). Reword the header line and the Codex sentence in SKILL.md to that. No test; docs.test passes.
+- [x] N94. [TOUCH] The hook header agrees with the client matrix: guard-bash.sh line 9 says "Codex CLI runs the same plugin hook"; docs/CLIENTS.md and README say Codex runs no hooks shipped in a plugin (a team that configures its own Codex hook may point it at this script, and then every ask is a deny). Reword the header line and the Codex sentence in SKILL.md to that. No test; docs.test passes.
 
 ## Decisions
 
@@ -70,9 +70,16 @@ not yet written
 - **Next:** N94 the hook header and the skill's Codex sentence
 - **Git:** lane/guard-review-2-0923b @ 8052d35, 4 uncommitted
 
+### 2026-09-23T21:13:07.587Z
+
+- **State:** N94 done: the hook header and the detect_client comment say Codex runs no hooks shipped in a plugin and that a team's own Codex hook may point at the script, with every ask a deny; the skill's Codex sentence says the same
+- **Evidence:** node scripts/docs.test.mjs exit 0; bash -n on the hook exit 0
+- **Next:** full project check (node scripts/checks.mjs), then LANE_REPORT.md
+- **Git:** lane/guard-review-2-0923b @ 46a32dd, 3 uncommitted
+
 ## Handoff
 
-- **State:** N92 done: a word holding * ? or [ after rm, rmdir, mv, git rm, find -delete, rsync --delete or a > is matched segment by segment with [[ == ]] (case-folded on a case-insensitive disk) against every protected path and its parents and denies on a match; rm -rf * ./* .* at the root of an unprepared project ask; in a prepared project they deny (rm -rf * already denied at the base). Evidence: bash scripts/guardrails-review2.test.sh exit 0 (131 ok); guardrails.test.sh exit 0 (670 ok); guardrails-bypass.test.sh exit 0; guardrails-timing.test.sh exit 0 (16 ok).
-- **Next:** N94 the hook header and the skill's Codex sentence
+- **State:** N94 done: the hook header and the detect_client comment say Codex runs no hooks shipped in a plugin and that a team's own Codex hook may point at the script, with every ask a deny; the skill's Codex sentence says the same. Evidence: node scripts/docs.test.mjs exit 0; bash -n on the hook exit 0.
+- **Next:** full project check (node scripts/checks.mjs), then LANE_REPORT.md
 - **Blocked:** nothing
 - **Watch out:** nothing known
