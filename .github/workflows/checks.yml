@@ -31,6 +31,9 @@ jobs:
       - name: The local check runner reads this list
         run: node scripts/checks.mjs --list
 
+      - name: The local check runner fails the way this workflow fails (bash -eo pipefail, --only)
+        run: node --test scripts/checks-runner.test.mjs
+
       - name: Packaging (marketplace, manifests, skill frontmatter, executable hooks)
         run: node scripts/packs.test.mjs
 
