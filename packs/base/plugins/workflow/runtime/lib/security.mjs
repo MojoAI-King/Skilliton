@@ -2,7 +2,7 @@
 // securitySummary); runtime/commands/security.mjs is the command line over it and lib/collectors.mjs gathers evidence
 // through it.
 //
-// Adapted in place from the standalone prototype scripts/security-evidence.mjs (foundation commit 23aae41). Kept from
+// Adapted in place from the standalone prototype scripts/security-evidence.mjs (foundation commit 0bc2a05). Kept from
 // the prototype: record schema 1 (records it wrote still validate), immutable records published by an atomic link,
 // refusal of symbolic links and hard links, refusal of secret-shaped input without echoing it, the generated-report
 // marker, and invalid records poisoning status visibly. Records are claims with file fingerprints, not scanner

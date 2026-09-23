@@ -22,7 +22,7 @@ Migrations have IDs NNNN-slug and run in order. 0100-instructions-<template hash
 blocks in CLAUDE.md and AGENTS.md after the harness template changed; it keeps every byte outside the markers and
 refuses a block someone edited inside the markers since Skilliton last wrote it. 0002-integrated-layout moves a project prepared by the standalone
 prototype (layout 1) to layout 2: it removes .skillgate/bin/security-evidence.mjs only when its bytes match the
-prototype runtime released at 23aae41, removes the skillgate:project blocks from CLAUDE.md, AGENTS.md and the maintain
+prototype runtime released at 0bc2a05, removes the skillgate:project blocks from CLAUDE.md, AGENTS.md and the maintain
 record only when they are exactly what the prototype wrote, adds the harness blocks, and sets prepare.version 2 and
 prepare.requires.workflow. 0003-skilliton-names moves a layout-2 project from the earlier ${LEGACY_NAME} names to the
 Skilliton names (layout 3): every file under ${LEGACY_PROJECT_DIR}/ to .skilliton/ (private evidence stays owner-only),

@@ -6,7 +6,7 @@
 // claims. prepare never rewrites a file that already exists. Nothing here reads or writes files, and nothing here
 // imports from outside the plugin folder.
 //
-// Adapted from the prototype's scripts/project-files.mjs (commit 23aae41). Layout 2 has no copied runtime and no
+// Adapted from the prototype's scripts/project-files.mjs (commit 0bc2a05). Layout 2 has no copied runtime and no
 // skillgate:project blocks; what the prototype wrote is frozen in prototype-v1.mjs for migration 0002. The starter
 // security catalog now ships as catalogs/<catalogVersion>.json in this plugin.
 

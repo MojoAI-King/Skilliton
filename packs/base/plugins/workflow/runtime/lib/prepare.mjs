@@ -10,7 +10,7 @@
 //                   a failure a rollback that restores only files still holding what this run wrote, so an edit made
 //                   by someone else meanwhile is kept.
 //
-// Adapted from the standalone prototype (commit 23aae41, scripts/prepare.mjs). Its independent review corrections
+// Adapted from the standalone prototype (commit 0bc2a05, scripts/prepare.mjs). Its independent review corrections
 // are kept (evidence/autopilot-foundation/verification.md): the recheck before each replacement, Git-private backups,
 // validation of an existing catalog by the security engine when this build has one, reserved and case-folded record
 // paths (config.mjs), the recheck before each rollback restore, and fixed messages that never echo file contents.
