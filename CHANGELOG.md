@@ -2,7 +2,13 @@
 
 Kind: Living. One entry per signed release, from its manifest under `releases/`, plus what is on `main` since. Plugin versions are what a machine sees; the release number is what it trusts.
 
-## Unreleased (main since 1.0.0)
+## Unreleased (main since 1.1.0)
+
+Nothing yet.
+
+## 1.1.0, 2026-09-23
+
+Plugins: workflow 0.22.0, guardrails 0.8.0, context-hygiene 0.3.1, code-quality 0.2.1. Manifest `releases/1.1.0.json`; every entry below shipped on `main` between 1.0.0 and this tag. The number is 1.1.0 rather than the planned 1.0.1 because the release adds commands and gate behavior (decision 2026-09-23-the-night-s-release-is-1-1-0-not-1-0-1-b-46b5).
 
 - **Security (workflow 0.22.0):** the shared-branch gate can no longer be switched off with a replace ref: every git call it makes sets `GIT_NO_REPLACE_OBJECTS=1`, and updates to `refs/replace/` are rejected. A push whose checks rewrite the gate's hook, approvers file or `skilliton.*` settings is rejected. Only SSH signatures count, with the other verifiers pinned off. `join` no longer prints a credential typed into a URL. Found by an adversarial review on 2026-09-22; each fix has a test that failed before it.
 - **Guardrails (0.8.0):** closed the bypasses an adversarial review reproduced: force-pushes through pattern refspecs and `heads/<branch>`, deleting a protected branch on the remote, wrappers that take an argument (`env -u`, `nice -n`, `timeout`, `sudo -u`, `exec -a`, `caffeinate`), `git stage`, quote and heredoc shapes that hid a later command, a `GIT_DIR=` prefix, a secret written and staged in one command, and `git -c core.hooksPath=<dir>` skipping hooks like `--no-verify`. The assistant can no longer turn a rule off by writing `.skilliton/config.json`. The secret shapes now come from one list shared with the runtime, and the commit guard also catches a Google API key, including the public ones in a Firebase web config.
