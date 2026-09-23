@@ -1,6 +1,6 @@
 # Threat model, on one page
 
-Kind: Living. What Skilliton protects, against whom, with which mechanism, and where each mechanism stops. Written 2026-09-23 after three independent cold reviews of `main` at 87521c8; the limits they found are listed at the end with the release that carries each fix. SECURITY.md is the short public statement; docs/IT-ALLOWLIST.md is the footprint for endpoint security teams; docs/DELIVERY.md is the shared-branch gate. This page is the one that says what each of those is for.
+Kind: Living. What Skilliton protects, against whom, with which mechanism, and where each mechanism stops. Written 2026-09-23 after three independent cold reviews of `main` at 029f159; the limits they found are listed at the end with the release that carries each fix. SECURITY.md is the short public statement; docs/IT-ALLOWLIST.md is the footprint for endpoint security teams; docs/DELIVERY.md is the shared-branch gate. This page is the one that says what each of those is for.
 
 ## What is being protected
 
@@ -33,9 +33,9 @@ The harness block marks each behavior **enforced**, **instructed** or **checked 
 
 ## Limits the 2026-09-23 reviews found, and where each fix ships
 
-Every line below was reproduced on `main` at 87521c8 before it was written here. "Guardrails 0.9.0" and "workflow 0.23.0" are the plugin versions that carry the fix; the release that bundles them is 1.2.0.
+Every line below was reproduced on `main` at 029f159 before it was written here. "Guardrails 0.9.0" and "workflow 0.23.0" are the plugin versions that carry the fix; the release that bundles them is 1.2.0.
 
-| Limit at 87521c8 | Fix |
+| Limit at 029f159 | Fix |
 |---|---|
 | Git accepts any unambiguous prefix of a long option, so `--forc`, `--f`, `--mir` and `--no-ver` were read as harmless | Guardrails 0.9.0: a prefix of a dangerous option is read as that option |
 | `--no-force` after `--force-with-lease` was read as cancelling the force; git does not cancel it | Guardrails 0.9.0: `--no-force` cancels `--force` only |

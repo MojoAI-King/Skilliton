@@ -16,7 +16,7 @@ A ratchet pinned on one tree measures every later tree. Code merged between the 
 
 ## The fix
 
-1d4e44f on the lane after its rebase: the long lines wrapped, checkpoint's `run` and `runMaintain` split into named helpers, two pins lowered, none raised.
+c425294 on the lane after its rebase: the long lines wrapped, checkpoint's `run` and `runMaintain` split into named helpers, two pins lowered, none raised.
 
 ## The rule
 

@@ -8,7 +8,7 @@ Kind: Living. Decision entry.
 
 ## Decision
 
-Every commit on `main` from 2026-09-16 to 2026-09-23 carried a `Co-Authored-By` trailer naming the AI model that helped write it (311 of 374 commits). On 2026-09-23 the owner had those trailer lines removed from every commit message on `main`, in one rewrite, run by the owner from a terminal. Nothing else changed: every tree is byte-identical to the tree it replaced (the tree hash at the tip, cadd88a0190a, is the same before and after), the commit count is the same (374), and the three release tags were re-signed at the rewritten commits with the same key and the same manifest hashes. Attribution for this repository is Mojo AI Services, LLC, in the licence, the plugin manifests and the commit messages alike. This is the one history rewrite this repository has had, and the owner does not plan another.
+Every commit on `main` from 2026-09-16 to 2026-09-23 carried a `Co-Authored-By` trailer naming the AI model that helped write it (311 of 374 commits). On 2026-09-23 the owner had those trailer lines removed from every commit message on `main`, in one rewrite, run by the owner from a terminal. Nothing else changed: every tree is byte-identical to the tree it replaced (the tree hash at the tip, cadd88a0190a, is the same before and after), the commit count is the same (374), and the three release tags were re-signed at the rewritten commits with the same key and the same manifest hashes. Attribution for this repository is Mojo AI Services, LLC, in the licence, the plugin manifests and the commit messages alike. The rewrite took two passes on the same day: the first stripped the trailers, and the second re-signed every commit with the same key, because rewriting a commit drops its signature and the branch rule requires one (the first push was refused with 374 unsigned commits). The mapping below is from the original hashes to the final ones. This is the one history rewrite this repository has had, and the owner does not plan another.
 
 ## Why
 
@@ -26,15 +26,15 @@ Every commit hash cited in a document written before the rewrite points at a com
 
 | Before | After | Cited by |
 |---|---|---|
-| a61a778 | 87521c8 | the commit the three cold reviews read (CHANGELOG, THREAT_MODEL) |
-| 1f9f041 | 4bf1402 | the 1.1.0 manifest commit and tag |
-| 62dcdf5 | 39777a5 | the tree the 1.1.0 checks ran on |
-| c42d193 | 872c67a | the handoff before the reviews |
-| 095d59c | e5cc2c6 | the 1.0.0 manifest commit and tag |
-| b0dc663 | 9036586 | the 0.9.0 manifest commit and tag |
-| e8e156e | fd4dc3a | the audit-marker lesson |
-| cb8e49e | 1d4e44f | the lint-ratchet lesson |
-| f1623ad | 19d0f48 | the docs-branch lesson |
+| a61a778 | 029f159 | the commit the three cold reviews read (CHANGELOG, THREAT_MODEL) |
+| 1f9f041 | 8cd1779 | the 1.1.0 manifest commit and tag |
+| 62dcdf5 | 6dd059b | the tree the 1.1.0 checks ran on |
+| c42d193 | 9063a34 | the handoff before the reviews |
+| 095d59c | 168b95f | the 1.0.0 manifest commit and tag |
+| b0dc663 | 6bee8d6 | the 0.9.0 manifest commit and tag |
+| e8e156e | fdf7f01 | the audit-marker lesson |
+| cb8e49e | c425294 | the lint-ratchet lesson |
+| f1623ad | d946171 | the docs-branch lesson |
 
 ## Reversibility
 
