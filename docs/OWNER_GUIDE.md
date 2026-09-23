@@ -9,7 +9,7 @@ Kind: Living. Written 2026-09-21 at the end of the build and brought up to date 
 | Language | JavaScript (Node.js, ES modules) and Bash. The runtime and every command are Node; the hooks that must start in under a second are Bash. |
 | Runtime floor | Node.js 22 or later, and git. Every check runs on Node 22 in CI and on 25 locally (docs/COVERAGE.md). |
 | Dependencies | Zero. No `package.json`, no `node_modules`, no build step, and no network code of its own. |
-| Size | About 40,000 lines of runtime, hooks and tests; 73 check steps run in CI on every commit (counted 2026-09-23 with `node scripts/checks.mjs --list`). |
+| Size | About 40,000 lines of runtime, hooks and tests; every check runs as its own CI step on every commit (`node scripts/checks.mjs --list` prints the current list). |
 | Shape | Four Claude Code plugins (workflow, guardrails, context-hygiene, code-quality) and one command, `skilliton`, which ships inside the workflow plugin. |
 | Clients | Claude Code, measured. Codex installs the plugins and sees the skills but runs no plugin hooks, so every enforced behaviour is instructed there. Cursor is documented only, never run (docs/CLIENTS.md). |
 | Platforms | macOS and Linux exercised. Windows is not supported yet: the commands, preparation and every hook pass on a GitHub-hosted Windows runner (evidence/live/windows/2026-09-23-hosted-runner-port.md), backlog item B79 stands before support, and no Claude Code session has run on Windows (docs/WINDOWS.md). |

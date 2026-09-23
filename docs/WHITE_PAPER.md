@@ -88,7 +88,7 @@ Device management (Jamf, Intune) drops the join file and runs steps 6 and 7 at l
 
 ## 5. Quality of the repository itself
 
-The repository is prepared with its own product and runs 73 check steps in CI on every push (counted 2026-09-23 with `node scripts/checks.mjs --list`), each as its own step; `scripts/checks.mjs` runs the same list locally from the CI file, so there is one list. Most checkers carry a `--self-test` that plants a defect and requires red, so a green run is evidence rather than a silent pass. A lint holds the runtime's shape: a 600-line ceiling with pinned exceptions that may only shrink, no unused import, no `console.log` in a runtime, every command module exporting `help` and `run`, no `package.json` outside fixtures. A dead-code check fails on any export nothing reaches and names the modules it could not follow. The IT allow list, the small-footprint rules (no network code, no administrator rights, nothing left running, no system paths), the name scrub, the dash rule and the backlog's relationship with its archive are each a test. The audit runs over the whole tree. A cold review by a reader with no session context is the gate before a release, and each of its items is shipped or deferred with a written reason.
+The repository is prepared with its own product and runs every check in CI on every push, each as its own step (`node scripts/checks.mjs --list` prints the current list); `scripts/checks.mjs` runs the same list locally from the CI file, so there is one list. Most checkers carry a `--self-test` that plants a defect and requires red, so a green run is evidence rather than a silent pass. A lint holds the runtime's shape: a 600-line ceiling with pinned exceptions that may only shrink, no unused import, no `console.log` in a runtime, every command module exporting `help` and `run`, no `package.json` outside fixtures. A dead-code check fails on any export nothing reaches and names the modules it could not follow. The IT allow list, the small-footprint rules (no network code, no administrator rights, nothing left running, no system paths), the name scrub, the dash rule and the backlog's relationship with its archive are each a test. The audit runs over the whole tree. A cold review by a reader with no session context is the gate before a release, and each of its items is shipped or deferred with a written reason.
 
 ## 6. What is measured and what is not
 
@@ -109,7 +109,7 @@ The repository is prepared with its own product and runs 73 check steps in CI on
 |---|---|
 | Language | JavaScript (Node.js 22 or later, the version CI runs; ES modules) for commands and engines; Bash for the hooks that must start in under a second |
 | Dependencies | None; no build step; no network code of its own |
-| Size | About 40,000 lines of runtime, hooks and tests; 73 check steps in CI (2026-09-23) |
+| Size | About 40,000 lines of runtime, hooks and tests; every check a CI step of its own (`node scripts/checks.mjs --list`) |
 | Clients | Claude Code, measured (terminal and VS Code extension). Codex: installs, sees skills, runs no plugin hooks. Cursor: documented only |
 | Platforms | macOS and Linux exercised; Windows runs on a GitHub-hosted runner and is not supported until backlog item B79 is fixed |
 | Licence | MIT |

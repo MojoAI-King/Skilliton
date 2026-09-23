@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T07:58:29.978Z
+- **Updated:** 2026-09-23T08:40:42.571Z
 
 ## Request
 
@@ -54,9 +54,16 @@ not yet written
 - **Next:** Fast-forward main through the stacked lanes when their checks pass, then merge code-clarity and instruction-size, run the comparison's second run, merge the docs branches, release 1.0.1
 - **Git:** main @ a7bc8f6, 0 uncommitted
 
+### 2026-09-23T08:40:42.571Z
+
+- **State:** The three stacked lanes (N63 Windows bare names, N64 maintain refreshes security records, N65 proposed applicability, N68 gate machine context, N69 task growth note) are on main at aba8b6f with tar resolved like git; eleven merged lane tasks closed; B70 archived, B71 B74 B77 half built, B79 built awaiting its Windows run, B81 to B83 filed. Not done: code-clarity and instruction-size merges, docs branches, the second comparison, 1.0.1, security evidence, website words
+- **Evidence:** stack checks.mjs 72 pass 1 fail 2 skipped (preflight load timeout; alone 24 of 24 in 31 s); delivery 15 of 15, allowlist, lint, docs, backlog, names and scrub exit 0; whole-history audit on committed HEAD 0 findings in 690 files; CI 35838448878 and the Windows workflow started on aba8b6f
+- **Next:** Read CI and the Windows decoy step; merge code-clarity when it commits N67, then N67b in join.mjs; merge instruction-size and apply its migration
+- **Git:** main @ aba8b6f, 0 uncommitted
+
 ## Handoff
 
-- **State:** Pre-release review: 16 findings confirmed, all fixed on main in a7bc8f6 (subshell arithmetic bypass, letter case on the settings and instruction files, hooksPath through the environment and git config, content-bound secrets allowlist, .gitattributes * -text, handoff hook opt-out, record header shape, archive header order); names check mirrors the website's product copies (bf4d3e1). Three lanes stacked (windows-names, gate-and-tasks, security-proposal) under full checks; code-clarity and instruction-size still running; three docs agents fixing the cold-read findings on their own branches; 1.0.1 not released. Evidence: checks.mjs 71 pass 0 fail on the review fixes; bypass 142 of 142 (13 of the new cases fail against the old hooks); guardrails 676 and bypass 142 under GNU awk 5.2.1; handoff hook 129; record header 10; CI 79 of 79 on 21d041d.
-- **Next:** Fast-forward main through the stacked lanes when their checks pass, then merge code-clarity and instruction-size, run the comparison's second run, merge the docs branches, release 1.0.1
+- **State:** The three stacked lanes (N63 Windows bare names, N64 maintain refreshes security records, N65 proposed applicability, N68 gate machine context, N69 task growth note) are on main at aba8b6f with tar resolved like git; eleven merged lane tasks closed; B70 archived, B71 B74 B77 half built, B79 built awaiting its Windows run, B81 to B83 filed. Not done: code-clarity and instruction-size merges, docs branches, the second comparison, 1.0.1, security evidence, website words. Evidence: stack checks.mjs 72 pass 1 fail 2 skipped (preflight load timeout; alone 24 of 24 in 31 s); delivery 15 of 15, allowlist, lint, docs, backlog, names and scrub exit 0; whole-history audit on committed HEAD 0 findings in 690 files; CI 35838448878 and the Windows workflow started on aba8b6f.
+- **Next:** Read CI and the Windows decoy step; merge code-clarity when it commits N67, then N67b in join.mjs; merge instruction-size and apply its migration
 - **Blocked:** nothing
 - **Watch out:** nothing known
