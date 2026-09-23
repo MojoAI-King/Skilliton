@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-22T22:42:54.178Z
+- **Updated:** 2026-09-23T01:17:07.306Z
 
 ## Request
 
@@ -26,9 +26,16 @@ not yet written
 
 ## Checkpoints
 
+### 2026-09-23T01:17:07.306Z
+
+- **State:** Merged and pushed: meter (B63, token direction), hooks (clean tree not held, B64), gate-security (replace refs, gate self-integrity, SSH-only signatures, join redaction); workflow 0.22.0 on main, not released. Filed: VS Code extension hooks (03-01 item 1), Windows first run on a hosted runner (03-02 item 1; prepare refuses there, not supported), a real Codex session (01-05 item 1), use counted on this machine, INSTALL.md, README front door, ARCHITECTURE.md, SECURITY_PROPOSAL.md, COMPARISON_PROTOCOL.md. Report card 102 of 123. Running: guard-security, install-fixes, quality lanes, the Windows port on branch windows/port-0922, the hiring-panel dry run.
+- **Evidence:** checks.mjs on the merged tree 60 pass, 1 expected audit fail fixed in 2666303; CI run 35804599365 70 steps 0 not success; history scrub with the denylist 0 name hits; cold install rehearsal from GitHub passed the install, 13 findings, text fixed, product fixes in lane install-fixes
+- **Next:** Merge guard-security, install-fixes, quality; fix the panel's findings; the owner's list in docs/OWNER_TESTS.md; 1.0.1 prepared up to signing
+- **Git:** main @ c020cea, 0 uncommitted
+
 ## Handoff
 
-- **State:** not yet written
-- **Next:** not yet written
-- **Blocked:** not yet written
-- **Watch out:** not yet written
+- **State:** Merged and pushed: meter (B63, token direction), hooks (clean tree not held, B64), gate-security (replace refs, gate self-integrity, SSH-only signatures, join redaction); workflow 0.22.0 on main, not released. Filed: VS Code extension hooks (03-01 item 1), Windows first run on a hosted runner (03-02 item 1; prepare refuses there, not supported), a real Codex session (01-05 item 1), use counted on this machine, INSTALL.md, README front door, ARCHITECTURE.md, SECURITY_PROPOSAL.md, COMPARISON_PROTOCOL.md. Report card 102 of 123. Running: guard-security, install-fixes, quality lanes, the Windows port on branch windows/port-0922, the hiring-panel dry run. Evidence: checks.mjs on the merged tree 60 pass, 1 expected audit fail fixed in 2666303; CI run 35804599365 70 steps 0 not success; history scrub with the denylist 0 name hits; cold install rehearsal from GitHub passed the install, 13 findings, text fixed, product fixes in lane install-fixes.
+- **Next:** Merge guard-security, install-fixes, quality; fix the panel's findings; the owner's list in docs/OWNER_TESTS.md; 1.0.1 prepared up to signing
+- **Blocked:** nothing
+- **Watch out:** nothing known
