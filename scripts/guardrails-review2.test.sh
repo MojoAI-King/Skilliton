@@ -185,6 +185,44 @@ expect "negative: ls | xargs grep bash"                allow "$RP" 'ls | xargs g
 expect "negative: eval echo hi (words it can read)"    allow "$RP" 'eval echo hi'
 expect "negative: find . -name '*.tmp' | xargs rm -f"  allow "$RP" "find . -name '*.tmp' | xargs rm -f"
 
+# ---------------------------------------------------------------- N91
+section "N91: any write to, copy or move over, or removal of the client's settings file asks"
+RS="$TMP/repo-settings"; new_repo "$RS" || { echo "FAIL: could not build $RS"; exit 1; }
+mkdir -p "$RS/.claude" "$RS/sub/.claude"
+printf '{"permissions":{}}\n' > "$RS/.claude/settings.json"; printf '{}\n' > "$RS/.claude/settings.local.json"
+printf '{}\n' > "$RS/sub/.claude/settings.json"; printf '{"permissions":{}}\n' > "$TMP/plain.json"
+expect "echo {} > .claude/settings.json (base: allow)" ask "$RS" 'echo {} > .claude/settings.json'
+reason_has "  the reason names the file" "writes .claude/settings.json, the file that tells Claude Code which hooks and plugins run"
+expect ": > .claude/settings.json (base: allow)"      ask "$RS" ': > .claude/settings.json'
+expect "echo x >> .claude/settings.local.json (base: allow)" ask "$RS" 'echo x >> .claude/settings.local.json'
+expect "rm .claude/settings.json (base: allow)"       ask "$RS" 'rm .claude/settings.json'
+reason_has "  the reason says it removes the file" "removes .claude/settings.json"
+expect "rm -f .claude/settings.local.json (base: allow)" ask "$RS" 'rm -f .claude/settings.local.json'
+expect "rm -rf .claude, the folder that holds it (base: allow)" ask "$RS" 'rm -rf .claude'
+expect "mv x .claude/settings.json (base: allow)"     ask "$RS" "mv $TMP/plain.json .claude/settings.json"
+expect "mv .claude/settings.json away (base: allow)"  ask "$RS" "mv .claude/settings.json $TMP/bak.json"
+expect "cp x .claude/settings.json (base: allow)"     ask "$RS" "cp $TMP/plain.json .claude/settings.json"
+expect "truncate -s 0 .claude/settings.json (base: allow)" ask "$RS" 'truncate -s 0 .claude/settings.json'
+expect "install x .claude/settings.json (base: allow)" ask "$RS" "install $TMP/plain.json .claude/settings.json"
+expect "ln -sf x .claude/settings.json (base: allow)" ask "$RS" "ln -sf $TMP/plain.json .claude/settings.json"
+expect "git rm .claude/settings.json (base: allow)"   ask "$RS" 'git rm .claude/settings.json'
+expect "git checkout -- .claude/settings.json (base: ask, kept)" ask "$RS" 'git checkout -- .claude/settings.json'
+expect "under a path prefix: > sub/.claude/settings.json (base: allow)" ask "$RS" 'echo {} > sub/.claude/settings.json'
+expect "under a path prefix: rm sub/.claude/settings.json (base: allow)" ask "$RS" 'rm sub/.claude/settings.json'
+expect "under a path prefix: > ./.claude/settings.json (base: allow)" ask "$RS" 'echo {} > ./.claude/settings.json'
+expect "under a path prefix: > <absolute>/.claude/settings.json (base: allow)" ask "$RS" "echo {} > $RS/.claude/settings.json"
+mkdir -p "$RS/.skilliton"; printf '{"version":1,"guardrails":{"protectRecords":false}}\n' > "$RS/.skilliton/config.json"
+expect "with protectRecords off, rm .claude/settings.json still asks" ask "$RS" 'rm .claude/settings.json'
+expect "with protectRecords off, mv .claude/settings.json away still asks" ask "$RS" "mv .claude/settings.json $TMP/bak.json"
+rm -rf "$RS/.skilliton"
+expect "negative: cat .claude/settings.json"          allow "$RS" 'cat .claude/settings.json'
+expect "negative: jq . .claude/settings.json"         allow "$RS" 'jq . .claude/settings.json'
+expect "negative: cp .claude/settings.json <backup>"  allow "$RS" "cp .claude/settings.json $TMP/bak.json"
+expect "negative: sed -n p .claude/settings.json (no -i)" allow "$RS" 'sed -n p .claude/settings.json'
+expect "negative: cp x .claude/ (keeps its own name)" allow "$RS" "cp $TMP/plain.json .claude/"
+expect "negative: rm -rf .claude/agents"              allow "$RS" 'rm -rf .claude/agents'
+expect "negative: echo x > .claude/notes.md"          allow "$RS" 'echo x > .claude/notes.md'
+
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
 echo "RESULT: FAIL ($fails failed, $oks ok)"; exit 1

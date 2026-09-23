@@ -28,8 +28,9 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #          because what it runs cannot be read here (N90);
 #          and a command that writes the settings file itself (.skilliton/config.json), because a rule
 #          turned off there is a person's decision (the Write and Edit half is managed-block-guard.mjs); a command that
-#          writes the client's settings file (.claude/settings.json or settings.local.json) with hooks,
-#          disableAllHooks or enabledPlugins in play, or creates the .skilliton-off opt-out file (N70)
+#          writes, copies over, moves over or removes the client's settings file (.claude/settings.json or
+#          settings.local.json), whatever it holds (N91; reading it is allowed), or creates the .skilliton-off opt-out
+#          file (N70)
 #   allow  everything else, by printing nothing
 # Under Codex every "ask" is written as "deny", with a reason that says so, because Codex cannot ask
 # for confirmation from a hook: the command would run anyway. See detect_client.
@@ -742,8 +743,32 @@ guarded_write() {
   if [ -z "$where" ] && [ "$how" != text ] && [ -n "$NS_PATH" ] && [ -f "$NS_PATH" ]; then
     text=$(head -c 1048576 "$NS_PATH" 2>/dev/null); hook_word "$text"; [ -z "$HOOK_WORD" ] || where="the file as it is now"
   fi
-  [ -n "$where" ] || return 0
+  if [ -z "$where" ]; then
+    # N91: a write, a copy over or a move over asks whatever it holds; a program's text naming the file is as likely a read
+    case "$how" in text|shell) return 0 ;; esac
+    settings_ask writes; return 0
+  fi
   ask "Check first: this command writes $NS_FILE, and $where holds $HOOK_WORD. That file tells Claude Code which hooks and plugins run in this project; a change to hooks, disableAllHooks or enabledPlugins there can switch off the guardrails and every workflow hook for every later command, with nothing said. That is a person's decision, made in their own editor. Confirm only if this change keeps every hook and plugin running."
+}
+
+settings_ask() { # settings_ask <writes|removes>: the client's settings file NS_FILE is written over or taken away (N91)
+  ask "Check first: this command $1 $NS_FILE, the file that tells Claude Code which hooks and plugins run in this project. A change there can switch off the guardrails and every workflow hook for every later command, with nothing said, so any change to it is a person's decision, made in their own editor. Confirm only if this change keeps every hook and plugin running."
+}
+
+settings_removal() { # settings_removal <word>: rm, mv from, or git rm of the client's settings file, or of a .claude
+  # folder that holds one, asks (N91), whether or not the project turned protectRecords off
+  local w=$1
+  if names_settings "$w"; then settings_ask removes; return 0; fi
+  resolve_dir "$EFF_DIR" "$w"; [ -n "$RESOLVED" ] || return 0
+  normalize_path "$RESOLVED"
+  nocase_on
+  case "$NORM" in
+    */.claude)
+      if [ -e "$NORM/settings.json" ]; then NS_FILE=.claude/settings.json; settings_ask "removes the folder that holds"
+      elif [ -e "$NORM/settings.local.json" ]; then NS_FILE=.claude/settings.local.json; settings_ask "removes the folder that holds"; fi ;;
+  esac
+  nocase_off
+  return 0
 }
 
 resolve_dir() { # resolve_dir <base> <dir>: sets RESOLVED, or "" when it cannot be known
@@ -2170,6 +2195,7 @@ check_remove() { # check_remove <index of the first argument>: rm and rmdir, eve
     while IFS= read -r p; do
       [ -n "$p" ] || continue
       hooks_target "$p" "$EFF_DIR" && deny_hooks
+      settings_removal "$p"
       [ "$CFG_PR" = true ] || continue
       protected_target "$p" "$EFF_DIR"
       if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT"; return 0; fi
@@ -2305,7 +2331,6 @@ check_inplace() { # check_inplace <index of the first argument> <sed|perl|awk|ex
 }
 
 check_move() { # check_move <index of the first argument>: every source of mv; with -t every plain argument is one
-  [ "$CFG_PR" = true ] || return 0
   local k=$1 n=${#SEGW[@]} w opts=1 target=0 count last i=0 p
   PA=()
   while [ "$k" -lt "$n" ]; do
@@ -2325,6 +2350,8 @@ check_move() { # check_move <index of the first argument>: every source of mv; w
     brace_expand "${PA[$i]}"
     while IFS= read -r p; do
       [ -n "$p" ] || continue
+      settings_removal "$p"
+      [ "$CFG_PR" = true ] || continue
       protected_target "$p" "$EFF_DIR"
       if [ -n "$PT_WHAT" ]; then deny_removal "$PT_WHAT"; return 0; fi
     done <<EOF
@@ -2350,6 +2377,7 @@ check_git_rm() { # git rm [-r] [--cached] [-f] [--] <path>...: the paths are rel
       esac
     fi
     paths="$paths${paths:+ }$w"
+    names_settings "$w" && settings_ask removes
     [ "$CFG_PR" = true ] || continue
     brace_expand "$w"
     while IFS= read -r p; do

@@ -142,8 +142,9 @@ expect "negative: echo hooks > notes.txt"              allow "$RP" 'echo hooks >
 expect "negative: a write to .claude/other.json"       allow "$RP" "echo '{\"disableAllHooks\":true}' > .claude/other.json"
 RN="$TMP/repo-no-hooks"; new_repo "$RN" || { echo "FAIL: could not build $RN"; exit 1; }
 mkdir -p "$RN/.claude" && printf '{"permissions":{}}\n' > "$RN/.claude/settings.json"
-expect "negative: a permissions write to a settings file with no hooks" allow "$RN" "echo '{\"permissions\":{\"allow\":[]}}' > .claude/settings.json"
-expect "negative: cp <a file with no hook words> onto it" allow "$RN" "cp $TMP/plain.json .claude/settings.json"
+# These two were allowed under N70; N91 (scripts/guardrails-review2.test.sh) asks for any write, whatever it holds.
+expect "a permissions write to a settings file with no hooks (N91: asks)" ask "$RN" "echo '{\"permissions\":{\"allow\":[]}}' > .claude/settings.json"
+expect "cp <a file with no hook words> onto it (N91: asks)" ask "$RN" "cp $TMP/plain.json .claude/settings.json"
 expect "the existing settings-file rule still asks: .skilliton/config.json" ask "$RP" "printf x > .skilliton/config.json"
 reason_has "  with its own reason" "guardrails settings file (.skilliton/config.json)"
 
