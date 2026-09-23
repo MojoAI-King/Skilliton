@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T15:27:26.361Z
+- **Updated:** 2026-09-23T15:50:45.469Z
 
 ## Request
 
@@ -35,9 +35,16 @@ not yet written
 - **Next:** Merge guard-review after its red-team pass and hygiene-review, each with the fast checks then push; bump workflow to 0.23.0 and guardrails to 0.9.0; full checks.mjs on the merged tree; release 1.2.0; read CI
 - **Git:** main @ bd35690, 2 uncommitted
 
+### 2026-09-23T15:50:45.469Z
+
+- **State:** Three of four lanes merged and pushed (docs, writers, hygiene); the README leads with what it saves, measured; the release test's cleanup flake fixed; main at dce7d89. Not done: the guard lane (N70 to N72 committed, N73 in progress, red team pass to follow), the plugin version bumps, the changelog, the full check run on the merged tree, the 1.2.0 release. Open owner decision: rewrite history to strip the 311 co-author trailers before 1.2.0, or leave them
+- **Evidence:** Hygiene lane on the rebased tree: fast checks each exit 0, preflight + prepare-interrupt + prepare tests 67 pass 0 fail, allowlist self-test exit 0; release.test 27 pass 0 fail after the fix; audit 0 findings in 732 files; CI green on 786f036, failed on 20683d8 at the release pin test's cleanup (ENOTEMPTY, the flake now fixed), rerun and the run on dce7d89 being watched
+- **Next:** Merge guard-review after its red team pass; bump guardrails to 0.9.0 and workflow to 0.23.0; changelog; full checks.mjs; the owner's answer on the history rewrite; release 1.2.0; the local regrade
+- **Git:** main @ dce7d89, 0 uncommitted
+
 ## Handoff
 
-- **State:** Four lanes dispatched from LANES-6.md at a61a778; docs-review merged (SECURITY.md What the guard is, INSTALL prerequisites and paths, template autoUpdate false with a decision entry) plus the README half on main; writers-review merged (gate log O_NOFOLLOW and link refusal, new-skill and import prove the destination inside the repository); the threat model page and the allow-list sentence are on main; guard-review (N70 done, N71 to N73 in progress) and hygiene-review (N80, N81 done, N82 in progress) still building; main pushed at bd35690. Evidence: Per merge: lint, lint-shape, allowlist, docs, names, scrub, deadcode, footprint each exit 0 on the rebased lane tree; gate.test and skill-writers.test 24 pass 0 fail on merged main; the writers lane ran the full gate PASS in 753 s on its tree; whole-history audit 0 findings in 730 files after each commit; CI on the pushes not yet read.
-- **Next:** Merge guard-review after its red-team pass and hygiene-review, each with the fast checks then push; bump workflow to 0.23.0 and guardrails to 0.9.0; full checks.mjs on the merged tree; release 1.2.0; read CI
+- **State:** Three of four lanes merged and pushed (docs, writers, hygiene); the README leads with what it saves, measured; the release test's cleanup flake fixed; main at dce7d89. Not done: the guard lane (N70 to N72 committed, N73 in progress, red team pass to follow), the plugin version bumps, the changelog, the full check run on the merged tree, the 1.2.0 release. Open owner decision: rewrite history to strip the 311 co-author trailers before 1.2.0, or leave them. Evidence: Hygiene lane on the rebased tree: fast checks each exit 0, preflight + prepare-interrupt + prepare tests 67 pass 0 fail, allowlist self-test exit 0; release.test 27 pass 0 fail after the fix; audit 0 findings in 732 files; CI green on 786f036, failed on 20683d8 at the release pin test's cleanup (ENOTEMPTY, the flake now fixed), rerun and the run on dce7d89 being watched.
+- **Next:** Merge guard-review after its red team pass; bump guardrails to 0.9.0 and workflow to 0.23.0; changelog; full checks.mjs; the owner's answer on the history rewrite; release 1.2.0; the local regrade
 - **Blocked:** nothing
 - **Watch out:** nothing known
