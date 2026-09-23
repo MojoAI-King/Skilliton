@@ -19,6 +19,10 @@
 #               those parsers is installed; a config that cannot be used is reported in a notice.
 # Output:       every outcome prints at least one line; a missing file, a missing or empty
 #               section, truncation, and an unusable config each have their own notice.
+# Links:        when the handoff file, or any folder between the repository root and it, is a
+#               symbolic link, the file is not read: one line says so, and nothing from it is
+#               printed. A link can point anywhere on the disk, and whatever it points at would
+#               otherwise be put in front of the session as the repository's own words.
 # Exit status:  always 0. A crash prints a notice instead of failing the session start.
 # Needs:        bash 3.2 or later (the macOS default). No awk, sed, grep, or coreutils.
 
@@ -155,7 +159,21 @@ if [ -f "$config" ]; then
   fi
 fi
 
-# 3. The handoff file.
+# 3. The handoff file, never through a link: each component below the project folder is checked
+# with -L, the folders first, so a linked docs/ is caught before anything under it is opened.
+rest=$file
+prefix=""
+while [ -n "$rest" ]; do
+  part=${rest%%/*}
+  if [ "$part" = "$rest" ]; then rest=""; else rest=${rest#*/}; fi
+  case "$part" in ""|.) continue ;; esac
+  prefix=${prefix:+$prefix/}$part
+  if [ -L "$project_dir/$prefix" ]; then
+    printf '%s\n' "[workflow] The handoff was not read: $prefix is a symbolic link, and this hook never follows a link to read $file."
+    printf '%s' "$notes"
+    exit 0
+  fi
+done
 path="$project_dir/$file"
 if [ ! -f "$path" ]; then
   printf '%s\n' "[workflow] No handoff yet in this repo. When you finish a stretch of work, run /workflow:handoff so the next session can pick up."

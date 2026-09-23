@@ -4,6 +4,9 @@
 # Part 1 reproduces the original-vs-repaired awk on a sample lessons file (the historical "before").
 # Part 2 runs the SHIPPED hook script, not a copy of its awk, because a test that certifies a
 # different file than the one that ships is a gate that does not gate.
+# Part 3 runs the shipped workflow handoff hook (N86): a handoff path that is, or passes through, a
+# symbolic link is refused in one line and nothing from the linked file is printed. --hook does not
+# change which handoff hook Part 3 runs.
 #
 #   bash scripts/hook-fixture.test.sh                    run all checks, no side effects
 #   bash scripts/hook-fixture.test.sh --write-evidence   also write the output to evidence/day-1/hook-fixture.txt
@@ -133,6 +136,40 @@ run_all() {
   printf '# LESSONS (control)\n\n## The new-app wiring checklist\n\n\n## Lesson 1\ntext\n' > "$tmp/empty-body.md"
   check_exact "(e) heading present, empty checklist" "$NOT_FOUND" \
     env -u SKILLITON_CHECKLIST_HEADING SKILLITON_LESSONS="$tmp/empty-body.md" bash "$HOOK"
+  echo
+
+  echo "== Part 3: the handoff hook does not follow a link (packs/base/plugins/workflow/hooks/session-start-handoff.sh)"
+  local HANDOFF_HOOK="$root/packs/base/plugins/workflow/hooks/session-start-handoff.sh"
+  local outside="$tmp/outside" repo_link="$tmp/repo-link" repo_dir="$tmp/repo-dir" repo_ok="$tmp/repo-ok"
+  mkdir -p "$outside/docs" "$repo_link/docs" "$repo_dir" "$repo_ok/docs"
+  printf '# Outside\n\n## RESUME HERE\nOUTSIDE-TEXT-must-not-appear\n' > "$outside/HANDOFF.md"
+  cp "$outside/HANDOFF.md" "$outside/docs/HANDOFF.md"
+  ln -s "$outside/HANDOFF.md" "$repo_link/docs/HANDOFF.md"
+  ln -s "$outside/docs" "$repo_dir/docs"
+  printf '# Handoff\n\n## RESUME HERE\nInside text is shown.\n' > "$repo_ok/docs/HANDOFF.md"
+  # check_handoff <label> <project dir> <expected line or empty> <text that must appear or empty>
+  check_handoff() {
+    local label="$1" dir="$2" want="$3" must="$4" out rc
+    out=$(env -u CLAUDE_PROJECT_DIR CLAUDE_PROJECT_DIR="$dir" "$HANDOFF_HOOK" < /dev/null 2>&1); rc=$?
+    echo "-- $label: exit $rc"
+    printf "%s\n" "$out" | sed 's/^/   | /'
+    if [ "$rc" -eq 0 ]; then echo "ok   $label: exit 0"; else echo "FAIL $label: exit $rc"; fails=$((fails+1)); fi
+    if printf "%s\n" "$out" | grep -qF 'OUTSIDE-TEXT'; then echo "FAIL $label: printed text from the linked file"; fails=$((fails+1))
+    else echo "ok   $label: nothing from outside the repository"; fi
+    if [ -n "$want" ]; then
+      if [ "$out" = "$want" ]; then echo "ok   $label: output is exactly the refusal line"
+      else echo "FAIL $label: output is not the refusal line"; fails=$((fails+1)); fi
+    fi
+    if [ -n "$must" ]; then
+      if printf "%s\n" "$out" | grep -qF -- "$must"; then echo "ok   $label: shows '$must'"
+      else echo "FAIL $label: missing '$must'"; fails=$((fails+1)); fi
+    fi
+  }
+  check_handoff "(h1) docs/HANDOFF.md is a link to a file outside the repository" "$repo_link" \
+    "[workflow] The handoff was not read: docs/HANDOFF.md is a symbolic link, and this hook never follows a link to read docs/HANDOFF.md." ""
+  check_handoff "(h2) the docs folder is a link to a folder outside the repository" "$repo_dir" \
+    "[workflow] The handoff was not read: docs is a symbolic link, and this hook never follows a link to read docs/HANDOFF.md." ""
+  check_handoff "(h3) control: a real docs/HANDOFF.md is shown" "$repo_ok" "" "Inside text is shown."
   echo
 
   echo "== Informational (not a check): the originating lessons file (private, not in this repo)"
