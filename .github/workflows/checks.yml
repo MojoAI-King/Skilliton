@@ -177,6 +177,9 @@ jobs:
       - name: Join prints no credential typed into a marketplace URL
         run: node --test scripts/join-redact.test.mjs
 
+      - name: Company init prints no credential typed as a user name
+        run: node --test scripts/fork-redact.test.mjs
+
       - name: Preflight against blocks made on purpose (missing, unrunnable, unwritable, unreachable)
         run: node --test scripts/preflight.test.mjs
 

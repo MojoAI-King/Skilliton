@@ -12,6 +12,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildTeamSettings, isDir, isFile, isPlainObject, listDirNames, refuse, sameJson, tilde, validateName } from "./core.mjs";
+import { redact } from "./preflight.mjs";
 
 export const CATALOG = ".claude-plugin/marketplace.json";
 export const TEAM_TEMPLATE = "templates/project-settings.json";
@@ -44,8 +45,12 @@ export function templateMarketplace(template) {
   return { name, repo };
 }
 
+// A refused value is printed back through redact() (lib/preflight.mjs), and whatever comes before an "@" is taken out
+// first: owner/repo has no user name, so text there is a user name at best and a token at worst (TOKEN@github.com/o/r),
+// and redact() only knows a user name that follows "//".
 export function validateRepo(value, what = "--marketplace-repo") {
-  if (!REPO_RE.test(value ?? "")) refuse(`${what} must look like owner/repo, the company fork on GitHub (got "${value}"). Other hosts are not built yet: the team settings template can only name a GitHub source.`);
+  const shown = () => redact(String(value).replace(/^[^/@\s]*@/, "<credentials removed>@"));
+  if (!REPO_RE.test(value ?? "")) refuse(`${what} must look like owner/repo, the company fork on GitHub (got "${shown()}"). Other hosts are not built yet: the team settings template can only name a GitHub source.`);
 }
 
 // company init: plan the catalog identity and the matching team template.
