@@ -54,7 +54,7 @@ export function createEntry(project, kind, title, { branch, date = new Date(), a
     if (!inspectPath(project.root, `${dir}/${candidate}.md`).exists) { id = candidate; path = `${dir}/${candidate}.md`; }
   }
   if (id === null) throw new OperationFailed(`no unused ID was found for this title in ${dir}/ after 20 tries; nothing was written`);
-  const text = entryTemplate(kind, { title: clean, id, status, date: day });
+  const text = entryTemplate(kind, { title: clean, id, status, date: day, header: project.recordHeader });
   const entry = { kind, id, path, title: clean, status, date: day, branch: onBranch, integration, text, written: false };
   if (apply) {
     if (!gitDir) throw new Error("internal: createEntry needs gitDir to write");

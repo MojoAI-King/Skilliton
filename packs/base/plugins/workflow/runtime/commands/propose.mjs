@@ -6,8 +6,16 @@ import { spawnSync } from "node:child_process";
 import { lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
+import { ConfigError, DEFAULTS, formatRecordHeader, resolveProject } from "../lib/config.mjs";
 import { parseArgs, refuse, resolveSkillsRepo, say, scanSecrets, tilde } from "../lib/core.mjs";
 import { isId, localDate } from "../lib/ids.mjs";
+
+// The proposal's own header follows the target repository's configured record header (prepare.recordHeader), the same
+// as every other record it keeps; a repository with no configuration, or one that cannot be resolved, gets the
+// default so this line is unaffected by files this command never reads.
+function repoRecordHeader(repo) {
+  try { return resolveProject(repo, { allowLegacy: true }).recordHeader; } catch (e) { if (e instanceof ConfigError) return DEFAULTS.recordHeader; throw e; }
+}
 
 export const help = `propose: turn a lesson entry into an improvement proposal in the company skills repository.
 
@@ -93,7 +101,7 @@ export async function run(argv) {
   const proposal = [
     `# Proposal: ${lesson.title}`,
     "",
-    "Kind: Living. Improvement proposal.",
+    formatRecordHeader(repoRecordHeader(repo), "Living. Improvement proposal."),
     "",
     `- source lesson: ${lesson.id}`,
     `- date: ${date}`,

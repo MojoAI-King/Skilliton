@@ -532,7 +532,7 @@ export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLU
     inspectFolder(root, dir, `the ${kind} folder`);
     createOrAdopt(`${dir}/README.md`, `explains the ${kind.replace(/s$/, "")} entry format`, "entry folder README already present; left exactly as it is", () => entryFolderReadme(kind, project));
   }
-  createOrAdopt(SECURITY_README_REL, "explains the security evidence register and skilliton security status", "already present; left exactly as it is", securityReadme);
+  createOrAdopt(SECURITY_README_REL, "explains the security evidence register and skilliton security status", "already present; left exactly as it is", () => securityReadme(project));
 
   const catalog = readPath(root, CATALOG_REL, "the project's security catalog");
   if (catalog === null) {
@@ -552,7 +552,7 @@ export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLU
       notes.push(`The security engine (runtime/lib/security.mjs) is not available in this build, so the existing ${CATALOG_REL} was checked for its basic shape only, not by the code that reads it.`);
     }
   }
-  createOrAdopt(RECORDS_README_REL, "explains the immutable observation records", "already present; left exactly as it is", recordsReadme);
+  createOrAdopt(RECORDS_README_REL, "explains the immutable observation records", "already present; left exactly as it is", () => recordsReadme(project));
 
   const ignore = readPath(root, ".gitignore");
   const ignoreText = ignore === null ? "" : ignore.toString("latin1");

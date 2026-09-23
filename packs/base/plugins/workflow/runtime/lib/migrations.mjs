@@ -236,8 +236,8 @@ const asLegacy = (text) => text.replace(/skilliton/g, LEGACY_COMMAND).replace(/S
 function generatedFiles(project) {
   const legacy = asLegacy;
   const list = [
-    { rel: SECURITY_README_REL, current: securityReadme() },
-    { rel: RECORDS_README_REL, current: recordsReadme() },
+    { rel: SECURITY_README_REL, current: securityReadme(project) },
+    { rel: RECORDS_README_REL, current: recordsReadme(project) },
     ...["tasks", "decisions", "lessons"].map((kind) => ({ rel: `${project.directories[kind]}/README.md`, current: entryFolderReadme(kind, project) })),
   ];
   return list.map((g) => ({ ...g, legacy: legacy(g.current) }));

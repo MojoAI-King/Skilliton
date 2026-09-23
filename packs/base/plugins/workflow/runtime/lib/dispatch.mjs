@@ -15,6 +15,7 @@
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { formatRecordHeader } from "./config.mjs";
 import { PLUGIN_ROOT, refuse, tilde } from "./core.mjs";
 import { readBranch, runGit } from "./journal.mjs";
 import { newId } from "./ids.mjs";
@@ -184,7 +185,7 @@ function briefText(lane, ctx) {
   const lines = [];
   lines.push(`# Lane brief: ${lane.name}`);
   lines.push("");
-  lines.push(`Kind: Reference. Written by \`skilliton dispatch\` from ${ctx.planRel} on ${ctx.date}. It is not committed: dispatch adds ${BRIEF_FILE} and ${REPORT_FILE} to the repository's info/exclude.`);
+  lines.push(formatRecordHeader(ctx.recordHeader, `Reference. Written by \`skilliton dispatch\` from ${ctx.planRel} on ${ctx.date}. It is not committed: dispatch adds ${BRIEF_FILE} and ${REPORT_FILE} to the repository's info/exclude.`));
   lines.push("");
   lines.push(`- **Lane:** ${lane.name}`);
   lines.push(`- **Branch:** ${lane.branch}, created from ${lane.base.slice(0, 12)} (${lane.baseFrom})`);
@@ -355,6 +356,7 @@ export function planDispatch(root, project, { file, now = new Date() } = {}) {
     laneTestCommand: project.dispatch.laneTestCommand,
     mainOnlyChecks: project.dispatch.mainOnlyChecks,
     agent: laneAgent(),
+    recordHeader: project.recordHeader,
   };
   for (const lane of planned) {
     lane.taskId = newId(`Lane ${lane.name}`, { date: now, fallback: "lane" });
@@ -369,6 +371,7 @@ export function planDispatch(root, project, { file, now = new Date() } = {}) {
       updated: now.toISOString(),
       request: `${LANE_FILE}, dispatched ${ctx.date}: the items below are this lane's whole scope, and work that is not among them belongs to another lane.`,
       criteria: lane.items.map((i) => `${i.ref}. ${i.text}`),
+      recordHeader: ctx.recordHeader,
     });
   }
   for (const lane of planned) lane.brief = problems.length ? "" : briefText(lane, ctx);

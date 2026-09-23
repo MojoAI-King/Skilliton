@@ -156,6 +156,9 @@ jobs:
       - name: Prepare, migrate, remove, records and indexes
         run: node --test scripts/prepare.test.mjs scripts/migrate.test.mjs scripts/records.test.mjs scripts/root-and-handoff-settings.test.mjs scripts/path-form.test.mjs
 
+      - name: A project's own record header (prepare.recordHeader) on every writer and reader
+        run: node --test scripts/record-header.test.mjs
+
       - name: Tasks, checkpoints, status and lifecycle hooks
         run: node scripts/lifecycle.test.mjs
 

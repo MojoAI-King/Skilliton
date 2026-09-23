@@ -5,7 +5,7 @@
 //
 //   # Task: <title>
 //
-//   Kind: Living. Task record.
+//   Kind: Living. Task record.   (prepare.recordHeader in .skilliton/config.json can change "Kind: {kind}"; default shown)
 //
 //   - **ID:** <id>
 //   - **State:** <one of TASK_STATES>
@@ -26,7 +26,7 @@
 import { randomBytes } from "node:crypto";
 import { chmodSync, constants as fsConstants, copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { checkRecordPath } from "./config.mjs";
+import { DEFAULTS, checkRecordPath, formatRecordHeader } from "./config.mjs";
 import { Refused } from "./core.mjs";
 import { isId, newId } from "./ids.mjs";
 
@@ -86,10 +86,10 @@ export function checkTaskId(id) {
 
 // ---------- rendering ----------
 
-export function renderTask({ id, title, state = "in-progress", branch, owner, updated, request = null, criteria = [] }) {
+export function renderTask({ id, title, state = "in-progress", branch, owner, updated, request = null, criteria = [], recordHeader = DEFAULTS.recordHeader }) {
   return [
     `# Task: ${title}`, "",
-    "Kind: Living. Task record.", "",
+    formatRecordHeader(recordHeader, "Living. Task record."), "",
     `- **ID:** ${id}`,
     `- **State:** ${state}`,
     `- **Branch:** ${branch}`,
@@ -393,7 +393,7 @@ export function createTask(project, { title, request = null, criteria = [], bran
     const id = newId(cleanTitle, { fallback: "task" });
     const rel = taskRel(project, id);
     checkRecordPath(project.root, rel, "the task record");
-    return { id, rel, content: renderTask({ id, title: cleanTitle, state, branch: cleanBranch, owner: cleanOwner, updated: at, request: cleanRequest, criteria: cleanCriteria }) };
+    return { id, rel, content: renderTask({ id, title: cleanTitle, state, branch: cleanBranch, owner: cleanOwner, updated: at, request: cleanRequest, criteria: cleanCriteria, recordHeader: project.recordHeader }) };
   };
   if (!apply) return { ...attempt(), written: false };
   mkdirSync(dir, { recursive: true });

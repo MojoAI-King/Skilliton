@@ -47,7 +47,23 @@ export const DEFAULTS = {
   integrationBranches: ["main", "master"],
   checkpoints: { stopReminder: true, minMinutes: 20 },
   security: { maxAgeDays: null },
+  recordHeader: "Kind: {kind}",
 };
+
+// The header line every record writer opens with, in place of the earlier fixed "Kind: {kind}". header must contain
+// the literal token "{kind}"; every occurrence is replaced with the record's own kind text (for example
+// "Living. Task record."). Callers pass project.recordHeader (or DEFAULTS.recordHeader with no project in hand).
+export function formatRecordHeader(header, kind) {
+  return header.replaceAll("{kind}", kind);
+}
+
+// The fixed text before "{kind}" in a header template, for a reader that only needs to recognize the header line (not
+// the kind sentence it carries): a line "looks like" the header when it starts with this. "Kind:" is a safe fallback
+// for a caller with no header in hand, matching the header this runtime wrote before it was configurable.
+export function recordHeaderPrefix(header = DEFAULTS.recordHeader) {
+  const at = header.indexOf("{kind}");
+  return at < 0 ? header : header.slice(0, at);
+}
 
 // The dispatch section (docs/CONTRACTS.md sections 2 and 15). laneRoot null means "beside the repository, named after
 // its folder"; dispatch resolves it, because only it knows the folder name. laneSetup is never run by Skilliton: it is
@@ -161,6 +177,7 @@ export function configProblems(config) {
   }
   if (prepare.integrationBranches !== undefined && (!Array.isArray(prepare.integrationBranches) || !prepare.integrationBranches.length || !prepare.integrationBranches.every((b) => typeof b === "string" && BRANCH_RE.test(b)))) problems.push("prepare.integrationBranches must be a non-empty list of branch names");
   if (prepare.requires !== undefined && (!isObject(prepare.requires) || !Object.entries(prepare.requires).every(([k, v]) => /^[a-z0-9][a-z0-9-]*$/.test(k) && typeof v === "string" && /^\d+\.\d+\.\d+$/.test(v)))) problems.push("prepare.requires must map plugin names to MAJOR.MINOR.PATCH versions");
+  if (prepare.recordHeader !== undefined && !(typeof prepare.recordHeader === "string" && prepare.recordHeader.length > 0 && prepare.recordHeader.length <= 200 && !/[\x00-\x1f\x7f]/.test(prepare.recordHeader) && prepare.recordHeader.includes("{kind}"))) problems.push("prepare.recordHeader must be one line with no control characters, at most 200 characters, containing {kind}");
   const handoff = isObject(config.handoff) ? config.handoff : {};
   if (handoff.file !== undefined && (!validRelPath(handoff.file) || !handoff.file.endsWith(".md"))) problems.push("handoff.file must be a repository-relative .md path");
   if (handoff.maxBytes !== undefined && !(Number.isInteger(handoff.maxBytes) && handoff.maxBytes >= 200 && handoff.maxBytes <= 100000)) problems.push("handoff.maxBytes must be a whole number from 200 to 100000");
@@ -252,6 +269,7 @@ export function resolveProject(rootInput, { allowLegacy = false } = {}) {
     artifactSource: source,
     directories,
     integrationBranches: prepare.integrationBranches ?? DEFAULTS.integrationBranches,
+    recordHeader: prepare.recordHeader ?? DEFAULTS.recordHeader,
     handoff: { file: artifacts.handoff, maxBytes: handoffSection.maxBytes ?? DEFAULTS.handoffMaxBytes, keepEarlier: handoffSection.keepEarlier ?? DEFAULTS.handoffKeepEarlier },
     checkpoints: { ...DEFAULTS.checkpoints, ...(isObject(config.checkpoints) ? config.checkpoints : {}) },
     security: { ...DEFAULTS.security, ...(isObject(config.security) ? config.security : {}) },

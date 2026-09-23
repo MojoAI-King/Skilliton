@@ -17,7 +17,7 @@
 // every byte of a file survives untouched; new text arrives as UTF-8 and is converted once. Nothing here imports
 // from outside the plugin folder.
 
-import { checkRecordPath } from "./config.mjs";
+import { checkRecordPath, recordHeaderPrefix } from "./config.mjs";
 import { Refused } from "./core.mjs";
 import { WRITTEN_AHEAD_MS, WRITTEN_ZONES, parseWritten } from "./lifecycle.mjs";
 import { applyChanges, readPath } from "./prepare.mjs";
@@ -185,8 +185,9 @@ export function rotateHandoff(parsed, { written, bullets, keep = KEEP_EARLIER })
 }
 
 // Entries go above the first "### " entry of the archive when it has one, else below its header (the title line and
-// the Kind line), replacing the "nothing archived yet" sentence preparation wrote.
-export function prependArchive(text, entries) {
+// the header line). headerPrefix is the fixed text before "{kind}" in the project's configured header (recordHeaderPrefix
+// in config.mjs); a project that never configured prepare.recordHeader keeps the earlier "Kind:" prefix.
+export function prependArchive(text, entries, headerPrefix = recordHeaderPrefix()) {
   if (!entries.length) return text;
   const { eol, bom, lines } = splitLines(text);
   const fenced = fencedLines(lines);
@@ -197,7 +198,7 @@ export function prependArchive(text, entries) {
     return joinBlocks([before, ...rendered, ...[lines.slice(first)]], eol, bom);
   }
   const kept = lines.filter((l) => l.trim() !== ARCHIVE_EMPTY_LINE);
-  let headerEnd = kept.findIndex((l, i) => !fenced[i] && /^Kind:/.test(l));
+  let headerEnd = kept.findIndex((l, i) => !fenced[i] && l.startsWith(headerPrefix));
   if (headerEnd < 0) headerEnd = kept.findIndex((l) => /^# /.test(l));
   const head = trimBlank(kept.slice(0, headerEnd + 1)), rest = trimBlank(kept.slice(headerEnd + 1));
   return joinBlocks([head, ...rendered, rest], eol, bom);
@@ -230,7 +231,7 @@ export function planSharedHandoff(project, { at, state, next, given = {}, git = 
     const archiveBytes = readPath(root, archiveRel, `the handoff archive ${archiveRel}`);
     archiveCreated = archiveBytes === null;
     const archiveText = archiveCreated ? toLatin1(recordTemplate("handoffArchive", project)) : archiveBytes.toString("latin1");
-    const archiveAfter = prependArchive(archiveText, archived);
+    const archiveAfter = prependArchive(archiveText, archived, recordHeaderPrefix(project.recordHeader));
     changes.push({ path: archiveRel, before: archiveBytes, after: Buffer.from(archiveAfter, "latin1") });
   }
   const resumeBytes = resumeText(nextParsed).length;
