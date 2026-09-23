@@ -272,23 +272,45 @@ const prepareOffer = () => `offer it in plain words before other work: "This pro
 // What a resuming session needs first comes first, because truncation keeps the top of the block.
 const BLOCK_ORDER = ["tasks", "sessions", "handoff", "layout", "migrations", "versions", "records", "security"];
 
+// These four collapse into one "- Checks: ... ok" line when every one of them is ok and has nothing to act on: a
+// clean run then costs one line instead of four repeating "ok" for lines nobody needed to read. Any of the four that
+// is not ok keeps its own line, in its usual place, exactly as before; only the ok ones are named in the combined
+// line. sessions, handoff and security are not in this set: they carry a summary worth reading even when ok (who was
+// here, when the handoff was written, how many controls apply).
+const COLLAPSIBLE = ["layout", "migrations", "versions", "records"];
+
 export function sessionStartBlock(report, { maxBytes, notes = [], skipOffer = false }) {
   const lines = ["[workflow] Project state (skilliton hook session-start):", `- Branch: ${gitLine(report.git)}`];
   if (report.configProblem) lines.push(`- Configuration (needs attention): ${clip(report.configProblem, 300)}`);
   const renamed = legacyEnvironment();
   if (renamed.length) lines.push(`- Environment (needs attention): ${renamed.map((v) => `${v.name} is set but no longer read; the variable is now ${v.replacement}`).join("; ")}`);
   for (const note of notes) lines.push(`- ${clip(note, 300)}`);
+  let collapsibleDone = false;
   for (const name of BLOCK_ORDER) {
+    if (COLLAPSIBLE.includes(name)) {
+      if (collapsibleDone) continue;
+      collapsibleDone = true;
+      const ok = [];
+      for (const name2 of COLLAPSIBLE) {
+        const check2 = report.checks.find((c) => c.name === name2);
+        if (!check2) continue;
+        if (check2.status === "ok") { ok.push(name2); continue; }
+        const word2 = WORDS[check2.status];
+        lines.push(`- ${BLOCK_LABELS[name2]}${word2 ? ` (${word2})` : ""}: ${clip(check2.summary, 600)}`);
+        // A never-prepared repository has no managed block to instruct the assistant, so the offer is made here, in
+        // plain words, with the commands a yes runs (PLAN.md M8, first increment).
+        // A project whose files were removed by hand gets the layout line's restore command instead of this offer,
+        // and a repository the person kept out on purpose (skipOffer, lib/auto-prepare.mjs) is not offered either.
+        if (name2 === "layout" && report.data?.layout?.version === null && !report.data.layout.removed && !skipOffer) lines.push(`- Not prepared (needs attention): ${prepareOffer()}`);
+      }
+      if (ok.length) lines.push(`- Checks: ${ok.join(", ")} ok`);
+      continue;
+    }
     const check = report.checks.find((c) => c.name === name);
     if (!check) continue;
     if (name === "tasks") { lines.push(...taskLines(report, check)); continue; }
     const word = WORDS[check.status];
     lines.push(`- ${BLOCK_LABELS[name]}${word ? ` (${word})` : ""}: ${clip(check.summary, 600)}`);
-    // A never-prepared repository has no managed block to instruct the assistant, so the offer is made here, in plain
-    // words, with the commands a yes runs (PLAN.md M8, first increment).
-    // A project whose files were removed by hand gets the layout line's restore command instead of this offer, and a
-    // repository the person kept out on purpose (skipOffer, lib/auto-prepare.mjs) is not offered either.
-    if (name === "layout" && report.data?.layout?.version === null && !report.data.layout.removed && !skipOffer) lines.push(`- Not prepared (needs attention): ${prepareOffer()}`);
   }
   return boundLines(lines, maxBytes, `[workflow] Project state truncated at ${maxBytes} bytes; for all of it run: ${selfCommand()} status`);
 }

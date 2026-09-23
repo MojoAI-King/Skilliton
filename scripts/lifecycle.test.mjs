@@ -678,8 +678,8 @@ test("session-start names every missing piece and stays within handoff.maxBytes"
   // M8's first increment: the offer is made in plain words in the hook output, because a never-prepared repository has
   // no managed block to instruct the assistant, and a yes has its commands spelled out.
   expectLine(/^- Not prepared \(needs attention\): offer it in plain words before other work: "This project is not set up for Skilliton yet\. .*Nothing is written until you say yes\." On a yes, in this order: skilliton prepare shows the change; skilliton prepare --apply shows it again and writes it, drafting dispatch\.laneTestCommand, laneRoot and hotspots and a delivery policy draft from what the repository shows; then turn the user's first request into the first task with two to six proposed criteria: skilliton task start "<title>" --request "<the user's words>" --criteria "<criterion>" --apply$/);
-  expectLine(HAS_MIGRATIONS ? /^- Pending migrations: none pending \(layout unknown, target 3\)$/ : /^- Pending migrations \(not run\): not available in this build \(runtime\/lib\/migrations\.mjs is not present\)$/);
-  expectLine(new RegExp(`^- Versions: workflow runtime ${escape(INSTALLED)} installed; the project names no minimum version`));
+  expectLine(HAS_MIGRATIONS ? /^- Checks: migrations, versions ok$/ : /^- Pending migrations \(not run\): not available in this build \(runtime\/lib\/migrations\.mjs is not present\)$/); // N61: ok collapses
+  if (!HAS_MIGRATIONS) expectLine(/^- Checks: versions ok$/);
   expectLine(/^- Records \(needs attention\): 9 of 9 missing: docs\/STATUS\.md \(status\), .*\(maintain\); none of them is in Git; skilliton prepare --apply creates them and leaves every record that exists as it is$/);
   expectLine(/^- Current task: none \(no open task on branch main\); to start one: skilliton task start "<title>" --apply$/);
   expectLine(/^- Shared handoff: docs\/HANDOFF\.md is missing \(see records\)$/);
@@ -768,8 +768,8 @@ test("on a joined machine, session start prepares a repository that is not prepa
   assert.equal(first.code, 0, first.all);
   assert.match(first.out, /^- Prepared just now \(this machine joined acme\): \d+ file\(s\) written, uncommitted: the records, \.skilliton\/config\.json, the managed block in CLAUDE\.md and AGENTS\.md, the security register\. Commit them with your next commit; an empty \.skilliton-off at the root keeps a repository out\.$/m);
   assert.doesNotMatch(first.out, /Not prepared \(needs attention\)/);
-  assert.match(first.out, /^- Layout: layout 3 \(current for this runtime\)$/m);
-  assert.match(first.out, /^- Records: all 9 present$/m);
+  // Freshly prepared: layout, migrations, versions and records are all ok, so N61's collapse folds them into one line.
+  assert.match(first.out, /^- Checks: layout, migrations, versions, records ok$/m);
   assert.match(first.out, /^- Branch: main @ [0-9a-f]{7,}, [1-9]\d* uncommitted$/m);
   assert.ok(existsSync(join(p, ".skilliton", "config.json")) && existsSync(join(p, "docs", "HANDOFF.md")), "the prepared files exist");
   assert.match(readFileSync(join(p, "CLAUDE.md"), "utf8"), /<!-- skilliton:harness:start/);
@@ -823,7 +823,7 @@ test("on a joined machine, session start prepares a repository that is not prepa
   const migrated = start(p, "a4");
   assert.equal(migrated.code, 0, migrated.all);
   assert.match(migrated.out, /^- Migrated just now \(this machine joined acme\): 0100-instructions-[0-9a-f]{12} applied; the managed block in CLAUDE\.md and AGENTS\.md follows the current template, the receipt is under \.skilliton\/migrations\/ and the earlier text is in the backup, all uncommitted\. Commit them with your next commit\.$/m);
-  assert.match(migrated.out, /^- Pending migrations: none pending/m);
+  assert.match(migrated.out, /^- Checks: layout, migrations, versions, records ok$/m); // N61: all four ok, collapsed
   assert.doesNotMatch(readFileSync(join(p, "CLAUDE.md"), "utf8"), /stale text/);
   assert.ok(readdirSync(join(p, ".skilliton", "migrations")).some((f) => f.startsWith("0100-instructions-")), "the receipt was written");
 }));
@@ -921,8 +921,8 @@ test("session-start shows the current task, its last checkpoint and its handoff"
   assert.equal(r.code, 0, r.all);
   assert.match(r.out, new RegExp(`^- Current task: ${id} "Resume me" \\(in-progress, 1 checkpoint\\(s\\)\\); last checkpoint [^:]+:\\d\\d:[^:]+: State: Half done; Evidence: unit tests pass; Next: Finish the form$`, "m"));
   assert.match(r.out, /^- Task handoff: State: paused mid-form; Next: wire the submit button; Blocked: nothing; Watch out: nothing known$/m);
-  assert.match(r.out, /^- Layout: layout 3 \(current for this runtime\)$/m);
-  assert.match(r.out, /^- Records: all 9 present$/m);
+  // A prepared repository with a current task: layout, migrations, versions and records are all ok, collapsed too.
+  assert.match(r.out, /^- Checks: layout, migrations, versions, records ok$/m);
 }));
 
 test("an interrupted previous session is detected", async () => withTemp("interrupted", async ({ dir, env }) => {
