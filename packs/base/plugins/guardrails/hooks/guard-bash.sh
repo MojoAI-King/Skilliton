@@ -26,7 +26,9 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 # What it can see, stated as a limit rather than left to be discovered:
 #   It reads the command TEXT. It splits on && || ; | & newlines and parentheses, respects
 #   quotes and backslashes, skips heredoc bodies, drops redirections, and follows cd, pushd,
-#   and git -C. It is not a shell parser: it does not expand variables, globs, aliases, or
+#   and git -C, and reads past env, sudo, nice, timeout, exec, caffeinate, stdbuf, ionice and time with the values
+#   their options take; after a program it does not know, a later git, rm or mv that would be stopped asks. It is not
+#   a shell parser: it does not expand variables, globs, aliases, or
 #   functions, and it does not look inside scripts, bash -c strings, eval, xargs, command
 #   substitution inside double quotes, or git aliases; a shell, eval or xargs string that
 #   names git asks instead of allowing in silence. It stops ordinary and accidental
@@ -446,31 +448,111 @@ resolve_dir() { # resolve_dir <base> <dir>: sets RESOLVED, or "" when it cannot 
   esac
 }
 
+# wrapper_values <wrapper>: sets WV_SHORT to the option letters that take a value and WV_LONG to the long options whose
+# value is the next word, for a program that runs the rest of its line as a command. Without these, a value such as the
+# FOO of env -u FOO was read as the command, and what followed it went unread.
+wrapper_values() {
+  WV_SHORT=""; WV_LONG=""
+  case "$1" in
+    env) WV_SHORT=uCPSLU; WV_LONG=" --unset --chdir --split-string " ;;
+    sudo) WV_SHORT=ugpCDrtTUR; WV_LONG=" --user --group --prompt --close-from --chdir --role --type --command-timeout --other-user --chroot --host " ;;
+    exec) WV_SHORT=a ;;
+    nice) WV_SHORT=n; WV_LONG=" --adjustment " ;;
+    timeout) WV_SHORT=sk; WV_LONG=" --signal --kill-after " ;;
+    caffeinate) WV_SHORT=tw ;;
+    stdbuf) WV_SHORT=ioe; WV_LONG=" --input --output --error " ;;
+    ionice) WV_SHORT=cnpPu; WV_LONG=" --class --classdata --pid --pgid --uid " ;;
+    time) WV_SHORT=fo; WV_LONG=" --format --output " ;;
+  esac
+}
+
 analyze_segment() {
-  local n=${#SEGW[@]} k=0 w wrapper=0 name
-  # skip what can stand in front of a command: VAR=value, sudo/env/time and their flags, keywords
+  local n=${#SEGW[@]} k=0 w wrapper="" name val last duration=0 saved_dir=$EFF_DIR
+  # skip what can stand in front of a command: VAR=value, the wrappers that run the rest of the line and their
+  # options (with the value an option takes), timeout's duration, and keywords
   while [ "$k" -lt "$n" ]; do
     w=${SEGW[$k]}
     case "$w" in
-      sudo|command|builtin|exec|nohup|time|env|nice) wrapper=1; k=$((k + 1)); continue ;;
-      if|then|else|elif|do|while|until|'{'|'}'|'!') wrapper=0; k=$((k + 1)); continue ;;
-      -*) if [ "$wrapper" = 1 ]; then k=$((k + 1)); continue; fi; break ;;
+      sudo|command|builtin|exec|nohup|time|env|nice|timeout|caffeinate|stdbuf|ionice|*/sudo|*/env|*/nice|*/nohup|*/time|*/timeout|*/caffeinate|*/stdbuf|*/ionice)
+        wrapper=${w##*/}; wrapper_values "$wrapper"; duration=0; [ "$wrapper" = timeout ] && duration=1
+        k=$((k + 1)); continue ;;
+      if|then|else|elif|do|while|until|'{'|'}'|'!') wrapper=""; k=$((k + 1)); continue ;;
+      -*)
+        [ -n "$wrapper" ] || break
+        k=$((k + 1)); name=""; val=""
+        case "$w" in
+          --) continue ;;
+          --*=*) name=${w%%=*}; val=${w#*=} ;;
+          --*) case "$WV_LONG" in *" $w "*) name=$w; val=${SEGW[$k]:-}; k=$((k + 1)) ;; esac ;;
+          *)
+            short_cluster "$w" "$WV_SHORT" ""
+            last=${SC_LETTERS#"${SC_LETTERS%?}"}
+            case "$last" in
+              ?) case "$WV_SHORT" in *"$last"*) ;; *) last="" ;; esac ;;
+              *) last="" ;;
+            esac
+            case "$last" in
+              ?)
+                name=-$last
+                if [ "$SC_NEXT" = 1 ]; then val=${SEGW[$k]:-}; k=$((k + 1)); else val=${w#-"$SC_LETTERS"}; fi ;;
+            esac ;;
+        esac
+        case "$wrapper $name" in
+          'env -S'|'env --split-string')
+            # env -S runs a string as a command line, which is the same class as bash -c
+            if mentions_git "$val" || mentions_removal "$val"; then
+              ask "Check first: this command hands a string to env -S, which runs it as a command, and guardrails cannot read inside such a string. Read it yourself and confirm only if it is what you intend; to have it checked, run the command directly instead."
+            fi
+            EFF_DIR=$saved_dir; return 0 ;;
+          'env -C'|'env --chdir'|'sudo -D'|'sudo --chdir') resolve_dir "$EFF_DIR" "$val"; EFF_DIR=$RESOLVED ;;
+        esac
+        continue ;;
       *=*)
         name=${w%%=*}
         case "$name" in ''|[0-9]*|*[!A-Za-z0-9_]*) break ;; esac
         k=$((k + 1)); continue ;;
     esac
+    if [ "$duration" = 1 ]; then duration=0; k=$((k + 1)); continue; fi
     break
   done
-  [ "$k" -lt "$n" ] || return 0
-  case "${SEGW[$k]}" in
-    cd|pushd) track_cd $((k + 1)) ;;
-    git|*/git) analyze_git $((k + 1)) ;;
-    rm|rmdir|*/rm|*/rmdir) check_remove $((k + 1)) ;;
-    mv|*/mv) check_move $((k + 1)) ;;
-    sh|bash|zsh|dash|ksh|eval|xargs|*/sh|*/bash|*/zsh|*/dash|*/ksh|*/xargs) analyze_shell_string $((k + 1)) ;;
-  esac
+  if [ "$k" -lt "$n" ]; then
+    case "${SEGW[$k]}" in
+      cd|pushd) track_cd $((k + 1)); saved_dir=$EFF_DIR ;;
+      git|*/git) analyze_git $((k + 1)) ;;
+      rm|rmdir|*/rm|*/rmdir) check_remove $((k + 1)) ;;
+      mv|*/mv) check_move $((k + 1)) ;;
+      sh|bash|zsh|dash|ksh|eval|xargs|*/sh|*/bash|*/zsh|*/dash|*/ksh|*/xargs) analyze_shell_string $((k + 1)) ;;
+      *) scan_tail "$k" ;;
+    esac
+  fi
+  EFF_DIR=$saved_dir   # env -C and sudo -D move only the command they wrap
   return 0
+}
+
+scan_tail() { # scan_tail <index of the command word>: a program this hook does not know may run the rest of its line
+  # (find -exec, a wrapper not listed above). When a later word is exactly git, rm, rmdir or mv, the rest is read as
+  # that command, and anything it would refuse or ask about asks instead, because whether it runs cannot be told.
+  # A program that only prints, searches or declares its words never runs them, so "echo rm docs" stays allowed.
+  local k=$(($1 + 1)) n=${#SEGW[@]} w d=$DENY_REASON a=$ASK_REASON found
+  case "${SEGW[$1]##*/}" in
+    echo|printf|print|which|type|whereis|man|help|info|grep|egrep|fgrep|rg|ag|ack|cat|less|more|head|tail|ls|wc|sort|uniq|tr|cut|jq|test|'['|'[['|true|false|read|export|local|declare|typeset|readonly|set|unset|alias|unalias|hash) return 0 ;;
+  esac
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}
+    case "$w" in git|rm|rmdir|mv) break ;; esac
+    k=$((k + 1))
+  done
+  [ "$k" -lt "$n" ] || return 0
+  DENY_REASON=""; ASK_REASON=""
+  case "$w" in
+    git) analyze_git $((k + 1)) ;;
+    mv) check_move $((k + 1)) ;;
+    *) check_remove $((k + 1)) ;;
+  esac
+  found=${DENY_REASON:-$ASK_REASON}
+  DENY_REASON=$d; ASK_REASON=$a
+  [ -n "$found" ] || return 0
+  ask "Check first: guardrails does not know whether ${SEGW[$1]} runs the rest of this line as a command. If it does, the $w command in it would have been stopped with this reason: $found"
 }
 
 analyze_shell_string() { # analyze_shell_string <index after the shell or eval word>: a string this hook cannot read

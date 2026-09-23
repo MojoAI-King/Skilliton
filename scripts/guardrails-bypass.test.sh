@@ -117,10 +117,38 @@ expect "git push -d origin main"                      deny "$RF" 'git push -d or
 expect "git push origin :main (empty source)"         deny "$RF" 'git push origin :main'
 expect "git push origin :refs/heads/master"           deny "$RF" 'git push origin :refs/heads/master'
 expect "git push --del origin main (abbreviation)"    deny "$RF" 'git push --del origin main'
-expect "git push origin feature --delete main (flag after)" deny "$RF" 'git push origin --delete feature main'
+expect "git push origin --delete feature main (two, one protected)" deny "$RF" 'git push origin --delete feature main'
 expect "negative: git push origin --delete feature"   allow "$R"  'git push origin --delete feature'
 expect "negative: git push origin :feature"           allow "$R"  'git push origin :feature'
 expect "negative: git push origin main:feature"       allow "$R"  'git push origin main:feature'
+
+# ---------------------------------------------------------------- N29
+section "N29: a wrapper whose option takes a value, and wrappers that were not known"
+RP="$TMP/repo-prepared"; new_repo "$RP" || { echo "FAIL: could not build $RP"; exit 1; }
+mkdir -p "$RP/.skilliton" && printf '{}\n' > "$RP/.skilliton/config.json"
+expect "env -u FOO git push --force origin HEAD:main"  deny "$RF" 'env -u FOO git push --force origin HEAD:main'
+expect "nice -n 5 git push --force origin HEAD:main"   deny "$RF" 'nice -n 5 git push --force origin HEAD:main'
+expect "timeout 60 git push --force origin main"       deny "$RF" 'timeout 60 git push --force origin main'
+expect "timeout -s KILL 60 git push -f origin main"    deny "$RF" 'timeout -s KILL 60 git push -f origin main'
+expect "sudo -u someone git push --force origin main"  deny "$RF" 'sudo -u someone git push --force origin main'
+expect "sudo -Eu someone git push -f origin main (cluster)" deny "$RF" 'sudo -Eu someone git push -f origin main'
+expect "exec -a x git push --force origin main"        deny "$RF" 'exec -a x git push --force origin main'
+expect "caffeinate -i git push -f origin main"         deny "$RF" 'caffeinate -i git push -f origin main'
+expect "stdbuf -o L git push -f origin main"           deny "$RF" 'stdbuf -o L git push -f origin main'
+expect "ionice -c 2 -n 7 git push -f origin main"      deny "$RF" 'ionice -c 2 -n 7 git push -f origin main'
+expect "/usr/bin/env -u X git push -f origin main (full path)" deny "$RF" '/usr/bin/env -u X git push -f origin main'
+expect "env -u X rm -rf .skilliton"                    deny "$RP" 'env -u X rm -rf .skilliton'
+expect "env -C <main repo> git push -f (no branch named)" deny "$TMP" "env -C $R git push -f"
+expect "env -S 'git push -f origin main' asks"         ask  "$RF" "env -S 'git push -f origin main'"
+expect "find -exec git push -f origin main asks (unknown wrapper)" ask "$RF" 'find . -maxdepth 0 -exec git push -f origin main \;'
+reason_has "  the reason names the program it could not read" "whether find runs the rest of this line"
+expect "unknown-wrapper x rm -rf .skilliton asks"      ask  "$RP" 'unknown-wrapper -x rm -rf .skilliton'
+expect "negative: env -u X git push origin main"       allow "$RF" 'env -u X git push origin main'
+expect "negative: nice -n 5 git status"                allow "$RF" 'nice -n 5 git status'
+expect "negative: timeout 60 git push -f origin feature" allow "$R" 'timeout 60 git push -f origin feature'
+expect "negative: brew install git"                    allow "$R"  'brew install git'
+expect "negative: which git rm mv"                     allow "$R"  'which git rm mv'
+expect "negative: echo git push -f origin main (echo runs nothing)" allow "$RF" 'echo git push -f origin main'
 
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
