@@ -11,7 +11,9 @@ export const help = `maintain: the mechanical half of maintenance, in one comman
   maintain --apply [--dir <repo root>]   write it, on an integration branch only
 
 It regenerates the decision, lesson and task indexes from their entry files (as index --apply does), refreshes the
-security findings section of the backlog record when the project keeps a security register (as security findings
+collector-backed security records that are missing or stale for the controls maintenance covers (secrets, and the
+delivery policy when .skilliton/delivery.json exists; never the tests collector, which belongs to the gate), refreshes
+the security findings section of the backlog record when the project keeps a security register (as security findings
 --apply does), and records a maintain event in the journal, which is what the stop hook measures the next
 maintenance from: on an integration branch, a merge commit since the last maintenance, or a day and at least one
 commit since it, makes the next stop hold the session until this command has run and the assistant has done the

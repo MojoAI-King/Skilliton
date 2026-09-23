@@ -3,8 +3,9 @@
 // Maintenance has two halves. One is judgment: sweeping a conversation for decisions and lessons that live only in
 // the chat, reconciling status and backlog prose with what merged, writing the handoff. That half is the maintain
 // skill's, and only the assistant can do it. The other half is mechanical and was being done by hand inside the
-// skill: regenerate the indexes, refresh the security findings block, and say when maintenance last happened. This
-// module does the mechanical half in one call (`skilliton maintain --apply`), writes a `maintain` event to the
+// skill: regenerate the indexes, refresh the collector-backed security records that are missing or stale (never the
+// tests collector: see runMaintain), refresh the security findings block, and say when maintenance last happened.
+// This module does the mechanical half in one call (`skilliton maintain --apply`), writes a `maintain` event to the
 // journal, and gives the stop hook the rule for when the next one is due, so that nobody has to remember to run it
 // (the owner's decision, 2026-09-22: the harness decides the procedure, not the person).
 //
@@ -111,6 +112,47 @@ export async function runMaintain(project, { root, gitDir, apply = false, sessio
     detail: !changed.length ? `${indexes.sections.map((s) => s.kind).join(", ")} indexes current` : `${changed.map((s) => `${s.kind} index in ${s.record}`).join(", ")}`,
   });
   for (const p of indexes.problems) steps.push({ name: "indexes", status: "not run", detail: p });
+
+  // Refresh the collector-backed records that are missing or stale, one control at a time, never the tests
+  // collector (it runs the project's own checks, which can take long and belong to the gate, not maintenance).
+  // A control the security evidence has decided does not apply, or that is not in this project's catalog, is left
+  // alone; so is one that is already current. A collector that throws is reported as not run, never as success, and
+  // never stops the rest of maintenance (matching how the security findings step below handles its own failures).
+  if (existsSync(join(root, CATALOG_REL))) {
+    try {
+      const { evaluateSecurity } = await import("./security.mjs");
+      const { collectSecrets, collectDeliveryPolicy, DELIVERY_REL } = await import("./collectors.mjs");
+      const ev = evaluateSecurity(root);
+      if (ev.result === "invalid") {
+        steps.push({ name: "security collectors", status: "not run", detail: "the security evidence is invalid (see security status); collectors were not run" });
+      } else {
+        const rowFor = (id) => ev.rows.find((row) => row.control.id === id) ?? null;
+        const deliveryPolicyExists = existsSync(join(root, DELIVERY_REL));
+        const REVIEWER = "skilliton maintain";
+        // gate: a reason the collector must not run even though its record is missing or stale (the delivery-policy
+        // collector needs the policy file to exist; the secrets collector has no such precondition).
+        const refresh = (controlId, name, collect, gate = null) => {
+          const row = rowFor(controlId);
+          if (!row || row.applies === "no") return;
+          const due = row.freshness === "missing" || row.freshness === "stale";
+          if (!due) { steps.push({ name, status: "current", detail: `${controlId} is ${row.freshness}${row.freshness === "expired" ? " (maintain refreshes missing or stale records only)" : ""}` }); return; }
+          if (gate) { steps.push({ name, status: "not run", detail: `${controlId} is ${row.freshness}, but ${gate}` }); return; }
+          if (!apply) { steps.push({ name, status: "would write", detail: `${controlId} is ${row.freshness}` }); return; }
+          try {
+            const result = collect();
+            steps.push({ name, status: "wrote", detail: `recorded ${result.record.assessment} for ${controlId}` });
+          } catch (e) {
+            steps.push({ name, status: "not run", detail: `${e?.message ?? String(e)}${e?.detail ? `. ${e.detail}` : ""}` });
+          }
+        };
+        refresh("SG-SECRETS-IN-SOURCE", "security collect secrets", () => collectSecrets(root, { reviewer: REVIEWER, apply: true }));
+        refresh("SG-CHECK-CRITERIA", "security collect delivery-policy", () => collectDeliveryPolicy(root, { reviewer: REVIEWER, apply: true }),
+          deliveryPolicyExists ? null : `${DELIVERY_REL} does not exist`);
+      }
+    } catch (e) {
+      steps.push({ name: "security collectors", status: "not run", detail: e?.message ?? String(e) });
+    }
+  }
 
   if (existsSync(join(root, CATALOG_REL))) {
     try {
