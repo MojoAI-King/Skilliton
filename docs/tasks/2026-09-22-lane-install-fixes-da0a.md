@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/install-fixes-0922
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T01:02:18.465Z
+- **Updated:** 2026-09-23T01:44:45.075Z
 
 ## Request
 
@@ -25,9 +25,16 @@ not yet written
 
 ## Checkpoints
 
+### 2026-09-23T01:44:45.075Z
+
+- **State:** N35, N36, N37 and N38 are committed on lane/install-fixes-0922 (96e8da0, c83cb79, 5fec03f, f786e6d), one commit each; nothing pushed or merged
+- **Evidence:** node scripts/checks.mjs on the final tree: exit 0, 65 pass, 0 fail, 2 skipped (the CI tools step and the security collectors, skipped by design); each new test fails on the code before its item
+- **Next:** main merges this lane serially and runs claude plugin eval; docs/IT-ALLOWLIST.md and docs/CONTRACTS.md follow-ups are listed in LANE_REPORT.md
+- **Git:** lane/install-fixes-0922 @ c83cb79, 0 uncommitted
+
 ## Handoff
 
-- **State:** not yet written
-- **Next:** not yet written
-- **Blocked:** not yet written
-- **Watch out:** not yet written
+- **State:** N35, N36, N37 and N38 are committed on lane/install-fixes-0922 (96e8da0, c83cb79, 5fec03f, f786e6d), one commit each; nothing pushed or merged. Evidence: node scripts/checks.mjs on the final tree: exit 0, 65 pass, 0 fail, 2 skipped (the CI tools step and the security collectors, skipped by design); each new test fails on the code before its item.
+- **Next:** main merges this lane serially and runs claude plugin eval; docs/IT-ALLOWLIST.md and docs/CONTRACTS.md follow-ups are listed in LANE_REPORT.md
+- **Blocked:** nothing
+- **Watch out:** nothing known
