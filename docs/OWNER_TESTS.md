@@ -14,7 +14,7 @@ At 21:33 EDT you wrote "Feel free to not ask me any more questions. I'm just goi
 
 1. **The security decisions** are recorded with `--decided-by owner` as docs/SECURITY_PROPOSAL.md proposed (13 apply, 2 do not). Read the table there and tell the next session if any row should change.
 2. **The measured comparison** ran under docs/COMPARISON_PROTOCOL.md: evidence/comparison/2026-09-22/SUMMARY.md. What is left is yours: open claude.ai, Settings, Usage, and write down what it shows for 2026-09-22 after 21:30 EDT, so the token counts can be cross-checked (10-02 item 2).
-3. **Release 1.1.0** is signed by the session with your git SSH key once the last change of the night is merged; the handoff says when.
+3. **Release 1.1.0** was signed at 09:56 EDT on 2026-09-23 (tag skilliton-release/1.1.0 on 1f9f041, approved in a fresh clone, VERIFIED 8 of 8 on this machine; evidence/live/2026-09-23-release-1.1.0.md). Restart the client before the new hooks run.
 4. **The join file (B53)** is handed out by the company, never committed to the repository, which is what the design already assumes; docs/ONBOARDING.md step 1 says so.
 
 ## 2. Three things only a person can see in the extension (5 minutes)
