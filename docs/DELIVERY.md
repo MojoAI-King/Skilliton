@@ -9,7 +9,7 @@ There are two ways to run the same policy:
 | Where it runs | the `pre-receive` hook of a bare repository your team pushes to | a GitHub Actions workflow on pull requests and merge queue groups |
 | What it blocks | the push itself: a rejected push changes nothing | nothing by itself: branch protection must require it |
 | Who approved a policy change | proved by SSH signatures checked against an approvers file | cannot be proved by the workflow; relies on code-owner review in branch protection |
-| Status | exercised by `node scripts/delivery.test.mjs` with real pushes (see "What has been verified") | **not verified**: documented until a hosted rehearsal runs |
+| Status | exercised by `node scripts/delivery.test.mjs` with real pushes (see "What has been verified") | rehearsed once, on 2026-09-21, on a throwaway hosted repository with a ruleset: a direct push refused, a defective pull request's check failed and its merge blocked (`evidence/live/2026-09-21-hosted-delivery-gate.md`); a clean change merging, the merge queue and the policy-path failure not run |
 
 Neither one is the assistant guardrails hook, and neither is a security or compliance verdict. They decide whether a change reaches a shared branch.
 
@@ -136,7 +136,7 @@ Measured in `scripts/delivery.test.mjs` (a policy at the earlier path, real push
 
 ## 4. The GitHub adapter
 
-**Not verified.** Everything in this section is documented from the template and from GitHub's documented features; no hosted rehearsal has run.
+**Rehearsed once, on 2026-09-21.** On a throwaway hosted repository, with the template copied unchanged and a ruleset set by hand to require a pull request and the `skilliton-delivery` check, a direct push to `main` was refused, and a defective pull request's check failed and its merge was blocked (`evidence/live/2026-09-21-hosted-delivery-gate.md`). Not run: a clean change merging, the merge queue, and the job failing on purpose for a change to a policy path. Those parts are documented from the template and from GitHub's documented features.
 
 ### Set up the workflow
 
@@ -165,4 +165,4 @@ A change that touches any policy path **fails the job on purpose**. The workflow
 
 `node scripts/delivery.test.mjs` builds temporary bare repositories and contributor clones with runtime-generated SSH keys and drives the hook with real `git push`. It covers: a passing change accepted; a change that passes alone but fails once combined, rejected with the check's name and output; a forced non-fast-forward push rejected; an unsigned policy change rejected; an approver-signed policy change with failing code rejected by the policy that was current; a non-approver signature rejected; an approver-signed policy change accepted and then governing; an unprotected branch accepted without checks; creating a protected branch with and without a policy and signature; missing and invalid policies; install's refusals and backups; a broken runtime path, missing node, a missing or changed approvers file and malformed hook input all rejecting; a `.gitattributes` rule that would hide tests; the GitHub template's script run locally against simulated merge commits (a simulation, not a hosted rehearsal); and mutation checks showing the key assertions fail when the gate ignores a failing check or a missing signature.
 
-These ran on one macOS development machine. Linux servers, older git, OpenSSH or Node versions, shared-account permissions and GitHub itself have not been exercised.
+These run on a macOS development machine and on Linux in CI (ubuntu-latest). A team's real shared server, older git, OpenSSH or Node versions and shared-account permissions have not been exercised. The GitHub adapter's one hosted rehearsal is in section 4.

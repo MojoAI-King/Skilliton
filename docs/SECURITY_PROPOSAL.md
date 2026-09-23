@@ -1,8 +1,8 @@
 # Security register: proposed decisions for the owner
 
-Kind: Living. Written 2026-09-22 by the build session for the owner. Nothing here is decided until the owner says so. It turns test 4 of docs/OWNER_TESTS.md from 45 minutes of writing into 5 minutes of reading.
+Kind: Living. Written 2026-09-22 by the build session for the owner. Accepted by the owner on 2026-09-22: the fifteen decisions were recorded that evening at 21:42 EDT (`.skilliton/security/applicability.json`, commit 017baac), 13 that apply and 2 that do not. What is left is the evidence column below: none of the 13 applicable controls has a recorded observation yet. Once those rows are recorded, this file moves to docs/archive/.
 
-This repository's register lists 15 controls from the catalog `skillgate-baseline-2`, and every one is undecided, so `skilliton security status` reads "15 missing, 15 undecided". Below is a proposed answer for each, with one sentence of reason and the evidence that would be recorded once it is accepted. **The decisions are the owner's.** The commands record them with `--decided-by owner` only after the owner has read the table and said "accept", or has edited a row.
+This repository's register lists 15 controls from the catalog `skillgate-baseline-2`. Each now has the owner's decision, so `skilliton security status` reads "not applicable: 2; undecided applicability: 0" and "Missing: 13". Below is the answer for each, as proposed and accepted without edits, with one sentence of reason and the evidence to record next. **The decisions are the owner's.** The commands below recorded them with `--decided-by owner` after the owner said "accept".
 
 ## The fifteen
 
@@ -28,11 +28,11 @@ The one row the owner should read twice is SG-ACCESS-CONTROL. It could be argued
 
 ## The delivery policy this repository lacks
 
-This repository never had a `.skilliton/delivery.json`, so the collectors for SG-CHECK-CRITERIA, SG-SECURITY-TESTS and SG-POLICY-CHANGE-REVIEW had nothing to read. `.skilliton/delivery.draft.json` is now written: it protects `main`, runs `node scripts/checks.mjs` (the same list CI runs), and names the policy file and `.github/workflows/` as policy paths. No gate runs a draft. `skilliton delivery confirm --apply` makes it the policy, and that is part of what "accept" means.
+This repository never had a `.skilliton/delivery.json`, so the collectors for SG-CHECK-CRITERIA, SG-SECURITY-TESTS and SG-POLICY-CHANGE-REVIEW had nothing to read. `.skilliton/delivery.draft.json` is now written: it protects `main`, runs `node scripts/checks.mjs` (the same list CI runs), and names the policy file and `.github/workflows/` as policy paths. No gate runs a draft. `skilliton delivery confirm --apply` makes it the policy, and that is part of what "accept" means. **It has not run yet:** `.skilliton/delivery.draft.json` is still a draft, there is no `.skilliton/delivery.json`, and `security status` names that as the reason the tests and delivery-policy collectors cannot run.
 
 ## What "accept" runs
 
-Say "accept the security proposal" to the next session, or paste this in a terminal at the repository root. The next session then records the evidence rows above and reports `security status`.
+The fifteen `a` lines below have run. The `delivery confirm` line has not (see the section above). The next session runs it, then records the evidence rows above and reports `security status`.
 
 ```bash
 a() { node scripts/skilliton.mjs security applicability --decided-by owner --apply "$@"; }
