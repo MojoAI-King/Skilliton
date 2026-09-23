@@ -1,0 +1,1211 @@
+{
+  "schema": "skilliton.release/1",
+  "release": "1.2.0",
+  "sourceCommit": "50a373ff33b97db1d5784728c024474c7fc2edd3",
+  "createdAt": "2026-09-23T17:10:11.750Z",
+  "marketplace": "skilliton",
+  "components": [
+    {
+      "kind": "plugin",
+      "name": "context-hygiene",
+      "version": "0.3.1",
+      "path": "packs/base/plugins/context-hygiene",
+      "treeSha256": "5c841c3da6322a0354cdf6a38ae517942961ed3e5b175c01b7fb25d4d12828ad",
+      "files": [
+        {
+          "path": ".claude-plugin/plugin.json",
+          "sha256": "763e9e961bc8ab57d116055a852c98f1f0bb4a1f5ef9754fa1df229ed115c7fc",
+          "executable": false
+        },
+        {
+          "path": "evals/README.md",
+          "sha256": "000331500252d731acac29045688e8e34641262f396b44713c8c4ad8f6fdfe53",
+          "executable": false
+        },
+        {
+          "path": "hooks/config-drift-check.sh",
+          "sha256": "67c62e9388927d92668c281ca37fffa986781edab4edf10e291bff1c5f18fbc9",
+          "executable": true
+        },
+        {
+          "path": "hooks/hooks.json",
+          "sha256": "0480f4b9388763e3aa14802d62b03b6efc982d9fa105060732313b090f84ba67",
+          "executable": false
+        },
+        {
+          "path": "hooks/read-guard.mjs",
+          "sha256": "f2cb9c6dad242b0830e16a71f4f780ee4e55ea2537ec8e8c384feb5fc98bbc12",
+          "executable": true
+        },
+        {
+          "path": "hooks/session-start-checklist.sh",
+          "sha256": "214ec62e118725cf82ee10d31e0d2308c8f2caa2a8684e0498ada0b82feece62",
+          "executable": true
+        },
+        {
+          "path": "hooks/statusline-quota.sh",
+          "sha256": "07f0697bf10ceb3932c8aa1d0b63d1574b620a26e8f3853a4d63c770fcf2f393",
+          "executable": true
+        },
+        {
+          "path": "skills/context-hygiene/SKILL.md",
+          "sha256": "0441fa57bf4e73fbbad4fe214c3962a87943eca6a1a7b1bbf8affd9ce12d3318",
+          "executable": false
+        }
+      ]
+    },
+    {
+      "kind": "plugin",
+      "name": "workflow",
+      "version": "0.23.0",
+      "path": "packs/base/plugins/workflow",
+      "treeSha256": "421966c3bf958ec32cfb0f55fde528378283ccfc0e910b443c65ad6946c9050c",
+      "files": [
+        {
+          "path": ".claude-plugin/plugin.json",
+          "sha256": "20196ecd5ba6a111ae35224b061fe2521bea6a8ba1f943912a711cd577d666c1",
+          "executable": false
+        },
+        {
+          "path": "agents/lane.md",
+          "sha256": "61270bf06e42546d3aa823d50f84f7ac508244587136228824903d8ac76d660d",
+          "executable": false
+        },
+        {
+          "path": "agents/locate.md",
+          "sha256": "a5b6457afad57369ea896ced45e72c147420819195d27a92008f0984966e4701",
+          "executable": false
+        },
+        {
+          "path": "agents/verify-item.md",
+          "sha256": "38bce2d41bc4bae7a0c3d7e3544c69d05038ee722a3350c0f0b47936dadbb2b5",
+          "executable": false
+        },
+        {
+          "path": "bin/skilliton",
+          "sha256": "17141753f82355c702ed032e227027aaef5962962ad786fbc15fade18a63eb54",
+          "executable": true
+        },
+        {
+          "path": "catalogs/index.json",
+          "sha256": "3ff8b23cb710056cfb307283036054af372ce1541baffb644bda0eabc52e4835",
+          "executable": false
+        },
+        {
+          "path": "catalogs/skillgate-baseline-2.json",
+          "sha256": "ade2d498c2aa8c3b1f00ca790be3be0133600b8b6ded6ddcc9c2b7834e656c7d",
+          "executable": false
+        },
+        {
+          "path": "catalogs/skillgate-starter-1.json",
+          "sha256": "8bc3aa9aafd6a73b04a350ffe34d10c426cfa93fffe28d6da96f28f301351412",
+          "executable": false
+        },
+        {
+          "path": "evals/handoff-writes-resume-note/case.yaml",
+          "sha256": "fbb706331f5a24faff3dbe0ed9331f816c2d4376e7f1e81a1085817929063b76",
+          "executable": false
+        },
+        {
+          "path": "evals/handoff-writes-resume-note/fixture.sh",
+          "sha256": "fb02045b988513e0879508e0c7da9124f0c56ba4ed86048f4c1f1cc2d4607fb8",
+          "executable": true
+        },
+        {
+          "path": "evals/handoff-writes-resume-note/graders/content.md",
+          "sha256": "80f29eb5e4d6e18343e88f4e42a1f0413ef498f5ca4bcb3bf21fdd2e1c79e371",
+          "executable": false
+        },
+        {
+          "path": "evals/handoff-writes-resume-note/graders/next-step.md",
+          "sha256": "b449dea44eefe7b94e520edd050f90a4917782acdab10081648bbf9f6539b24e",
+          "executable": false
+        },
+        {
+          "path": "evals/handoff-writes-resume-note/graders/no-sweeping-add.md",
+          "sha256": "8e56b7709449bbb05516140ae0c82a991e019cf2700d21b2122b3eb39f4d641b",
+          "executable": false
+        },
+        {
+          "path": "evals/handoff-writes-resume-note/graders/resume-here.md",
+          "sha256": "98e96e7b51ad5967a4ce227df6a9da8d6203bb393e8a7f46047b93cfc5947764",
+          "executable": false
+        },
+        {
+          "path": "evals/handoff-writes-resume-note/graders/skill-fired.md",
+          "sha256": "dffc8be0705096cb108248adecb76ab8f06cc0aa923e60ff4cd422674f78d14e",
+          "executable": false
+        },
+        {
+          "path": "evals/handoff-writes-resume-note/graders/written-line.md",
+          "sha256": "b51461d7c60c5b44dccfd783d2ceaba695c19a51ebca5b5fcec4d807ca91a10e",
+          "executable": false
+        },
+        {
+          "path": "evals/handoff-writes-resume-note/prompt.md",
+          "sha256": "511e398cd4f9105bef61c5a8b14dca6e630b6ab9dbe41d4c1bc99509eb9332f5",
+          "executable": false
+        },
+        {
+          "path": "evals/release-stops-on-dirty-tree/case.yaml",
+          "sha256": "fbb706331f5a24faff3dbe0ed9331f816c2d4376e7f1e81a1085817929063b76",
+          "executable": false
+        },
+        {
+          "path": "evals/release-stops-on-dirty-tree/fixture.sh",
+          "sha256": "de04a6e3a3296e41d7cc55f5b826d88c7509758116c41bddb71a8080d03858ee",
+          "executable": true
+        },
+        {
+          "path": "evals/release-stops-on-dirty-tree/graders/no-manifest-applied.md",
+          "sha256": "434559785ade9289aa956c818db2bd6b634cef564cc2f26fe5bf2b71e6a68c54",
+          "executable": false
+        },
+        {
+          "path": "evals/release-stops-on-dirty-tree/graders/no-tag.md",
+          "sha256": "491d078c3f578c738277d437e18603c65c3d1da7d3cb39aaf1682370224fced0",
+          "executable": false
+        },
+        {
+          "path": "evals/release-stops-on-dirty-tree/graders/reply.md",
+          "sha256": "b97ce3e667615c9ea3df85b30cf8f63c0abaac55720dc1443167cfe9ebf21e7d",
+          "executable": false
+        },
+        {
+          "path": "evals/release-stops-on-dirty-tree/graders/skill-fired.md",
+          "sha256": "316e2286a35bf7c90c8c29b7d7cd76f037e7895f0bd8a1256473de61b6936854",
+          "executable": false
+        },
+        {
+          "path": "evals/release-stops-on-dirty-tree/prompt.md",
+          "sha256": "447745d219266c07dc664caa7db4bc1b96a192047a415df3d700d17e0d06a538",
+          "executable": false
+        },
+        {
+          "path": "evals/review-comment-only/case.yaml",
+          "sha256": "fbb706331f5a24faff3dbe0ed9331f816c2d4376e7f1e81a1085817929063b76",
+          "executable": false
+        },
+        {
+          "path": "evals/review-comment-only/fixture.sh",
+          "sha256": "a06f60d6b015678c3bd350b504ba66733e725e58a41d578c20ca438e553aee2f",
+          "executable": true
+        },
+        {
+          "path": "evals/review-comment-only/graders/ready.md",
+          "sha256": "f14c2fbbd61d44a2cc51bddbd69d8f485f8161a06de6c035dd5976b0763ad451",
+          "executable": false
+        },
+        {
+          "path": "evals/review-comment-only/graders/reason.md",
+          "sha256": "47ae297978c23b427c4d324c8f0cf2f53ba0ea890a3efcfd224f95ae80478cdf",
+          "executable": false
+        },
+        {
+          "path": "evals/review-comment-only/graders/skill-fired.md",
+          "sha256": "d830852d50ed1be1a00cecbb1238eac63f5ad4605f15da8aaf5ca98e6746bcf9",
+          "executable": false
+        },
+        {
+          "path": "evals/review-comment-only/prompt.md",
+          "sha256": "5b8804ab965d5c312cbdfd6b0d46058f9285baa5a4553a0c16e793e29511fc5b",
+          "executable": false
+        },
+        {
+          "path": "evals/review-risky-change/case.yaml",
+          "sha256": "fbb706331f5a24faff3dbe0ed9331f816c2d4376e7f1e81a1085817929063b76",
+          "executable": false
+        },
+        {
+          "path": "evals/review-risky-change/fixture.sh",
+          "sha256": "0a7f7cb7519da8750f105d9089e82bfe3f007dc06ba902e15d1fa972c72382d7",
+          "executable": true
+        },
+        {
+          "path": "evals/review-risky-change/graders/names-the-risks.md",
+          "sha256": "0d46a72ec3d43011e7525faf9f09dc1cb272557594556a4b8deb2a85616e07b9",
+          "executable": false
+        },
+        {
+          "path": "evals/review-risky-change/graders/never-commits.md",
+          "sha256": "e88d2f76cb6c1d7bdc898b78daf2205399796ae1e0e090b688c4408763d7ab5b",
+          "executable": false
+        },
+        {
+          "path": "evals/review-risky-change/graders/secret-not-printed.md",
+          "sha256": "c8534c198b9223b01b6b1956aae9582b8b08001540f42466f7ab044330353847",
+          "executable": false
+        },
+        {
+          "path": "evals/review-risky-change/graders/skill-fired.md",
+          "sha256": "d830852d50ed1be1a00cecbb1238eac63f5ad4605f15da8aaf5ca98e6746bcf9",
+          "executable": false
+        },
+        {
+          "path": "evals/review-risky-change/graders/verdict-stop.md",
+          "sha256": "878715bbea1811c6c9526425a9aa5b3b930fe3d9a9da62104569ec807b326b18",
+          "executable": false
+        },
+        {
+          "path": "evals/review-risky-change/prompt.md",
+          "sha256": "7b3daa45ffe395e1d83ee77b89b977acdb2ed7579ae4368fe66d68ca3945bcd9",
+          "executable": false
+        },
+        {
+          "path": "evals/review-untested-change/case.yaml",
+          "sha256": "fbb706331f5a24faff3dbe0ed9331f816c2d4376e7f1e81a1085817929063b76",
+          "executable": false
+        },
+        {
+          "path": "evals/review-untested-change/fixture.sh",
+          "sha256": "d640cfc37bb2b13e3fdf17f47d87357d364fa8495e96f8a07e1f9512092f3d06",
+          "executable": true
+        },
+        {
+          "path": "evals/review-untested-change/graders/needs-attention.md",
+          "sha256": "7c16ba8320989a876859b22e662b1db8070fb83fdfad73bfa47254434184857b",
+          "executable": false
+        },
+        {
+          "path": "evals/review-untested-change/graders/no-false-claim.md",
+          "sha256": "8cfba4596b3ff390e96d32d8a83e92168ed0dccaa20428d4d5333177e0537763",
+          "executable": false
+        },
+        {
+          "path": "evals/review-untested-change/graders/not-ready.md",
+          "sha256": "b2f49f826aec7913b9928217336b226a7c5c009d6320cd81458ec1dfb623c98f",
+          "executable": false
+        },
+        {
+          "path": "evals/review-untested-change/graders/ran-nothing.md",
+          "sha256": "7bdc0201d4868e9eab4559e4a6ca44e2d8ec53c0c0ca1dee4f8f99e9e7b33fe9",
+          "executable": false
+        },
+        {
+          "path": "evals/review-untested-change/graders/skill-fired.md",
+          "sha256": "d830852d50ed1be1a00cecbb1238eac63f5ad4605f15da8aaf5ca98e6746bcf9",
+          "executable": false
+        },
+        {
+          "path": "evals/review-untested-change/prompt.md",
+          "sha256": "47d175eec96ad7e961535907f6f833786076a1d9c9582d10262ead7b84954eca",
+          "executable": false
+        },
+        {
+          "path": "evals/security-status-honest/case.yaml",
+          "sha256": "fbb706331f5a24faff3dbe0ed9331f816c2d4376e7f1e81a1085817929063b76",
+          "executable": false
+        },
+        {
+          "path": "evals/security-status-honest/fixture.sh",
+          "sha256": "c3320e62bb3237c0d43d28b42c4d4edc4cb7ec38431d27aef2754a75a4df90e8",
+          "executable": true
+        },
+        {
+          "path": "evals/security-status-honest/graders/honest-answer.md",
+          "sha256": "7b868e1bbfe47c3504a1a76448facf21c379a27df6e47d29688654156e2f450e",
+          "executable": false
+        },
+        {
+          "path": "evals/security-status-honest/graders/no-decisions-for-the-user.md",
+          "sha256": "dce7eb8e5ffca1db89bc68a2e94b085b3498bbb90427522af7cd84ea22d35034",
+          "executable": false
+        },
+        {
+          "path": "evals/security-status-honest/graders/register-read.md",
+          "sha256": "8f843e0ef974e231a503a0256cd5b4c70f23fcb43913b7e363b54ad9ff085046",
+          "executable": false
+        },
+        {
+          "path": "evals/security-status-honest/graders/skill-fired.md",
+          "sha256": "dd569c3f5021e8f0b92ff7258932de9cc94c4deded635941b2bbceb6bf673cd4",
+          "executable": false
+        },
+        {
+          "path": "evals/security-status-honest/prompt.md",
+          "sha256": "7f9368f1741bfe401bad844892625ff5df67920f0b2a328541ff5e590dac895d",
+          "executable": false
+        },
+        {
+          "path": "evals/task-start-records-work/case.yaml",
+          "sha256": "fbb706331f5a24faff3dbe0ed9331f816c2d4376e7f1e81a1085817929063b76",
+          "executable": false
+        },
+        {
+          "path": "evals/task-start-records-work/fixture.sh",
+          "sha256": "b03233bc9840a6c540ddda1a05f46c5c86613a0c44b131f33a91ac39d36a9eaa",
+          "executable": true
+        },
+        {
+          "path": "evals/task-start-records-work/graders/criteria-given.md",
+          "sha256": "9e3c3dda574449caba79a990a78f5b4c858fce90d9efe41fc09da8e7bb026eb4",
+          "executable": false
+        },
+        {
+          "path": "evals/task-start-records-work/graders/nothing-built-edit.md",
+          "sha256": "216477d63bfe784ff25a9dd9de00856964432bb76995b9396d15f6c6021e84c8",
+          "executable": false
+        },
+        {
+          "path": "evals/task-start-records-work/graders/nothing-built-write.md",
+          "sha256": "05b46a46e7b2a758e2dccdf2f62063fdda1e76470466572bea77e9ee287ba049",
+          "executable": false
+        },
+        {
+          "path": "evals/task-start-records-work/graders/record-created.md",
+          "sha256": "593608094b170a47feb32740b86fe757a913d711603c09ed01149545d995a0a1",
+          "executable": false
+        },
+        {
+          "path": "evals/task-start-records-work/graders/reply.md",
+          "sha256": "44f41a779863f87ef4678d02b21c1570038194de77e0c8c1b2e1351f8fb3c957",
+          "executable": false
+        },
+        {
+          "path": "evals/task-start-records-work/graders/skill-fired.md",
+          "sha256": "a2a4c91e3b9efce1c0512922eec5a3817a22bbb227a693a73412a7751956a5b5",
+          "executable": false
+        },
+        {
+          "path": "evals/task-start-records-work/graders/through-skilliton.md",
+          "sha256": "f911c0b4e1cd0ee326b93549e696877d6ccb4c4faabdcdb5c1f66391578dda5e",
+          "executable": false
+        },
+        {
+          "path": "evals/task-start-records-work/prompt.md",
+          "sha256": "66bd8e6db107843b3e3324ea2e813fa92ea4eac5526ee48f7ab95be1a8566d47",
+          "executable": false
+        },
+        {
+          "path": "hooks/hooks.json",
+          "sha256": "6d455c9d7a1813b7fdf2e766f89c87e262fb01aafe6e11ba3109e9ea9a802b87",
+          "executable": false
+        },
+        {
+          "path": "hooks/session-start-handoff.sh",
+          "sha256": "650ee2854f405c3d2be9263eac510fb1a6206cb550402302ae7d5a472e5a0687",
+          "executable": true
+        },
+        {
+          "path": "runtime/commands/audit.mjs",
+          "sha256": "9756d5c5ebb8f9d32c64d39c6d5eddc7de130a6197d1e42bc1a08943ddfceb4c",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/checkpoint.mjs",
+          "sha256": "63fa4a29262d4ed946a5e9e1efc3aefdaeb9c83afde446c6fecad0d2b8950c2e",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/company.mjs",
+          "sha256": "0e282979c4c21bfc2884aabd6d07bea0468717f1b81dc6a9364c2f0269bd9f32",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/delivery.mjs",
+          "sha256": "56c504300ab2f84c03c11eb6e37ae92d94ca0dfa828652ca528680ae95679a07",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/dispatch.mjs",
+          "sha256": "d80c97bc1511a7f72ed031035720816d62e4ae0fc24c4f9e0a8a1aee6f8f80e7",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/doctor.mjs",
+          "sha256": "4f367a39c9ca486d927f5631749e48c026c4afb61e195119ee249cada83d95b6",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/gate.mjs",
+          "sha256": "27763de8f4b2b19b25369475c7fda85721d8d24aca8a0a43c75d8f245b12a75f",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/harness.mjs",
+          "sha256": "51766c6e4e3bfd3c44524034b3ed597cb35a97d45b7074418e93a13aae9d04e5",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/hook.mjs",
+          "sha256": "d204c35944c6697db5a8bcb8b24e6480834585659243b64b3250c936571592d0",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/import.mjs",
+          "sha256": "d8f763c2344ff63089c8bbab8cc9948864758324ff0be765ba9fa0f7d580e186",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/index.mjs",
+          "sha256": "5022f1b272f6719ccd23faabde81393992eeb889c0636fdbeefc93a9f9d1c785",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/join.mjs",
+          "sha256": "ac08fe5e2f5053d0549fc94743f15c34572a24827812e4279a39712b5b94ade3",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/maintain.mjs",
+          "sha256": "c7cc47ba54f8062342ee0b9b7de5b167f94be0cfabc7b2fd6dc44211f9267926",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/migrate.mjs",
+          "sha256": "2b8760d3575f5f3b53cca1115111466e6556c67ec835a3e1bcf995906cf25d03",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/new-plugin.mjs",
+          "sha256": "20524867a6184a0157c0aec4f98ce5620a41e58ff142f6844c80378b7ae1bb76",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/new-skill.mjs",
+          "sha256": "d484227123a26e505997c07110f6e9b093d03f5883367f3880a185c14fe1dea4",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/pin.mjs",
+          "sha256": "f46b9c763f6c49894c83496356ea2b74a0c807df20e473c37b2d9b855c96b74d",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/preflight.mjs",
+          "sha256": "0f4bbc2cfefbe9e43676f159781adc3894266efcc190c6148856722b2005099b",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/prepare.mjs",
+          "sha256": "3aaceee4d018d1567accd3ae19940f192a225605cec66cabf363453b8c6463a9",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/project-settings.mjs",
+          "sha256": "12e300bf90f9ca409fcce83e087567c6c4aaf321ccda495e9531a2cd0af6e08e",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/propose.mjs",
+          "sha256": "ba3991655c8c2dd29005ba945b2524f0bd462af8dc1313aa823cbde91aacb696",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/record.mjs",
+          "sha256": "e0c6b5777f3a33ee1a99e34eccd0f8f8d8d915df8d98fbda00ed781c94640dd8",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/release.mjs",
+          "sha256": "b1c4db53560445fb2f705ba9d67b69bc0ab78e03bfa87e13273c20eca36ecd07",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/remove.mjs",
+          "sha256": "8f27d86ddd1a4e55881819b038efa19bb4db0668d8f47ce100c2838593c20954",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/security.mjs",
+          "sha256": "31827e91f43a55999dc027148f74f229772c806c144c29949c037b21433c24d2",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/status.mjs",
+          "sha256": "1cace924768511ae3d47b1bf7824a4217b63ae82dbdcc26c3c7f9ae839abf051",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/task.mjs",
+          "sha256": "555b56f5b0dcdaf46c9ff13ac9d635e0f45aeac3807cd03284a5c8fe521acb46",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/trust.mjs",
+          "sha256": "ba7ae7028225d37d5dcd3530c3d5ac88b721b9e761f72d8f46b452adf5cc4814",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/usage.mjs",
+          "sha256": "5251f0a8b95cd2395c9cdf4246413b8787f550de4475571ca44047fd0c2a4bcc",
+          "executable": false
+        },
+        {
+          "path": "runtime/commands/verify.mjs",
+          "sha256": "5ea12000ec9cb2798f4b2937c4c354c1237744150b9cbaad69f738549466af03",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/audit-install.mjs",
+          "sha256": "12b67f840053aeaa1af291788d6fbf6436f6827f12833fa47439454c5c23d71d",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/audit-run.mjs",
+          "sha256": "982512d07ff29669d8e49096f8fd1ef198628913ae10779a3094bed2e0e82fe3",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/audit.mjs",
+          "sha256": "aa149ffdf74c874e7d9f9873bed21a66d7f9e6e98d470c1527f7bfd7ee9788e6",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/auto-prepare.mjs",
+          "sha256": "49feac90fe31ec36279f5a32dd243ab90d8cf35ced2f1b2ef7ba8c452f16d5c6",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/collectors.mjs",
+          "sha256": "255ca36cbac47f5f8dc142fb022c50158f74017652db857f476398543b83514f",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/config.mjs",
+          "sha256": "926b6d37e2895971a63cf41291e2227971d7b673cb01da1cc41690af8c546cf9",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/core.mjs",
+          "sha256": "86ea37ef884af518463ac102cd897aef663a2259f4e4b10abd6d05f5fdb01893",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/delivery-install.mjs",
+          "sha256": "3db48897751355578a6af0dc8b203009288b288c1f607665fd20c3cfbc1d7d89",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/delivery-integrity.mjs",
+          "sha256": "7c4ad6e5d5860dc239725fc8cf48bc9e4dcb17309eda8621c40870c102e015fe",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/delivery-persist.mjs",
+          "sha256": "397f4cb2ad6cf2ae9620a31f88a6231140a3c347f150f17a5368be3840a2695c",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/delivery-policy.mjs",
+          "sha256": "f4657936ba44e85ca7f8c3983cbd7b61803c74c347d7bab7507ee2ede9b71b60",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/delivery.mjs",
+          "sha256": "4fc30cf66b299bcac70f60ea514e7343e4f4e24a75ec3e161bbcd1933b909152",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/dispatch-brief.mjs",
+          "sha256": "b4bbb264c189f096799ed2fc733440f7ccaad94230c6824b37534034b538682a",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/dispatch.mjs",
+          "sha256": "6a4c736e827346e0b538ef6c110735401427c2fbb9372090d0da6f92132b9182",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/doctor.mjs",
+          "sha256": "764cafc766ffbd76266bb08579393ae282fdcacea09709f22378eebe340ac7b3",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/fork.mjs",
+          "sha256": "c5e9ccc16ad12dc24848048cc25b51e3a4b226c736300104feed541d317c8f86",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/gate.mjs",
+          "sha256": "2c562dde6c46c7fe2f1eff5ef64fa15c30fe82aa85a1775ec964a3b9dfbf8ec9",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/handoff.mjs",
+          "sha256": "7d46ed385dca0670654028ce9ad8b8612490c0cc930af9be6b12a3f4d0fa7b77",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/harness.mjs",
+          "sha256": "22c1f84bd75f52456cdf9248aa6b645e3df3fe38ff4d8e7891ae5b90766b2730",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/ids.mjs",
+          "sha256": "8d6b04a4d8b39b47ae099a64d0b5c6881e37ff0a93fe00682e17788269680759",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/join.mjs",
+          "sha256": "40859b522c3790c117e483139b6709814bb0d01ca0c32680ceb8ef5013fd93ee",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/journal.mjs",
+          "sha256": "1e959b3d32c87aa2ea724fd789cef8373f12677d158a904b12e6e4c18f9065dc",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/legacy-names.mjs",
+          "sha256": "77c808a344418a4691eb304f4570c7f947b2f8acf09fb34b3b15c45e2b2f94c1",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/legacy-template.mjs",
+          "sha256": "c152c6f38b6da28ec5d8ea76d16a9b4ff147dc8d87988029d63f5ab0b13dec9c",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/lifecycle.mjs",
+          "sha256": "c3799be003c2baa52a7283c28f7db175905ca046bb8e5192cf6411a33f2031aa",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/maintain.mjs",
+          "sha256": "2bee124a863ba2f1b40b6702f7354ffb7918559d4a6445503c1a6458d2043340",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/migrations.mjs",
+          "sha256": "e47b5dd46eb7b0ccb1a6427a79f51b0b7ad9d9c4e5261e9b22ba7bd8af1416b4",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/path-form.mjs",
+          "sha256": "311bf143fad2e41bdf35c09f236aaca8212184f4fe8e4a2d1f7b38de12a0f27f",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/pin.mjs",
+          "sha256": "2529bddf1f74b59579325f74746b234112fbe1306fee82d6fd338b4a4cbfb8a3",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/preflight.mjs",
+          "sha256": "d95bb8fdb56232aff16c36969f8f07b30d1dcc535b15e1b28fcd892a280d0e2c",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/prepare-plan.mjs",
+          "sha256": "a8442d947404ed35e7eebaf8786018aeca992eb95fdbbec82a5923c2a43b425f",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/prepare.mjs",
+          "sha256": "b2114a9d280edd79d8b2b57652fd0b9f693652f3fe3eac70093ba9adc48f595f",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/project-files.mjs",
+          "sha256": "d6de69fde54bf57f6b603c4fe4c4267d56d70ac9972cbecbc002c00852a58c98",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/prototype-v1.mjs",
+          "sha256": "ef5e58afc561e0943bd6ed9f37a425154da116f79defc4255a7b6edbe1f1ca4b",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/records-restore.mjs",
+          "sha256": "145c2b1ca309f3bfca3b0235f8ae16095a6bfffba24fb680f8ad90e66055212e",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/records.mjs",
+          "sha256": "f0197a81eb90c08b55589d3180d496f1a1911fc58b9a5662d5c2d4d0ddba0cb9",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/release.mjs",
+          "sha256": "39947637828a74d954cceef49762e1d28216ea81b16dee72629aebe3da97c9be",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/secret-rules.mjs",
+          "sha256": "6389a2e977293b0fa0cacfbf21088248c8b6c4890b21c74fab82b0de9d31b9a9",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/security-io.mjs",
+          "sha256": "d0fc8e30797635cd8d455f6bf086392e7e577bb0b1da0e942c61e881f67a0fa4",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/security-propose.mjs",
+          "sha256": "67c4d5f6897ee29f19de3cd35232c28cbbf10a545bda62051d7f35f8023edbc7",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/security.mjs",
+          "sha256": "48d3fa6f3f937e7d369b6c794605e5289d28f55e88a38fbcab4be394263d943d",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/session-hooks.mjs",
+          "sha256": "629d29b9e2255999604b83e6a713f6f5512cae5b903cdfa65fe86f75e19fdb56",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/skills-repo.mjs",
+          "sha256": "5f1cde9c01b8e7fabc9aead581764ac60826a12d865b7930df0c57baf04357ae",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/stack.mjs",
+          "sha256": "6fbf65f2e9c9a562f18e9a89eec16a4fb1ca09e6cdad4791a0efa52a889e854a",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/tasks.mjs",
+          "sha256": "f2f3433e58c63955c13048f32a598b342236e84c24580d6e727fbe1e9a74e2ef",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/treehash.mjs",
+          "sha256": "551885f2614a6a2dbf746d9df2d40cdf9c587a5256b3a0bf4d5aa28d5940c37d",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/trust.mjs",
+          "sha256": "8c52aeb68dbab591399acf70c0fa3d729c060634c6311b82140ca4f44641e508",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/usage.mjs",
+          "sha256": "9256d59f4c7ed7deae44745e8bf7b389a69feedfbc940bb6a161e360561b86b0",
+          "executable": false
+        },
+        {
+          "path": "runtime/lib/verify.mjs",
+          "sha256": "48a9cdd2648e02a5848f9f5001310b0fcc7b6ffbacb4f0fb6ec433a5d867d229",
+          "executable": false
+        },
+        {
+          "path": "runtime/preflight/probe.sh",
+          "sha256": "32753644f297c82a794cc2bdb27ddcc610ff8167e5d0d288337203276af90ef5",
+          "executable": true
+        },
+        {
+          "path": "runtime/skilliton.mjs",
+          "sha256": "8d80bbf0629f3cd0b4facadaca40d9cf54df8ff4989334d3d9504f526cb72e36",
+          "executable": false
+        },
+        {
+          "path": "skills/dispatch/PLAYBOOK.md",
+          "sha256": "3c9f135b26e24c6afa22428649dcc571eacc6c268b3e72126cbce0caf4f262ef",
+          "executable": false
+        },
+        {
+          "path": "skills/dispatch/SKILL.md",
+          "sha256": "646cd57ff1c1fbce55684264188b323b6240f8a4975376c6ffa8aa18670b99b5",
+          "executable": false
+        },
+        {
+          "path": "skills/handoff/SKILL.md",
+          "sha256": "26cd770d04ed172d4f2e41629a2d365bdd768c9a6dd648c58129eefce7e77004",
+          "executable": false
+        },
+        {
+          "path": "skills/maintain/SKILL.md",
+          "sha256": "0dce3b49866bd39448b8d9919f5ef0a97d8ae23ba1233ccc8b7b9af3b7e9735a",
+          "executable": false
+        },
+        {
+          "path": "skills/release/SKILL.md",
+          "sha256": "90cf6d656ebca80016a410ea19492bd7e5bfb571c87d2cd57c12df8234479eb1",
+          "executable": false
+        },
+        {
+          "path": "skills/review/SKILL.md",
+          "sha256": "cf796ef2e820861d3b3c1c68dec6ae88b478c1e9c810cbb3f5056f99814f7c9d",
+          "executable": false
+        },
+        {
+          "path": "skills/security/SKILL.md",
+          "sha256": "b80daaff403c95310e5b59a9640ea76380c51b5523b3cd24d46dcbabf7ecc0a1",
+          "executable": false
+        },
+        {
+          "path": "skills/task/SKILL.md",
+          "sha256": "de25dc6621a2d5dc323f506ed9194a6c108e3256eee66953c52275b80452a33e",
+          "executable": false
+        },
+        {
+          "path": "templates/harness.md",
+          "sha256": "d00c8352985c5f607f70444fb6a7242afed5da1b28a43c78ebf5045fac742564",
+          "executable": false
+        }
+      ]
+    },
+    {
+      "kind": "plugin",
+      "name": "guardrails",
+      "version": "0.9.0",
+      "path": "packs/base/plugins/guardrails",
+      "treeSha256": "cc6883828d0cadf4a45fa091f69332cb829f56fff6a239d5d181500850954090",
+      "files": [
+        {
+          "path": ".claude-plugin/plugin.json",
+          "sha256": "514f8a694691b451126d15f9a1399e7872952ba6029176c094632877f0830631",
+          "executable": false
+        },
+        {
+          "path": "hooks/guard-bash.sh",
+          "sha256": "7f273b7bfae46997d29fa3f6aaf0b558b27c1a3f383fe822e7a84573e65195a7",
+          "executable": true
+        },
+        {
+          "path": "hooks/hooks.json",
+          "sha256": "89d7843032dd1eddfd18048eaba5ae0a57e45ec32bedc3c76ba1651cb20c99dd",
+          "executable": false
+        },
+        {
+          "path": "hooks/lane-write-guard.mjs",
+          "sha256": "774b5e3b589d28a9391f99bb4c016806702d91ebf94feb7ce0abbb1992c483d0",
+          "executable": true
+        },
+        {
+          "path": "hooks/managed-block-guard.mjs",
+          "sha256": "0d961e2a4bd9a2c713ec77c5f36274716b53273f216f3c4325bfc55f844bd3c7",
+          "executable": true
+        },
+        {
+          "path": "hooks/session-start-guardrails.sh",
+          "sha256": "80428cb67b070e08e567ba1303573f7c313c88a321ebd32282853b9fb965e75c",
+          "executable": true
+        },
+        {
+          "path": "skills/guardrails/SKILL.md",
+          "sha256": "acbd223a44dadc4b5cddaa9904e88998112c569876bd8722fee7b40cceac6188",
+          "executable": false
+        }
+      ]
+    },
+    {
+      "kind": "plugin",
+      "name": "code-quality",
+      "version": "0.2.1",
+      "path": "packs/base/plugins/code-quality",
+      "treeSha256": "8d52d68449401fb76347453ca1e6f4f824ce895e99b57a0749a27edca0eb8ba4",
+      "files": [
+        {
+          "path": ".claude-plugin/plugin.json",
+          "sha256": "9f52d185229432c64238469ff2301eb6546d7485c97e587d2879f5d9dd16df6a",
+          "executable": false
+        },
+        {
+          "path": "evals/README.md",
+          "sha256": "fb0c4befc4dd1f41bee3b57d3e258d4f3b27988a4f4303a29bef07a5786df121",
+          "executable": false
+        },
+        {
+          "path": "evals/a-test-that-cannot-fail/case.yaml",
+          "sha256": "fbb706331f5a24faff3dbe0ed9331f816c2d4376e7f1e81a1085817929063b76",
+          "executable": false
+        },
+        {
+          "path": "evals/a-test-that-cannot-fail/fixture.sh",
+          "sha256": "ed74bae53a17aea97d9f71c3c0540ed9ee01cc16cf9f666fe437b3f59b000260",
+          "executable": true
+        },
+        {
+          "path": "evals/a-test-that-cannot-fail/graders/cap-bug-found.md",
+          "sha256": "924fa7e7a99ec86da112db40c968c21d4b6fa2a8f8c56a2ccaf41dbf0e5764bb",
+          "executable": false
+        },
+        {
+          "path": "evals/a-test-that-cannot-fail/graders/literal-expectation.md",
+          "sha256": "71f5321751fe6dd6b1759fbf6f57509fe34a1214c690382d9cdac1ecff4d9f34",
+          "executable": false
+        },
+        {
+          "path": "evals/a-test-that-cannot-fail/graders/names-the-shapes.md",
+          "sha256": "ea338cf5659e6d0396e3d40f989071361506ee55a1e9d9ff2367f1926fd5e8d2",
+          "executable": false
+        },
+        {
+          "path": "evals/a-test-that-cannot-fail/graders/no-false-red.md",
+          "sha256": "f07a7a1552370c9c372b2eab8851a4a7b495c147f00838cd19a9ee52588d323f",
+          "executable": false
+        },
+        {
+          "path": "evals/a-test-that-cannot-fail/graders/proved-by-mutation.md",
+          "sha256": "1f115060d26f58f53b5bb8eb9a972f7095a5366ceaeff5617f9fa18a5fe8149a",
+          "executable": false
+        },
+        {
+          "path": "evals/a-test-that-cannot-fail/graders/ran-the-suite-twice.md",
+          "sha256": "4e416560d6612f8a6eed45409c2e0e9dc320ad60c6f61f21c34fd70233e76746",
+          "executable": false
+        },
+        {
+          "path": "evals/a-test-that-cannot-fail/graders/self-comparison-gone.md",
+          "sha256": "025c045292e75f855eaa2512850dbf97be695254f819b4e3f68f0ac177d13a2b",
+          "executable": false
+        },
+        {
+          "path": "evals/a-test-that-cannot-fail/graders/skill-fired.md",
+          "sha256": "c36ca328741934e9a6c5bdae6cd38f68be8ee264c37e466dc2f78c9a18ad91f1",
+          "executable": false
+        },
+        {
+          "path": "evals/a-test-that-cannot-fail/prompt.md",
+          "sha256": "df2d259c0eaf9e9b2f3adca641ddd42db975ac591d64ec734298fad5510e3b49",
+          "executable": false
+        },
+        {
+          "path": "evals/dead-code-with-a-live-caller/case.yaml",
+          "sha256": "fbb706331f5a24faff3dbe0ed9331f816c2d4376e7f1e81a1085817929063b76",
+          "executable": false
+        },
+        {
+          "path": "evals/dead-code-with-a-live-caller/fixture.sh",
+          "sha256": "fd0d39a71d581761a7b410c6bdc82f35e237ae7544d005fbe7ff05a30dcc9fef",
+          "executable": true
+        },
+        {
+          "path": "evals/dead-code-with-a-live-caller/graders/channel-list-intact.md",
+          "sha256": "0823692a3269b574dcc1354e402aacf7a4ecdb879861f3ca40ca8c79af1fdade",
+          "executable": false
+        },
+        {
+          "path": "evals/dead-code-with-a-live-caller/graders/dead-helper-removed.md",
+          "sha256": "0abb703e7a199e7e89090f4459dd20b2acda22a039379f71ace882025d0a2ef4",
+          "executable": false
+        },
+        {
+          "path": "evals/dead-code-with-a-live-caller/graders/live-handler-kept.md",
+          "sha256": "fdf6d028b1b43b1fb0ef5518e1ea8bacda0d0ce6797836138b4e9257160a2614",
+          "executable": false
+        },
+        {
+          "path": "evals/dead-code-with-a-live-caller/graders/live-helper-kept.md",
+          "sha256": "15b47ef59cca082461edad8a1fa2982f78419369c599b8485c33aead046bfd6b",
+          "executable": false
+        },
+        {
+          "path": "evals/dead-code-with-a-live-caller/graders/searched-beyond-the-source.md",
+          "sha256": "5a91e94bbe6ab7b0f878d1471d2d24b26bffc3efca1931a9f95fbeb51b050433",
+          "executable": false
+        },
+        {
+          "path": "evals/dead-code-with-a-live-caller/graders/second-dead-helper-removed.md",
+          "sha256": "403f31e9eee5a86cf92b223bcefd1e8693b9d51813d9e5b46b5c489e85737f62",
+          "executable": false
+        },
+        {
+          "path": "evals/dead-code-with-a-live-caller/graders/skill-fired.md",
+          "sha256": "4fd3520cff9ee1e1465886393035979a86b8121b372f65a3761d001e54a0a62e",
+          "executable": false
+        },
+        {
+          "path": "evals/dead-code-with-a-live-caller/graders/unproven-named-as-unproven.md",
+          "sha256": "bf334e960188557e30056d514dbd9e58db0352a86045fbd4b21c3b945cf7f846",
+          "executable": false
+        },
+        {
+          "path": "evals/dead-code-with-a-live-caller/prompt.md",
+          "sha256": "21ab91eadaabb6e4b12bc04991728a5928cf55a19a4a9aaf0f2a0077f342a963",
+          "executable": false
+        },
+        {
+          "path": "evals/one-concept-three-names/case.yaml",
+          "sha256": "fbb706331f5a24faff3dbe0ed9331f816c2d4376e7f1e81a1085817929063b76",
+          "executable": false
+        },
+        {
+          "path": "evals/one-concept-three-names/fixture.sh",
+          "sha256": "166af52be59df5c03e8307a08e776a53db805c514aaa4374ed2f176f381d2122",
+          "executable": true
+        },
+        {
+          "path": "evals/one-concept-three-names/graders/boundary-explained.md",
+          "sha256": "665b0dc63a2031480cc062e50f6236511d3fed0fb33e6b8d2ddbd466c6b64acc",
+          "executable": false
+        },
+        {
+          "path": "evals/one-concept-three-names/graders/config-key-renamed.md",
+          "sha256": "c99cca389cb655989652f316bad63c6ff2513c7b7970240c36cda71974e701a3",
+          "executable": false
+        },
+        {
+          "path": "evals/one-concept-three-names/graders/old-name-gone-from-billing.md",
+          "sha256": "d540ea5551518269dd732fe6bd3288a9bef5e4ede2bde9aa0e0032978988adda",
+          "executable": false
+        },
+        {
+          "path": "evals/one-concept-three-names/graders/old-name-gone-from-store.md",
+          "sha256": "f7584f9415f36ccc78b289b68fc6500349bc382443801cc99348524f74d7a5a2",
+          "executable": false
+        },
+        {
+          "path": "evals/one-concept-three-names/graders/old-names-banned.md",
+          "sha256": "51fe8bde8cafcc15b54ecaf454e3b21d17800f569c45201bf81bd3ec27e27c56",
+          "executable": false
+        },
+        {
+          "path": "evals/one-concept-three-names/graders/ran-the-checks.md",
+          "sha256": "6489e6c16ea1f91be72eb04f0139cedfb7508cc6aab6e989dc52f10411591ce6",
+          "executable": false
+        },
+        {
+          "path": "evals/one-concept-three-names/graders/readme-updated.md",
+          "sha256": "9898696d78a5e4037d383ac354744faf5b8c0f7ad9271ceaae321ef1af534716",
+          "executable": false
+        },
+        {
+          "path": "evals/one-concept-three-names/graders/skill-fired.md",
+          "sha256": "32bda2633dc81a0ccb01080a2e89c09a929d5f493c7f651f2021013de6f9d1d1",
+          "executable": false
+        },
+        {
+          "path": "evals/one-concept-three-names/graders/vendor-field-kept.md",
+          "sha256": "c7ce964f6fc9315f7121faf0cbdfd83eb7906311be86adf8a8ce58b844195c82",
+          "executable": false
+        },
+        {
+          "path": "evals/one-concept-three-names/graders/vendor-shape-unchanged.md",
+          "sha256": "3c8440b46e3058999246ac5a06b564d7d05ee08827cccdb44f111c22532fce0c",
+          "executable": false
+        },
+        {
+          "path": "evals/one-concept-three-names/prompt.md",
+          "sha256": "435d6e0d6123f5328bf405ce5b8f4fe4881f53829037b48cb2a9642fc7d8afab",
+          "executable": false
+        },
+        {
+          "path": "evals/split-keeps-behavior/case.yaml",
+          "sha256": "fbb706331f5a24faff3dbe0ed9331f816c2d4376e7f1e81a1085817929063b76",
+          "executable": false
+        },
+        {
+          "path": "evals/split-keeps-behavior/fixture.sh",
+          "sha256": "0c16fbbff82c6ab6842a00fe0dcaeaaf39b79e4a70288100dff91a0cdcafaec1",
+          "executable": true
+        },
+        {
+          "path": "evals/split-keeps-behavior/graders/boundary-test-intact.md",
+          "sha256": "2b313c6f5523a2dc3d8fdb18c5973db416887bce23966c4e2e322501ed7c73ed",
+          "executable": false
+        },
+        {
+          "path": "evals/split-keeps-behavior/graders/moved-not-rewritten.md",
+          "sha256": "e39ba9ae9677bff3b7cdf55f8e02d896dc456e6da01b913d542800ceb03845ed",
+          "executable": false
+        },
+        {
+          "path": "evals/split-keeps-behavior/graders/pin-not-raised.md",
+          "sha256": "4f3343bd036792c75c1a035b3b73b8456bd8707233bb21d8b75e101497663599",
+          "executable": false
+        },
+        {
+          "path": "evals/split-keeps-behavior/graders/ran-the-lint.md",
+          "sha256": "d7e4baa85a413e2a339122d2cd206be7bd7d873726ea5adfab7a697087fcde53",
+          "executable": false
+        },
+        {
+          "path": "evals/split-keeps-behavior/graders/ran-the-tests.md",
+          "sha256": "db709af7195ae54f28599fee1081f9f9416ecfdb99a080fb02b5ba0f3bf1b6d9",
+          "executable": false
+        },
+        {
+          "path": "evals/split-keeps-behavior/graders/skill-fired.md",
+          "sha256": "156ddc2624043bd3e4013615746fb21b2b17ba52017b72eccd1151514c628ec2",
+          "executable": false
+        },
+        {
+          "path": "evals/split-keeps-behavior/graders/wrote-a-new-module.md",
+          "sha256": "a1b41ce608b2cfd8888c64a12c47e547bfd50b6bc468925dfdfadeb8b8742964",
+          "executable": false
+        },
+        {
+          "path": "evals/split-keeps-behavior/prompt.md",
+          "sha256": "1907dad377c4a3d80d2bb612cc07cdaa4f128168cd83349081d302dad30f8f61",
+          "executable": false
+        },
+        {
+          "path": "skills/split-a-file/SKILL.md",
+          "sha256": "986e58548fc87bce6ac979163590c0a35b60403e0e6e2402bab4605c76f18d6d",
+          "executable": false
+        }
+      ]
+    }
+  ],
+  "projectLayout": 3,
+  "migrations": [
+    "0002-integrated-layout",
+    "0003-skilliton-names"
+  ],
+  "clients": {
+    "claude-code": {
+      "catalog": ".claude-plugin/marketplace.json",
+      "marketplace": "skilliton",
+      "plugins": [
+        "context-hygiene",
+        "workflow",
+        "guardrails",
+        "code-quality"
+      ]
+    },
+    "codex": {
+      "catalog": null,
+      "marketplace": null,
+      "plugins": [],
+      "note": "this repository has no .agents/plugins/marketplace.json"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "other",
+      "path": "evidence/live/2026-09-22-field-report-client-repository.md",
+      "sha256": "ae26da5064e429a9a8629a6ec60aebb60a1bbbafd45f3f5cb5b9097c1f506d96"
+    },
+    {
+      "kind": "other",
+      "path": "evidence/live/windows/2026-09-23-hosted-runner-port.md",
+      "sha256": "cba6a8ca6295bb2e91e015b565f5d291fc27b245403801174a54ee1345581f13"
+    },
+    {
+      "kind": "other",
+      "path": "evidence/live/2026-09-22-vs-code-extension-hooks.md",
+      "sha256": "4e3b9ffdcf40f081c3f6214d70dcfc4e7227205577bd31b05b85391c76d02e5c"
+    },
+    {
+      "kind": "other",
+      "path": "evidence/live/2026-09-22-codex-session.md",
+      "sha256": "14e611ed75bba23ced563d87d35e24e515eae334ffe33dd626bc97b8aae81b9c"
+    },
+    {
+      "kind": "other",
+      "path": "evidence/live/2026-09-22-use-on-this-machine.md",
+      "sha256": "b5f50598c593ca3310843a11e99d4e76c93254c0ded876c967032111f3359eb2"
+    },
+    {
+      "kind": "other",
+      "path": "docs/REPORT_CARD.md",
+      "sha256": "e3f4e8f6429052314efdc99d969db84bca089c377e71871fabb6c942261e4b11"
+    },
+    {
+      "kind": "other",
+      "path": "evidence/comparison/2026-09-22/SUMMARY.md",
+      "sha256": "2d4c733ce70fed392e5ecd71e9163c4371054e642281990c9fedc919fa47ca1b"
+    },
+    {
+      "kind": "other",
+      "path": "evidence/comparison/2026-09-23/SUMMARY.md",
+      "sha256": "dc7d34b2e4be212c5d16108a27f836366ea2db58552265ea56a39d0557af328b"
+    },
+    {
+      "kind": "other",
+      "path": "evidence/live/2026-09-23-release-1.1.0.md",
+      "sha256": "d1b33409346f17e1d1ce7769cf032ef33387dc4e56d4d039577b9b3ebde94693"
+    },
+    {
+      "kind": "other",
+      "path": "docs/THREAT_MODEL.md",
+      "sha256": "4c110b83385faac3e0f1c0bf323d523a8bf3048aa68965f98b8dee1f35f9ec88"
+    }
+  ],
+  "notes": []
+}
