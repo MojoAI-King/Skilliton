@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T16:15:34.016Z
+- **Updated:** 2026-09-23T16:41:21.710Z
 
 ## Request
 
@@ -49,9 +49,16 @@ not yet written
 - **Next:** Read the full check verdict and the red team result; run the rewrite script; hand the owner the two force-push commands; release 1.2.0 on the rewritten history; regrade
 - **Git:** main @ df19d80, 0 uncommitted
 
+### 2026-09-23T16:41:21.710Z
+
+- **State:** All four cold-review lanes merged; guardrails 0.9.0 and workflow 0.23.0 bumped; full checks 78 pass 0 fail 2 skipped of 80 on df19d80; the history rewritten locally to remove the 311 co-author trailers (main 235ddac plus records; trees unchanged; three release tags re-signed and approved); maintenance run. Not done: the owner's force-push of the rewritten main and tags, the guard lane's dry-run fix round (red team: 65 of 65 caught, one over-reach), release 1.2.0, the local regrade
+- **Evidence:** checks.mjs 78 pass 0 fail 2 skipped of 80 on df19d80; CI green through e3c76c5; red team 65 caught 0 still allowed slowest 77 ms; rewrite: 374 commits before and after, trailers 311 to 0, tree at HEAD cadd88a0190a unchanged, release list 3 approved; scrub --history exit 0
+- **Next:** After the owner's force-push: cherry-pick the guard fix round, SECURITY.md wording, CHANGELOG 1.2.0 heading, release create, checks on the manifest commit, audit, sign, push, fresh clone, verify, then the regrade workflow
+- **Git:** main @ 235ddac, 7 uncommitted
+
 ## Handoff
 
-- **State:** All four lanes merged and pushed; guardrails 0.9.0 and workflow 0.23.0 bumped with the changelog's Unreleased entries; main at df19d80. Not done: the full check run on the merged tree (running), the red team's second probe of the new guard (running), the history rewrite the owner approved (strip the co-author trailers, re-sign the three release tags, the owner force-pushes), release 1.2.0, the local regrade. Evidence: Guard lane on the rebased tree: lint, lint-shape, allowlist, docs, names, scrub, deadcode, footprint, git-config, guardrails.test (676 ok), guardrails-bypass.test (143 ok, review file 199 ok), hook-fixture each exit 0; the lane's own full checks.mjs 76 pass 0 fail 2 skipped; audit 0 findings in 734 files; CI green through 26ea74d, runs on 25526a0 and df19d80 being watched.
-- **Next:** Read the full check verdict and the red team result; run the rewrite script; hand the owner the two force-push commands; release 1.2.0 on the rewritten history; regrade
-- **Blocked:** nothing
-- **Watch out:** nothing known
+- **State:** All four cold-review lanes merged; guardrails 0.9.0 and workflow 0.23.0 bumped; full checks 78 pass 0 fail 2 skipped of 80 on df19d80; the history rewritten locally to remove the 311 co-author trailers (main 235ddac plus records; trees unchanged; three release tags re-signed and approved); maintenance run. Not done: the owner's force-push of the rewritten main and tags, the guard lane's dry-run fix round (red team: 65 of 65 caught, one over-reach), release 1.2.0, the local regrade. Evidence: checks.mjs 78 pass 0 fail 2 skipped of 80 on df19d80; CI green through e3c76c5; red team 65 caught 0 still allowed slowest 77 ms; rewrite: 374 commits before and after, trailers 311 to 0, tree at HEAD cadd88a0190a unchanged, release list 3 approved; scrub --history exit 0.
+- **Next:** After the owner's force-push: cherry-pick the guard fix round, SECURITY.md wording, CHANGELOG 1.2.0 heading, release create, checks on the manifest commit, audit, sign, push, fresh clone, verify, then the regrade workflow
+- **Blocked:** Only the owner can do these: read the Usage screen for the token window (turns the meter's reconstruction into a number that may be stated), report the end-of-day maintain minutes before and after, the extension keyboard checks and the other rows of docs/OWNER_TESTS.md, a clean macOS account, a Codex login, a Windows machine with a Claude login, an endpoint security product to test under, and a participant for the new builder rehearsal
+- **Watch out:** Restart the client before the new hooks run (workflow 0.22.0, guardrails 0.8.0, context-hygiene 0.3.1 installed at 10:00 EDT). The lane folder ~/Desktop/Skilliton-lanes/instruction-size still has its branch checked out because the guard refused moving its stale receipt; remove that file by hand, detach, delete the branch. Windows stays not supported (B80, no Claude Code session there). Read the clock before typing a time
