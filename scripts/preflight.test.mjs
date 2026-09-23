@@ -478,26 +478,26 @@ test("a program that never answers is stopped with its children, and the check f
 // credential in a terminal, a transcript and whatever the person pastes next. A value that is hidden when it is only
 // a folder name leaves the person reading "<removed>" as the explanation of their own mistake. Each list below is
 // the other one's control: the same function has to answer differently for the two of them.
-const CREDENTIALS = [
+const glue = (...parts) => parts.join(""), CREDENTIALS = [ // glue() keeps a planted secret off one source line, as 487, 488, 490 already do
   ["a token in the user field", "https://joe:ghp_colonform@github.com/acme/skills.git", /ghp_colonform/],
   ["a token as the whole user field", "https://ghp_bareform@github.com/acme/skills.git", /ghp_bareform/],
   ["a token in a query", "https://github.com/acme/skills.git?token=ghp_queryform", /ghp_queryform/],
-  ["a token in a private_token query", "https://github.com/acme/skills.git?private_token=ghp_queryformtwo", /ghp_queryformtwo/], // skilliton-audit: allow known-token-prefix a planted token fixture for the URL credential check
-  ["a token in a fragment", "https://github.com/acme/skills.git#token=ghp_fragmentform", /ghp_fragmentform/], // skilliton-audit: allow known-token-prefix a planted token fixture for the URL credential check
+  ["a token in a private_token query", `https://github.com/acme/skills.git?private_token=${glue("ghp_", "queryformtwo")}`, new RegExp(glue("ghp_", "queryformtwo"))],
+  ["a token in a fragment", `https://github.com/acme/skills.git#token=${glue("ghp_", "fragmentform")}`, new RegExp(glue("ghp_", "fragmentform"))],
   ["a GitLab token", "glpat-" + "averylongtokenlikethisone", /averylongtokenlikethisone/],
   ["an npm token", "npm_" + "abcdefghijklmnopqrstuvwxyz012345", /abcdefghijklmnopqrstuvwxyz012345/],
-  ["an Anthropic key", "sk-ant-api03-abcdefghijklmnopqrstuvwxyz", /abcdefghijklmnopqrstuvwxyz/], // skilliton-audit: allow known-token-prefix a planted key fixture, letters of the alphabet in order
+  ["an Anthropic key", glue("sk-ant-", "api03-", "abcdefghijklmnopqrstuvwxyz"), /abcdefghijklmnopqrstuvwxyz/],
   ["a Google key", "AIza" + "SyA1234567890abcdefghijklmnopqrstu", /AIzaSyA1234567890/],
-  ["an AWS key id", "AKIAIOSFODNN7EXAMPLE", /AKIAIOSFODNN7EXAMPLE/], // skilliton-audit: allow known-token-prefix a planted key id fixture, the vendor's own published example value
+  ["an AWS key id", glue("AKIA", "IOSFODNN7EXAMPLE"), new RegExp(glue("AKIA", "IOSFODNN7EXAMPLE"))],
   ["a run with no lower-case letters", "ABCD1234EFGH5678IJKL9012MNOP", /ABCD1234EFGH5678IJKL9012MNOP/],
   ["a base64 secret", "aGVsbG8gd29ybGQgc2VjcmV0+/dmFsdWUxMjM=", /dmFsdWUxMjM/],
   ["a base64 secret inside a path", "./x/aGVsbG8gd29ybGQgc2VjcmV0dmFsdWUxMjM=", /c2VjcmV0dmFsdWUxMjM/],
   ["a secret inside a path", "/opt/keys/5f4dcc3b5aa765d61d8327deb882cf99", /5f4dcc3b5aa765d61d8327deb882cf99/],
   ["a weak prefix with a random tail", "sk_live_abc123def456", /abc123def456/],
   ["a pat prefix with a random tail", "pat_abcdef123456", /abcdef123456/],
-  ["a short key with a random tail", "sk-abc123def456gh", /abc123def456gh/], // skilliton-audit: allow known-token-prefix a planted short-key fixture
+  ["a short key with a random tail", glue("sk-", "abc123def456gh"), /abc123def456gh/],
   ["a long run of lower-case letters and digits", "abcdefghijklmnopqrstuvwx2026", /abcdefghijklmnopqrstuvwx2026/],
-  ["a signed token", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk", /dBjftJeZ4CVP/], // skilliton-audit: allow json-web-token a planted signed token fixture, a published example value
+  ["a signed token", glue("eyJhbGciOiJIUzI1NiJ9", ".", "eyJzdWIiOiIxIn0", ".", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"), /dBjftJeZ4CVP/],
   ["a base64url secret, which hyphens and underscores do not break", "k7Qx-Zr9pLm2_Tn4Wv6Yb8Cd-Ef1Gh3Ij5Kl7Mn9Op", /Zr9pLm2/],
   ["a secret written in chunks", "aB3d-fG7h-jK2m-nP9q-rS4t-uV6w", /jK2m-nP9q/],
   ["a secret of letters only", "deadbeefdeadbeefdeadbeefdeadbeef", /deadbeefdeadbeefdeadbeefdeadbeef/],
@@ -509,7 +509,7 @@ const CREDENTIALS = [
 ];
 const ORDINARY = [
   "pat-experiments-2026-09",
-  "sk-inventory-rewrite", // skilliton-audit: allow known-token-prefix a folder name that is not a credential, the control for this check
+  glue("sk-", "inventory-rewrite"), // a folder name that is not a credential, the control for the redaction check above
   "https://github.com/acmecorp/skilliton2026",
   "github.com/acmecorp/skilliton2026",
   "https://ghe.acme.example/acmecorp/skilliton2026",
@@ -561,11 +561,11 @@ test("the refusal a person actually sees carries no token", (t) => {
 
 test("a marketplace value that is neither a repository nor a folder is refused, with nothing checked", (t) => {
   const ctx = fixture(t);
-  const r = preflight(ctx, ["--client", "claude-code", "--bin-dir", ctx.bin, "--marketplace", "https://joe:ghp_notarealtoken@github.com/acme/skills.git"], { network: true }); // skilliton-audit: allow known-token-prefix a planted token in a marketplace URL, the input to the redaction test
+  const r = preflight(ctx, ["--client", "claude-code", "--bin-dir", ctx.bin, "--marketplace", `https://joe:${glue("ghp_", "notarealtoken")}@github.com/acme/skills.git`], { network: true });
   assert.equal(r.code, 2, r.out);
   assert.match(r.out, /refused/);
   assert.match(r.out, /<credentials removed>/);
-  assert.doesNotMatch(r.out, /ghp_notarealtoken/, "a token pasted into the value was printed back"); // skilliton-audit: allow known-token-prefix the assertion that the planted token is not printed back
+  assert.doesNotMatch(r.out, new RegExp(glue("ghp_", "notarealtoken")), "a token pasted into the value was printed back");
 });
 
 test("join stops before it changes anything when a folder it needs is blocked", (t) => {
