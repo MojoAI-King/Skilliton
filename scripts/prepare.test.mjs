@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // prepare.test.mjs: `skilliton prepare` and the transactional writer in packs/base/plugins/workflow/runtime/lib/prepare.mjs.
 //
-// Adapted from the standalone prototype's 16 regression cases (commit 23aae41). Every protection they proved is kept
+// Adapted from the standalone prototype's 16 regression cases (commit 0bc2a05). Every protection they proved is kept
 // in integrated form (their names are noted as "prototype case"), and the layout-2 acceptance checks are added.
 // Each test runs the command the way a person does (node scripts/skilliton.mjs prepare ...) in its own temporary Git
 // repository under the system temp folder, with HOME and Git's global configuration pointed away from the real ones,

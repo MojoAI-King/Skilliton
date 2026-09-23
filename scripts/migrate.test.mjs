@@ -117,8 +117,8 @@ test("the frozen prototype values agree with the byte-for-byte fixture copies", 
 });
 
 // The fixtures are the snapshot: their sha256 is pinned here, so they are checked in every checkout, history or not.
-// They were copied from the prototype release, 23aae41 until the history rewrite of 2026-09-23, which kept its tree and
-// author date and gave it the hash below; 23aae41 is in no clone made since.
+// They were copied from the prototype release, 0bc2a05 until the history rewrite of 2026-09-23, which kept its tree and
+// author date and gave it the hash below; 0bc2a05 is in no clone made since.
 const SNAPSHOT_COMMIT = "0bc2a05";
 const SNAPSHOT_SHA256 = {
   "prepare.mjs": "a0cc78b368c6d51ece535908096edf98f7b5c29334668d06ac013c3fcc954de6",
@@ -137,7 +137,7 @@ test(`the fixture files are byte-for-byte copies of commit ${SNAPSHOT_COMMIT}`, 
     // A shallow clone is the one case that may skip; anywhere else the history the fixtures came from is missing, which is a failure.
     const shallow = spawnSync("git", ["-C", REPO, "rev-parse", "--is-shallow-repository"], { env: BASE_ENV, encoding: "utf8" }).stdout?.trim() === "true";
     if (shallow) { t.skip(`NOT RUN: this clone is shallow, so commit ${SNAPSHOT_COMMIT} is not in it; the pinned digests above still checked the fixtures`); return; }
-    assert.fail(`commit ${SNAPSHOT_COMMIT} (the prototype release, 23aae41 before the 2026-09-23 history rewrite) is not in this clone, and the clone is not shallow`);
+    assert.fail(`commit ${SNAPSHOT_COMMIT} (the prototype release, 0bc2a05 before the 2026-09-23 history rewrite) is not in this clone, and the clone is not shallow`);
   }
   for (const name of Object.keys(SNAPSHOT_SHA256)) {
     const original = execFileSync("git", ["-C", REPO, "show", `${SNAPSHOT_COMMIT}:scripts/${name}`], { env: BASE_ENV });
@@ -162,7 +162,7 @@ test("a real layout-1 project migrates to layout 3: runtime and prototype blocks
   const preview = migrate(ctx);
   assert.equal(preview.code, 1, preview.all);
   assert.match(preview.out, /0002-integrated-layout \(layout 1 to 2\)/);
-  assert.match(preview.out, /delete\s+\.skillgate\/bin\/security-evidence\.mjs\s+the copied prototype runtime; its sha256 matches the release at 23aae41/);
+  assert.match(preview.out, /delete\s+\.skillgate\/bin\/security-evidence\.mjs\s+the copied prototype runtime; its sha256 matches the release at 0bc2a05/);
   assert.match(preview.out, /update\s+docs\/MAINTAIN\.md\s+remove the prototype skillgate:project block/);
   assert.match(preview.out, /\+<!-- skilliton:harness:start v1 -->/, "the preview shows the change as a diff");
   assert.match(preview.out, /Then, planned from the result of the one before: 0003-skilliton-names\./);
@@ -225,7 +225,7 @@ test("a modified copied runtime refuses the migration and changes nothing", (t) 
   const before = snapshot(ctx.dir);
   const r = migrate(ctx, "--apply");
   assert.equal(r.code, 2, r.all);
-  assert.match(r.err, /\.skillgate\/bin\/security-evidence\.mjs does not match the prototype runtime released at 23aae41/);
+  assert.match(r.err, /\.skillgate\/bin\/security-evidence\.mjs does not match the prototype runtime released at 0bc2a05/);
   assert.match(r.err, /Nothing was changed\. To reconcile: keep any change you need outside \.skillgate\/bin\/security-evidence\.mjs, delete it/);
   assert.deepEqual(snapshot(ctx.dir), before);
   assert.equal(existsSync(join(ctx.dir, ".git", "skilliton-backups")), false);
@@ -437,7 +437,7 @@ test("migrate --json prints one result object for a pending migration and for a 
   assert.equal(p.command, "migrate");
   assert.equal(p.result, "attention");
   assert.deepEqual(p.details.state.pending.map((m) => m.id), ["0002-integrated-layout", "0003-skilliton-names"]);
-  assert.deepEqual(p.details.migrations[0].files.find((f) => f.path === RUNTIME), { path: RUNTIME, action: "delete", description: "the copied prototype runtime; its sha256 matches the release at 23aae41", beforeSha256: proto.PROTOTYPE_RUNTIME_SHA256, afterSha256: null });
+  assert.deepEqual(p.details.migrations[0].files.find((f) => f.path === RUNTIME), { path: RUNTIME, action: "delete", description: "the copied prototype runtime; its sha256 matches the release at 0bc2a05", beforeSha256: proto.PROTOTYPE_RUNTIME_SHA256, afterSha256: null });
   appendFileSync(join(ctx.dir, RUNTIME), "// changed\n");
   const refused = migrate(ctx, "--apply", "--json");
   assert.equal(refused.code, 2, refused.all);
