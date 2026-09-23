@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T07:05:26.493Z
+- **Updated:** 2026-09-23T07:58:29.978Z
 
 ## Request
 
@@ -47,9 +47,16 @@ not yet written
 - **Next:** Merge the five lanes in order (windows-names, security-proposal, gate-and-tasks, code-clarity, instruction-size), fix confirmed review findings, run the comparison's second run (D and F), then release 1.0.1 and write the handoff
 - **Git:** main @ 25c2dae, 0 uncommitted
 
+### 2026-09-23T07:58:29.978Z
+
+- **State:** Pre-release review: 16 findings confirmed, all fixed on main in a7bc8f6 (subshell arithmetic bypass, letter case on the settings and instruction files, hooksPath through the environment and git config, content-bound secrets allowlist, .gitattributes * -text, handoff hook opt-out, record header shape, archive header order); names check mirrors the website's product copies (bf4d3e1). Three lanes stacked (windows-names, gate-and-tasks, security-proposal) under full checks; code-clarity and instruction-size still running; three docs agents fixing the cold-read findings on their own branches; 1.0.1 not released
+- **Evidence:** checks.mjs 71 pass 0 fail on the review fixes; bypass 142 of 142 (13 of the new cases fail against the old hooks); guardrails 676 and bypass 142 under GNU awk 5.2.1; handoff hook 129; record header 10; CI 79 of 79 on 21d041d
+- **Next:** Fast-forward main through the stacked lanes when their checks pass, then merge code-clarity and instruction-size, run the comparison's second run, merge the docs branches, release 1.0.1
+- **Git:** main @ a7bc8f6, 0 uncommitted
+
 ## Handoff
 
-- **State:** Merged on main tonight: the Windows port (every session hook and the guard pass on a hosted runner; B79 and B80 filed), the maintenance trigger (15 commits or the handoff 15 behind), the field report filed with a verdict per item, the security-loop and records-host lanes; 03-02 items 2 to 4 ticked (107 of 123). Five night lanes running (instruction-size, windows-names, security-proposal, code-clarity, gate-and-tasks); a pre-release review and a docs cold read running as workflows; 1.0.1 not yet released. Evidence: CI 79 of 79 on 21d041d; checks.mjs 71 pass 0 fail on the records lane, 68 pass 0 fail on the port and the security lane; Windows run 35815835006: preflight 40 ok, guard 674 of 676, lifecycle 59 of 59; skill-load probe: no Skilliton skill in the without arm, each once in the with arm.
-- **Next:** Merge the five lanes in order (windows-names, security-proposal, gate-and-tasks, code-clarity, instruction-size), fix confirmed review findings, run the comparison's second run (D and F), then release 1.0.1 and write the handoff
+- **State:** Pre-release review: 16 findings confirmed, all fixed on main in a7bc8f6 (subshell arithmetic bypass, letter case on the settings and instruction files, hooksPath through the environment and git config, content-bound secrets allowlist, .gitattributes * -text, handoff hook opt-out, record header shape, archive header order); names check mirrors the website's product copies (bf4d3e1). Three lanes stacked (windows-names, gate-and-tasks, security-proposal) under full checks; code-clarity and instruction-size still running; three docs agents fixing the cold-read findings on their own branches; 1.0.1 not released. Evidence: checks.mjs 71 pass 0 fail on the review fixes; bypass 142 of 142 (13 of the new cases fail against the old hooks); guardrails 676 and bypass 142 under GNU awk 5.2.1; handoff hook 129; record header 10; CI 79 of 79 on 21d041d.
+- **Next:** Fast-forward main through the stacked lanes when their checks pass, then merge code-clarity and instruction-size, run the comparison's second run, merge the docs branches, release 1.0.1
 - **Blocked:** nothing
 - **Watch out:** nothing known
