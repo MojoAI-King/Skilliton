@@ -55,6 +55,12 @@ jobs:
       - name: Lint can fail
         run: node scripts/lint.test.mjs --self-test
 
+      - name: Line length and function length in a plugin runtime (B68)
+        run: node scripts/lint-shape.test.mjs
+
+      - name: Lint shape can fail
+        run: node scripts/lint-shape.test.mjs --self-test
+
       - name: Dead code (an export nothing reaches, a block that repeats)
         run: node scripts/deadcode.mjs
 
