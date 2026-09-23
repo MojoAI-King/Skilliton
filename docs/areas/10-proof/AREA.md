@@ -9,7 +9,7 @@ Kind: Living. Area record. One of the ten areas in docs/REPORT_CARD.md; the batc
 - **What A- means here:** One real new builder completes the M5 rehearsal; one measured comparison against the plain tool, tokens cross-checked.
 - **Owner inputs this area waits on:** A participant (B1). The owner's ceiling for the paid comparison (B16).
 - **Advances:** M5, M14; B1, B16
-- **Build progress:** `[....................]` 0 (0 of 4) across 2 batch(es), by `node scripts/report-card.mjs --apply`
+- **Build progress:** `[#####...............]` 25 (1 of 4) across 2 batch(es), by `node scripts/report-card.mjs --apply`
 
 ## Batches
 
@@ -18,7 +18,7 @@ Kind: Living. Area record. One of the ten areas in docs/REPORT_CARD.md; the batc
 | Batch | Type | Progress |
 |---|---|---|
 | [01 New builder rehearsal (M5, B1)](batch-01-new-builder-rehearsal.md) | owner | `[....................]` 0 (0 of 2) |
-| [02 Measured comparison (M14, B16)](batch-02-measured-comparison.md) | owner | `[....................]` 0 (0 of 2) |
+| [02 Measured comparison (M14, B16)](batch-02-measured-comparison.md) | owner | `[##########..........]` 50 (1 of 2) |
 
 <!-- report-card:end -->
 

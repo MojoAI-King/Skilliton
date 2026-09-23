@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "decisions": [
+    {
+      "controlId": "SG-CHECK-CRITERIA",
+      "applies": true,
+      "rationale": "A change to the guardrails, the release trust or the delivery gate must name the checks it has to pass",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:08.396Z"
+    },
+    {
+      "controlId": "SG-CHECK-EVIDENCE",
+      "applies": true,
+      "rationale": "Security decisions are kept as fingerprinted records and releases carry their evidence files",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:08.550Z"
+    },
+    {
+      "controlId": "SG-SECURITY-TESTS",
+      "applies": true,
+      "rationale": "The guardrails, the signature checks and the gate are security behavior with test suites",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:08.697Z"
+    },
+    {
+      "controlId": "SG-ROOT-CAUSE",
+      "applies": true,
+      "rationale": "Every lesson entry states the mechanism behind what broke",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:08.835Z"
+    },
+    {
+      "controlId": "SG-RECURRING-PATTERNS",
+      "applies": true,
+      "rationale": "security findings groups findings by cause into the backlog",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:08.983Z"
+    },
+    {
+      "controlId": "SG-WORKFLOW-IMPROVEMENT",
+      "applies": true,
+      "rationale": "A lesson is closed only by a check that now enforces it",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:09.129Z"
+    },
+    {
+      "controlId": "SG-COMMAND-INJECTION",
+      "applies": true,
+      "rationale": "The runtime and hooks start commands from repository and hook input",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:09.272Z"
+    },
+    {
+      "controlId": "SG-SECRETS-IN-SOURCE",
+      "applies": true,
+      "rationale": "The repository is public and sits beside signing keys and client checkouts",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:09.445Z"
+    },
+    {
+      "controlId": "SG-DEPENDENCY-RISK",
+      "applies": true,
+      "rationale": "No third-party runtime package; Node, git and two pinned CI actions are the components",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:09.619Z"
+    },
+    {
+      "controlId": "SG-AUTHENTICATION",
+      "applies": false,
+      "rationale": "Skilliton has no sign-in of its own; it runs as the local user and git and gh do the signing",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:09.764Z"
+    },
+    {
+      "controlId": "SG-SESSION-HANDLING",
+      "applies": false,
+      "rationale": "There is no server and no session token for Skilliton to issue or check",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:09.948Z"
+    },
+    {
+      "controlId": "SG-ACCESS-CONTROL",
+      "applies": true,
+      "rationale": "The shared-repository gate decides who may change the policy, by signature",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:10.125Z"
+    },
+    {
+      "controlId": "SG-INPUT-INJECTION",
+      "applies": true,
+      "rationale": "Hook input, configuration, records and manifests are untrusted text reaching parsers, paths and commands",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:10.291Z"
+    },
+    {
+      "controlId": "SG-SECURITY-LOGGING",
+      "applies": true,
+      "rationale": "Guardrail blocks, holds and gate rejections must leave a readable record",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:10.461Z"
+    },
+    {
+      "controlId": "SG-POLICY-CHANGE-REVIEW",
+      "applies": true,
+      "rationale": "Policy and CI changes need an approver's signature where the gate is installed",
+      "decidedBy": "owner",
+      "decidedAt": "2026-09-23T01:42:10.631Z"
+    }
+  ]
+}

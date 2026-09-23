@@ -205,6 +205,16 @@ rm -f "$CF"
 write_guard "a new settings file that turns a rule off"       deny  Write '{file_path:$p, content:"{\"guardrails\":{\"blockForcePush\":false}}"}'
 printf '{}\n' > "$CF"
 
+# ---------------------------------------------------------------- hooksPath
+section "git -c core.hooksPath=<dir> skips the project's hooks like --no-verify (found by the 2026-09-22 panel dry run)" # skilliton-audit: allow verification-off a section title naming the flag the rule mirrors
+RH="$TMP/repo-hookspath"; new_repo "$RH" || { echo "FAIL: could not build $RH"; exit 1; }
+expect "git -c core.hooksPath=/dev/null commit"        deny "$RH" 'git -c core.hooksPath=/dev/null commit -m x' # skilliton-audit: allow verification-off a test case that sends the override to the guard
+reason_has "  the reason names the override" "core.hooksPath"
+expect "any case: -c core.hookspath=... push"          deny "$RH" 'git -c core.hookspath=/tmp/h push origin main' # skilliton-audit: allow verification-off a test case that sends the override to the guard
+expect "joined form: -ccore.hooksPath=... commit"      deny "$RH" 'git -ccore.hooksPath=/dev/null commit -m x' # skilliton-audit: allow verification-off a test case that sends the override to the guard
+expect "negative: -c user.name=a commit"               allow "$RH" 'git -c user.name=a commit -m x'
+expect "negative: -c core.hooksPath=... status"        allow "$RH" 'git -c core.hooksPath=/dev/null status' # skilliton-audit: allow verification-off a test case that sends the override to the guard
+
 # ---------------------------------------------------------------- N31
 section "N31: git stage is git add"
 RS="$TMP/repo-stage"; new_repo "$RS" || { echo "FAIL: could not build $RS"; exit 1; }

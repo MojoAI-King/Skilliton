@@ -717,13 +717,21 @@ analyze_git() { # analyze_git <index after the word git>
   local k=$1 n=${#SEGW[@]} w
   GDIR=$EFF_DIR
   GARGS=(${PFX_GARGS[@]+"${PFX_GARGS[@]}"})
+  local hookspath=0
   while [ "$k" -lt "$n" ]; do
     w=${SEGW[$k]}
     case "$w" in
+      -c|--config-env)
+        # `-c core.hooksPath=<dir>` points git at other hooks, which skips this project's hooks the way --no-verify does
+        case "$(printf '%s' "${SEGW[$((k + 1))]:-}" | tr '[:upper:]' '[:lower:]')" in core.hookspath=*) hookspath=1 ;; esac
+        k=$((k + 2)) ;;
+      -c*|--config-env=*)
+        case "$(printf '%s' "$w" | tr '[:upper:]' '[:lower:]')" in -ccore.hookspath=*|--config-env=core.hookspath=*) hookspath=1 ;; esac
+        k=$((k + 1)) ;;
       -C)
         if [ $((k + 1)) -lt "$n" ]; then resolve_dir "$GDIR" "${SEGW[$((k + 1))]}"; GDIR=$RESOLVED; fi
         k=$((k + 2)) ;;
-      -c|--namespace|--config-env|--list-cmds|--super-prefix) k=$((k + 2)) ;;
+      --namespace|--list-cmds|--super-prefix) k=$((k + 2)) ;;
       --git-dir|--work-tree)
         if [ $((k + 1)) -lt "$n" ]; then GARGS[${#GARGS[@]}]="$w=${SEGW[$((k + 1))]}"; fi
         k=$((k + 2)) ;;
@@ -735,6 +743,11 @@ analyze_git() { # analyze_git <index after the word git>
   [ "$k" -lt "$n" ] || return 0
   w=${SEGW[$k]}
   ARGS=("${SEGW[@]:$((k + 1))}")
+  if [ "$hookspath" = 1 ] && [ "$CFG_NV" = true ]; then
+    case "$w" in commit|push|merge|rebase|am|cherry-pick|revert|pull)
+      deny "Blocked: -c core.hooksPath=... points git at a different hooks folder, which skips this project's safety checks the same way --no-verify does. Run the command without it, and if a check fails, fix what it reports instead of skipping it." ;; # skilliton-audit: allow verification-off the refusal message naming the override it just blocked
+    esac
+  fi
   case "$w" in
     push) check_push ;;
     commit) check_commit ;;

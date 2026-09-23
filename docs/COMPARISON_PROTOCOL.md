@@ -1,6 +1,6 @@
 # The measured comparison: proposed protocol
 
-Kind: Living. Written 2026-09-22 by the build session for the owner, as item 1 of docs/areas/10-proof/batch-02-measured-comparison.md: "the tasks, the ceiling and the measure are agreed before the first run". **Nothing below has run.** It runs only after the owner agrees it, or changes it, so that the tasks cannot be picked after the results are seen.
+Kind: Living. Written 2026-09-22 by the build session for the owner, as item 1 of docs/areas/10-proof/batch-02-measured-comparison.md: "the tasks, the ceiling and the measure are agreed before the first run". The owner confirmed it on 2026-09-22 and the first run is filed in evidence/comparison/2026-09-22/SUMMARY.md. The tasks were fixed before any run, so they could not be picked after the results were seen.
 
 ## The question
 
