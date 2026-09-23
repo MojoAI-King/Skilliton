@@ -16,7 +16,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, cpSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CLI = join(here, "skilliton.mjs");
@@ -67,7 +67,7 @@ function fixture(t) {
 }
 
 function sg(ctx, args, { preload = null, cli = CLI, cwd = ctx.dir, env = {} } = {}) {
-  const r = spawnSync(process.execPath, [...(preload ? ["--import", preload] : []), cli, ...args], { cwd, env: { ...BASE_ENV, HOME: ctx.home, ...env }, encoding: "utf8" });
+  const r = spawnSync(process.execPath, [...(preload ? ["--import", pathToFileURL(preload).href] : []), cli, ...args], { cwd, env: { ...BASE_ENV, HOME: ctx.home, ...env }, encoding: "utf8" });
   return { code: r.status, out: r.stdout, err: r.stderr, all: `${r.stdout}${r.stderr}` };
 }
 const prepare = (ctx, ...args) => sg(ctx, ["prepare", "--dir", ctx.dir, ...args]);
@@ -236,7 +236,7 @@ test("human text around an existing harness block is kept byte for byte", (t) =>
   chmodSync(join(ctx.dir, "CLAUDE.md"), 0o664);
   const r = prepare(ctx, "--apply");
   assert.equal(r.code, 0, r.all);
-  assert.equal(statSync(join(ctx.dir, "CLAUDE.md")).mode & 0o777, 0o664, "the replaced file keeps its permission bits");
+  if (process.platform !== "win32") assert.equal(statSync(join(ctx.dir, "CLAUDE.md")).mode & 0o777, 0o664, "the replaced file keeps its permission bits"); // Windows keeps no POSIX mode
   const got = readFileSync(join(ctx.dir, "CLAUDE.md"));
   assert.ok(got.subarray(0, before.length).equals(before), "bytes before the start marker are identical");
   assert.ok(got.subarray(got.length - after.length).equals(after), "bytes after the end marker are identical");

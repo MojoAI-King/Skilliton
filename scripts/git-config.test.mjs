@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { jsProgramCalls } from "./inventory.mjs";
 import { CONFIG_FROM_THE_ENVIRONMENT, PROXY_VARIABLES, REPOSITORY_OVERRIDES } from "../packs/base/plugins/workflow/runtime/lib/journal.mjs";
@@ -130,7 +130,7 @@ function gitStarts() {
   const found = [];
   {
     for (const file of runtimeFiles()) {
-      const name = relative(RUNTIME, file);
+      const name = relative(RUNTIME, file).split(sep).join("/"); // the exceptions name files with "/", on Windows too
       const text = readFileSync(file, "utf8");
       const lines = text.split("\n");
       for (const call of jsProgramCalls(text, WRAPPERS).calls) {
