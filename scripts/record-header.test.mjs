@@ -81,6 +81,9 @@ test("prepare.recordHeader is validated: one line, no control characters, at mos
     ["Kind: {kind}\r", true], // a control character
     [`Kind: {kind} ${"x".repeat(200)}`, true], // over 200 characters
     [123, true], [null, true],
+    // shaped like a heading or a list item: the record readers stop at the first "## " line and read "- " lines as
+    // fields, so a record written with one could not be read back (2026-09-23 review)
+    ["## {kind}", true], ["# {kind} #", true], ["- {kind}", true], ["* {kind}", true],
   ];
   for (const [value, wantsProblem] of bad) {
     const config_ = value === undefined ? {} : { recordHeader: value };
@@ -88,7 +91,7 @@ test("prepare.recordHeader is validated: one line, no control characters, at mos
     const found = problems.some((p) => p.includes("prepare.recordHeader"));
     assert.equal(found, wantsProblem, `recordHeader ${JSON.stringify(value)}: expected a problem to be ${wantsProblem}, problems: ${JSON.stringify(problems)}`);
   }
-  for (const good of ["Kind: {kind}", "> {kind}", "{kind}", "# {kind} #"]) {
+  for (const good of ["Kind: {kind}", "> {kind}", "{kind}", "Record type: {kind}"]) {
     const problems = config.configProblems({ prepare: { recordHeader: good } });
     assert.equal(problems.some((p) => p.includes("prepare.recordHeader")), false, `${JSON.stringify(good)} should be accepted: ${JSON.stringify(problems)}`);
   }
@@ -166,10 +169,10 @@ test("prependArchive recognizes a configured header's prefix, not only the liter
   assert.match(handoffLib.prependArchive(defaultArchive, entries), /^# Handoff archive\n\nKind: Reference\. text\.\n\n### /);
   const customArchive = "# Handoff archive\n\n> Reference. text.\n\nNo earlier handoffs have been archived.\n";
   assert.match(handoffLib.prependArchive(customArchive, entries, config.recordHeaderPrefix("> {kind}")), /^# Handoff archive\n\n> Reference\. text\.\n\n### /);
-  // Without the matching prefix (the caller still thinks it is "Kind:"), the entry lands after the title instead,
-  // because the header line is never recognized as the header.
-  const missed = handoffLib.prependArchive(customArchive, entries);
-  assert.doesNotMatch(missed, /^# Handoff archive\n\n> Reference\. text\.\n\n### /, "a caller that never passes the configured prefix cannot find the header line");
+  // Without the matching prefix (the caller still thinks it is "Kind:"), the first line of text after the title is
+  // taken as the header, so the entry still goes below it (2026-09-23 review: it used to land above it).
+  const fallback = handoffLib.prependArchive(customArchive, entries);
+  assert.match(fallback, /^# Handoff archive\n\n> Reference\. text\.\n\n### /, "without the configured prefix the header line is still found");
 });
 
 // ---------------------------------------------------------------- end to end: a configured header reaches every new record
@@ -228,4 +231,18 @@ test("this test file holds no forbidden dash characters or home paths", () => {
   const text = readFileSync(fileURLToPath(import.meta.url), "utf8");
   assert.equal(text.includes(String.fromCharCode(0x2014)) || text.includes(String.fromCharCode(0x2013)), false);
   assert.equal(new RegExp(["/Us", "ers/[A-Za-z0-9._-]+/|/ho", "me/[A-Za-z0-9._-]+/"].join("")).test(text), false);
+});
+
+test("the archive's header line stays above archived entries, whatever header the project uses or used", () => {
+  const entries = [{ heading: "2026-09-23 10:00 EDT", lines: ["- **State:** archived"] }];
+  const cases = [
+    ["a header that starts with {kind}, which has no fixed prefix", "# Handoff archive\n\nReference. The current handoff is elsewhere.\n", config.recordHeaderPrefix("{kind}"), "Reference. The current handoff is elsewhere."],
+    ["an archive written under the default header, read under a configured one", "# Handoff archive\n\nKind: Reference. The current handoff is elsewhere.\n", config.recordHeaderPrefix("Record type: {kind}"), "Kind: Reference. The current handoff is elsewhere."],
+    ["the default", "# Handoff archive\n\nKind: Reference. x\n", config.recordHeaderPrefix(), "Kind: Reference. x"],
+  ];
+  for (const [label, text, prefix, headerLine] of cases) {
+    const out = handoffLib.prependArchive(text, entries, prefix).split("\n");
+    const header = out.indexOf(headerLine), entry = out.findIndex((l) => l.startsWith("### 2026-09-23"));
+    assert.ok(header > 0 && entry > header, `${label}: the header line comes before the entry\n${out.join("\n")}`);
+  }
 });

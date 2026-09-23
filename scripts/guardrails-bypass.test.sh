@@ -273,6 +273,33 @@ expect "negative: echo > notes.txt && git add README.md" allow "$RW" "echo x > n
 expect "negative: git add README.md > out.log (written by the same git)" allow "$RW" "git add README.md > out.log"
 expect "negative: make > build.log 2>&1 && git status" allow "$RW" "make > build.log 2>&1 && git status"
 
+# ---------------------------------------------------------------- 2026-09-23 pre-release review
+section '(( and $(( that close with ) then more are a subshell and a command substitution, read as commands'
+RA="$TMP/repo-arith"; new_repo "$RA" || { echo "FAIL: could not build $RA"; exit 1; }
+expect "((git push --force origin main); true)"        deny "$RA" '((git push --force origin main); true)'
+expect 'echo $((git push --force origin main); true)'  deny "$RA" 'echo $((git push --force origin main); true)'
+expect "((git commit --no-verify -m x) )"              deny "$RA" '((git commit --no-verify -m x) )' # skilliton-audit: allow verification-off a test case that sends the flag or override to the guard
+expect 'x=$((git reset --hard) )'                      ask  "$RA" 'x=$((git reset --hard) )'
+expect 'quoted: echo "$((git push --force origin main); true)"' deny "$RA" 'echo "$((git push --force origin main); true)"'
+expect "negative: real arithmetic (( (1+2) * 3 ))"     allow "$RA" '(( (1+2) * 3 ))'
+expect 'negative: echo $(( (4+5) * 2 ))'               allow "$RA" 'echo $(( (4+5) * 2 ))'
+expect "negative: ((git push --force origin main)) is arithmetic and runs nothing" allow "$RA" '((git push --force origin main))'
+
+section "the settings file and the instruction files in any letter case (a case-insensitive disk)"
+write_guard "Write to .skilliton/Config.json that turns a rule off" deny Write '{file_path:$p, content:"{\"guardrails\":{\"blockForcePush\":false}}"}' "$RP/.skilliton/Config.json"
+write_guard "Write to .Skilliton/config.json that turns a rule off" deny Write '{file_path:$p, content:"{\"guardrails\":{\"blockForcePush\":false}}"}' "$RP/.Skilliton/config.json"
+expect "printf x > .skilliton/Config.json asks"        ask  "$RP" 'printf x > .skilliton/Config.json'
+expect "printf x > .SKILLITON/config.json asks"        ask  "$RP" 'printf x > .SKILLITON/config.json'
+expect "echo {} | tee .Skilliton/config.json asks"     ask  "$RP" "echo '{}' | tee .Skilliton/config.json"
+expect "negative: printf x > notes/config.json"        allow "$RP" 'printf x > notes/config.json'
+
+section "core.hooksPath set through the environment, or kept with git config"
+expect "GIT_CONFIG_KEY_0=core.hooksPath ... git commit" deny "$RH" 'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/dev/null git commit -m x' # skilliton-audit: allow verification-off a test case that sends the flag or override to the guard
+expect "git config core.hooksPath /dev/null asks"      ask  "$RH" 'git config core.hooksPath /dev/null' # skilliton-audit: allow verification-off a test case that sends the flag or override to the guard
+expect "git config --local core.hooksPath .husky asks" ask  "$RH" 'git config --local core.hooksPath .husky'
+expect "negative: git config --get core.hooksPath"     allow "$RH" 'git config --get core.hooksPath'
+expect "negative: git config user.name x"              allow "$RH" 'git config user.name x'
+
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
 echo "RESULT: FAIL ($fails failed, $oks ok)"; exit 1

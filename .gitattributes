@@ -1,4 +1,7 @@
-# Every text file is checked out with LF line ends on every platform. Git for Windows turns core.autocrlf on by
-# default, and a CRLF checkout changes the bytes a plugin's tree hash is computed over (verify would call every
-# plugin tampered), the harness template the tests compare with, and the shell scripts the hooks run.
-* text=auto eol=lf
+# Git never converts line ends here, on any platform: every file is checked out as the bytes that were committed.
+# Git for Windows turns core.autocrlf on by default, and a CRLF checkout would change the bytes a plugin's tree hash
+# is computed over (verify would call every plugin tampered), the harness template the tests compare with, and the
+# shell scripts the hooks run; -text keeps autocrlf away from them. It also keeps a file committed with CRLF (a skill
+# `import` copied byte for byte, a log from a Windows machine) as it is: text=auto would store it as LF while the
+# working copy kept CRLF, and `release create` then refused a change there was no way to commit (2026-09-23 review).
+* -text

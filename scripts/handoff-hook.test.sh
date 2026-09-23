@@ -387,6 +387,20 @@ if [ "$mutant_fails" -gt 0 ]; then ok "$CASE: the hook without fence tracking fa
 else bad "$CASE: the hook without fence tracking passes every check, so the checks do not test fences"; fi
 echo
 
+# ---- (k) the repository's opt-out: nothing is shown, in either of the two places ---------------------------------
+off="$tmp/off"; handoff_file "$off/docs/HANDOFF.md" "## RESUME HERE" OFF-SENTINEL
+git -C "$off" init -q 2>/dev/null
+: > "$off/.skilliton-off"
+run "(k) .skilliton-off at the root" "$off" /dev/null CLAUDE_PROJECT_DIR="$off"
+clean; lacks "OFF-SENTINEL"; if [ -s "$OUT" ]; then bad "$CASE: printed something"; else ok "$CASE: prints nothing"; fi
+rm -f "$off/.skilliton-off"; : > "$off/.git/skilliton-off"
+run "(k) skilliton-off inside the Git folder" "$off" /dev/null CLAUDE_PROJECT_DIR="$off"
+clean; lacks "OFF-SENTINEL"; if [ -s "$OUT" ]; then bad "$CASE: printed something"; else ok "$CASE: prints nothing"; fi
+rm -f "$off/.git/skilliton-off"
+run "(k) without the opt-out the handoff shows" "$off" /dev/null CLAUDE_PROJECT_DIR="$off"
+has "OFF-SENTINEL"
+echo
+
 if [ "$fails" -gt 0 ]; then echo "RESULT: FAIL ($fails of $((passes+fails)) checks failed; $notrun not run)"; exit 1; fi
 if [ "$notrun" -gt 0 ]; then echo "RESULT: INCOMPLETE ($passes checks ok, $notrun not run)"; exit 2; fi
 echo "RESULT: PASS (all $passes checks ok)"

@@ -306,24 +306,22 @@ const SKIP_REASONS = {
 // One allowlist entry, checked field by field so a bad file names the entry index and the field, never the value it
 // held. path/rule/reason follow the same rules as the rest of the security evidence engine (a safe repository path, a
 // rule the secrets collector actually uses, a reason that is not empty, not too long, not padded and not itself
-// secret-shaped); line or sha256, never both, is how an entry survives the matched line moving (line) or the matched
-// line's number staying put while its content is not what mattered (sha256, a hash of the line, never the line itself).
+// secret-shaped), and the sha256 of the matched line's bytes, which the report prints for every match. An entry is
+// bound to that content: a line number alone would allow whatever later lands on the line, a real key included, so
+// it is refused (2026-09-23 review).
 function validateAllowlistEntry(e, i, ruleNames) {
   const bad = (detail) => fail('INVALID_SECRETS_ALLOWLIST', `entry ${i}: ${detail}`);
   if (e === null || typeof e !== 'object' || Array.isArray(e)) bad('is not an object');
-  const hasLine = Object.hasOwn(e, 'line');
-  const hasSha = Object.hasOwn(e, 'sha256');
-  if (!hasLine && !hasSha) bad('needs a "line" or a "sha256" field');
-  if (hasLine && hasSha) bad('cannot have both "line" and "sha256"');
+  if (Object.hasOwn(e, 'line')) bad('has "line", which is not accepted: a line number would allow whatever later lands on that line; use "sha256" of the matched line, which the report prints');
+  if (!Object.hasOwn(e, 'sha256')) bad('needs a "sha256" field (the matched line\'s hash, printed in the report)');
   for (const k of ['path', 'rule', 'reason']) if (!Object.hasOwn(e, k)) bad(`is missing "${k}"`);
-  const allowed = new Set(['path', 'rule', 'reason', hasLine ? 'line' : 'sha256']);
+  const allowed = new Set(['path', 'rule', 'reason', 'sha256']);
   for (const k of Object.keys(e)) if (!allowed.has(k)) bad(`has an unknown key "${k}"`);
   try { relativePath(e.path); } catch { bad('"path" is not a safe repository-relative path'); }
   if (typeof e.rule !== 'string' || !ruleNames.includes(e.rule)) bad(`"rule" is not one of the secrets collector's rules (${ruleNames.join(', ')})`);
-  if (hasLine && !(Number.isInteger(e.line) && e.line >= 1)) bad('"line" is not a positive whole number');
-  if (hasSha && !/^[a-f0-9]{64}$/.test(e.sha256)) bad('"sha256" is not a 64-character lowercase hex digest');
+  if (!/^[a-f0-9]{64}$/.test(e.sha256)) bad('"sha256" is not a 64-character lowercase hex digest');
   if (!textField(e.reason, 500)) bad('"reason" is empty, too long, has surrounding spaces or control characters, or looks like a secret');
-  return { path: e.path, rule: e.rule, line: hasLine ? e.line : null, sha256: hasSha ? e.sha256 : null, reason: e.reason };
+  return { path: e.path, rule: e.rule, sha256: e.sha256, reason: e.reason };
 }
 
 // { exists, entries, fingerprint }. Absent file: an empty, unfingerprinted allowlist, so a project with none behaves
@@ -399,15 +397,15 @@ export function collectSecrets(root, { control, reviewer, apply = false } = {}) 
   }
   if (!entries.length) fail('NOTHING_TO_SCAN', `${tracked.length} tracked file(s), none readable as text`);
 
-  // An allowlist entry is matched by path and rule, and then by the line number or by a hash of the matched line's own
-  // bytes (never the bytes themselves): a hit that matches moves out of "matches" into "allowed", kept and shown with
+  // An allowlist entry is matched by path, rule and the sha256 of the matched line's own bytes (never the bytes
+  // themselves), so it stops matching when that line's content changes: a hit that matches moves out of "matches" into "allowed", kept and shown with
   // its reason and never dropped, the same as an inline allow does for the audit (lib/audit.mjs). An entry that
   // matches nothing this run is reported as unused; it never changes the assessment.
   const usedEntries = new Set();
   const matches = [], allowedHits = [];
   for (const hit of hits) {
     const entry = allowlist.entries.find((e) => e.path === hit.path && e.rule === hit.rule
-      && (e.line !== null ? e.line === hit.line : e.sha256 === hit.lineSha256));
+      && e.sha256 === hit.lineSha256);
     if (entry) { usedEntries.add(entry); allowedHits.push({ hit, reason: entry.reason }); } else matches.push(hit);
   }
   const unusedEntries = allowlist.entries.filter((e) => !usedEntries.has(e));
@@ -439,15 +437,15 @@ export function collectSecrets(root, { control, reviewer, apply = false } = {}) 
         'Matches by rule:',
         ...(matches.length ? Object.entries(byRule).map(([rule, n]) => `  ${rule}: ${n}`) : ['  none']),
         '',
-        'Matches (file:line rule; the matched text is never written):',
-        ...(matches.length ? matches.map((h) => `  ${h.path}:${h.line} ${h.rule}`) : ['  none']),
+        'Matches (file:line rule, and the sha256 of the line for an allowlist entry; the matched text is never written):',
+        ...(matches.length ? matches.map((h) => `  ${h.path}:${h.line} ${h.rule} sha256 ${h.lineSha256}`) : ['  none']),
         '',
         ...(allowlist.exists ? [
           `Allowed by ${SECRETS_ALLOW_REL} (file:line rule and its reason; the matched text is never written):`,
           ...(allowedHits.length ? allowedHits.map(({ hit, reason }) => `  ${hit.path}:${hit.line} ${hit.rule}: ${reason}`) : ['  none']),
           '',
           `Unused allowlist entries (${SECRETS_ALLOW_REL}; matched nothing this run):`,
-          ...(unusedEntries.length ? unusedEntries.map((e) => `  ${e.path} ${e.rule} (${e.line !== null ? `line ${e.line}` : `sha256 ${e.sha256}`}): ${e.reason}`) : ['  none']),
+          ...(unusedEntries.length ? unusedEntries.map((e) => `  ${e.path} ${e.rule} (sha256 ${e.sha256}): ${e.reason}`) : ['  none']),
           '',
         ] : []),
         'Not scanned:',

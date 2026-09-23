@@ -198,8 +198,14 @@ export function prependArchive(text, entries, headerPrefix = recordHeaderPrefix(
     return joinBlocks([before, ...rendered, ...[lines.slice(first)]], eol, bom);
   }
   const kept = lines.filter((l) => l.trim() !== ARCHIVE_EMPTY_LINE);
-  let headerEnd = kept.findIndex((l, i) => !fenced[i] && l.startsWith(headerPrefix));
-  if (headerEnd < 0) headerEnd = kept.findIndex((l) => /^# /.test(l));
+  // The header line is the configured one; failing that (a header that starts with {kind} has no fixed prefix, and an
+  // archive written before the header changed carries the old line), the first line of text after the "# " title.
+  let headerEnd = headerPrefix.trim() ? kept.findIndex((l, i) => !fenced[i] && l.startsWith(headerPrefix)) : -1;
+  if (headerEnd < 0) {
+    headerEnd = kept.findIndex((l) => /^# /.test(l));
+    const next = headerEnd < 0 ? -1 : kept.findIndex((l, i) => i > headerEnd && l.trim() !== "");
+    if (next > headerEnd && !/^#/.test(kept[next])) headerEnd = next;
+  }
   const head = trimBlank(kept.slice(0, headerEnd + 1)), rest = trimBlank(kept.slice(headerEnd + 1));
   return joinBlocks([head, ...rendered, rest], eol, bom);
 }

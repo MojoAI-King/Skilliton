@@ -37,7 +37,7 @@ import { readFileSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 const TOOLS = new Set(["Write", "Edit", "MultiEdit"]);
-const INSTRUCTION_FILES = new Set(["CLAUDE.md", "AGENTS.md"]);
+const INSTRUCTION_NAMES = new Set(["claude.md", "agents.md"]); // compared in lower case
 const START_MARKER = "<!-- skilliton:harness:start";
 const END_MARKER = "<!-- skilliton:harness:end";
 const CONFIG_FILE = join(".skilliton", "config.json");
@@ -128,17 +128,19 @@ process.stdin.on("end", () => {
   if (!input || typeof input !== "object" || typeof input.file_path !== "string" || !input.file_path) return;
   const cwd = typeof payload.cwd === "string" && payload.cwd ? payload.cwd : process.cwd();
   const file = isAbsolute(input.file_path) ? resolve(input.file_path) : resolve(cwd, input.file_path);
-  if (basename(file) === "config.json" && SETTINGS_DIRS.has(basename(dirname(file)))) {
+  // Letter case is folded: on a case-insensitive disk (macOS, Windows) .Skilliton/Config.json and claude.md are the
+  // same files as .skilliton/config.json and CLAUDE.md. On a case-sensitive one the fold refuses a little more.
+  if (basename(file).toLowerCase() === "config.json" && SETTINGS_DIRS.has(basename(dirname(file)).toLowerCase())) {
     const reason = settingsRefusal(payload.tool_name, input, file);
     if (reason) process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } })}\n`);
     return;
   }
-  if (!INSTRUCTION_FILES.has(basename(input.file_path))) return;
+  if (!INSTRUCTION_NAMES.has(basename(input.file_path).toLowerCase())) return;
 
   const root = findRoot(dirname(file));
   if (!root) return;                                            // not a repository
   const rel = relative(root, file).split(sep).join("/");
-  if (!INSTRUCTION_FILES.has(rel)) return;                      // an instruction file elsewhere than the root
+  if (!INSTRUCTION_NAMES.has(rel.toLowerCase())) return;        // an instruction file elsewhere than the root
   const config = readConfig(root);
   if (!config) return;                                          // not a prepared project: nothing is managed
   const guardrails = config.guardrails && typeof config.guardrails === "object" && !Array.isArray(config.guardrails) ? config.guardrails : {};

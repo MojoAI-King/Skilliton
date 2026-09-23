@@ -92,8 +92,11 @@ mentions_git() { [[ $1 =~ $GIT_WORD_RE ]]; }
 REMOVE_WORD_RE='(^|[^A-Za-z0-9_.-]|\\[bfnrt])(rm|rmdir|mv)([^A-Za-z0-9_/-]|$)'
 mentions_removal() { [[ $1 =~ $REMOVE_WORD_RE ]]; }
 # The settings file the rules come from (N30): a command that names both parts of its path is read, so a write to it
-# can be seen. A folder name alone costs nothing more than before.
-mentions_config() { case "$1" in *.skilliton*config.json*|*.skillgate*config.json*|*config.json*.skilliton*|*config.json*.skillgate*) return 0 ;; esac; return 1; }
+# can be seen. A folder name alone costs nothing more than before. Letter case is folded: on a case-insensitive disk
+# (macOS, Windows) .Skilliton/Config.json is the same file.
+nocase_on() { NOCASE_WAS=0; shopt -q nocasematch && NOCASE_WAS=1; shopt -s nocasematch; }
+nocase_off() { [ "$NOCASE_WAS" = 1 ] || shopt -u nocasematch; }
+mentions_config() { local r=1; nocase_on; case "$1" in *.skilliton*config.json*|*.skillgate*config.json*|*config.json*.skilliton*|*config.json*.skillgate*) r=0 ;; esac; nocase_off; return $r; }
 CONFIG_ASK="Check first: this command writes to the guardrails settings file (.skilliton/config.json), which is where the rules read whether they are on and which branches they protect. Turning a rule off or unprotecting a branch is a person's decision, made in their own editor or terminal. Confirm only if this change keeps every rule and every protected branch as it is."
 
 json_escape() { # sets ESCAPED to $1 as the inside of a JSON string
@@ -361,6 +364,20 @@ function arith(k,   pd, ch) {
   }
   unsure = 1; return m
 }
+# is_arith(k): whether the (( at k is arithmetic. Bash reads (( as arithmetic only when its matching close is )), so
+# ((git push -f); true) and $((git reset --hard) ) are a subshell and a command substitution whose commands run, and
+# are read as commands here. Scans ahead without changing the word; one that never closes counts as arithmetic, which
+# arith() then marks unsure.
+function is_arith(k,   so, sc, pd, ch, r) {
+  so = off; sc = chunk; pd = 0; r = 1
+  for (; k <= m; k++) {
+    if (k - off > 4096) { off = k - 1; chunk = substr(line, k, 4400) }
+    ch = at(k)
+    if (ch == "(") pd++
+    else if (ch == ")") { pd--; if (pd == 1) { r = (at(k + 1) == ")"); break } }
+  }
+  off = so; chunk = sc; return r
+}
 function add(ch) { if (length(tok) < 4096) tok = tok ch; have = 1 }
 function at(k) { return substr(chunk, k - off, 1) }
 BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RDM = sprintf("%c", 31); UN = sprintf("%c", 29) }  # not RT: in GNU awk RT is a built-in reset on every record, which lost every redirection mark on Linux
@@ -382,7 +399,7 @@ BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RDM = sprintf("%c", 31); UN = spri
         }
         if (c == "\"") { q = ""; continue }
         if (c == "$" && at(i + 1) == "(") {
-          if (at(i + 2) == "(") { add(c); i = arith(i + 1); continue }
+          if (at(i + 2) == "(" && is_arith(i + 1)) { add(c); i = arith(i + 1); continue }
           depth++; ST[depth] = tok; SS[depth] = skipnext; PC[depth] = 0
           tok = ""; have = 0; skipnext = 0; q = ""; i++; continue
         }
@@ -405,7 +422,7 @@ BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RDM = sprintf("%c", 31); UN = spri
           # the $( opened inside double quotes closes: back into the quoted word, which carries $() in place of it
           sep(); tok = ST[depth] "$()"; have = 1; skipnext = SS[depth]; depth--; q = "\""; continue
         }
-        if (c == "(" && at(i + 1) == "(" && (!have || substr(tok, length(tok), 1) == "$")) { i = arith(i); continue }
+        if (c == "(" && at(i + 1) == "(" && (!have || substr(tok, length(tok), 1) == "$") && is_arith(i)) { i = arith(i); continue }
         if (depth > 0) { if (c == "(") PC[depth]++; else if (c == ")") PC[depth]-- }
         if (c == "(" && have && substr(tok, length(tok), 1) == "$") { tok = substr(tok, 1, length(tok) - 1); if (tok == "") have = 0 }
         sep(); continue
@@ -514,15 +531,30 @@ split_redirects() { # moves the marked redirection targets out of SEGW into SEGR
   SEGW=(${words[@]+"${words[@]}"})
 }
 
+check_config_hookspath() { # git config ... core.hooksPath <dir> changes which hooks run for every later command here
+  [ "$CFG_NV" = true ] || return 0
+  local a named=0
+  for a in ${ARGS[@]+"${ARGS[@]}"}; do
+    case "$a" in --get|--get-all|--get-regexp|-l|--list|--show-origin|--show-scope|get) return 0 ;; esac
+    case "$(printf '%s' "$a" | tr '[:upper:]' '[:lower:]')" in core.hookspath|core.hookspath=*) named=1 ;; esac
+  done
+  [ "$named" = 1 ] && ask "Check first: this changes core.hooksPath, which decides which hooks git runs for every later commit and push in this repository; pointing it elsewhere skips this project's checks the way --no-verify does. A tool that installs its own hooks (husky, for example) sets it on purpose; confirm only if that is what this is."
+  return 0
+}
+
 names_config() { # names_config <word> <base>: 0 when the word names the guardrails settings file, by its text or its path
+  local r=1                                                    # in any letter case, as mentions_config
+  nocase_on
   case "$1" in
-    *.skilliton*config.json*|*.skillgate*config.json*) return 0 ;;
-    *'$'*|*'`'*) return 1 ;;
+    *.skilliton*config.json*|*.skillgate*config.json*) r=0 ;;
+    *'$'*|*'`'*) r=2 ;;
   esac
-  resolve_dir "$2" "$1"; [ -n "$RESOLVED" ] || return 1
-  normalize_path "$RESOLVED"
-  case "$NORM" in */.skilliton/config.json|*/.skillgate/config.json) return 0 ;; esac
-  return 1
+  if [ "$r" = 1 ]; then
+    resolve_dir "$2" "$1"
+    if [ -n "$RESOLVED" ]; then normalize_path "$RESOLVED"; case "$NORM" in */.skilliton/config.json|*/.skillgate/config.json) r=0 ;; esac; fi
+  fi
+  nocase_off
+  [ "$r" = 0 ]
 }
 
 check_config_words() { # check_config_words <index of the first argument> <any|text|inplace|dest>: a program that writes
@@ -593,7 +625,7 @@ wrapper_values() {
 
 analyze_segment() {
   local n=${#SEGW[@]} k=0 w wrapper="" name val last duration=0 saved_dir=$EFF_DIR
-  PFX_GARGS=()
+  PFX_GARGS=(); PFX_HOOKSPATH=0
   # skip what can stand in front of a command: VAR=value, the wrappers that run the rest of the line and their
   # options (with the value an option takes), timeout's duration, and keywords
   while [ "$k" -lt "$n" ]; do
@@ -639,6 +671,9 @@ analyze_segment() {
         # GIT_DIR= and GIT_WORK_TREE= choose the repository the way --git-dir and --work-tree do, so they become those
         # arguments (the path taken from where the command runs, as the variable is)
         case "$name" in
+          GIT_CONFIG_KEY_*|GIT_CONFIG_PARAMETERS)
+            # GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath ... sets for one command what -c sets
+            case "$(printf '%s' "${w#*=}" | tr '[:upper:]' '[:lower:]')" in *core.hookspath*) PFX_HOOKSPATH=1 ;; esac ;;
           GIT_DIR|GIT_WORK_TREE)
             val=${w#*=}; resolve_dir "$EFF_DIR" "$val"; [ -n "$RESOLVED" ] && val=$RESOLVED
             if [ "$name" = GIT_DIR ]; then PFX_GARGS[${#PFX_GARGS[@]}]="--git-dir=$val"; else PFX_GARGS[${#PFX_GARGS[@]}]="--work-tree=$val"; fi ;;
@@ -723,7 +758,7 @@ analyze_git() { # analyze_git <index after the word git>
   local k=$1 n=${#SEGW[@]} w
   GDIR=$EFF_DIR
   GARGS=(${PFX_GARGS[@]+"${PFX_GARGS[@]}"})
-  local hookspath=0
+  local hookspath=${PFX_HOOKSPATH:-0}
   while [ "$k" -lt "$n" ]; do
     w=${SEGW[$k]}
     case "$w" in
@@ -751,7 +786,7 @@ analyze_git() { # analyze_git <index after the word git>
   ARGS=("${SEGW[@]:$((k + 1))}")
   if [ "$hookspath" = 1 ] && [ "$CFG_NV" = true ]; then
     case "$w" in commit|push|merge|rebase|am|cherry-pick|revert|pull)
-      deny "Blocked: -c core.hooksPath=... points git at a different hooks folder, which skips this project's safety checks the same way --no-verify does. Run the command without it, and if a check fails, fix what it reports instead of skipping it." ;; # skilliton-audit: allow verification-off the refusal message naming the override it just blocked
+      deny "Blocked: core.hooksPath set for this command (with -c or GIT_CONFIG_KEY_) points git at a different hooks folder, which skips this project's safety checks the same way --no-verify does. Run the command without it, and if a check fails, fix what it reports instead of skipping it." ;; # skilliton-audit: allow verification-off the refusal message naming the override it just blocked
     esac
   fi
   case "$w" in
@@ -765,6 +800,7 @@ analyze_git() { # analyze_git <index after the word git>
     stash) check_stash ;;
     branch) check_branch ;;
     rm) check_git_rm ;;
+    config) check_config_hookspath ;;
   esac
   return 0
 }

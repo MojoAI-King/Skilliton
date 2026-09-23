@@ -113,6 +113,12 @@ if [ -z "$project_dir" ] && [ -n "$parser" ] && [ ! -t 0 ]; then
 fi
 [ -n "$project_dir" ] || project_dir=$PWD
 
+# The repository's opt-out, the same two places runtime/lib/auto-prepare.mjs optOutFile reads: an empty .skilliton-off
+# at the root, or skilliton-off inside the Git folder. The session-start hook after this one says so in one line; this
+# one prints nothing, so an opted-out repository is never handed a handoff or asked to write one.
+[ -e "$project_dir/.skilliton-off" ] && exit 0
+if gd=$(git -C "$project_dir" -c core.fsmonitor=false rev-parse --absolute-git-dir 2>/dev/null) && [ -e "$gd/skilliton-off" ]; then exit 0; fi
+
 # 2. Config.
 file=$DEFAULT_FILE
 max=$DEFAULT_MAX

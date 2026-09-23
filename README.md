@@ -69,7 +69,7 @@ To see it before installing anything: `git clone https://github.com/MojoAI-King/
 |---|---|
 | Language | JavaScript (Node.js 22 or later, ES modules) and Bash for the hooks that must start in well under a second |
 | Dependencies | none: no `package.json`, no build step, no network code of its own |
-| Platforms | macOS and Linux measured. Windows is not supported yet: preparing a repository is refused there ([first run](evidence/live/windows/2026-09-22-hosted-runner-first-run.md)) |
+| Platforms | macOS and Linux measured. Windows is not supported yet: on a hosted Windows runner, preparation, status, every session hook and the guard work, but a program in the project folder can stand in for one Skilliton starts by name, and no Claude Code session has run there ([evidence](evidence/live/windows/2026-09-23-hosted-runner-port.md)) |
 | Release trust | SSH-signed git tags checked against a signers file each machine holds. For this repository, the signer is the key GitHub publishes for its owner: `gh api users/MojoAI-King/ssh_signing_keys` |
 | What it sends anywhere | nothing; every write outside a repository is listed in [docs/IT-ALLOWLIST.md](docs/IT-ALLOWLIST.md), and CI fails when the code and that list disagree |
 | Where to start reading the code | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
