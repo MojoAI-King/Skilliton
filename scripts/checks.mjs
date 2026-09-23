@@ -23,7 +23,10 @@ import { fileURLToPath } from "node:url";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKFLOW = join(REPO, ".github", "workflows", "checks.yml");
-const LOG_DIR = join(REPO, ".git", "skilliton", "checks");
+// In a linked worktree `.git` is a file that points at the real Git folder, so the log folder is found by asking git,
+// which answers with that worktree's own folder; a checkout git cannot read falls back to `.git`.
+const gitDir = spawnSync("git", ["-C", REPO, "rev-parse", "--absolute-git-dir"], { encoding: "utf8" });
+const LOG_DIR = join(gitDir.status === 0 && gitDir.stdout.trim() ? gitDir.stdout.trim() : join(REPO, ".git"), "skilliton", "checks");
 
 // The steps of the one job in checks.yml: [{ name, run }]. A `run: |` block keeps its lines in order.
 export function readSteps(text) {

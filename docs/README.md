@@ -10,6 +10,7 @@ Every document says its Kind near the top. **Living** is kept current and is saf
 |---|---|
 | Know what it is, what it is written in, and how a company takes it to every laptop | [OWNER_GUIDE.md](OWNER_GUIDE.md) |
 | See the whole path with diagrams: fork, make it yours, release, install, work, feed lessons back | [HOW-IT-WORKS.md](HOW-IT-WORKS.md) |
+| The code map for an engineer opening the code: the four plugins, the runtime's modules by what they own, the path of one session through the hooks, errors and exit codes | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Join a machine and prepare a repository (you are a developer) | [ONBOARDING.md](ONBOARDING.md) |
 | Fork, add skills, sign and publish releases (you are the company) | [RELEASING.md](RELEASING.md), then [DELIVERY.md](DELIVERY.md) for the merge check |
 | Know what Claude Code, Codex and Cursor actually do with it, measured or documented | [CLIENTS.md](CLIENTS.md) |

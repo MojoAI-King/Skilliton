@@ -1,0 +1,86 @@
+name: windows-first-run
+
+# The commands of docs/WINDOWS.md section 2, run by hand from the Actions tab on a GitHub-hosted Windows runner.
+# Every step continues on failure, so one run shows every result; the run's own verdict is not the finding, the
+# step logs are. A hosted runner is a clean Windows machine with Git for Windows, not a developer's workstation, and
+# it has no Claude login, so the session hooks are run directly with the JSON a client would send.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  first-run:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, pinned to its commit
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4, pinned the same way
+        with:
+          node-version: 22
+      - name: Versions
+        continue-on-error: true
+        run: |
+          node --version; git --version; bash --version | head -1; cmd //c ver
+          npm install --global @anthropic-ai/claude-code >/dev/null 2>&1 && claude --version || echo "claude install failed"
+      - name: A clone into a folder with a space in its path
+        continue-on-error: true
+        run: |
+          mkdir -p "$HOME/First Last"
+          git clone -q "$GITHUB_WORKSPACE" "$HOME/First Last/skilliton" && echo "cloned to $HOME/First Last/skilliton"
+      - name: preflight --wide
+        continue-on-error: true
+        run: cd "$HOME/First Last/skilliton" && node scripts/skilliton.mjs preflight --wide; echo "exit $?"
+      - name: help and doctor
+        continue-on-error: true
+        run: |
+          cd "$HOME/First Last/skilliton"
+          node scripts/skilliton.mjs --help > /dev/null; echo "help exit $?"
+          node scripts/skilliton.mjs doctor; echo "doctor exit $?"
+      - name: allowlist.test
+        continue-on-error: true
+        run: cd "$HOME/First Last/skilliton" && node scripts/allowlist.test.mjs; echo "exit $?"
+      - name: footprint.test
+        continue-on-error: true
+        run: cd "$HOME/First Last/skilliton" && node scripts/footprint.test.mjs; echo "exit $?"
+      - name: preflight.test
+        continue-on-error: true
+        run: cd "$HOME/First Last/skilliton" && node --test scripts/preflight.test.mjs; echo "exit $?"
+      - name: git-config.test
+        continue-on-error: true
+        run: cd "$HOME/First Last/skilliton" && node --test scripts/git-config.test.mjs; echo "exit $?"
+      - name: lifecycle.test
+        continue-on-error: true
+        run: cd "$HOME/First Last/skilliton" && node --test scripts/lifecycle.test.mjs; echo "exit $?"
+      - name: handoff-hook.test
+        continue-on-error: true
+        run: cd "$HOME/First Last/skilliton" && bash scripts/handoff-hook.test.sh; echo "exit $?"
+      - name: guardrails.test
+        continue-on-error: true
+        run: cd "$HOME/First Last/skilliton" && bash scripts/guardrails.test.sh; echo "exit $?"
+      - name: A real project, prepared, with the session hooks run directly
+        continue-on-error: true
+        run: |
+          K="$HOME/First Last/skilliton"
+          mkdir -p "$HOME/windows try" && cd "$HOME/windows try"
+          git init -q -b main && echo "# a test project" > README.md && git add -A && git -c user.name=ci -c user.email=ci@example.invalid commit -qm first
+          node "$K/scripts/skilliton.mjs" prepare --dir . --apply; echo "prepare exit $?"
+          node "$K/scripts/skilliton.mjs" status --dir .; echo "status exit $?"
+          P="$K/packs/base/plugins/workflow"
+          printf '{"session_id":"win1","source":"startup","cwd":"%s","hook_event_name":"SessionStart"}' "$PWD" | CLAUDE_PLUGIN_ROOT="$P" bash "$P/hooks/session-start-handoff.sh"; echo "handoff hook exit $?"
+          printf '{"session_id":"win1","source":"startup","cwd":"%s","hook_event_name":"SessionStart"}' "$PWD" | CLAUDE_PLUGIN_ROOT="$P" "$P/bin/skilliton" hook session-start | head -12; echo "session-start hook exit ${PIPESTATUS[1]}"
+          G="$K/packs/base/plugins/guardrails"
+          for c in "git status" "git commit --no-verify -m test" "git push --force origin main" "git checkout -- ."; do
+            printf '{"session_id":"win1","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"%s"}}' "$PWD" "$c" | CLAUDE_PLUGIN_ROOT="$G" bash "$G/hooks/guard-bash.sh" > out.json; echo "guard [$c] exit $? output: $(head -c 300 out.json)"
+          done
+      - name: A delivery check started by a bare program name
+        continue-on-error: true
+        run: |
+          K="$HOME/First Last/skilliton"
+          cd "$HOME/windows try"
+          printf '{"schema":"skilliton.delivery/1","protectedBranches":["main"],"checks":[{"name":"node","command":["node","--version"],"timeoutSeconds":60}],"policyPaths":[".skilliton/delivery.json"]}\n' > .skilliton/delivery.json
+          node "$K/scripts/skilliton.mjs" gate; echo "gate exit $?"

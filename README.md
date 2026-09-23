@@ -4,7 +4,51 @@ Kind: Living.
 
 **Skilliton gives a team's AI coding assistant a shared way of working, enforced by hooks rather than remembered by people.** A company decides once how it builds software: the records it keeps, the checks that run before work is finished, the commands the assistant may not run, the review it gives before a commit, the security evidence it keeps current. Every developer's assistant then works that way in every repository, and company-approved improvements arrive as signed releases instead of copied files.
 
-It is four Claude Code plugins and one command, `skilliton`, in a repository a company forks and makes its own.
+It is four Claude Code plugins and one command, `skilliton`, in a repository a company forks and makes its own. Version 1.0.0 is released and signed.
+
+## What you see on day one
+
+Open any git repository in Claude Code with the plugins installed, and:
+
+- **The session starts where the last one stopped.** A hook shows the assistant the last handoff and the project's state, and it tells you in two or three sentences where things stand.
+- **Work gets written down as it happens.** A request becomes a task record with acceptance criteria; progress is checkpointed, and a stop with unrecorded changes is held once until it is.
+- **Dangerous commands are stopped, not just discouraged.** Force-pushes to protected branches, skipped git hooks, secret-shaped commits and deleting the project's records are blocked by a hook; throwing away uncommitted work asks you first.
+- **The session stays affordable.** A whole-file read over 50 KB is refused with how to read a range, and checks report a verdict instead of pasting their output.
+- **Batches and housekeeping start themselves.** Six or more items in one message are split into parallel worktree lanes first, and after a merge the stop is held until maintenance has run.
+
+Each line is marked in the project's instructions as **enforced** (a hook does it), **instructed** (the assistant is asked to) or **checked at merge**, so nobody mistakes a request for a guarantee.
+
+## Does it work
+
+| Claim | Evidence |
+|---|---|
+| Every check passes on every push | 58 steps in [CI](.github/workflows/checks.yml), the same list `node scripts/checks.mjs` runs locally; each checker also proves it can fail |
+| The hooks fire in a real client, not only in tests | measured in the Claude Code terminal and the VS Code extension ([evidence](evidence/live/2026-09-22-vs-code-extension-hooks.md), [client matrix](docs/CLIENTS.md)) |
+| A release is signed and a machine can prove what it runs | 1.0.0 signed, approved from a fresh clone, and `skilliton verify` VERIFIED on every install ([evidence](evidence/live/2026-09-22-release-1.0.0.md)) |
+| It runs on its author's real work | 26 repositories on one machine prepared by one sweep; this repository was built under it, with 33 decisions and 52 lessons recorded as the work went, each lesson naming the check that now enforces it or saying that none does yet ([sweep](#preparing-everything-already-on-a-machine), [lessons](docs/LESSONS.md)) |
+| Automatic parts run with nobody invoking them | dispatch and maintenance measured in live sessions ([dispatch](evidence/live/2026-09-22-dispatch-automation-live.md), [maintenance](evidence/live/2026-09-22-maintain-automation-live.md)) |
+
+Not proven yet, and said so: a team other than its author, Windows, lifecycle hooks in Codex, and any usage saving. [Not proven yet](#not-proven-yet) has each with what it needs.
+
+## Install
+
+[INSTALL.md](INSTALL.md) has three paths: look at a demo with nothing installed, try it in your own Claude Code, or roll it out to a team from a signed fork. Trying it is five commands, then a new session:
+
+```bash
+claude plugin marketplace add MojoAI-King/Skilliton
+claude plugin install workflow@skilliton
+claude plugin install guardrails@skilliton
+claude plugin install context-hygiene@skilliton
+claude plugin install code-quality@skilliton
+```
+
+Or hand the job to your coding agent:
+
+```
+Install Skilliton for me by following INSTALL.md in https://github.com/MojoAI-King/Skilliton, path 2. Tell me each step before you run it, and do not prepare any repository until I say yes.
+```
+
+To see it work before installing anything: `git clone https://github.com/MojoAI-King/Skilliton.git && cd Skilliton && node scripts/autopilot-demo.mjs`. It prepares a throwaway project, records a task and real test evidence, shows the evidence going stale when the code changes, and runs a shared repository whose merge check rejects a change that breaks only once combined with work already merged. No model, no network.
 
 ## At a glance
 
@@ -15,19 +59,11 @@ It is four Claude Code plugins and one command, `skilliton`, in a repository a c
 | Dependencies | None. No `package.json`, no `node_modules`, no build step, no network code of its own. |
 | Size | About 40,000 lines of runtime, hooks and tests. 58 check steps run in CI on every push; `node scripts/checks.mjs` runs the same list locally. |
 | Shape | Plugins `workflow`, `guardrails`, `context-hygiene`, `code-quality` under `packs/base/plugins/`; the `skilliton` command ships inside `workflow`. |
-| Clients | Claude Code, measured (terminal and VS Code extension). Codex installs the plugins and sees the skills but runs no plugin hooks. Cursor is documented, not run ([docs/CLIENTS.md](docs/CLIENTS.md)). |
+| Clients | Claude Code, measured in the terminal and in the VS Code extension 2.1.280 ([evidence](evidence/live/2026-09-22-vs-code-extension-hooks.md)). Codex installs the plugins and sees the skills but runs no plugin hooks. Cursor is documented, not run ([docs/CLIENTS.md](docs/CLIENTS.md)). |
 | Platforms | macOS and Linux exercised. Windows has a written first run ([docs/WINDOWS.md](docs/WINDOWS.md)), not yet tried. |
 | Release trust | SSH-signed git tags checked against a signers file each machine holds; `skilliton verify` compares installed files with the signed manifest. |
 | What it sends anywhere | Nothing. One git command talks to a remote (`preflight`). Every write outside a repository is listed in [docs/IT-ALLOWLIST.md](docs/IT-ALLOWLIST.md), and CI fails when the code and that list disagree. |
 | Licence | MIT. |
-
-## Try it in two minutes
-
-```bash
-node scripts/autopilot-demo.mjs
-```
-
-It prepares a disposable project, turns a request into a task with a checkpoint, records real test evidence and shows it going stale when the code changes, then runs a shared repository whose delivery check accepts a passing change and rejects one that breaks only once combined with work already merged. No model, no network, nothing outside a temporary folder.
 
 ## Two ways in
 
@@ -83,7 +119,7 @@ Not covered, and said so: commands a person types in their own terminal, other t
 |---|---|---|
 | **Prepare a project** | Adopts the records a project already has, adds only what is missing marked "not yet assessed", appends the team's instruction block to `CLAUDE.md` and `AGENTS.md` without touching the text above it, sets up the security register. Repeat runs change nothing; `migrate` applies versioned changes with receipts and rollback; `remove` takes Skilliton out and keeps every record. | `scripts/prepare.test.mjs`; [project rehearsal](evidence/rehearsals/2026-09-16-projects/SUMMARY.md) |
 | **Continuity** | Task records with acceptance criteria and checkpoints; decision and lesson entries as one file each, so parallel contributors never collide; a journal that names an interrupted session next time. | `scripts/lifecycle.test.mjs`; [a real session in the VS Code extension](evidence/live/2026-09-21-owner-machine-session.md) |
-| **Guardrails** | The shell-command hook above, on Claude Code. Codex cannot ask from a hook, so there it refuses instead. | `scripts/guardrails.test.sh`, 549 checks; [live denials](evidence/live/2026-09-16-guardrails-force-push.md) |
+| **Guardrails** | The shell-command hook above, on Claude Code. Codex cannot ask from a hook, so there it refuses instead. | `scripts/guardrails.test.sh`, 676 checks; [live denials](evidence/live/2026-09-16-guardrails-force-push.md) |
 | **Dispatch into worktrees** | `skilliton dispatch` turns a lane plan into one git worktree per lane with a brief, a context ceiling and its own committed task record; `dispatch merge` brings each lane's records back and names conflicts instead of overwriting. | `scripts/dispatch.test.mjs`; [the first real two-lane dispatch](evidence/live/2026-09-21-dispatch.md), both lanes under their ceiling |
 | **Security evidence** | Observations tied to file fingerprints go stale when their sources change; applicability is decided by a named person; collectors gather test results, a secret-shape scan and the delivery policy; open gaps become backlog rows. A 15-control starter catalog references NIST SSDF 1.1 and OWASP ASVS 5.0.0. Evidence is not certification. | `scripts/security-evidence.test.mjs`; [catalog sources](docs/security-catalog-sources.md) |
 | **Company releases** | `company init` names a fork and points projects at it; `new-plugin`, `new-skill`, `import` add the company's skills; a release manifest hashes every installable file; approval is a signed tag; `verify` reports VERIFIED, TAMPERED, UNKNOWN VERSION, WITHDRAWN or NOT INSTALLED. | `scripts/release.test.mjs`; [signed release verified from a fresh clone](evidence/live/2026-09-21-private-repository.md), including install, update and verify from a private repository |
@@ -107,7 +143,7 @@ Each is recorded in [docs/BACKLOG.md](docs/BACKLOG.md) or [DECISIONS.md](DECISIO
 
 | Path | What it holds |
 |---|---|
-| `packs/base/plugins/` | The shipped product: four plugins, each with its hooks, skills, agents and a `.claude-plugin/plugin.json`. `workflow/runtime/` is the `skilliton` command (`commands/`, `lib/`). |
+| `packs/base/plugins/` | The shipped product: four plugins, each with its hooks, skills, agents and a `.claude-plugin/plugin.json`. `workflow/runtime/` is the `skilliton` command (`commands/`, `lib/`). [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is the code map: which module owns what and the path one session takes. |
 | `scripts/` | Every check CI runs, the demo, the rehearsals, the meter and the release tooling. `scripts/skilliton.mjs` runs the command from a checkout. |
 | `docs/` | The living records (status, backlog, handoff, decisions, lessons, contracts) and the guides. Every document says its Kind near the top: Living is kept current, Reference is a record that no longer changes. [docs/README.md](docs/README.md) is the index; every file under `docs/` is reachable from it, and a test says so. |
 | `evidence/` | What was measured, by date: live sessions under `live/`, scripted rehearsals under `rehearsals/`, skill evaluations by commit. |
