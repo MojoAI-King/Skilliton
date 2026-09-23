@@ -159,6 +159,9 @@ jobs:
       - name: The stop hook on a clean working tree (no checkpoint reminder; a dirty tree as before)
         run: node --test scripts/stop-clean-tree.test.mjs
 
+      - name: Every workflow hook honors .skilliton-off
+        run: node --test scripts/opt-out.test.mjs
+
       - name: Handoff writer
         run: node --test scripts/handoff-write.test.mjs
 

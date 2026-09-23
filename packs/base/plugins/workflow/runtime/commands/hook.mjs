@@ -8,12 +8,12 @@
 // the debug log; exit 2 from Stop or PreCompact blocks, so this command never exits 2.
 
 import { CONFIG_REL, ConfigError, resolveProject } from "../lib/config.mjs";
-import { GitError, appendEvent, gitTopLevel, mergesSince, readGitState, readJournal } from "../lib/journal.mjs";
+import { GitError, appendEvent, gitDir, gitTopLevel, mergesSince, readGitState, readJournal } from "../lib/journal.mjs";
 import { clip, gatherProjectState } from "../lib/lifecycle.mjs";
 import { countPromptItems, dispatchHoldReason, dispatchSuggestion, evaluateDispatchHold, evaluateStop, parseHookInput, sessionStartBlock, stopReason } from "../lib/session-hooks.mjs";
 import { currentTask } from "../lib/tasks.mjs";
 import { selfCommand } from "../lib/core.mjs";
-import { autoPrepare } from "../lib/auto-prepare.mjs";
+import { autoPrepare, optOutFile } from "../lib/auto-prepare.mjs";
 import { evaluateMaintain, maintainReason } from "../lib/maintain.mjs";
 import { LANE_FILE } from "../lib/dispatch.mjs";
 import { existsSync, statSync } from "node:fs";
@@ -34,7 +34,9 @@ on stdin (cwd, session_id, stop_hook_active, source, trigger, reason, prompt or 
                        when a prompt reads as dispatch.minItemsForLanes or more separate items, add one note
                        directing /workflow:dispatch before any code; otherwise print nothing
 
-The project is the Git top level of the JSON cwd (else the current folder). Outside a Git repository each hook
+The project is the Git top level of the JSON cwd (else the current folder). An empty .skilliton-off at its root, or a
+skilliton-off inside its Git folder, keeps every one of these hooks out: session-start prints one line saying so, the
+others print nothing, and none records an event. Outside a Git repository each hook
 prints one line saying Skilliton project state is unavailable, except user-prompt-submit, which runs on every prompt
 and so says nothing at all. A hook never blocks because of its own failure: it
 prints a one-line notice on stderr (session-start also prints it on stdout, the only stream the client adds to the
@@ -69,6 +71,18 @@ function readStdin({ timeoutMs = 3000, maxBytes = 1024 * 1024 } = {}) {
     process.stdin.on("error", finish);
   });
 }
+
+// The repository's opt-out (lib/auto-prepare.mjs optOutFile), or null. With one, every hook here leaves the repository
+// alone: session start says so in one line, and the others print nothing and record nothing. The Git folder cannot be
+// read only when git itself fails, and then the hook carries on as without the file, said on stderr.
+function optedOut(root) {
+  try { return optOutFile(root, gitDir(root)); } catch (e) {
+    console.error(`[workflow] Skilliton could not look for skilliton-off in the Git folder (${clip(e?.message ?? e, 200)}); the hooks run as without it`);
+    return null;
+  }
+}
+
+const leftAlone = (optOut) => `[workflow] Skilliton's workflow hooks leave this repository alone because ${optOut.where} (delete it to have them run again); the guardrails and the read guard, where installed, still run.\n`;
 
 const unavailable = (why) => { process.stdout.write(`[workflow] Skilliton project state is unavailable: ${why}.\n`); };
 
@@ -105,7 +119,7 @@ async function userPromptSubmit(input) {
   const counts = countPromptItems(input.prompt);
   if (counts.items < 1) return 0; // the common prompt, answered before any Git or configuration work
   const root = locateQuietly(input);
-  if (!root) return 0;
+  if (!root || optedOut(root)) return 0;
   let project;
   try { project = resolveProject(root, { allowLegacy: true }); } catch (e) {
     if (!(e instanceof ConfigError)) throw e;
@@ -127,6 +141,8 @@ async function userPromptSubmit(input) {
 async function sessionStart(input) {
   const root = locate(input);
   if (!root) return 0;
+  const optOut = optedOut(root);
+  if (optOut) { process.stdout.write(leftAlone(optOut)); return 0; }
   const now = new Date();
   const notes = [];
   if (input.problem) notes.push(`Hook input (not usable): ${input.problem}, so the current folder was used`);
@@ -153,7 +169,7 @@ async function sessionStart(input) {
 async function stop(input) {
   const root = locate(input);
   if (!root) return 0;
-  if (input.stopHookActive) return 0;
+  if (input.stopHookActive || optedOut(root)) return 0;
   let project;
   // A project not yet migrated from the earlier names still gets the checkpoint reminder; its records are unchanged.
   try { project = resolveProject(root, { allowLegacy: true }); } catch (e) {
@@ -233,7 +249,7 @@ function mtimeOf(path) {
 function recorder(event) {
   return async (input) => {
     const root = locate(input);
-    if (!root) return 0;
+    if (!root || optedOut(root)) return 0;
     // SessionEnd hooks share a small time budget in Claude Code (1.5 seconds by default, not raised by a plugin
     // hook's own timeout), so a slow `git status` is abandoned and the event is recorded without a fingerprint.
     const state = readGitState(root, event === "session-end" ? { statusTimeoutMs: 1000, tolerateStatusTimeout: true } : {});

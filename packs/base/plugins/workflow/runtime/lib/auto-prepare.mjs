@@ -25,6 +25,15 @@ const JOIN_SCHEMA = "skilliton.join/1";
 
 const OPT_OUT_FILE = ".skilliton-off";
 
+// The opt-out that applies to a repository, or null: an empty .skilliton-off at its root, which travels with the
+// repository, or a skilliton-off inside its Git folder, which never does (for a client's repository that must carry only
+// the client's software). Every workflow hook reads it through here (commands/hook.mjs), and so does auto-prepare.
+export function optOutFile(root, gitDirPath) {
+  if (existsSync(join(root, OPT_OUT_FILE))) return { where: `${OPT_OUT_FILE} is present at the repository root` };
+  if (existsSync(join(gitDirPath, OPT_OUT_FILE.slice(1)))) return { where: `${OPT_OUT_FILE.slice(1)} is present inside the Git folder` };
+  return null;
+}
+
 const offFor = (value) => /^(off|0|false|no)$/i.test(String(value ?? "").trim());
 
 // Every company that joined this machine, read leniently: { company, prepare } per receipt whose schema and company
@@ -63,14 +72,13 @@ export async function autoPrepare(root, { env = process.env } = {}) {
   if (!receipts.length) return null;
   const companies = receipts.map((r) => r.company).join(" and ");
   const prepared = project.layoutVersion !== null;
-  // Two places for the opt-out: a file at the root, which travels with the repository, or one inside the Git folder,
-  // which never does (for a client's repository that must carry only the client's software).
+  // The session-start hook reads the opt-out before it calls this and then calls nothing; this stays for any other
+  // caller, so auto-prepare never writes into a repository that opted out.
   const repo = resolveGitRoot(root);
-  const optOut = [join(root, OPT_OUT_FILE), join(repo.gitDir, OPT_OUT_FILE.slice(1))].find((p) => existsSync(p));
+  const optOut = optOutFile(root, repo.gitDir);
   if (optOut) {
     if (prepared) return null;
-    const where = optOut.startsWith(repo.gitDir) ? `${OPT_OUT_FILE.slice(1)} is present inside the Git folder` : `${OPT_OUT_FILE} is present at the repository root`;
-    return { note: `Not prepared on purpose: ${where}, so this repository is left as it is (delete that file to have it prepared at the next session start)`, prepared: false, skipOffer: true };
+    return { note: `Not prepared on purpose: ${optOut.where}, so this repository is left as it is (delete that file to have it prepared at the next session start)`, prepared: false, skipOffer: true };
   }
   const auto = receipts.filter((r) => r.prepare !== "offer");
   if (!auto.length) {

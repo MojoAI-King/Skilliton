@@ -777,27 +777,27 @@ test("on a joined machine, session start prepares a repository that is not prepa
   assert.equal(second.code, 0, second.all);
   assert.doesNotMatch(second.out, /Prepared just now/, "a prepared project is not prepared again");
 
-  // The opt-out at the root: left alone, said so, and no offer either.
+  // The opt-out at the root: not prepared, no offer, one line saying the workflow hooks leave it alone (N35; more in opt-out.test.mjs).
   const q = initRepo(join(dir, "q"), env);
   writeFileSync(join(q, ".skilliton-off"), "");
   const opted = start(q, "b1");
-  assert.match(opted.out, /^- Not prepared on purpose: \.skilliton-off is present at the repository root, so this repository is left as it is \(delete that file to have it prepared at the next session start\)$/m);
-  assert.doesNotMatch(opted.out, /Not prepared \(needs attention\)/);
+  assert.match(opted.out, /^\[workflow\] Skilliton's workflow hooks leave this repository alone because \.skilliton-off is present at the repository root \(delete it to have them run again\); the guardrails and the read guard, where installed, still run\.\n$/);
   assert.equal(existsSync(join(q, ".skilliton")), false);
   rmSync(join(q, ".skilliton-off"));
 
   // The opt-out inside the Git folder, for a repository that must carry nothing of ours.
   writeFileSync(join(gitDir(q, env), "skilliton-off"), "");
   const inGit = start(q, "b2");
-  assert.match(inGit.out, /^- Not prepared on purpose: skilliton-off is present inside the Git folder/m);
+  assert.match(inGit.out, /^\[workflow\] Skilliton's workflow hooks leave this repository alone because skilliton-off is present inside the Git folder/);
   assert.equal(existsSync(join(q, ".skilliton")), false);
+  rmSync(join(gitDir(q, env), "skilliton-off"));
   // The stop reminder says nothing in an unprepared repository, even when a reminder would otherwise be due.
+  assert.equal(start(q, "b2", env).code, 0);
   writeFileSync(join(q, "notes.md"), "changed\n");
   backdate(q, env, (e) => e.event === "session-start" && e.session === "b2", 30);
   const stop = hook(q, "stop", { session_id: "b2" }, jenv);
   assert.equal(stop.code, 0, stop.all);
   assert.equal(stop.out, "", "no block and no text in an unprepared repository");
-  rmSync(join(gitDir(q, env), "skilliton-off"));
 
   // Off for the session: said so, the offer stands.
   const off = start(q, "b3", { ...jenv, SKILLITON_AUTO_PREPARE: "off" });
