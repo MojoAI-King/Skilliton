@@ -63,7 +63,9 @@ export const ALLOWED_SECTIONS = [
 // Lines in one named file that may spell the earlier names, for a stated reason. Code that can import
 // runtime/lib/legacy-names.mjs uses its constants instead and has no entry here.
 export const ALLOWED_FILE_LINES = [
-  ["packs/base/plugins/guardrails/hooks/guard-bash.sh", /\.skillgate\/config\.json|SKILLGATE_GUARDRAILS|earlier Skillgate/, "a shell hook: keeps an unmigrated project's guardrail settings and names an earlier variable"],
+  ["packs/base/plugins/guardrails/hooks/guard-bash.sh", /\.skillgate\/config\.json|\.skillgate\*config\.json|\/\.skillgate[|)]|SKILLGATE_GUARDRAILS|earlier Skillgate/, "a shell hook: keeps an unmigrated project's guardrail settings, asks before a command writes them, and names an earlier variable"],
+  ["packs/base/plugins/guardrails/hooks/managed-block-guard.mjs", /\.skillgate\/config\.json|"\.skillgate"/, "a write hook: refuses turning a rule off in an unmigrated project's guardrail settings, which guard-bash.sh still reads"],
+  ["scripts/guardrails-bypass.test.sh", /\.skillgate\/config\.json/, "tests that a write to an unmigrated project's guardrail settings asks"],
   ["scripts/scrub-check.sh", /\.config\/skillgate\/denylist/, "a shell script: names a denylist left at the earlier default location"],
   ["scripts/setup.mjs", /backups\/skillgate|"backups", "skillgate"/, "a standalone script: names status line backups left at the earlier default location"],
   ["scripts/delivery.test.mjs", /\.skillgate\/delivery\.json|skillgate\.delivery\/1/, "tests a shared branch whose policy is still at the earlier path"],

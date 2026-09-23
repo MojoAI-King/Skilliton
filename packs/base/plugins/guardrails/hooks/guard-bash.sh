@@ -500,7 +500,6 @@ split_redirects() { # moves the marked redirection targets out of SEGW into SEGR
       "$RT"*)
         t=${t#"$RT"}
         names_config "$t" "$EFF_DIR" && ask "$CONFIG_ASK"
-        case "$t" in /dev/*) continue ;; esac
         resolve_dir "$EFF_DIR" "$t"; r=$RESOLVED
         [ -z "$r" ] || { normalize_path "$r"; SEGR[${#SEGR[@]}]=$NORM; } ;;
       *) words[${#words[@]}]=$t ;;
