@@ -23,7 +23,9 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #          checkout -- <path>, checkout -B, switch -f, switch --discard-changes, switch -C, restore <path>
 #          (without --staged), rm -f, worktree remove --force, stash drop, stash clear, branch -D, and rm -rf .git
 #          a force-push or rm -rf whose branch or path holds a variable it cannot resolve; HUSKY=0, SKIP= or
-#          LEFTHOOK=0 in front of a git commit;
+#          LEFTHOOK=0 in front of a git commit; a shell fed from a pipe, a decoder or a file (| sh, sh -s, base64 -d | sh,
+#          sh <file> other than a committed check script under scripts/, source, ".", eval of $( ), xargs sh, env -S),
+#          because what it runs cannot be read here (N90);
 #          and a command that writes the settings file itself (.skilliton/config.json), because a rule
 #          turned off there is a person's decision (the Write and Edit half is managed-block-guard.mjs); a command that
 #          writes the client's settings file (.claude/settings.json or settings.local.json) with hooks,
@@ -45,7 +47,8 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #   substitution inside double quotes, or git aliases from a configuration file (one set with -c on the command
 #   itself is read as what it runs; a $( inside double quotes is read as the
 #   command it is, and $(( )) is arithmetic, never a heredoc; an unclosed one asks); a shell, eval or xargs string that
-#   names git asks instead of allowing in silence. It stops ordinary and accidental
+#   names git asks instead of allowing in silence, and a shell whose commands come from a pipe, its input or a file,
+#   source, ".", eval of $( ), xargs sh and env -S ask whatever they name (N90). It stops ordinary and accidental
 #   commands, not a command someone has deliberately hidden.
 #   It sees the tree as it is BEFORE the command runs: a secret written and staged in the same
 #   command (printf ... > f && git add f) is not scanned, so an add or commit naming a path an
@@ -114,6 +117,11 @@ mentions_removal() { [[ $1 =~ $REMOVE_WORD_RE ]] || [[ $1 =~ $RECORD_HINT_RE ]];
 # The editors that write a file back over itself (N89), read only so that one aimed at a record can be seen.
 EDIT_WORD_RE='(^|[^A-Za-z0-9_.-]|\\[bfnrt])(sed|gsed|perl|awk|gawk|ex|ed)([^A-Za-z0-9_/-]|$)'
 mentions_editor() { [[ $1 =~ $EDIT_WORD_RE ]]; }
+# The programs that run commands this hook cannot see (N90): a shell fed from a pipe, a decoder or a file, source and
+# its "." spelling, eval, xargs, and env -S. The dot is a command only at the start of one, after a space or a separator.
+SHELL_WORD_RE='(^|[^A-Za-z0-9_.-]|\\[bfnrt])(sh|bash|zsh|dash|ksh|source|eval|xargs|env)([^A-Za-z0-9_/-]|$)'
+DOT_WORD_RE='(^|[;&|({[:space:]]|\\[nt])[.][[:space:]]+[^[:space:]]'
+mentions_shell() { [[ $1 =~ $SHELL_WORD_RE ]] || [[ $1 =~ $DOT_WORD_RE ]]; }
 # The settings file the rules come from (N30): a command that names both parts of its path is read, so a write to it
 # can be seen. A folder name alone costs nothing more than before. Letter case is folded: on a case-insensitive disk
 # (macOS, Windows) .Skilliton/Config.json is the same file.
@@ -802,9 +810,11 @@ analyze_segment() {
         esac
         case "$wrapper $name" in
           'env -S'|'env --split-string')
-            # env -S runs a string as a command line, which is the same class as bash -c
+            # env -S runs a string as a command line, which is the same class as bash -c; whatever it names (N90)
             if mentions_git "$val" || mentions_removal "$val"; then
               ask "Check first: this command hands a string to env -S, which runs it as a command, and guardrails cannot read inside such a string. Read it yourself and confirm only if it is what you intend; to have it checked, run the command directly instead."
+            else
+              shell_ask "env -S splits a string into a command line and runs it"
             fi
             EFF_DIR=$saved_dir; return 0 ;;
           'env -C'|'env --chdir'|'sudo -D'|'sudo --chdir') resolve_dir "$EFF_DIR" "$val"; EFF_DIR=$RESOLVED ;;
@@ -849,7 +859,10 @@ analyze_segment() {
       rsync|*/rsync) check_config_words $((k + 1)) dest; check_rsync $((k + 1)) ;;
       tee|sponge|*/tee|*/sponge) check_config_words $((k + 1)) any; check_overwrite $((k + 1)) tee ;;
       dd|*/dd) check_config_words $((k + 1)) any; check_overwrite $((k + 1)) any ;;
-      sh|bash|zsh|dash|ksh|eval|xargs|*/sh|*/bash|*/zsh|*/dash|*/ksh|*/xargs) analyze_shell_string $((k + 1)) ;;
+      sh|bash|zsh|dash|ksh|*/sh|*/bash|*/zsh|*/dash|*/ksh) analyze_shell $((k + 1)) ;;
+      eval) analyze_eval $((k + 1)) ;;
+      xargs|*/xargs) analyze_xargs $((k + 1)) ;;
+      source|.) shell_ask "${SEGW[$k]} runs the file ${SEGW[$((k + 1))]:-it is given} in this shell" ;;
       cp|install|ln|*/cp|*/install|*/ln) check_config_words $((k + 1)) dest; check_overwrite $((k + 1)) dest ;;
       touch|mkdir|*/touch|*/mkdir) check_config_words $((k + 1)) any ;;
       sed|gsed|*/sed|*/gsed) check_config_words $((k + 1)) inplace; check_inplace $((k + 1)) sed ;;
@@ -899,6 +912,93 @@ analyze_shell_string() { # analyze_shell_string <index after the shell or eval w
   if mentions_hookfile "$rest"; then guarded_write "$rest" shell; [ -z "$ASK_REASON" ] || return 0; fi
   mentions_git "$rest" || return 0
   ask "Check first: this command hands a string that names git to a shell or to eval, and guardrails cannot read inside such a string. Read it yourself and confirm only if it is what you intend; to have it checked, run the git command directly instead."
+}
+
+# A shell that reads its commands from somewhere this hook cannot see (N90): a pipe (curl ... | sh, base64 -d | sh),
+# its input (sh -s, a heredoc), a file that is not one of the project's committed check scripts, source and ".", eval
+# of text made when the command runs, xargs handing its input to a shell, and env -S.
+shell_ask() { # shell_ask <what the shell is given>
+  ask "Check first: guardrails cannot read what the shell will run here: $1. It sees only the command text, so what arrives through a pipe, a decoder, a file or a string made while the command runs is not checked. Read what it will run yourself and confirm only if it is what you intend; to have it checked, run those commands directly instead."
+}
+
+known_check_script() { # known_check_script <word>: 0 when the word is a file under the project's scripts/ folder that
+  # git tracks, with no uncommitted change, not a symbolic link, and not named anywhere else in this command (so a cp,
+  # a redirection or a tee earlier in the same line cannot have replaced it)
+  local f proj rel base count=0 rest
+  resolve_dir "$EFF_DIR" "$1"; [ -n "$RESOLVED" ] || return 1
+  normalize_path "$RESOLVED"; f=$NORM
+  normalize_path "$PROJECT_DIR"; proj=$NORM
+  case "$f" in "$proj"/scripts/?*) ;; *) return 1 ;; esac
+  [ -f "$f" ] && [ ! -L "$f" ] || return 1
+  base=${f##*/}; rest=$IN_CMD
+  while :; do case "$rest" in *"$base"*) count=$((count + 1)); rest=${rest#*"$base"} ;; *) break ;; esac; done
+  [ "$count" -le 1 ] || return 1
+  rel=${f#"$proj"/}
+  git -C "$proj" ls-files --error-unmatch -- "$rel" >/dev/null 2>&1 || return 1
+  git -C "$proj" diff --quiet HEAD -- "$rel" >/dev/null 2>&1 || return 1
+  return 0
+}
+
+analyze_shell() { # analyze_shell <index after sh, bash, zsh, dash or ksh>
+  local k=$1 n=${#SEGW[@]} w shell=${SEGW[$(($1 - 1))]##*/} cflag=0 sflag=0 nflag=0 file="" rest l
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}; k=$((k + 1))
+    case "$w" in
+      --version|--help) return 0 ;;
+      --rcfile|--init-file) k=$((k + 1)); continue ;;
+      --|-) break ;;
+      --*) continue ;;
+      -o|+o|-O|+O) k=$((k + 1)); continue ;;
+      [-+]?*)
+        rest=${w#?}
+        while [ -n "$rest" ]; do
+          l=${rest%"${rest#?}"}; rest=${rest#?}
+          case "$w:$l" in
+            -*:c) cflag=1 ;;
+            -*:s) sflag=1 ;;
+            -*:n) nflag=1 ;;
+            *:[oO]) [ -n "$rest" ] || k=$((k + 1)); break ;;
+          esac
+        done
+        continue ;;
+    esac
+    file=$w; break
+  done
+  [ -n "$file" ] || [ "$k" -ge "$n" ] || file=${SEGW[$k]}   # the word after -- or -
+  if [ "$cflag" = 1 ]; then analyze_shell_string "$1"; return 0; fi
+  if [ "$nflag" = 1 ] && [ "$sflag" = 0 ]; then return 0; fi   # -n reads and checks, and runs nothing
+  if [ "$sflag" = 1 ] || [ -z "$file" ]; then shell_ask "$shell reads its commands from its input (a pipe, a heredoc or a redirection)"; return 0; fi
+  if known_check_script "$file"; then analyze_shell_string "$1"; return 0; fi
+  shell_ask "$shell runs the file $file, which is not one of this project's committed check scripts under scripts/"
+}
+
+analyze_eval() { # analyze_eval <index after eval>: text made while the command runs ($( ), a variable, a backtick) asks
+  local k=$1 n=${#SEGW[@]} w
+  [ "$k" -lt "$n" ] || { shell_ask "eval runs text this hook cannot see (a backtick, or nothing it can read)"; return 0; }
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}; k=$((k + 1))
+    case "$w" in *'$'*|*'`'*) shell_ask "eval runs text that is only made when the command runs ($w)"; return 0 ;; esac
+  done
+  analyze_shell_string "$1"
+}
+
+analyze_xargs() { # analyze_xargs <index after xargs>: xargs hands its input to the command it names
+  local k=$1 n=${#SEGW[@]} w cmd=""
+  while [ "$k" -lt "$n" ]; do
+    w=${SEGW[$k]}; k=$((k + 1))
+    case "$w" in
+      --) cmd=${SEGW[$k]:-}; break ;;
+      --arg-file|--delimiter|--max-args|--max-procs|--max-chars|--process-slot-var) k=$((k + 1)); continue ;;
+      --*) continue ;;
+      -[IJLnPsEdaRS]) k=$((k + 1)); continue ;;
+      -*) continue ;;
+    esac
+    cmd=$w; break
+  done
+  case "${cmd##*/}" in
+    sh|bash|zsh|dash|ksh|eval|source|.|env) shell_ask "xargs hands its input to $cmd"; return 0 ;;
+  esac
+  analyze_shell_string "$1"
 }
 
 track_cd() { # track_cd <index of the first argument>
@@ -2424,7 +2524,7 @@ main_pretooluse() {
   # Input longer than the cap (N88) skips the quick look at the raw text, which alone costs a noticeable part of a
   # second on a few megabytes; the command is read out of it below and asks there when it is over the cap too.
   if [ "${#GUARD_RAW}" -le "$CMD_MAX_BYTES" ]; then
-    mentions_git "$GUARD_RAW" || mentions_removal "$GUARD_RAW" || mentions_config "$GUARD_RAW" || mentions_hookfile "$GUARD_RAW" || mentions_editor "$GUARD_RAW" || exit 0
+    mentions_git "$GUARD_RAW" || mentions_removal "$GUARD_RAW" || mentions_config "$GUARD_RAW" || mentions_hookfile "$GUARD_RAW" || mentions_editor "$GUARD_RAW" || mentions_shell "$GUARD_RAW" || exit 0
   fi
   # BASH_ENV names a file bash runs before the first line of any script it starts, including this one, so a file
   # that only says `exit 0` ends this check before it begins and the client reads the silence as an allow. Nothing
@@ -2454,7 +2554,7 @@ main_pretooluse() {
     emit_decision ask "Check first: this command is too long for guardrails to read: it is ${#IN_CMD} bytes, and the limit is $CMD_MAX_BYTES bytes (64 KB), because reading one longer than that can run past the hook's time limit. Nothing in it was checked. Read it yourself, or split it into shorter commands, and confirm only if every part is what you intend."
     exit 0
   fi
-  mentions_git "$IN_CMD" || mentions_removal "$IN_CMD" || mentions_config "$IN_CWD $IN_CMD" || mentions_hookfile "$IN_CWD $IN_CMD" || mentions_editor "$IN_CMD" || exit 0
+  mentions_git "$IN_CMD" || mentions_removal "$IN_CMD" || mentions_config "$IN_CWD $IN_CMD" || mentions_hookfile "$IN_CWD $IN_CMD" || mentions_editor "$IN_CMD" || mentions_shell "$IN_CMD" || exit 0
   for t in git awk grep find; do
     if ! command -v "$t" >/dev/null 2>&1; then
       emit_decision ask "Check first: guardrails cannot inspect git commands because $t is not installed, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
