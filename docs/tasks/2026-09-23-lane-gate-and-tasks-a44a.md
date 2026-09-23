@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/gate-and-tasks-0923
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T07:06:49.314Z
+- **Updated:** 2026-09-23T07:14:31.794Z
 
 ## Request
 
@@ -30,9 +30,16 @@ not yet written
 - **Next:** N69: checkpoint growth note in commands/checkpoint.mjs
 - **Git:** lane/gate-and-tasks-0923 @ b05f802, 0 uncommitted
 
+### 2026-09-23T07:14:31.794Z
+
+- **State:** N69 done: checkpoint --apply notices a task that has grown past its start (count or age), never blocking
+- **Evidence:** node --test scripts/checkpoint-growth.test.mjs (4/4 pass); node --test scripts/lifecycle.test.mjs (59/59 pass, unbroken); node --test scripts/records.test.mjs (11/11 pass, unbroken)
+- **Next:** lane scope complete: run the full checks.mjs suite and write LANE_REPORT.md
+- **Git:** lane/gate-and-tasks-0923 @ a86bcd6, 0 uncommitted
+
 ## Handoff
 
-- **State:** N68 done: gate's failing verdict names untracked/tracked-changed files and load average, with the caveat sentence. Evidence: node --test scripts/gate-context.test.mjs (5/5 pass) and node --test scripts/gate.test.mjs (18/18 pass, unbroken).
-- **Next:** N69: checkpoint growth note in commands/checkpoint.mjs
+- **State:** N69 done: checkpoint --apply notices a task that has grown past its start (count or age), never blocking. Evidence: node --test scripts/checkpoint-growth.test.mjs (4/4 pass); node --test scripts/lifecycle.test.mjs (59/59 pass, unbroken); node --test scripts/records.test.mjs (11/11 pass, unbroken).
+- **Next:** lane scope complete: run the full checks.mjs suite and write LANE_REPORT.md
 - **Blocked:** nothing
 - **Watch out:** nothing known
