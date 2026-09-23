@@ -78,7 +78,7 @@ claude plugin uninstall code-quality@skilliton
 claude plugin marketplace remove skilliton
 ```
 
-**Two lines you may see that are not errors.** `[context-hygiene] SKILLITON_LESSONS not set or file missing; injecting nothing.` means the optional personal checklist is not set up; it is reported rather than hidden. `skilliton doctor` on this path marks the base plugin check UNVERIFIED and exits 1, because it compares against a company skills repository that path 2 does not have; the other lines are what to read.
+**A line you may see that is not an error.** `skilliton doctor` on this path marks the base plugin check UNVERIFIED and exits 1, because it compares against a company skills repository that path 2 does not have; the other lines are what to read. The context-hygiene plugin prints nothing at session start unless `SKILLITON_LESSONS` names a personal checklist file; if it names one that cannot be read, a `[context-hygiene]` line says so and gives the path.
 
 ## 3. Roll it out to a team
 

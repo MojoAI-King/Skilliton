@@ -41,7 +41,8 @@ tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 OUT="$tmp/output.txt"
 
 NOT_FOUND='[context-hygiene] checklist heading not found in SKILLITON_LESSONS; injecting nothing. (Reported, not silent.)'
-NOT_SET='[context-hygiene] SKILLITON_LESSONS not set or file missing; injecting nothing. (Reported, not silent.)'
+# The unreadable notice names the path it could not read (N38); unset prints nothing at all.
+unreadable() { printf '[context-hygiene] SKILLITON_LESSONS is set, but %s is not a file this session can read; injecting nothing. (Reported, not silent.)' "$1"; }
 
 run_all() {
   local fails=0 L S orig fix ob fb out rc
@@ -110,8 +111,24 @@ run_all() {
   check_exact "(c) missing-heading control" "$NOT_FOUND" \
     env -u SKILLITON_CHECKLIST_HEADING SKILLITON_LESSONS="$tmp/no-heading.md" bash "$HOOK"
 
-  check_exact "(d) SKILLITON_LESSONS unset" "$NOT_SET" \
+  check_exact "(d) SKILLITON_LESSONS unset prints nothing" "" \
     env -u SKILLITON_LESSONS -u SKILLITON_CHECKLIST_HEADING bash "$HOOK"
+
+  check_exact "(d2) SKILLITON_LESSONS set to an empty value prints nothing" "" \
+    env -u SKILLITON_CHECKLIST_HEADING SKILLITON_LESSONS= bash "$HOOK"
+
+  check_exact "(d3) SKILLITON_LESSONS names a missing file" "$(unreadable "$tmp/no-such-lessons.md")" \
+    env -u SKILLITON_CHECKLIST_HEADING SKILLITON_LESSONS="$tmp/no-such-lessons.md" bash "$HOOK"
+
+  printf '# LESSONS (control)\n\n## The new-app wiring checklist\n- step\n' > "$tmp/unreadable.md"
+  chmod 000 "$tmp/unreadable.md"
+  if [ -r "$tmp/unreadable.md" ]; then
+    echo "NOT RUN (d4) unreadable file: this user can read a mode-000 file (root?), so the case cannot be staged here"
+  else
+    check_exact "(d4) SKILLITON_LESSONS names a file that cannot be read" "$(unreadable "$tmp/unreadable.md")" \
+      env -u SKILLITON_CHECKLIST_HEADING SKILLITON_LESSONS="$tmp/unreadable.md" bash "$HOOK"
+  fi
+  chmod 600 "$tmp/unreadable.md"
 
   printf '# LESSONS (control)\n\n## The new-app wiring checklist\n\n\n## Lesson 1\ntext\n' > "$tmp/empty-body.md"
   check_exact "(e) heading present, empty checklist" "$NOT_FOUND" \
