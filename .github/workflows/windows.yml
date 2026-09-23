@@ -181,6 +181,14 @@ jobs:
           . "$HOME/guard-cases.sh"
           [ "$fails" = 0 ] && { echo "PASS guard with jq -b (4 of 4)"; exit 0; }
           echo "FAIL guard with jq -b ($fails of 4 wrong)"; exit 1
+      - name: "diagnosis: handoff-hook.test and guardrails.test with jq writing LF (jq -b)"
+        continue-on-error: true
+        run: |
+          set +e
+          # What still fails once the jq line ends are fixed; python3 prints CRLF too in the handoff hook, so its case stays.
+          export PATH="$HOME/jq-lf:$PATH"; cd "$HOME/First Last/skilliton"
+          bash scripts/handoff-hook.test.sh > "$HOME/hh-lf.txt" 2>&1; echo "handoff-hook.test exit $?"; grep '^FAIL' "$HOME/hh-lf.txt"; tail -1 "$HOME/hh-lf.txt"
+          bash scripts/guardrails.test.sh > "$HOME/gr-lf.txt" 2>&1; echo "guardrails.test exit $?"; grep '^FAIL' "$HOME/gr-lf.txt" | head -60; tail -1 "$HOME/gr-lf.txt"
       - name: A delivery check started by a bare program name
         continue-on-error: true
         run: |
