@@ -231,6 +231,16 @@ expect "negative: the usual commit with a heredoc message" allow "$RF" $'git com
 expect "negative: a quoted \$( ) that runs nothing risky" allow "$RF" 'git commit -m "release $(date +%Y) notes"'
 expect "negative: arithmetic, then an ordinary push"  allow "$RF" $'echo $((1<<3)) "$((2<<n))"\ngit push origin feature'
 
+# ---------------------------------------------------------------- N33
+section "N33: a GIT_DIR= or GIT_WORK_TREE= prefix chooses the repository, as --git-dir does"
+expect "GIT_DIR=<main repo>/.git git push -f origin HEAD (run from a feature checkout)" deny "$RF" "GIT_DIR=$R/.git git push -f origin HEAD"
+expect "GIT_DIR=../repo/.git (relative) git push -f origin HEAD" deny "$RF" 'GIT_DIR=../repo/.git git push -f origin HEAD'
+expect "env GIT_DIR=<main repo>/.git git push -f"      deny "$RF" "env GIT_DIR=$R/.git git push -f"
+expect "GIT_DIR=... GIT_WORK_TREE=... git push -f"      deny "$RF" "GIT_DIR=$R/.git GIT_WORK_TREE=$R git push -f"
+expect "--git-dir=<main repo>/.git (as before)"        deny "$RF" "git --git-dir=$R/.git push -f origin HEAD"
+expect "negative: GIT_DIR=<feature repo>/.git git push -f origin HEAD" allow "$R" "GIT_DIR=$RF/.git git push -f origin HEAD"
+expect "negative: FOO=1 git push -f origin HEAD (on feature)" allow "$RF" 'FOO=1 git push -f origin HEAD'
+
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
 echo "RESULT: FAIL ($fails failed, $oks ok)"; exit 1

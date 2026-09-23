@@ -66,7 +66,7 @@ PROTECT_FOLDERS=$'docs/tasks\ndocs/decisions\ndocs/lessons'
 INSTRUCTION_FILES=$'CLAUDE.md\nAGENTS.md'
 NORM=""; PT_WHAT=""; PHYS=""
 DENY_REASON=""; ASK_REASON=""
-TOKS=(); SEGW=(); SEGR=(); ARGS=(); GARGS=(); PA=(); FILES=()
+TOKS=(); SEGW=(); SEGR=(); ARGS=(); GARGS=(); PFX_GARGS=(); PA=(); FILES=()
 RT=$'\037'; REDIRS=""; UNSURE_MARK=$'\035'; TOK_UNSURE=0
 EFF_DIR=""; GDIR=""; RESOLVED=""; CUR_BRANCH=""; SC_LETTERS=""; SC_NEXT=0
 SN_RULE=""; HIT_FILE=""; HIT_RULE=""; REASON=""; ESCAPED=""
@@ -582,6 +582,7 @@ wrapper_values() {
 
 analyze_segment() {
   local n=${#SEGW[@]} k=0 w wrapper="" name val last duration=0 saved_dir=$EFF_DIR
+  PFX_GARGS=()
   # skip what can stand in front of a command: VAR=value, the wrappers that run the rest of the line and their
   # options (with the value an option takes), timeout's duration, and keywords
   while [ "$k" -lt "$n" ]; do
@@ -624,6 +625,13 @@ analyze_segment() {
       *=*)
         name=${w%%=*}
         case "$name" in ''|[0-9]*|*[!A-Za-z0-9_]*) break ;; esac
+        # GIT_DIR= and GIT_WORK_TREE= choose the repository the way --git-dir and --work-tree do, so they become those
+        # arguments (the path taken from where the command runs, as the variable is)
+        case "$name" in
+          GIT_DIR|GIT_WORK_TREE)
+            val=${w#*=}; resolve_dir "$EFF_DIR" "$val"; [ -n "$RESOLVED" ] && val=$RESOLVED
+            if [ "$name" = GIT_DIR ]; then PFX_GARGS[${#PFX_GARGS[@]}]="--git-dir=$val"; else PFX_GARGS[${#PFX_GARGS[@]}]="--work-tree=$val"; fi ;;
+        esac
         k=$((k + 1)); continue ;;
     esac
     if [ "$duration" = 1 ]; then duration=0; k=$((k + 1)); continue; fi
@@ -703,7 +711,7 @@ track_cd() { # track_cd <index of the first argument>
 analyze_git() { # analyze_git <index after the word git>
   local k=$1 n=${#SEGW[@]} w
   GDIR=$EFF_DIR
-  GARGS=()
+  GARGS=(${PFX_GARGS[@]+"${PFX_GARGS[@]}"})
   while [ "$k" -lt "$n" ]; do
     w=${SEGW[$k]}
     case "$w" in
