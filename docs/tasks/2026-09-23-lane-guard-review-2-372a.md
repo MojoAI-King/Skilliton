@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/guard-review-2-0923b
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T21:13:07.587Z
+- **Updated:** 2026-09-23T21:30:31.311Z
 
 ## Request
 
@@ -77,9 +77,16 @@ not yet written
 - **Next:** full project check (node scripts/checks.mjs), then LANE_REPORT.md
 - **Git:** lane/guard-review-2-0923b @ 46a32dd, 3 uncommitted
 
+### 2026-09-23T21:30:31.311Z
+
+- **State:** all seven items committed; N90 fix routes the check-script git calls through g()
+- **Evidence:** node scripts/checks.mjs exit 0 (79 pass, 0 fail, 2 skipped of 81); the first full run failed git-config.test.mjs on the N90 git calls, fixed in a0d6d86
+- **Next:** merge in the main window
+- **Git:** lane/guard-review-2-0923b @ a0d6d86, 0 uncommitted
+
 ## Handoff
 
-- **State:** N94 done: the hook header and the detect_client comment say Codex runs no hooks shipped in a plugin and that a team's own Codex hook may point at the script, with every ask a deny; the skill's Codex sentence says the same. Evidence: node scripts/docs.test.mjs exit 0; bash -n on the hook exit 0.
-- **Next:** full project check (node scripts/checks.mjs), then LANE_REPORT.md
+- **State:** all seven items committed; N90 fix routes the check-script git calls through g(). Evidence: node scripts/checks.mjs exit 0 (79 pass, 0 fail, 2 skipped of 81); the first full run failed git-config.test.mjs on the N90 git calls, fixed in a0d6d86.
+- **Next:** merge in the main window
 - **Blocked:** nothing
 - **Watch out:** nothing known
