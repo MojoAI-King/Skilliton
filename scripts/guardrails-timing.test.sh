@@ -153,11 +153,29 @@ R="$TMP/repo"
 new_repo "$R" || { echo "FAIL: could not build fixture repository $R"; exit 1; }
 
 # ---------------------------------------------------------------- moved from scripts/guardrails.test.sh (N93)
-section "large commands finish well inside the 10 second hook timeout"
-big_body=$(printf 'git push --force origin main\n%.0s' $(seq 1 30000))
+# Resized to under the 64 KB cap by N88: at their earlier sizes (870 KB, 400 KB) they now ask unread, below.
+section "large commands under the 64 KB cap finish well inside the 10 second hook timeout"
+big_body=$(printf 'git push --force origin main\n%.0s' $(seq 1 2000))
 timed_expect 5000 both "heredoc of $(printf '%s' "$big_body" | wc -c | tr -d ' ') bytes" allow "$R" "cat <<'EOF' > big.txt"$'\n'"$big_body"$'\n'"EOF"
-long_line=$(head -c 400000 /dev/zero | tr '\0' 'x')
-timed_expect 5000 both "400000-byte single line, then a force-push" deny "$R" "echo \"$long_line\" && git push --force origin main"
+long_line=$(head -c 60000 /dev/zero | tr '\0' 'x')
+timed_expect 5000 both "60000-byte single line, then a force-push (still read)" deny "$R" "echo \"$long_line\" && git push --force origin main"
+prose=$(printf 'the quick brown fox jumps over the lazy dog %.0s' $(seq 1 1400))
+timed_expect 5000 both "60 KB of ordinary text, then git status (its real decision)" allow "$R" "echo \"$prose\" && git status"
+
+# ---------------------------------------------------------------- N88
+section "N88: a command text over 64 KB asks at once, unread"
+three_mb=$(head -c 3000000 /dev/zero | tr '\0' 'x')
+cmd="echo \"$three_mb\" && git push -f origin main"
+timed_expect 1000 each "3 MB of text, then a forced push (base: 13.5 s for 1,200 KB)" ask "$R" "$cmd"
+reason_has "  the reason says it is too long to read" "too long for guardrails to read"
+reason_has "  the reason says how long it is" "it is ${#cmd} bytes"
+big_body=$(printf 'git push --force origin main\n%.0s' $(seq 1 30000))
+timed_expect 1000 each "the earlier 870 KB heredoc" ask "$R" "cat <<'EOF' > big.txt"$'\n'"$big_body"$'\n'"EOF"
+filler=$(head -c 3000000 /dev/zero | tr '\0' 'y')
+timed_expect 1000 each "3 MB that names nothing the guard reads still asks" ask "$R" "echo \"$filler\""
+edge=$(head -c $((65536 - 17)) /dev/zero | tr '\0' 'z')
+expect "exactly 65536 bytes, then git status, is read (allow)" allow "$R" "echo $edge; git status"
+expect "65537 bytes asks" ask "$R" "echo $edge; git status "
 
 echo
 if [ "$fails" -eq 0 ]; then

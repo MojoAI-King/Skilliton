@@ -241,7 +241,7 @@ NOREPO="$TMP/not-a-repo"; mkdir -p "$NOREPO"      # a folder that is not a git r
 NOFIND="$TMP/bin-nofind"; make_bin "$NOFIND" bash cat env jq git awk grep
 BADAWK="$TMP/bin-badawk"; make_bin "$BADAWK" bash cat env jq git grep find
 printf '#!/bin/sh\nexit 1\n' > "$BADAWK/awk"; chmod +x "$BADAWK/awk"   # an awk that always fails
-TOO_LARGE=$(head -c 4000000 /dev/zero | tr '\0' 'x')   # with "git status " in front, over the hook's size limit
+TOO_LARGE=$(head -c 4000000 /dev/zero | tr '\0' 'x')   # with "git status " in front, far over the 64 KB cap (N88)
 
 # ---------------------------------------------------------------- packaging
 section "packaging: hooks.json and executable bits (Claude Code runs the scripts by path)"
@@ -720,7 +720,7 @@ cannot_decide_checks() {
   expect "git add . with 2001 new files (too many to scan)" ask "$RMANY" 'git add .'
   expect "find is not installed" ask "$R" 'git status' PATH="$NOFIND"
   expect "awk fails, so the command cannot be split" ask "$R" 'git status' PATH="$BADAWK"
-  expect "a git command over 4000000 characters (too large to inspect in time)" ask "$R" "git status $TOO_LARGE"
+  expect "a git command of 4000000 characters (over the 64 KB cap, asks unread)" ask "$R" "git status $TOO_LARGE"
 
   # no JSON reader: the input is never parsed, so the client comes from the raw text or the environment
   SHAPE=claude; np_hook "$R" 'git reset --hard'

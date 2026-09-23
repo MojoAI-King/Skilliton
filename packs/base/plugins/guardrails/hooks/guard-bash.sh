@@ -52,6 +52,9 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #   It does not expand globs: rm -rf docs/* is judged by the word docs/*, not the files it matches.
 #   A file over 10 MB is checked by name only, when it is added and when it is committed (N72); a commit that takes
 #   one asks, naming it, so a large file cannot run the hook past its time limit into an allow.
+#   A command text longer than CMD_MAX_BYTES (64 KB) is not read at all (N88): it asks at once, whatever it names,
+#   saying how long it is, before any splitting, because reading one that long can take longer than the client's 10 second hook budget
+#   (1,200 KB measured at 13.5 s), and a hook that runs out of time is read by the client as an allow.
 #
 # Settings: the "guardrails" section of .skilliton/config.json in the project directory
 # ($CLAUDE_PROJECT_DIR, else "cwd" from the hook input, else $PWD). Keys and defaults are in
@@ -72,6 +75,8 @@ GUARD_MODE=pretooluse
 SEP=$'\036'
 GUARD_RAW=""; GUARD_EMITTED=0; GUARD_PARSER=""; GUARD_CLIENT=""; CLIENT_NOTE=""
 IN_KEYS=""; IN_CWD=""; IN_CMD=""; PROJECT_DIR=""
+# The longest command text this hook reads, in bytes (N88; see the header). Anything longer asks without being read.
+CMD_MAX_BYTES=65536
 CFG_FP=true; CFG_NV=true; CFG_SF=true; CFG_PR=true; CFG_PB=$'main\nmaster'; CFG_STATE=default; CFG_FILE=.skilliton/config.json
 # What Skilliton keeps in a project (docs/CONTRACTS.md section 10): the record files and the entry folders come from
 # prepare.artifacts and prepare.directories in the project's configuration when it has them, else these defaults
@@ -2362,7 +2367,11 @@ main_pretooluse() {
   local t note=""
   GUARD_RAW=$(cat)
   case "${SKILLITON_GUARDRAILS:-}" in [Oo][Ff][Ff]) exit 0 ;; esac
-  mentions_git "$GUARD_RAW" || mentions_removal "$GUARD_RAW" || mentions_config "$GUARD_RAW" || mentions_hookfile "$GUARD_RAW" || exit 0
+  # Input longer than the cap (N88) skips the quick look at the raw text, which alone costs a noticeable part of a
+  # second on a few megabytes; the command is read out of it below and asks there when it is over the cap too.
+  if [ "${#GUARD_RAW}" -le "$CMD_MAX_BYTES" ]; then
+    mentions_git "$GUARD_RAW" || mentions_removal "$GUARD_RAW" || mentions_config "$GUARD_RAW" || mentions_hookfile "$GUARD_RAW" || exit 0
+  fi
   # BASH_ENV names a file bash runs before the first line of any script it starts, including this one, so a file
   # that only says `exit 0` ends this check before it begins and the client reads the silence as an allow. Nothing
   # inside a script can prevent that, because the file has already run; what is left is to say it while it can still
@@ -2386,6 +2395,11 @@ main_pretooluse() {
     emit_decision ask "Check first: guardrails could not read this command from the hook input, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
     exit 0
   fi
+  # N88: before anything splits or searches the text, whatever it names, since a text this long can hide what it runs. LC_ALL=C is set above, so ${#IN_CMD} counts bytes.
+  if [ "${#IN_CMD}" -gt "$CMD_MAX_BYTES" ]; then
+    emit_decision ask "Check first: this command is too long for guardrails to read: it is ${#IN_CMD} bytes, and the limit is $CMD_MAX_BYTES bytes (64 KB), because reading one longer than that can run past the hook's time limit. Nothing in it was checked. Read it yourself, or split it into shorter commands, and confirm only if every part is what you intend."
+    exit 0
+  fi
   mentions_git "$IN_CMD" || mentions_removal "$IN_CMD" || mentions_config "$IN_CWD $IN_CMD" || mentions_hookfile "$IN_CWD $IN_CMD" || exit 0
   for t in git awk grep find; do
     if ! command -v "$t" >/dev/null 2>&1; then
@@ -2393,10 +2407,6 @@ main_pretooluse() {
       exit 0
     fi
   done
-  if [ "${#IN_CMD}" -gt 4000000 ]; then
-    emit_decision ask "Check first: this command is too large for guardrails to inspect within its time limit, so nothing was checked. Read the git parts yourself and confirm only if they are what you intend."
-    exit 0
-  fi
   [ -n "$IN_CWD" ] || IN_CWD=${CLAUDE_PROJECT_DIR:-$PWD}
   set_project_dir
   load_config
