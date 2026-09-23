@@ -172,7 +172,7 @@ jobs:
         run: node --test scripts/handoff-write.test.mjs
 
       - name: Project security evidence and collectors
-        run: node --test scripts/security-evidence.test.mjs scripts/collectors.test.mjs
+        run: node --test scripts/security-evidence.test.mjs scripts/collectors.test.mjs scripts/security-record-refusals.test.mjs
 
       - name: Releases, signed approval, verify, trust and proposals
         run: node scripts/release.test.mjs
