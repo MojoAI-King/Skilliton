@@ -2,9 +2,20 @@
 
 Kind: Living. One entry per signed release, from its manifest under `releases/`, plus what is on `main` since. Plugin versions are what a machine sees; the release number is what it trusts.
 
-## Unreleased (main since 1.2.0)
+## Unreleased (main since 1.3.0)
 
 Nothing yet.
+
+## 1.3.0, 2026-09-23
+
+Plugins: workflow 0.24.0, guardrails 0.10.0, context-hygiene 0.3.1, code-quality 0.2.1. Manifest `releases/1.3.0.json`; every entry below shipped on `main` between 1.2.0 and this tag, the same afternoon. Source: a regrade of 63b0119 by three fresh reviewers (73 of 100, hire signal HIRE, security B) and a second cold review of the same commit; each fix ships with a test that fails against the code at 63b0119.
+
+- **Workflow 0.24.0: the delivery gate protects the program that runs its checks.** A policy may list `protectedPaths`; without it, every file a check command names in the tree plus `.github/workflows/` is protected. A pushed commit that changes a protected path must be signed by an approver, checked before anything is extracted or run, so a rewritten check never executes; the combined result must hold the content an approved commit gave it. This repository protects `scripts/` and `.github/workflows/`. Reproduced before the fix: a push that rewrote the checks to exit 0 beside a failing test was accepted. `scripts/delivery-protect.test.mjs`; docs/DELIVERY.md; CONTRACTS section 14.
+- **Workflow 0.24.0: smaller boundaries.** The gate's output reader bounds a line that never ends (400 characters, the same as `skilliton gate`); the skill writers refuse a hard-linked manifest; the session-start handoff hook prints one refusal line instead of following a symbolic link; evidence freshness hashes every listed file every time instead of trusting size and time (a same-size change with a restored timestamp now reads stale); `prepare --help` reads the layout number from the code.
+- **Guardrails 0.10.0: the remaining gaps from the reviews.** A command text over 64 KB asks at once, unread (the old parser ran past the hook's 10 second budget on 1 MB, which the client reads as allow); `sed -i`, `perl -i`, `gawk -i inplace`, `ex`, `ed` and `sponge` aimed at a record, CLAUDE.md or AGENTS.md deny; a shell fed from a pipe, a decoder, a heredoc or a file that is not a committed, unchanged script under `scripts/` asks, and so do `source` and `.`; any write to, copy or move over, or removal of `.claude/settings.json` or `settings.local.json` asks, whatever the text says; a glob after `rm`, `rmdir`, `mv`, `git rm`, `find -delete`, `rsync --delete` or a `>` is matched segment by segment against every record path and denies on a match (`rm -rf docs/*`, `docs/t*`, `d*cs/tasks`), and `rm -rf *` at the root asks. The wall-clock cases moved out of the correctness suite into `scripts/guardrails-timing.test.sh`, which reports NOT RUN under load instead of failing. The hook header says Codex runs no hooks shipped in a plugin. `scripts/guardrails-review2.test.sh` carries every case with the decision at 63b0119 beside the decision now.
+- **The local check runner fails the way CI fails.** `scripts/checks.mjs` runs each step under `bash --noprofile --norc -eo pipefail`, so a step whose first command fails reads FAIL locally as it does in CI; `scripts/checks-runner.test.mjs`. The eight tests bound to commits that the history rewrite renamed run again in a fresh clone (fixtures pinned by digest, the rest rebound), and a missing baseline fails instead of skipping unless the clone is shallow. The prototype's release commit is named by its rewritten hash.
+- **Docs.** README says which comparison run's overhead was the instruction block and which was the range reads, and what the stop hook does after 20 minutes of unrecorded changes; INSTALL says whoever controls main controls the hooks on a trial machine; SECURITY.md lists the second review's limits with this release beside each; docs/IT-ALLOWLIST.md states the journal's retention; docs/THREAT_MODEL.md and the decision entry for the history rewrite carry the mapping from every cited hash to its rewritten one.
+- **Known, disclosed:** `source <file>` and `. <file>` ask every time, including a Python environment's `activate`; reading the sourced file through the same rules instead is a backlog item.
 
 ## 1.2.0, 2026-09-23
 
