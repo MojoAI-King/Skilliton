@@ -43,7 +43,7 @@ async function withTemp(label, body) {
   mkdirSync(home);
   const env = {
     ...process.env,
-    HOME: home, XDG_CONFIG_HOME: join(home, ".config"), GIT_CONFIG_NOSYSTEM: "1",
+    HOME: home, USERPROFILE: home /* os.homedir() on Windows */, XDG_CONFIG_HOME: join(home, ".config"), GIT_CONFIG_NOSYSTEM: "1",
     GIT_AUTHOR_NAME: "Test", GIT_AUTHOR_EMAIL: "test@example.com", GIT_COMMITTER_NAME: "Test", GIT_COMMITTER_EMAIL: "test@example.com",
     PATH: `${dirname(process.execPath)}${delimiter}${process.env.PATH}`,
   };
@@ -1357,7 +1357,7 @@ test("a hook whose stdin is never closed stops waiting and still records its eve
   const p = initRepo(join(dir, "p"), env);
   const started = Date.now();
   const outcome = await new Promise((resolveOutcome, rejectOutcome) => {
-    const child = spawn(BIN, ["hook", "pre-compact"], { cwd: p, env, stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(...launch(BIN, ["hook", "pre-compact"]), { cwd: p, env, stdio: ["pipe", "pipe", "pipe"] });
     let out = "", err = "";
     child.stdout.on("data", (chunk) => { out += chunk; });
     child.stderr.on("data", (chunk) => { err += chunk; });
@@ -1413,7 +1413,7 @@ test("status exits 0 for a clean prepared project, and --json is exactly one res
     /^OK         handoff: docs\/HANDOFF\.md was written .+; no later commit or uncommitted change \(0 uncommitted path\(s\)\)$/m,
     /^NOTE       sessions: no session recorded in this worktree's journal/m,
     HAS_SECURITY ? /^NOT RUN    security: security evidence not available: no security catalog at \.skilliton\/security\/catalog\.json/m : /^NOT RUN    security: not available in this build \(runtime\/lib\/security\.mjs is not present\)$/m,
-    /^NOT RUN    enrollment: not evaluated: .*\.claude\/settings\.json enables no plugins, so there is nothing to compare/m,
+    /^NOT RUN    enrollment: not evaluated: .*\.claude[\\/]settings\.json enables no plugins, so there is nothing to compare/m,
     new RegExp("^Summary: Nothing needs attention among the checks that ran\\. Not run: " + [HAS_MIGRATIONS ? null : "migrations", "enrollment", "security"].filter(Boolean).join(", ") + "\\.$", "m"),
   ]) assert.match(r.out, pattern);
 
@@ -1742,7 +1742,7 @@ test("hooks.json parses, keeps the handoff hook first, and every command it name
       assert.ok(m, `${event}: ${h.command} runs a file inside the plugin`);
       const target = join(PLUGIN, m[1]);
       assert.ok(existsSync(target), `${event}: ${m[1]} exists`);
-      assert.ok(statSync(target).mode & 0o111, `${event}: ${m[1]} is executable`);
+      assert.ok(process.platform === "win32" || statSync(target).mode & 0o111, `${event}: ${m[1]} is executable`); // Windows keeps no execute bit on disk; Git's mode below still counts
       const tracked = git(REPO, ["ls-files", "-s", `packs/base/plugins/workflow/${m[1]}`], env);
       assert.match(tracked, /^100755 /, `${event}: ${m[1]} is executable in Git, not only on this disk`);
       const arg = m[2].trim();
