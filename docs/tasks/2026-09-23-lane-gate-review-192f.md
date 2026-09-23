@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/gate-review-0923b
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T19:58:13.658Z
+- **Updated:** 2026-09-23T20:03:26.387Z
 
 ## Request
 
@@ -61,9 +61,16 @@ not yet written
 - **Next:** full checks, LANE_REPORT.md
 - **Git:** lane/gate-review-0923b @ ee4fb12, 5 uncommitted
 
+### 2026-09-23T20:03:26.387Z
+
+- **State:** N83 follow-up: the policy-path rule moved into lib/delivery-protect.mjs beside the protected-path rule, sharing holdPaths with unchanged messages; evaluateUpdate 107 lines and delivery.mjs long lines 30, pins lowered in scripts/lint-shape.test.mjs
+- **Evidence:** lint-shape, lint, deadcode, scrub exit 0; delivery-protect.test.mjs exit 0; delivery.test.mjs exit 0 (15 pass, the signature mutation now targets delivery-protect.mjs); delivery-integrity exit 0
+- **Next:** full checks, LANE_REPORT.md
+- **Git:** lane/gate-review-0923b @ ebd84df, 5 uncommitted
+
 ## Handoff
 
-- **State:** N87 done: verifyManifest hashes every listed file every time; size and mtime stay in the manifest as information; the status Result line says content checked. Evidence: node --test scripts/security-freshness.test.mjs exit 0 (3 pass); with the mtime skip restored the 26-byte test fails; security-evidence, collectors, security-record-refusals, security-propose, maintain-security-collectors, evidence tests exit 0.
+- **State:** N83 follow-up: the policy-path rule moved into lib/delivery-protect.mjs beside the protected-path rule, sharing holdPaths with unchanged messages; evaluateUpdate 107 lines and delivery.mjs long lines 30, pins lowered in scripts/lint-shape.test.mjs. Evidence: lint-shape, lint, deadcode, scrub exit 0; delivery-protect.test.mjs exit 0; delivery.test.mjs exit 0 (15 pass, the signature mutation now targets delivery-protect.mjs); delivery-integrity exit 0.
 - **Next:** full checks, LANE_REPORT.md
 - **Blocked:** nothing
 - **Watch out:** nothing known

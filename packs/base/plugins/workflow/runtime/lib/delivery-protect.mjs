@@ -14,8 +14,10 @@
 //     argument that names no file there (a flag, a program on PATH, a script the tree does not hold) protects nothing,
 //     and a check whose script is missing fails on its own when it cannot start.
 //
-// It also keeps the gate's two small tree readers (blobAt, changedPaths), moved here from lib/delivery.mjs when that
-// file reached the ceiling scripts/lint.test.mjs holds it to, and the bounded line reader for a check's output (N84).
+// It also holds the policy-path rule that was in lib/delivery.mjs (the same rule, with the same messages, now sharing
+// holdPaths with this one) and the gate's two small tree readers (blobAt, changedPaths), moved here when that file
+// reached the ceilings scripts/lint.test.mjs and scripts/lint-shape.test.mjs hold it to, and the bounded line reader
+// for a check's output (N84).
 //
 // Pure over the git runner the gate already holds; it never reads a working tree, because inside pre-receive there is
 // none.
@@ -29,13 +31,13 @@ const short = (id) => String(id).slice(0, 12);
 // ---------- the gate's tree readers ----------
 
 // The blob id at commit:path, or null when the path is absent there.
-export function blobAt(git, commit, path) {
+function blobAt(git, commit, path) {
   const r = git(["rev-parse", "--verify", "-q", `${commit}:${path}`], { allowExit: "any" });
   return r.status === 0 ? r.stdout.trim() : null;
 }
 
 // The paths a commit changes against its first parent (every path, for a root commit).
-export function changedPaths(git, id, parent) {
+function changedPaths(git, id, parent) {
   const args = parent
     ? ["diff-tree", "-r", "-z", "--no-commit-id", "--name-only", "--no-renames", parent, id]
     : ["diff-tree", "-r", "-z", "--root", "--no-commit-id", "--name-only", "--no-renames", id];
@@ -89,39 +91,66 @@ function matchProtectedPath(path, entries) {
 
 // ---------- the rule ----------
 
-// commits: [{ id, parent }] from the current tip to the pushed tip, each judged against its first parent.
-// signatureStatus(id): { state: "verified" | "unverified" | "not-checked", reason? }.
-// guarded: the policy paths lib/delivery.mjs holds with its own rule and message; a path one of them covers is left
-// to that rule, which runs next and asks for the same signature.
-// Returns { reason } when the push is to be rejected, else { notChecked: [...], paths: [the protected list] }.
-export function checkProtectedPaths({ git, oldId, newId, policy, commits, signatureStatus, guarded = [] }) {
-  const explicit = Array.isArray(policy.protectedPaths);
-  const paths = explicit ? policy.protectedPaths : defaultProtectedPaths(git, policy, newId);
-  const notChecked = [];
-  if (!paths.length) return { notChecked, paths };
-  const held = (p) => matchProtectedPath(p, paths) && !matchPolicyPath(p, guarded);
-  const because = explicit ? "the policy's protectedPaths lists it" : "a check runs it or it is a workflow file";
-  const needed = "a change to it needs a commit signed by an approver (a key in the approvers file); push the change as its own signed commit";
+// Holds a set of paths to an approver's signature. commits: [{ id, parent }] from the current tip to the pushed tip,
+// each judged against its first parent; signatureStatus(id): { state: "verified" | "unverified" | "not-checked",
+// reason? }. Each commit that changes a covered path must verify; a commit that cannot be checked here (no approvers
+// file) is added to notChecked. Each commit is compared with its first parent only, so a merge can bring back an
+// earlier version of a held file (or drop the current policy, letting an earlier one govern) without any commit
+// changing it. The combined result closes that: every held path that differs between the current tip and the pushed
+// tip must hold exactly the content an approved commit in this push gave it. Returns the rejection reason, or null.
+function holdPaths({ git, oldId, newId, commits, signatureStatus, notChecked, covers, noun, unsigned, merged }) {
   const approved = [];
   for (const { id, parent } of commits) {
-    const touched = changedPaths(git, id, parent).filter(held);
+    const touched = changedPaths(git, id, parent).filter(covers);
     if (!touched.length) continue;
-    const what = `commit ${short(id)} changes the protected path ${touched[0]}${touched.length > 1 ? ` (and ${touched.length - 1} more)` : ""}`;
+    const what = `commit ${short(id)} changes the ${noun} ${touched[0]}${touched.length > 1 ? ` (and ${touched.length - 1} more)` : ""}`;
     const sig = signatureStatus(id);
-    if (sig.state === "unverified") return { reason: `${what}, which the delivery gate protects because ${because}; ${needed}. This commit: ${sig.reason}` };
+    if (sig.state === "unverified") return unsigned(what, sig.reason);
     if (sig.state === "not-checked") notChecked.push(`${what} and needs an approver signature`);
     approved.push({ id, touched });
   }
-  // As for policy paths in lib/delivery.mjs: each commit is compared with its first parent only, so a merge can bring
-  // back an earlier version of a protected file without any commit changing it. The combined result must hold, for
-  // every protected path that differs, exactly the content an approved commit in this push gave it.
-  for (const path of changedPaths(git, newId, oldId).filter(held)) {
+  for (const path of changedPaths(git, newId, oldId).filter(covers)) {
     const final = blobAt(git, newId, path);
-    if (!approved.some((c) => c.touched.includes(path) && blobAt(git, c.id, path) === final)) {
-      return { reason: `the pushed result changes the protected path ${path} (the delivery gate protects it because ${because}) to content that no approver-signed commit in this push gave it (for example a merge that brings back an earlier version); ${needed}` };
-    }
+    if (!approved.some((c) => c.touched.includes(path) && blobAt(git, c.id, path) === final)) return merged(path);
   }
-  return { notChecked, paths };
+  return null;
+}
+
+// The program the checks run (N83). guarded: the policy paths, which checkPolicyPaths holds next with its own message
+// and the same signature, so a path one of them covers is left to it.
+function checkProtectedPaths(held, policy, guarded) {
+  const explicit = Array.isArray(policy.protectedPaths);
+  const paths = explicit ? policy.protectedPaths : defaultProtectedPaths(held.git, policy, held.newId);
+  if (!paths.length) return null;
+  const because = explicit ? "the policy's protectedPaths lists it" : "a check runs it or it is a workflow file";
+  const needed = "a change to it needs a commit signed by an approver (a key in the approvers file); "
+    + "push the change as its own signed commit";
+  return holdPaths({
+    ...held,
+    covers: (p) => matchProtectedPath(p, paths) && !matchPolicyPath(p, guarded),
+    noun: "protected path",
+    unsigned: (what, why) => `${what}, which the delivery gate protects because ${because}; ${needed}. This commit: ${why}`,
+    merged: (path) => `the pushed result changes the protected path ${path} (the delivery gate protects it because ${because}) `
+      + `to content that no approver-signed commit in this push gave it (for example a merge that brings back an earlier version); ${needed}`,
+  });
+}
+
+// The policy paths, moved here from lib/delivery.mjs with their messages unchanged.
+function checkPolicyPaths(held, guarded) {
+  return holdPaths({
+    ...held,
+    covers: (p) => matchPolicyPath(p, guarded),
+    noun: "policy path",
+    unsigned: (what, why) => `${what} without an approver signature: ${why}`,
+    merged: (path) => `the pushed result changes the policy path ${path} to content that no approver-signed commit in this push `
+      + "gave it (for example a merge that brings back an earlier version); push the policy change as its own signed commit",
+  });
+}
+
+// Both rules, in order, before anything is extracted or run: the program the checks run first, then the policy paths.
+// held: { git, oldId, newId, commits, signatureStatus, notChecked }. Returns the rejection reason, or null.
+export function checkHeldPaths(held, policy, guarded) {
+  return checkProtectedPaths(held, policy, guarded) ?? checkPolicyPaths(held, guarded);
 }
 
 // ---------- a check's output, read a line at a time with a bounded carry (N84) ----------

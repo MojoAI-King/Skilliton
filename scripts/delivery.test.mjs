@@ -980,12 +980,12 @@ test("the GitHub template's script, run locally on simulated merge results (not 
 // ---------------------------------------------------------------- mutation checks
 
 // Copies the workflow plugin, replaces one statement in the copy's delivery engine, and returns its launcher.
-function mutantRuntime(sb, label, target, replacement) {
+function mutantRuntime(sb, label, target, replacement, file = "delivery.mjs") {
   const copy = sb.path(`mutant-${label}`, "workflow");
   cpSync(PLUGIN, copy, { recursive: true });
-  const lib = join(copy, "runtime", "lib", "delivery.mjs");
+  const lib = join(copy, "runtime", "lib", file);
   const source = readFileSync(lib, "utf8");
-  assert.equal(source.split(target).length - 1, 1, `mutation "${label}": the target statement must appear exactly once in delivery.mjs`);
+  assert.equal(source.split(target).length - 1, 1, `mutation "${label}": the target statement must appear exactly once in ${file}`);
   writeFileSync(lib, source.replace(target, replacement));
   return join(copy, "bin", "skilliton");
 }
@@ -1014,7 +1014,7 @@ test("mutation checks: the assertions above fail when the gate ignores a failing
     assert.equal(push(sb, m, "origin", "main").code, 0);
 
     // Mutation 2: an unverified signature on a policy change no longer rejects.
-    const ignoresSignatures = mutantRuntime(sb, "signatures", "if (sig.state === \"unverified\") return reject(`${what} without", "if (false) return reject(`${what} without");
+    const ignoresSignatures = mutantRuntime(sb, "signatures", "if (sig.state === \"unverified\") return unsigned(", "if (false) return unsigned(", "delivery-protect.mjs");
     assert.equal(install(sb, s.bare, s.approvers, ["--runtime", ignoresSignatures, "--apply"]).code, 0);
     writeFiles(m, { [POLICY_FILE]: { ...POLICY, checks: [] } });
     const weakened = commit(sb, m, "Drop the check without approval");

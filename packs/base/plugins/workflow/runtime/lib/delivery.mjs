@@ -34,9 +34,9 @@ import { readWorking } from "./audit-run.mjs";
 import { LEGACY_POLICY_FILE } from "./legacy-names.mjs";
 import { checkRemovals } from "./delivery-persist.mjs";
 import { gateChanges, gateFingerprint } from "./delivery-integrity.mjs";
-import { blobAt, changedPaths, checkProtectedPaths, lineReader } from "./delivery-protect.mjs";
+import { checkHeldPaths, lineReader } from "./delivery-protect.mjs";
 import {
-  CURRENT_FORMAT, LEGACY_FORMAT, POLICY_FILE, matchPolicyPath, parsePolicyText, readApproversFile, validBranchName,
+  CURRENT_FORMAT, LEGACY_FORMAT, POLICY_FILE, parsePolicyText, readApproversFile, validBranchName,
 } from "./delivery-policy.mjs";
 
 const TAIL_LINES = 20;
@@ -187,7 +187,7 @@ function commitsBetween(git, oldId, newId) {
   return git(["rev-list", "--reverse", "--topo-order", "--parents", `${oldId}..${newId}`]).stdout
     .split("\n").filter(Boolean).map((line) => { const [id, parent = null] = line.split(" "); return { id, parent }; });
 }
-// blobAt and changedPaths live in lib/delivery-protect.mjs.
+// blobAt and changedPaths, and the rule that holds policy paths, live in lib/delivery-protect.mjs.
 
 // ---------- materializing a commit ----------
 
@@ -363,31 +363,12 @@ async function evaluateUpdate(ctx, update) {
     // Both policy files are always guarded, whichever one governs the branch, so a commit cannot add a weaker policy
     // under the other name without an approver's signature.
     const guarded = [...policy.policyPaths, POLICY_FILE, LEGACY_POLICY_FILE];
-    // The program the checks run is held first, before anything else is read or run (lib/delivery-protect.mjs).
+    // The program the checks run, then the policy paths, each held to an approver's signed commit before anything is
+    // extracted or run (lib/delivery-protect.mjs).
     const pushed = commitsBetween(git, oldId, newId);
-    const held = checkProtectedPaths({ git, oldId, newId, policy, commits: pushed, guarded, signatureStatus: (id) => signatureStatus(ctx, id) });
-    if (held.reason) return reject(held.reason);
-    notChecked.push(...held.notChecked);
-    const approved = [];
-    for (const { id, parent } of pushed) {
-      const touched = changedPaths(git, id, parent).filter((path) => matchPolicyPath(path, guarded));
-      if (!touched.length) continue;
-      const what = `commit ${short(id)} changes the policy path ${touched[0]}${touched.length > 1 ? ` (and ${touched.length - 1} more)` : ""}`;
-      const sig = signatureStatus(ctx, id);
-      if (sig.state === "unverified") return reject(`${what} without an approver signature: ${sig.reason}`);
-      if (sig.state === "not-checked") notChecked.push(`${what} and needs an approver signature`);
-      approved.push({ id, touched });
-    }
-    // Each commit above is compared with its first parent only, so a merge can bring back an earlier version of a
-    // guarded file (or drop the current policy, letting an earlier one govern) without any commit changing it. The
-    // combined result closes that: every guarded path that differs between the current tip and the pushed tip must
-    // hold exactly the content an approved commit in this push gave it.
-    for (const path of changedPaths(git, newId, oldId).filter((p) => matchPolicyPath(p, guarded))) {
-      const final = blobAt(git, newId, path);
-      if (!approved.some((c) => c.touched.includes(path) && blobAt(git, c.id, path) === final)) {
-        return reject(`the pushed result changes the policy path ${path} to content that no approver-signed commit in this push gave it (for example a merge that brings back an earlier version); push the policy change as its own signed commit`);
-      }
-    }
+    const held = { git, oldId, newId, commits: pushed, notChecked, signatureStatus: (id) => signatureStatus(ctx, id) };
+    const refused = checkHeldPaths(held, policy, guarded);
+    if (refused) return reject(refused);
     // What Skilliton keeps in the project may not be removed without an approver's signature (lib/delivery-persist.mjs).
     const removal = checkRemovals({ git, oldId, newId, commits: pushed, signatureStatus: (id) => signatureStatus(ctx, id) });
     if (removal.reason) return reject(removal.reason);
