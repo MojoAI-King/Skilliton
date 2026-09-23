@@ -101,12 +101,12 @@ function preloader(ctx, source) {
 
 const RENAME_FAILS_FOR_CONFIG = `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
 const rename = fs.renameSync;
-fs.renameSync = (a, b) => { if (String(b).endsWith('/.skilliton/config.json')) { const e = new Error('injected'); e.code = 'EACCES'; throw e; } return rename(a, b); };
+fs.renameSync = (a, b) => { if (String(b).replace(/\\\\/g, '/').endsWith('/.skilliton/config.json')) { const e = new Error('injected'); e.code = 'EACCES'; throw e; } return rename(a, b); };
 syncBuiltinESMExports();`;
 
 const EDIT_AFTER_AGENTS_BACKUP = `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
 const write = fs.writeFileSync; let fired = false;
-fs.writeFileSync = (p, ...a) => { const out = write(p, ...a); if (!fired && String(p).includes('/skilliton-backups/') && String(p).endsWith('/AGENTS.md')) { fired = true; write(process.env.SKILLITON_TEST_TARGET + '/AGENTS.md', '# Concurrent edit\\n'); } return out; };
+fs.writeFileSync = (p, ...a) => { const out = write(p, ...a); if (!fired && String(p).replace(/\\\\/g, '/').includes('/skilliton-backups/') && String(p).replace(/\\\\/g, '/').endsWith('/AGENTS.md')) { fired = true; write(process.env.SKILLITON_TEST_TARGET + '/AGENTS.md', '# Concurrent edit\\n'); } return out; };
 syncBuiltinESMExports();`;
 
 // ---------------------------------------------------------------- preview, apply, check, repeat
@@ -464,7 +464,7 @@ test("an edit arriving during rollback is preserved and reported incomplete (pro
   write(ctx, "AGENTS.md", "# Original\n");
   const inject = preloader(ctx, `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
 let rollingBack = false; const rename = fs.renameSync;
-fs.renameSync = (a, b) => { if (String(b).endsWith('/.skilliton/config.json')) { rollingBack = true; const e = new Error('injected'); e.code = 'EACCES'; throw e; } return rename(a, b); };
+fs.renameSync = (a, b) => { if (String(b).replace(/\\\\/g, '/').endsWith('/.skilliton/config.json')) { rollingBack = true; const e = new Error('injected'); e.code = 'EACCES'; throw e; } return rename(a, b); };
 const write = fs.writeFileSync;
 fs.writeFileSync = (p, ...a) => { const out = write(p, ...a); if (rollingBack && String(p).endsWith('.tmp') && Buffer.from(a[0]).toString() === '# Original\\n') write(process.env.SKILLITON_TEST_TARGET + '/AGENTS.md', '# Concurrent rollback edit\\n'); return out; };
 syncBuiltinESMExports();`);
