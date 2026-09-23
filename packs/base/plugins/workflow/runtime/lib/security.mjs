@@ -220,17 +220,19 @@ export function recordDecision(root, input, { apply = false, beforeReplace = nul
 // ---------- file manifests ----------
 
 // A file manifest attached to a record extends freshness to every file it lists: status reports the record stale when
-// a listed file is missing, not a regular file, or has a different size or content. A file whose size and modification
-// time both still match is not reread; an edit that preserves both is not detected. Files added after the manifest
-// was written are not part of the claim and are not detected.
+// a listed file is missing, not a regular file, or has a different size or content. Every listed file is read and
+// hashed each time the manifest is checked (N87): an edit that keeps the size and restores the modification time is
+// still an edit, and the lists are small (the sources of one control). The size and modification time stay in each
+// line as information; a different size still reads as changed without a read. Files added after the manifest was
+// written are not part of the claim and are not detected.
 export function renderManifest(entries, description) {
   return [MANIFEST_MARKER, `# ${description}`, '# Each line: sha256 size mtimeMs path', ...entries.map((e) => `${e.sha256} ${e.size} ${e.mtimeMs} ${e.path}`), ''].join('\n');
 }
 // An artifact saved before the rename starts with the earlier marker and is checked the same way: records are immutable.
 const isManifest = (buffer) => [MANIFEST_MARKER, LEGACY_MANIFEST_MARKER].some((marker) => buffer.subarray(0, marker.length + 1).toString('utf8') === `${marker}\n`);
 
-// 'same' | 'changed' | 'unsafe' (the manifest itself does not parse).
-function verifyManifest(root, buffer, budget) {
+// 'same' | 'changed' | 'unsafe' (the manifest itself does not parse). Content is checked for every entry, every time.
+export function verifyManifest(root, buffer, budget = newBudget(LIMIT.scanTotal)) {
   const lines = buffer.toString('utf8').split('\n');
   let entries = 0;
   for (let i = 1; i < lines.length; i++) {
@@ -239,12 +241,11 @@ function verifyManifest(root, buffer, budget) {
     if (line.startsWith('#')) continue;
     const m = /^([a-f0-9]{64}) (\d{1,15}) (\d{1,17}(?:\.\d{1,20})?) (.+)$/.exec(line);
     if (!m || ++entries > LIMIT.manifestEntries) return 'unsafe';
-    const [, sha, size, mtime, rel] = m;
+    const [, sha, size, , rel] = m;
     let st;
     try { relativePath(rel); } catch { return 'unsafe'; }
     try { st = inspect(root, rel, true); } catch { return 'changed'; }
     if (!st || !st.isFile() || st.size !== Number(size)) return 'changed';
-    if (st.mtimeMs === Number(mtime)) continue;
     try { if (digest(safeRead(root, rel, LIMIT.file, budget)) !== sha) return 'changed'; } catch { return 'changed'; }
   }
   return 'same';

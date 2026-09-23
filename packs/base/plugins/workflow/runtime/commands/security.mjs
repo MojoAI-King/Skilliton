@@ -185,7 +185,7 @@ async function status({ o }) {
     security.publishReport(root, report);
     say(`Wrote ${security.REPORT_REL}. No record was created or re-dated.`);
   }
-  say(`Result: ${ev.result} (exit ${code}). ${c.current} of ${c.applicable} applicable control(s) have a current observed record; missing ${c.missing}, stale ${c.stale}, expired ${c.expired}, invalid ${c.invalid}, gaps ${c.gaps}, needs a human ${c.needsHuman} (undecided ${c.undecided}).`);
+  say(`Result: ${ev.result} (exit ${code}). ${c.current} of ${c.applicable} applicable control(s) have a current observed record; missing ${c.missing}, stale ${c.stale}, expired ${c.expired}, invalid ${c.invalid}, gaps ${c.gaps}, needs a human ${c.needsHuman} (undecided ${c.undecided}). Freshness: content checked (every listed file was read and hashed, not judged by its size and time).`);
   return code;
 }
 
