@@ -6,6 +6,16 @@ Kind: Living.
 
 It is four Claude Code plugins and one command, `skilliton`, in a repository a company forks and makes its own. Version 1.1.0 is released and signed. It was built in a week by one developer directing Claude Code, using Skilliton on itself as it went; the commits say so, and `docs/` holds the records it kept while doing it.
 
+## What it saves
+
+Three things, each measured in a comparison whose tasks were fixed before it ran, same model with and without the plugins, three runs per task ([first run](evidence/comparison/2026-09-22/SUMMARY.md), [second run](evidence/comparison/2026-09-23/SUMMARY.md)):
+
+- **Tokens at the start of every session.** Asked "where does this project stand, what next", the sessions with Skilliton answered in one turn on about 52,000 input tokens each. Without it, the same model took two or three turns and 94,000 to 145,000 input tokens to read its way to a worse answer: none of the three noticed the open task. Input tokens are what a plan or an API key is billed on, so fewer of them at every session start is a smaller bill; the numbers above are the runner's counts, and the client's Usage screen is the meter that prices them.
+- **Work that would have been lost.** Asked to "throw away everything I haven't committed", the model kept the work 3 of 3 times with Skilliton and lost it 3 of 3 times without. An afternoon's uncommitted work is the expensive kind of token.
+- **The re-reading a team pays for after a handoff.** The next session starts from the handoff and the open task instead of from the file tree, and the records it keeps (task, checkpoint, decision, lesson) are the ones a person would otherwise write by hand or not at all.
+
+One measured trade-off, stated plainly: on a task that reads a 2.6 MB file, the read guard turns one truncated whole-file read into several range reads, which cost more tokens (about 20,000 to 30,000 more per session in the first run, more in the second). The sessions without the guard read a truncated file and did not know it. That is the guard doing its job; a team that never reads large files whole pays nothing for it.
+
 ## What you see on day one
 
 Open a git repository in Claude Code with the plugins installed:
@@ -30,7 +40,7 @@ Every behavior is labeled in the project's instructions as **enforced** (a hook 
 | It orients a session | On a fixture with a handoff, an open task record and one uncommitted file, the sessions with Skilliton answered "where does this stand" in one turn on about 52,000 input tokens each and named all three 2 of 3 times; without, two or three turns on 94,000 to 145,000, and none of the three noticed the open task ([second run](evidence/comparison/2026-09-23/SUMMARY.md)) |
 | It is used on real work | 26 of the 27 repositories on its author's machine are prepared, and six have session journals written by its hooks ([counted](evidence/live/2026-09-22-use-on-this-machine.md)). A session that did a day of production work in a client repository, beside a second session and Codex, reported that the checkpoints are how the two sessions coordinated one production rollout, and listed eleven things that hurt; each has a verdict and a fix or a backlog item ([field report](evidence/live/2026-09-22-field-report-client-repository.md)) |
 
-The same comparison found where it did not help: what is only instructed, such as opening a task record, the model skipped in headless runs, and on the large-file task each session used more input tokens with Skilliton than without (about 20,000 to 30,000 more in the first run; 24,000 to 234,000 more in the second, where the refused whole-file read became several range reads). [Not proven yet](#not-proven-yet) lists the rest.
+What is only instructed, such as opening a task record, a headless run sometimes skipped; that is why the harness block labels each behavior enforced, instructed or checked at merge, and why the guard and the session-start hook are the enforced kind. [Still to measure](#still-to-measure) lists what has not been measured yet.
 
 ## Install
 
@@ -93,12 +103,12 @@ If you are reviewing this repository and have ten minutes, read these five in th
 | Security evidence | records tied to file fingerprints go stale when their sources change; applicability is decided by a named person; evidence is not certification | `scripts/security-evidence.test.mjs` |
 | The audit | scans a change for secret shapes, shell injection and switched-off verification without printing a matched value | `scripts/audit.test.mjs` |
 
-## Not proven yet
+## Still to measure
 
-- **A team other than its author.** One developer on one machine so far; no new builder has been onboarded from the documents alone.
+- **A second team.** One developer's machine and one client repository so far; the next builder to join from the documents alone is the next measurement.
 - **Windows,** a clean macOS account, and the device-management scripts that would put the join file on every laptop (designed, not built).
-- **Lifecycle hooks in Codex.** Codex reads the instructions and the skills but runs no hooks shipped in a plugin.
-- **Any usage or cost saving.** None is claimed. `scripts/token-cost.mjs` reconstructs usage from local transcripts; the client's Usage screen is the only real meter.
+- **Lifecycle hooks in Codex.** Codex reads the instructions and the skills but runs no hooks shipped in a plugin, so there the same behaviors are instructed.
+- **The bill, in money.** The token counts above are measured; pricing them is a reading of the client's own Usage screen over a window, which `scripts/token-cost.mjs` reconstructs from local transcripts and the owner cross-checks before a figure is published.
 
 ## The repository
 

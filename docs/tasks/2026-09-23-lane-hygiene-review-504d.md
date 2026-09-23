@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-lane-hygiene-review-504d
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/hygiene-review-0923
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T15:40:40.138Z
+- **Updated:** 2026-09-23T15:43:19.997Z
 
 ## Request
 
