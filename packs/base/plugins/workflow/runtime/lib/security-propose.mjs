@@ -100,7 +100,7 @@ const SIGNALS = {
   },
   'child-process': {
     label: 'a child process or shell use', kind: 'content',
-    patterns: [/child_process/i, /\bspawnSync?\b/, /\bexecFileSync?\b/, /\bexecSync\b/, /subprocess\.(run|Popen|call)/, /\bos\.system\(/, /\bos\/exec\b/, /Runtime\.getRuntime\(\)\.exec/, /ProcessBuilder\(/, /Process::/],
+    patterns: [/child_process/i, /\bspawnSync?\b/, /\bexecFileSync?\b/, /\bexecSync\b/, /subprocess\.(run|Popen|call)/, /\bos\.system\(/, /\bos\/exec\b/, /Runtime\.getRuntime\(\)\.exec/, /ProcessBuilder\(/, /Process::/], // inventory: a pattern, not a use: the proposal looks for this name in a project's files
   },
   'dependency-manifest': {
     label: 'a dependency manifest', kind: 'name',

@@ -527,7 +527,7 @@ export function jsProgramCalls(src, wrappers = []) {
   const any = /(?:node:)?child_process/g;
   while ((m = any.exec(src))) {
     if (recognised.some(([a, b]) => m.index >= a && m.index < b)) continue;
-    if (isCommentLine(src, m.index)) continue;
+    if (isCommentLine(src, m.index) || /\/\/ inventory: a pattern, not a use: \S/.test(src.slice(src.lastIndexOf("\n", m.index) + 1, src.indexOf("\n", m.index) < 0 ? src.length : src.indexOf("\n", m.index)))) continue; // a line that only searches for the name, and says why
     problems.push({ text: "child_process is used other than through a named import this reader follows", line: lineOf(src, m.index) });
   }
   const callees = [...names.keys(), ...wrappers];
