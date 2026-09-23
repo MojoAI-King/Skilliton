@@ -60,6 +60,190 @@ function diffText(files) {
   )).filter(Boolean).join("");
 }
 
+// One migration's plan as the --json shape describes it (docs/CONTRACTS.md sections 6, 9, 10).
+function describePlan(plan) {
+  return {
+    id: plan.migration.id, from: plan.migration.from, to: plan.migration.to, summary: plan.migration.summary, notes: plan.notes,
+    files: [...plan.files.map((f) => ({
+      path: f.path, action: f.action, description: f.what,
+      beforeSha256: f.before ? sha256(f.before) : null, afterSha256: f.after ? sha256(f.after) : null,
+    })), { path: plan.receiptRel, action: "create", description: "the receipt of this migration", beforeSha256: null, afterSha256: null }],
+  };
+}
+
+// One migration's plan as text: its file lines (planned or applied, by `past`), its notes, and its diff.
+function printPlan(ctx, plan, past) {
+  ctx.out("");
+  ctx.out(`${plan.migration.id} (layout ${plan.migration.from} to ${plan.migration.to}): ${plan.migration.summary}`);
+  const files = [...plan.files, { path: plan.receiptRel, action: "create", what: "the receipt of this migration (commit it with the other changes)" }];
+  for (const line of fileLines(files, past)) ctx.out(line);
+  for (const note of plan.notes) ctx.out(`Note: ${note}`);
+  const diffs = diffText(plan.files);
+  if (diffs && !ctx.json) { ctx.out(""); process.stdout.write(diffs); }
+}
+
+// --rollback <id>[--apply]: preview or apply undoing one already-applied migration.
+function runRollback(ctx, project, repo, rollbackId, state) {
+  const { out, json, emit, mode, root, dirArg } = ctx;
+  const plan = planRollback(project, repo, rollbackId);
+  const r = plan.receipt;
+  const files = plan.changes.map((c) => ({
+    path: c.path, action: c.action,
+    what: c.path === plan.receiptRel ? "the receipt of this migration"
+      : c.action === "delete" ? `did not exist before ${r.id}; removed`
+      : c.action === "create" ? `deleted by ${r.id}; recreated from the backup (hash matches the receipt)`
+      : `back to its content before ${r.id} (backup hash matches the receipt)`,
+  }));
+  const fileDetails = files.map((f) => ({ path: f.path, action: f.action, description: f.what }));
+  out(`Rolling back ${r.id} (layout ${r.from} to ${r.to}, applied ${r.appliedAt ?? "at an unrecorded time"} by workflow ${r.runtime ?? "(version not recorded)"}):`);
+  out("");
+  if (mode === "rollback-preview") {
+    for (const line of fileLines(files, false)) out(line);
+    const summary = `every file still holds what ${r.id} wrote and every backup matches the receipt; nothing written. To roll back: ${selfCommand()} migrate --rollback ${r.id} --apply${dirArg}`;
+    if (json) emit("complete", summary, { root, mode, id: r.id, state, files: fileDetails, written: false });
+    out("");
+    out(`Summary: ${summary}`);
+    return 0;
+  }
+  let result;
+  try { result = applyRollback(plan, repo); } catch (e) {
+    if (!(e instanceof TransactionFailed)) throw e;
+    const failure = describeFailure("migrate --rollback", e);
+    if (json) {
+      emit(failure.result, failure.lines.join(" "), {
+        root, mode, id: r.id, files: fileDetails, rolledBack: e.restored, notRolledBack: e.kept, rollbackComplete: e.rollbackComplete,
+      });
+      return failure.exit;
+    }
+    for (const line of fileLines(files, false)) out(line);
+    for (const line of failure.lines) console.error(line);
+    return failure.exit;
+  }
+  const summary = `rolled back ${r.id}; the project is at layout ${r.from} again and the receipt was removed. Commit these changes to share the rollback.`;
+  if (json) {
+    emit("complete", summary, {
+      root, mode, id: r.id, files: fileDetails, written: true, backup: result.backupDir ? { id: result.backupId, path: result.backupDir } : null,
+    });
+    return 0;
+  }
+  for (const line of fileLines(files, true)) out(line);
+  out("");
+  if (result.backupDir) out(`Backups of the files this rollback replaced: ${tilde(result.backupDir)} (inside the Git folder, never committed).`);
+  out(`Summary: ${summary}`);
+  return 0;
+}
+
+// Nothing is pending: says why (never prepared, or already current) and stops.
+function reportNothingPending(ctx, project, state) {
+  const { out, json, emit, mode, root, dirArg } = ctx;
+  const summary = project.layoutVersion === null
+    ? `this project has not been prepared, so there is nothing to migrate. To prepare it: ${selfCommand()} prepare${dirArg}`
+    : `layout ${project.layoutVersion} is current; no migration is pending.`;
+  if (json) emit("complete", summary, { root, mode, state, migrations: [], applied: [] });
+  out("");
+  out(`Summary: ${summary}`);
+  return 0;
+}
+
+// Plain `migrate`: plans the first pending migration and prints it; writes nothing.
+async function reportPreview(ctx, project, state) {
+  const { out, json, emit, root, mode, dirArg, runtimeVersion } = ctx;
+  const first = await planMigration(migrationById(state.pending[0].id, project), project, { root, runtimeVersion });
+  printPlan(ctx, first, false);
+  if (state.pending.length > 1) out(`Then, planned from the result of the one before: ${state.pending.slice(1).map((p) => p.id).join(", ")}.`);
+  const summary = `${state.pending.length} migration(s) pending (${state.pending.map((p) => p.id).join(", ")}); nothing written. To apply: ${selfCommand()} migrate --apply${dirArg}`;
+  if (json) emit("attention", summary, { root, mode, state, migrations: [describePlan(first)], applied: [] });
+  out("");
+  out(`Summary: ${summary}`);
+  return 1;
+}
+
+// --apply: applies every pending migration in order, stopping (without rolling earlier ones back) the moment one
+// fails, then hands off to finishApply for the private-evidence check and the final summary.
+async function applyPending(ctx, project, state, repo) {
+  const { out, json, emit, root, mode, runtimeVersion } = ctx;
+  const applied = [], described = [];
+  for (let guard = 0; guard <= MIGRATIONS.length; guard++) {
+    const current = migrationState(project);
+    if (!current.pending.length) break;
+    const migration = migrationById(current.pending[0].id, project);
+    const plan = await planMigration(migration, project, { root, runtimeVersion });
+    described.push(describePlan(plan));
+    printPlan(ctx, plan, false);
+    let done;
+    try { done = applyMigration(plan, { root, gitDir: repo.gitDir, runtimeVersion }); } catch (e) {
+      if (!(e instanceof TransactionFailed)) throw e;
+      const failure = describeFailure(`migrate (${migration.id})`, e);
+      const before = applied.length ? ` Applied before it and kept: ${applied.map((a) => a.id).join(", ")}.` : "";
+      if (json) {
+        emit(failure.result, failure.lines.join(" ") + before, {
+          root, mode, state, migrations: described, applied, rolledBack: e.restored, notRolledBack: e.kept, rollbackComplete: e.rollbackComplete,
+        });
+        return failure.exit;
+      }
+      for (const line of failure.lines) console.error(line);
+      if (before) console.error(before.trim());
+      return failure.exit;
+    }
+    applied.push({
+      id: migration.id, receipt: done.receiptRel, backup: done.result.backupDir ? { id: done.result.backupId, path: done.result.backupDir } : null,
+    });
+    out(`Applied ${migration.id}. Receipt: ${done.receiptRel}.${done.result.backupDir ? ` Backups: ${tilde(done.result.backupDir)} (inside the Git folder, never committed).` : ""}`);
+    const layoutBefore = project.layoutVersion;
+    project = loadProject(root, { allowLegacy: true });
+    if (migration.kind !== "instructions" && project.layoutVersion === layoutBefore) {
+      throw new OperationFailed(`${migration.id} was written but prepare.version is still ${layoutBefore}; stopping instead of repeating it`);
+    }
+  }
+  return finishApply(ctx, project, state, applied, described);
+}
+
+// After every pending migration applied: checks that private evidence is still Git-ignored (0003 moves it), then
+// prints the final summary.
+async function finishApply(ctx, project, state, applied, described) {
+  const { out, json, emit, root, mode, dirArg } = ctx;
+  const ids = applied.map((a) => a.id);
+  // After the move, private evidence must still be out of Git: a .gitignore rule elsewhere (a negation, a nested
+  // file) could undo the line the migration added, and "commit the changed files" must not sweep evidence in.
+  let ignored = true;
+  if (ids.includes("0003-skilliton-names")) {
+    const { privateEvidenceIgnored } = await import("../lib/collectors.mjs");
+    ignored = privateEvidenceIgnored(root);
+  }
+  if (ignored !== true) {
+    const problem = ignored === false
+      ? `.skilliton/private-evidence/ is not ignored by Git in this project after the move, so evidence there could be committed. Do not commit yet: find the .gitignore rule that re-includes it (git check-ignore -v --no-index .skilliton/private-evidence/x shows the rule), fix it, then commit`
+      : `whether .skilliton/private-evidence/ is ignored by Git could not be checked; before committing, run git check-ignore --no-index .skilliton/private-evidence/x and confirm it prints the path`;
+    const summary = `layout ${project.layoutVersion}; ${applied.length} migration(s) applied (${ids.join(", ")}), but ${problem}.`;
+    if (json) { emit("attention", summary, { root, mode, state, migrations: described, applied, privateEvidenceIgnored: ignored }); return 1; }
+    out("");
+    out(`Summary: ${summary}`);
+    return 1;
+  }
+  const summary = `layout ${project.layoutVersion}; ${applied.length} migration(s) applied (${ids.join(", ")}). Commit the changed files together with the receipt(s). Next: ${selfCommand()} prepare --check${dirArg} shows anything else layout ${LAYOUT_VERSION} expects. To undo: ${selfCommand()} migrate --rollback ${ids.at(-1)} --apply${dirArg}`;
+  if (json) { emit("complete", summary, { root, mode, state, migrations: described, applied }); return 0; }
+  out("");
+  out(`Summary: ${summary}`);
+  return 0;
+}
+
+// Maps a caught error to the exit code and the message migrate reports (docs/CONTRACTS.md sections 9, 10); a
+// non-json, non-Refused error is rethrown, same as the caller only catching what it can name.
+function handleMigrateError(e, json, emit, root, mode) {
+  if (e instanceof OperationFailed) {
+    if (json) emit("operation-failed", e.message, { root, mode });
+    else console.error(`skilliton: migrate could not run: ${e.message}`);
+    return 3;
+  }
+  if (json && e instanceof Refused) { emit("invalid", e.message, { root, mode }); return 2; }
+  if (json) {
+    if (process.env.SKILLITON_DEBUG) console.error(e?.stack);
+    emit("operation-failed", `unexpected internal error: ${e?.message ?? e}. This is a bug in skilliton.`, { root, mode });
+    return 3;
+  }
+  throw e;
+}
+
 export async function run(argv) {
   const json = argv.includes("--json");
   const emit = (result, summary, details) => process.stdout.write(resultJson("migrate", result, summary, details) + "\n");
@@ -78,146 +262,16 @@ export async function run(argv) {
     const state = migrationState(project);
     const title = { preview: "preview", apply: "apply", "rollback-preview": "rollback preview", rollback: "rollback" }[mode];
     out(`skilliton migrate (${title}): ${tilde(root)}`);
+    const ctx = { json, out, emit, mode, root, dirArg, runtimeVersion };
 
-    // ----- rollback -----
-    if (o.rollback) {
-      const plan = planRollback(project, repo, o.rollback);
-      const r = plan.receipt;
-      const files = plan.changes.map((c) => ({
-        path: c.path, action: c.action,
-        what: c.path === plan.receiptRel ? "the receipt of this migration"
-          : c.action === "delete" ? `did not exist before ${r.id}; removed`
-          : c.action === "create" ? `deleted by ${r.id}; recreated from the backup (hash matches the receipt)`
-          : `back to its content before ${r.id} (backup hash matches the receipt)`,
-      }));
-      const fileDetails = files.map((f) => ({ path: f.path, action: f.action, description: f.what }));
-      out(`Rolling back ${r.id} (layout ${r.from} to ${r.to}, applied ${r.appliedAt ?? "at an unrecorded time"} by workflow ${r.runtime ?? "(version not recorded)"}):`);
-      out("");
-      if (mode === "rollback-preview") {
-        for (const line of fileLines(files, false)) out(line);
-        const summary = `every file still holds what ${r.id} wrote and every backup matches the receipt; nothing written. To roll back: ${selfCommand()} migrate --rollback ${r.id} --apply${dirArg}`;
-        if (json) emit("complete", summary, { root, mode, id: r.id, state, files: fileDetails, written: false });
-        out("");
-        out(`Summary: ${summary}`);
-        return 0;
-      }
-      let result;
-      try { result = applyRollback(plan, repo); } catch (e) {
-        if (!(e instanceof TransactionFailed)) throw e;
-        const failure = describeFailure("migrate --rollback", e);
-        if (json) { emit(failure.result, failure.lines.join(" "), { root, mode, id: r.id, files: fileDetails, rolledBack: e.restored, notRolledBack: e.kept, rollbackComplete: e.rollbackComplete }); return failure.exit; }
-        for (const line of fileLines(files, false)) out(line);
-        for (const line of failure.lines) console.error(line);
-        return failure.exit;
-      }
-      const summary = `rolled back ${r.id}; the project is at layout ${r.from} again and the receipt was removed. Commit these changes to share the rollback.`;
-      if (json) { emit("complete", summary, { root, mode, id: r.id, files: fileDetails, written: true, backup: result.backupDir ? { id: result.backupId, path: result.backupDir } : null }); return 0; }
-      for (const line of fileLines(files, true)) out(line);
-      out("");
-      if (result.backupDir) out(`Backups of the files this rollback replaced: ${tilde(result.backupDir)} (inside the Git folder, never committed).`);
-      out(`Summary: ${summary}`);
-      return 0;
-    }
+    if (o.rollback) return runRollback(ctx, project, repo, o.rollback, state);
 
-    // ----- nothing pending -----
     const layout = project.layoutVersion === null ? "not prepared (no prepare.version)" : `layout ${project.layoutVersion}`;
     out(`Project: ${layout}; this runtime (workflow ${runtimeVersion ?? "(version unreadable)"}) writes layout ${LAYOUT_VERSION}. Pending: ${state.pending.length ? state.pending.map((p) => p.id).join(", ") : "none"}. Applied: ${state.applied.length ? state.applied.join(", ") : "none"}.`);
-    if (!state.pending.length) {
-      const summary = project.layoutVersion === null
-        ? `this project has not been prepared, so there is nothing to migrate. To prepare it: ${selfCommand()} prepare${dirArg}`
-        : `layout ${project.layoutVersion} is current; no migration is pending.`;
-      if (json) emit("complete", summary, { root, mode, state, migrations: [], applied: [] });
-      out("");
-      out(`Summary: ${summary}`);
-      return 0;
-    }
-
-    // ----- preview -----
-    const describe = (plan) => ({
-      id: plan.migration.id, from: plan.migration.from, to: plan.migration.to, summary: plan.migration.summary, notes: plan.notes,
-      files: [...plan.files.map((f) => ({ path: f.path, action: f.action, description: f.what, beforeSha256: f.before ? sha256(f.before) : null, afterSha256: f.after ? sha256(f.after) : null })),
-        { path: plan.receiptRel, action: "create", description: "the receipt of this migration", beforeSha256: null, afterSha256: null }],
-    });
-    const printPlan = (plan, past) => {
-      out("");
-      out(`${plan.migration.id} (layout ${plan.migration.from} to ${plan.migration.to}): ${plan.migration.summary}`);
-      const files = [...plan.files, { path: plan.receiptRel, action: "create", what: "the receipt of this migration (commit it with the other changes)" }];
-      for (const line of fileLines(files, past)) out(line);
-      for (const note of plan.notes) out(`Note: ${note}`);
-      const diffs = diffText(plan.files);
-      if (diffs && !json) { out(""); process.stdout.write(diffs); }
-    };
-    if (mode === "preview") {
-      const first = await planMigration(migrationById(state.pending[0].id, project), project, { root, runtimeVersion });
-      printPlan(first, false);
-      if (state.pending.length > 1) out(`Then, planned from the result of the one before: ${state.pending.slice(1).map((p) => p.id).join(", ")}.`);
-      const summary = `${state.pending.length} migration(s) pending (${state.pending.map((p) => p.id).join(", ")}); nothing written. To apply: ${selfCommand()} migrate --apply${dirArg}`;
-      if (json) emit("attention", summary, { root, mode, state, migrations: [describe(first)], applied: [] });
-      out("");
-      out(`Summary: ${summary}`);
-      return 1;
-    }
-
-    // ----- apply -----
-    const applied = [], described = [];
-    for (let guard = 0; guard <= MIGRATIONS.length; guard++) {
-      const current = migrationState(project);
-      if (!current.pending.length) break;
-      const migration = migrationById(current.pending[0].id, project);
-      const plan = await planMigration(migration, project, { root, runtimeVersion });
-      described.push(describe(plan));
-      printPlan(plan, false);
-      let done;
-      try { done = applyMigration(plan, { root, gitDir: repo.gitDir, runtimeVersion }); } catch (e) {
-        if (!(e instanceof TransactionFailed)) throw e;
-        const failure = describeFailure(`migrate (${migration.id})`, e);
-        const before = applied.length ? ` Applied before it and kept: ${applied.map((a) => a.id).join(", ")}.` : "";
-        if (json) { emit(failure.result, failure.lines.join(" ") + before, { root, mode, state, migrations: described, applied, rolledBack: e.restored, notRolledBack: e.kept, rollbackComplete: e.rollbackComplete }); return failure.exit; }
-        for (const line of failure.lines) console.error(line);
-        if (before) console.error(before.trim());
-        return failure.exit;
-      }
-      applied.push({ id: migration.id, receipt: done.receiptRel, backup: done.result.backupDir ? { id: done.result.backupId, path: done.result.backupDir } : null });
-      out(`Applied ${migration.id}. Receipt: ${done.receiptRel}.${done.result.backupDir ? ` Backups: ${tilde(done.result.backupDir)} (inside the Git folder, never committed).` : ""}`);
-      const layoutBefore = project.layoutVersion;
-      project = loadProject(root, { allowLegacy: true });
-      if (migration.kind !== "instructions" && project.layoutVersion === layoutBefore) throw new OperationFailed(`${migration.id} was written but prepare.version is still ${layoutBefore}; stopping instead of repeating it`);
-    }
-    const ids = applied.map((a) => a.id);
-    // After the move, private evidence must still be out of Git: a .gitignore rule elsewhere (a negation, a nested
-    // file) could undo the line the migration added, and "commit the changed files" must not sweep evidence in.
-    let ignored = true;
-    if (ids.includes("0003-skilliton-names")) {
-      const { privateEvidenceIgnored } = await import("../lib/collectors.mjs");
-      ignored = privateEvidenceIgnored(root);
-    }
-    if (ignored !== true) {
-      const problem = ignored === false
-        ? `.skilliton/private-evidence/ is not ignored by Git in this project after the move, so evidence there could be committed. Do not commit yet: find the .gitignore rule that re-includes it (git check-ignore -v --no-index .skilliton/private-evidence/x shows the rule), fix it, then commit`
-        : `whether .skilliton/private-evidence/ is ignored by Git could not be checked; before committing, run git check-ignore --no-index .skilliton/private-evidence/x and confirm it prints the path`;
-      const summary = `layout ${project.layoutVersion}; ${applied.length} migration(s) applied (${ids.join(", ")}), but ${problem}.`;
-      if (json) { emit("attention", summary, { root, mode, state, migrations: described, applied, privateEvidenceIgnored: ignored }); return 1; }
-      out("");
-      out(`Summary: ${summary}`);
-      return 1;
-    }
-    const summary = `layout ${project.layoutVersion}; ${applied.length} migration(s) applied (${ids.join(", ")}). Commit the changed files together with the receipt(s). Next: ${selfCommand()} prepare --check${dirArg} shows anything else layout ${LAYOUT_VERSION} expects. To undo: ${selfCommand()} migrate --rollback ${ids.at(-1)} --apply${dirArg}`;
-    if (json) { emit("complete", summary, { root, mode, state, migrations: described, applied }); return 0; }
-    out("");
-    out(`Summary: ${summary}`);
-    return 0;
+    if (!state.pending.length) return reportNothingPending(ctx, project, state);
+    if (mode === "preview") return await reportPreview(ctx, project, state);
+    return await applyPending(ctx, project, state, repo);
   } catch (e) {
-    if (e instanceof OperationFailed) {
-      if (json) emit("operation-failed", e.message, { root, mode });
-      else console.error(`skilliton: migrate could not run: ${e.message}`);
-      return 3;
-    }
-    if (json && e instanceof Refused) { emit("invalid", e.message, { root, mode }); return 2; }
-    if (json) {
-      if (process.env.SKILLITON_DEBUG) console.error(e?.stack);
-      emit("operation-failed", `unexpected internal error: ${e?.message ?? e}. This is a bug in skilliton.`, { root, mode });
-      return 3;
-    }
-    throw e;
+    return handleMigrateError(e, json, emit, root, mode);
   }
 }

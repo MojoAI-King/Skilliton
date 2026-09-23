@@ -137,7 +137,9 @@ function joinedNote(company) {
   return `This machine already joined ${names.join(" and ")} (receipts in ${where}). Joining ${company} as well adds a second marketplace, trust file and launcher; if ${names.length === 1 ? names[0] : "one of those"} is the company you meant, stop here and run ${selfCommand()} prepare --dir <project> instead. `;
 }
 
-async function join(o) {
+// Validates the flags, resolves the clone and the trust plan, decides the pin, and plans the join. planArgs is
+// handed back too: applying a pin that moves the clone means planning again, against what the move left behind.
+function buildJoinPlan(o) {
   if (o["bin-dir"] !== undefined && o["no-launcher"]) refuse("pass --bin-dir or --no-launcher, not both");
   if (o.release !== undefined && o["no-pin"]) refuse("pass --release or --no-pin, not both");
   const repo = resolveSkillsRepo(o.repo);
@@ -157,8 +159,11 @@ async function join(o) {
     binDir: o["bin-dir"], noLauncher: o["no-launcher"], claude: o.claude, codex: o.codex, trustPlan, prepare: o.prepare,
     platform: process.env.SKILLITON_PLATFORM || process.platform,
   });
-  let plan = planArgs();
+  return { pinState, pinPlan, planArgs, plan: planArgs() };
+}
 
+// The company, repository, pin and marketplace lines every mode of `join` prints first.
+function printJoinSummary(o, plan, pinState, pinPlan) {
   say(`skilliton join${o.apply ? "" : " (preview; nothing is set up)"}`);
   say(`company: ${plan.company}`);
   say(`skills repository: ${tilde(plan.repo)} (commit ${plan.clone.head ?? "unknown"}, ${plan.clone.releaseTags} release tag(s))`);
@@ -168,9 +173,12 @@ async function join(o) {
   say(`marketplace: ${plan.market.name} from ${plan.market.source.kind === "github" ? `GitHub ${plan.market.source.location}` : `folder ${tilde(plan.market.source.location)}`}`);
   say(`plugins: ${plan.plugins.join(", ")}`);
   say("");
+}
 
-  // The machine checks come before anything is written, so a laptop that cannot run or write what setup needs says so
-  // instead of failing half way. Items that would only stop a hook in a later session are printed, not refused.
+// The machine checks come before anything is written, so a laptop that cannot run or write what setup needs says so
+// instead of failing half way. Items that would only stop a hook in a later session are printed, not refused.
+// Returns { blocked: true } (and prints the refusal) when setup cannot proceed.
+async function checkJoinMachine(plan) {
   const pre = await runPreflight({
     clients: plan.clients.map((c) => ({ name: c.driver.binaryName, path: c.binary.path })),
     marketplace: plan.market.source.location,
@@ -185,8 +193,14 @@ async function join(o) {
   if (pre.blocking.length) {
     say("");
     say(`Refused, and nothing was changed: this machine cannot be set up until the item(s) above marked as stopping setup are cleared (${pre.blocking.map((i) => i.name).join(", ")}). Run ${selfCommand()} preflight for the full list, and give it with docs/IT-ALLOWLIST.md to whoever manages these laptops.`);
-    return 2;
+    return { blocked: true };
   }
+  return { blocked: false };
+}
+
+// What join would add or found already in place: the signers file, each client's marketplace and plugins, and the
+// launcher(s). Returns the still-to-do work (used to size the preview line) and the launcher plan (used at the end).
+function printJoinSteps(plan) {
   say("");
   const work = [];
   const step = (done, text) => { say(`  ${done ? "already in place" : "will add        "}  ${text}`); if (!done) work.push(text); };
@@ -208,44 +222,56 @@ async function join(o) {
   if (l.action !== "none" && !l.onPath) say(`  note: ${tilde(l.dir)} is not on PATH. To use skilliton in new terminals, add this line to your shell profile: export PATH="${l.dir}:$PATH"`);
   if (!plan.clone.releaseTags) say(`note: ${tilde(plan.repo)} has no release tags yet, so verify will not find an approved release until your company signs one and you fetch its tags (git -C ${tilde(plan.repo)} fetch --tags).`);
   say("");
+  return { work, l };
+}
 
-  const moving = pinPlan?.action === "checkout";
-  if (!o.apply) {
-    if (moving) say("The steps above were read from the clone as it stands; --apply moves it to the release first, then reads them again.");
-    say(work.length || moving ? `${work.length} change(s) to make${moving ? ", after the move" : ""}, then verify for ${plan.clients.map((c) => c.driver.label).join(" and ")}. Next: run the same command with --apply.` : "Everything is already in place; --apply only runs verify.");
-    return 0;
-  }
+// --apply was not given: says what would happen and stops. moving means --apply would move the clone before
+// reading the plan again, which the preview above could not have seen.
+function previewOnlyResult(plan, moving, work) {
+  if (moving) say("The steps above were read from the clone as it stands; --apply moves it to the release first, then reads them again.");
+  say(work.length || moving ? `${work.length} change(s) to make${moving ? ", after the move" : ""}, then verify for ${plan.clients.map((c) => c.driver.label).join(" and ")}. Next: run the same command with --apply.` : "Everything is already in place; --apply only runs verify.");
+  return 0;
+}
 
-  // The clone moves before anything reads it again: the catalog, the team template and the runtime the launcher
-  // points at all come from the working tree, so the plan is only true of the tree it was read from.
-  if (pinPlan && pinPlan.action !== "already") {
-    const pinned = applyPin(pinState, pinPlan, { say });
-    if (pinned.failed) {
-      say("");
-      say(`FAILED: ${pinned.failed}`);
-      say("Nothing else was changed; fix the cause and run join again.");
-      return 3;
-    }
-    if (moving) {
-      const after = planArgs();
-      if (after.plugins.join(",") !== plan.plugins.join(",") || after.market.name !== plan.market.name) {
-        say(`  note: release ${pinPlan.version} names marketplace ${after.market.name} with ${after.plugins.join(", ")}, which is not what the preview above read before the move.`);
-      }
-      plan = after;
-    }
-  }
-
-  if (pending(plan)) {
-    const result = applyJoin(plan, { say, writeTrust: writeTrustFile });
-    if (result.failed) {
-      say("");
-      say(`FAILED: ${result.failed.step}: ${result.failed.detail}`);
-      say(`What completed is recorded in ${tilde(plan.receipt)}. Fix the cause and run join again, or take it back out with: ${selfCommand()} join --undo --company ${plan.company} --apply`);
-      return 3;
-    }
+// The clone moves before anything reads it again: the catalog, the team template and the runtime the launcher
+// points at all come from the working tree, so the plan is only true of the tree it was read from. Returns the
+// plan to use from here on, or a failedExit when the pin could not be applied.
+function applyPinIfNeeded(pinState, pinPlan, planArgs, plan, moving) {
+  if (!pinPlan || pinPlan.action === "already") return { plan };
+  const pinned = applyPin(pinState, pinPlan, { say });
+  if (pinned.failed) {
     say("");
+    say(`FAILED: ${pinned.failed}`);
+    say("Nothing else was changed; fix the cause and run join again.");
+    return { failedExit: 3 };
   }
+  if (moving) {
+    const after = planArgs();
+    if (after.plugins.join(",") !== plan.plugins.join(",") || after.market.name !== plan.market.name) {
+      say(`  note: release ${pinPlan.version} names marketplace ${after.market.name} with ${after.plugins.join(", ")}, which is not what the preview above read before the move.`);
+    }
+    plan = after;
+  }
+  return { plan };
+}
 
+// Writes what the plan still has pending (pending() is false when a pin's move already left nothing to do).
+function applyJoinWrite(plan) {
+  if (!pending(plan)) return {};
+  const result = applyJoin(plan, { say, writeTrust: writeTrustFile });
+  if (result.failed) {
+    say("");
+    say(`FAILED: ${result.failed.step}: ${result.failed.detail}`);
+    say(`What completed is recorded in ${tilde(plan.receipt)}. Fix the cause and run join again, or take it back out with: ${selfCommand()} join --undo --company ${plan.company} --apply`);
+    return { failedExit: 3 };
+  }
+  say("");
+  return {};
+}
+
+// Runs verify for every client join set up; a client verify itself could not run (a Refused) still lets the others
+// be checked. Returns whether every client verified clean.
+function verifyJoinedClients(plan) {
   let allVerified = true;
   for (const c of plan.clients) {
     let report;
@@ -261,12 +287,41 @@ async function join(o) {
     for (const p of report.details.plugins) say(`  ${p.state.padEnd(16)}${p.plugin}${p.version ? ` ${p.version}` : ""}`);
     if (report.exitCode !== 0) allVerified = false;
   }
+  return allVerified;
+}
+
+function finishJoin(plan, l, allVerified) {
   const launcherOk = l.action !== "skip" && l.cmd?.action !== "skip";
   say("");
   say(allVerified && launcherOk
     ? `Done: this machine is set up for ${plan.company}. Start a new session in any project; to prepare one, run skilliton prepare --dir <project>.`
     : `Set up, with attention needed above${launcherOk ? "" : " (the terminal command was not written)"}. To take it back out: ${selfCommand()} join --undo --company ${plan.company} --apply`);
   return allVerified && launcherOk ? 0 : 1;
+}
+
+async function join(o) {
+  const built = buildJoinPlan(o);
+  const { pinState, pinPlan, planArgs } = built;
+  let plan = built.plan;
+
+  printJoinSummary(o, plan, pinState, pinPlan);
+
+  const machine = await checkJoinMachine(plan);
+  if (machine.blocked) return 2;
+
+  const { work, l } = printJoinSteps(plan);
+  const moving = pinPlan?.action === "checkout";
+  if (!o.apply) return previewOnlyResult(plan, moving, work);
+
+  const pinned = applyPinIfNeeded(pinState, pinPlan, planArgs, plan, moving);
+  if (pinned.failedExit) return pinned.failedExit;
+  plan = pinned.plan;
+
+  const written = applyJoinWrite(plan);
+  if (written.failedExit) return written.failedExit;
+
+  const allVerified = verifyJoinedClients(plan);
+  return finishJoin(plan, l, allVerified);
 }
 
 // Whether a plan still has anything to write. work[] counts the same things while the preview prints them, but a

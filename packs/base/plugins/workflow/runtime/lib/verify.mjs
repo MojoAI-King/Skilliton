@@ -222,27 +222,32 @@ function evaluateInstall(install, releases) {
 
 // ---------- the whole check ----------
 
-// Returns { exitCode, result, summary, details, text: [lines] }. Throws Refused for invalid input or missing trust.
-export function runVerify({ client = "claude-code", configDir, source, company, defaultSource, sourceHint }) {
+// The clone to read releases from: --source, or defaultSource when it is not given. Refuses a URL (not a path) and
+// a client name verify does not know.
+function resolveVerifySource({ client, source, defaultSource, sourceHint }) {
   if (!CLIENTS.includes(client)) refuse(`--client must be one of ${CLIENTS.join(", ")} (got "${client}")`);
   let sourceInput = source;
-  const text = [];
   if (sourceInput === undefined) {
     if (!defaultSource) refuse(`verify needs --source <path of a clone of the company skills repository>: this copy of skilliton is not inside one${sourceHint ? `, and ${sourceHint}` : ""}. The client's own marketplace copy is not assumed to hold every release tag.`);
     sourceInput = defaultSource;
   }
   if (/^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(sourceInput) || /^[^/\s]+@[^/\s]+:/.test(sourceInput)) refuse("--source as a URL is not built in this version; clone the company skills repository (with its tags) and pass the clone's path");
-  const { dir: repo } = openRepository(sourceInput, "--source");
-  const trust = resolveTrust(company);
+  return openRepository(sourceInput, "--source").dir;
+}
 
-  let dir;
-  if (configDir !== undefined) {
-    dir = resolve(configDir);
-    let st;
-    try { st = statSync(dir); } catch { st = null; }
-    if (!st?.isDirectory()) refuse(`--config-dir ${tilde(dir)} is not an existing folder`);
-  } else dir = client === "claude-code" ? claudeConfigDir() : codexHome();
+// --config-dir, checked as an existing folder, or the client's own default location.
+function resolveVerifyConfigDir(client, configDir) {
+  if (configDir === undefined) return client === "claude-code" ? claudeConfigDir() : codexHome();
+  const dir = resolve(configDir);
+  let st;
+  try { st = statSync(dir); } catch { st = null; }
+  if (!st?.isDirectory()) refuse(`--config-dir ${tilde(dir)} is not an existing folder`);
+  return dir;
+}
 
+// The release state and the marketplace name(s) installs are checked against: from the manifests already read, and
+// from the source's own catalog when it has one. notes is mutated in place; every step below adds to the same list.
+function gatherReleaseNames(repo, trust, client) {
   const state = readReleaseState(repo, trust);
   const releases = state.versions.filter((v) => v.manifest && (v.state === "approved" || v.state === "withdrawn"));
   const names = new Set();
@@ -263,7 +268,12 @@ export function runVerify({ client = "claude-code", configDir, source, company, 
     if (!(e instanceof Refused)) throw e;
     notes.push(`the source's own catalog was not used for marketplace names: ${e.message}`);
   }
+  return { state, releases, names, notes };
+}
 
+// This client's install records, narrowed to the plugins that came from a marketplace name gatherReleaseNames
+// found; notes (from the caller) gets a line about everything filtered out or otherwise worth a note.
+function gatherInstalls(client, dir, names, notes) {
   const records = client === "claude-code" ? readClaudeInstalls(dir) : readCodexInstalls(dir, names);
   notes.push(...records.notes);
   const installs = records.installs.filter((i) => names.has(i.marketplace));
@@ -275,7 +285,12 @@ export function runVerify({ client = "claude-code", configDir, source, company, 
     const cache = join(dir, "plugins", "cache");
     for (const i of installs) if (!isInside(resolve(i.installPath), cache)) i.notes.push(`its install path is outside ${tilde(cache)}, where Claude Code has been observed to keep installed plugins`);
   }
+  return { records, installs };
+}
 
+// One line per install, plus a NOT INSTALLED line for anything the newest approved release has that this client
+// does not.
+function evaluateAllInstalls(installs, releases) {
   const lines = installs.map((i) => evaluateInstall(i, releases));
   const newest = releases.filter((r) => r.state === "approved").sort(newestFirst)[0];
   if (newest) {
@@ -285,8 +300,12 @@ export function runVerify({ client = "claude-code", configDir, source, company, 
       }
     }
   }
+  return lines;
+}
 
-  const invalid = [...state.problems, ...records.invalid];
+// The exit code and the one-line summary: invalid beats everything, then all-VERIFIED, then nothing installed,
+// then a mix.
+function summarizeVerify(lines, invalid, names) {
   const counts = Object.fromEntries(STATE_ORDER.map((s) => [s, lines.filter((l) => l.state === s).length]));
   let exitCode, summary;
   if (invalid.length) {
@@ -309,7 +328,12 @@ export function runVerify({ client = "claude-code", configDir, source, company, 
     const parts = STATE_ORDER.filter((s) => s !== "VERIFIED" && counts[s]).map((s) => `${counts[s]} ${s}`);
     summary = `not every company plugin is VERIFIED (${counts.VERIFIED} VERIFIED; ${parts.join(", ")}). Install or update from an approved release, then run verify again.`;
   }
+  return { counts, exitCode, summary };
+}
 
+// The human-readable report: client/records, source/releases, trust, notes, problems, one line per plugin, summary.
+function buildVerifyText({ client, records, repo, trust, state, notes, invalid, lines, summary }) {
+  const text = [];
   const approved = state.versions.filter((v) => v.state === "approved").map((v) => v.version);
   const withdrawn = state.versions.filter((v) => v.state === "withdrawn").map((v) => v.version);
   const unapproved = state.versions.filter((v) => v.state === "unapproved").map((v) => v.version);
@@ -325,9 +349,13 @@ export function runVerify({ client = "claude-code", configDir, source, company, 
     for (const n of l.notes) text.push(`${" ".repeat(width)}note: ${n}`);
   }
   text.push(`Summary: ${summary}`);
+  return text;
+}
 
-  const details = {
-    client, configDir: dir,
+// The --json details object (docs/CONTRACTS.md section 13).
+function buildVerifyDetails({ client, configDir, records, repo, trust, state, lines, counts, invalid, notes }) {
+  return {
+    client, configDir,
     records: { path: records.recordsPath, format: "not documented; read as observed", description: records.label },
     source: repo, company: trust.company, trustFile: trust.path,
     releases: state.versions.map((v) => ({
@@ -338,6 +366,20 @@ export function runVerify({ client = "claude-code", configDir, source, company, 
     })),
     plugins: lines, counts, problems: invalid, notes,
   };
+}
+
+// Returns { exitCode, result, summary, details, text: [lines] }. Throws Refused for invalid input or missing trust.
+export function runVerify({ client = "claude-code", configDir, source, company, defaultSource, sourceHint }) {
+  const repo = resolveVerifySource({ client, source, defaultSource, sourceHint });
+  const trust = resolveTrust(company);
+  const dir = resolveVerifyConfigDir(client, configDir);
+  const { state, releases, names, notes } = gatherReleaseNames(repo, trust, client);
+  const { records, installs } = gatherInstalls(client, dir, names, notes);
+  const lines = evaluateAllInstalls(installs, releases);
+  const invalid = [...state.problems, ...records.invalid];
+  const { counts, exitCode, summary } = summarizeVerify(lines, invalid, names);
+  const text = buildVerifyText({ client, records, repo, trust, state, notes, invalid, lines, summary });
+  const details = buildVerifyDetails({ client, configDir: dir, records, repo, trust, state, lines, counts, invalid, notes });
   const result = exitCode === 0 ? "complete" : exitCode === 1 ? "attention" : "invalid";
   return { exitCode, result, summary, details, text };
 }

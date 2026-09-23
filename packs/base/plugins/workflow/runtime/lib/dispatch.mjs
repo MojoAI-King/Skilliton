@@ -15,16 +15,14 @@
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { formatRecordHeader } from "./config.mjs";
 import { PLUGIN_ROOT, refuse, tilde } from "./core.mjs";
 import { readBranch, runGit } from "./journal.mjs";
 import { newId } from "./ids.mjs";
 import { OperationFailed } from "./lifecycle.mjs";
 import { renderTask, taskRel } from "./tasks.mjs";
 
-export const LANE_FILE = "LANES.md";
-export const BRIEF_FILE = "LANE_BRIEF.md";
-export const REPORT_FILE = "LANE_REPORT.md";
+import { BRIEF_FILE, LANE_FILE, REPORT_FILE, briefText } from "./dispatch-brief.mjs";
+export { LANE_FILE, BRIEF_FILE, REPORT_FILE };
 const MAX_PLAN_BYTES = 200000;
 // A worktree add checks out the tree, which on a large repository is slower than a query; the journal's default
 // timeout is for queries.
@@ -174,114 +172,11 @@ function laneAgent() {
   return agent.name && agent.model && agent.effort ? agent : null;
 }
 
-// ---------- the brief ----------
-
-const bullet = (items) => items.map((i) => `- ${i}`).join("\n");
-
-function briefText(lane, ctx) {
-  const setup = ctx.laneSetup.map((c) => c.replaceAll("{lane}", lane.name));
-  const model = lane.model ? `${lane.model} (named in ${LANE_FILE})` : `not named in ${LANE_FILE}; ask before using the most capable one, because a lane with a written spec and a gate behind it rarely needs it`;
-  const ceiling = lane.ceiling ? `${lane.ceiling} (named in ${LANE_FILE})` : `not named in ${LANE_FILE}`;
-  const lines = [];
-  lines.push(`# Lane brief: ${lane.name}`);
-  lines.push("");
-  lines.push(formatRecordHeader(ctx.recordHeader, `Reference. Written by \`skilliton dispatch\` from ${ctx.planRel} on ${ctx.date}. It is not committed: dispatch adds ${BRIEF_FILE} and ${REPORT_FILE} to the repository's info/exclude.`));
-  lines.push("");
-  lines.push(`- **Lane:** ${lane.name}`);
-  lines.push(`- **Branch:** ${lane.branch}, created from ${lane.base.slice(0, 12)} (${lane.baseFrom})`);
-  lines.push(`- **Worktree:** ${lane.dir}`);
-  lines.push(`- **Integration branch:** ${ctx.integrationBranch}, at ${tilde(ctx.root)}`);
-  lines.push(`- **Model:** ${model}`);
-  lines.push(`- **Context ceiling:** ${ceiling}`);
-  lines.push("");
-  lines.push("## Launching this lane");
-  lines.push("");
-  if (ctx.agent) {
-    // The lane's own model reaches the command line only when it is a bare token: the LANES.md field is free text, and
-    // a sentence in it would make the line unrunnable. Anything else falls back to the definition's own model.
-    const m = /^[A-Za-z0-9][\w.-]*$/.test(lane.model ?? "") ? lane.model : ctx.agent.model;
-    lines.push(`This lane runs as the \`${ctx.agent.name}\` agent the workflow plugin ships (\`agents/${ctx.agent.name}.md\`, model ${ctx.agent.model}, effort ${ctx.agent.effort}). From the integration window:`);
-    lines.push("");
-    lines.push("```");
-    lines.push(`cd ${lane.dir} && claude --agent ${ctx.agent.name} --model ${m} --effort ${ctx.agent.effort}`);
-    lines.push("```");
-    lines.push("");
-    lines.push(`The model and the effort are on the line rather than left to the client to read from the definition. If \`claude --help\` here does not list \`--agent\`, open a session in this folder and ask for the ${ctx.agent.name} agent by name: the definition is the same either way.`);
-  } else {
-    lines.push("The `agents/lane.md` beside this runtime could not be read, so this brief names no agent. Open a session in this folder, say it is one lane of a dispatched batch, and give it this brief.");
-  }
-  lines.push("");
-  lines.push("## Check before you write");
-  lines.push("");
-  lines.push(`Run \`git branch --show-current\`. It must print ${lane.branch}; otherwise stop and say so.`);
-  lines.push(`Run \`git merge-base --is-ancestor ${lane.base} HEAD\`. It must exit 0; otherwise stop and say this lane is missing the base commit.`);
-  lines.push("");
-  lines.push(`## Scope: ${lane.items.length} item${lane.items.length === 1 ? "" : "s"}`);
-  lines.push("");
-  if (lane.items.length) {
-    lines.push(...lane.items.map((i) => `${i.ref}. ${i.text}`));
-    lines.push("");
-    lines.push(`These items and nothing else. Work that is not here belongs to another lane: write it under "Leftovers for other lanes" in ${REPORT_FILE} instead of doing it. Commit once per item with the N number in the subject, and do not push.`);
-  } else {
-    lines.push(`${LANE_FILE} names no items for this lane. Do not guess the scope: say so and stop.`);
-  }
-  lines.push("");
-  lines.push("## Your bound");
-  lines.push("");
-  lines.push(bullet([
-    "**Read:** this brief, the files the items name, and what those lead to. Not the repository end to end, and not the other lanes' items.",
-    `**Return:** ${REPORT_FILE} at the root of this worktree, with these headings, each present even when empty: Commits by item (hash, N number); Skipped (item, why); Merge-time expectations (conflicts you expect and how to resolve them, seams you touched, files outside your list); Run-time behavior (what the first run after release does once); Leftovers for other lanes (name the lane that owns the file). End with the line LANE DONE and the commits, each with its N number.`,
-    `**Model:** ${model}.`,
-    `**Context ceiling:** ${ceiling}. Work that needs more than the ceiling was scoped too wide: stop, write what is done in ${REPORT_FILE}, and say so. Do not compact your way through it.`,
-    "**Nothing silent:** a check that crashed, an item you could not do, an assumption you could not verify is reported as that, never rounded up.",
-  ]));
-  lines.push("");
-  lines.push("## Paths that belong to the integration branch");
-  lines.push("");
-  if (ctx.mainOnlyPaths.length) {
-    lines.push("Do not edit these here. Every lane would edit the same lines, and the merge would be a conflict for each one:");
-    lines.push("");
-    lines.push(bullet(ctx.mainOnlyPaths));
-    lines.push("");
-  } else {
-    lines.push(`This project sets no main-only paths (\`dispatch.mainOnlyPaths\` in .skilliton/config.json is empty), so nothing is reserved for ${ctx.integrationBranch}. If the shared records live in this repository, set it before the next dispatch.`);
-    lines.push("");
-  }
-  lines.push(`The exception is the files this lane writes for itself. Its task record already exists and is committed on this branch: \`${lane.taskRel}\`, with one acceptance criterion per item above. Tick a criterion when it is done, and record a checkpoint as items finish (\`skilliton checkpoint --state "<what is true>" --evidence "<what ran>" --next "<next step>" --apply\`); a decision or a lesson goes in as its own proposed entry (\`skilliton record decision "<title>" --apply\`). Never the shared handoff, status, backlog or indexes: ${ctx.integrationBranch} writes those once the lanes are merged. \`skilliton dispatch merge\` brings this lane's records back, so commit them.`);
-  lines.push("");
-  lines.push("## Checks");
-  lines.push("");
-  lines.push(ctx.laneTestCommand
-    ? `Run in this worktree: \`${ctx.laneTestCommand}\`. Read the exit status on its own line; never judge a check through a pipe into \`head\` or \`tail\`.`
-    : "This project names no lane test command (`dispatch.laneTestCommand` in .skilliton/config.json). Use the project's own check, and say which one you ran. Two lanes running the same check at once can share a port, a database or a build folder: if that is possible here, say so rather than trusting the result.");
-  if (ctx.mainOnlyChecks.length) {
-    lines.push("");
-    lines.push(`Do not run: ${ctx.mainOnlyChecks.join(", ")}. ${ctx.integrationBranch} runs those once at merge.`);
-  }
-  lines.push("");
-  lines.push("## Setup dispatch did not run");
-  lines.push("");
-  if (setup.length) {
-    lines.push("dispatch never runs a command from the project's configuration. Run these in this worktree before you start:");
-    lines.push("");
-    lines.push("```");
-    lines.push(...setup);
-    lines.push("```");
-  } else {
-    lines.push("None: this project sets no `dispatch.laneSetup` commands.");
-  }
-  lines.push("");
-  lines.push("## When the lane is done");
-  lines.push("");
-  lines.push(`Say so in the main window. Merging is serial no matter how many lanes ran: each lane rebases on the ${ctx.integrationBranch} the previous merge produced and passes the full gate again. A lane's green proves the lane is sound on its own, not on top of the others.`);
-  lines.push("");
-  return lines.join("\n");
-}
-
 // ---------- the plan ----------
 
-export function planDispatch(root, project, { file, now = new Date() } = {}) {
-  const rel = file ?? LANE_FILE;
+// Reads and parses the lane plan file; refuses a missing file, one over the size bound, or one with no lane
+// headings.
+function readLanePlan(root, rel) {
   const path = isAbsolute(rel) ? resolve(rel) : resolve(root, rel);
   let st = null;
   try { st = statSync(path); } catch { st = null; }
@@ -295,17 +190,23 @@ export function planDispatch(root, project, { file, now = new Date() } = {}) {
   if (!lanes.length) {
     refuse(`${tilde(path)} has no lane headings, so there is nothing to create. Each lane starts with a line like: ## Lane: reviews   branch: lane/reviews-0920   model: sonnet   context ceiling: 120000. Nothing was created`);
   }
+  return { path, lanes, problems };
+}
 
+// Where the lanes' worktrees go; refuses a lane root inside this repository.
+function checkLaneRoot(root, project) {
   const laneRoot = laneRootOf(root, project);
   const inside = relative(root, laneRoot);
   if (inside === "" || (!inside.startsWith("..") && !isAbsolute(inside))) {
     refuse(`the lane root is ${tilde(laneRoot)}, which is inside this repository. A worktree inside the repository it branches from is committed by accident and makes git status unreadable; set dispatch.laneRoot in .skilliton/config.json to a folder beside it, for example ../${basename(root)}-lanes. Nothing was created`);
   }
+  return laneRoot;
+}
 
-  const head = commitOf(root, "HEAD");
-  if (!head) {
-    refuse(`this repository has no commits yet, so a lane has nothing to branch from. Make the first commit on ${project.integrationBranches[0]}, then run dispatch again. Nothing was created`);
-  }
+// Each lane's worktree plan: its base commit, and whether its name, branch or folder collides with another lane or
+// with what is already on disk. A collision is pushed to problems rather than refused, so every one is listed at
+// once instead of one refusal at a time.
+function planLaneWorktrees(root, project, lanes, laneRoot, head, problems) {
   const worktrees = registeredWorktrees(root);
   const seenName = new Map();
   const seenBranch = new Map();
@@ -345,8 +246,12 @@ export function planDispatch(root, project, { file, now = new Date() } = {}) {
     }
     planned.push({ ...lane, dir, briefPath: join(dir, BRIEF_FILE), base, baseFrom, command: ["git", "worktree", "add", dir, "-b", lane.branch ?? "<branch>", base] });
   }
+  return planned;
+}
 
-  const ctx = {
+// The context every lane's brief and task record are built from.
+function buildDispatchContext(root, project, path, rel, now) {
+  return {
     root,
     planRel: isAbsolute(rel) ? tilde(path) : rel,
     date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
@@ -358,6 +263,10 @@ export function planDispatch(root, project, { file, now = new Date() } = {}) {
     agent: laneAgent(),
     recordHeader: project.recordHeader,
   };
+}
+
+// Each lane's task record and brief text; left empty when the plan has problems, since nothing will be created.
+function attachTaskAndBrief(planned, project, ctx, problems, now) {
   for (const lane of planned) {
     lane.taskId = newId(`Lane ${lane.name}`, { date: now, fallback: "lane" });
     lane.taskRel = taskRel(project, lane.taskId);
@@ -375,6 +284,19 @@ export function planDispatch(root, project, { file, now = new Date() } = {}) {
     });
   }
   for (const lane of planned) lane.brief = problems.length ? "" : briefText(lane, ctx);
+}
+
+export function planDispatch(root, project, { file, now = new Date() } = {}) {
+  const rel = file ?? LANE_FILE;
+  const { path, lanes, problems } = readLanePlan(root, rel);
+  const laneRoot = checkLaneRoot(root, project);
+  const head = commitOf(root, "HEAD");
+  if (!head) {
+    refuse(`this repository has no commits yet, so a lane has nothing to branch from. Make the first commit on ${project.integrationBranches[0]}, then run dispatch again. Nothing was created`);
+  }
+  const planned = planLaneWorktrees(root, project, lanes, laneRoot, head, problems);
+  const ctx = buildDispatchContext(root, project, path, rel, now);
+  attachTaskAndBrief(planned, project, ctx, problems, now);
 
   return {
     planPath: path,

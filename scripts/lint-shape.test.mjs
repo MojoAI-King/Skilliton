@@ -66,7 +66,7 @@ export const LONG_LINE_PINS = [
   ["packs/base/plugins/workflow/runtime/commands/index.mjs", 5],
   ["packs/base/plugins/workflow/runtime/commands/join.mjs", 16],
   ["packs/base/plugins/workflow/runtime/commands/maintain.mjs", 2],
-  ["packs/base/plugins/workflow/runtime/commands/migrate.mjs", 14],
+  ["packs/base/plugins/workflow/runtime/commands/migrate.mjs", 8],
   ["packs/base/plugins/workflow/runtime/commands/new-plugin.mjs", 3],
   ["packs/base/plugins/workflow/runtime/commands/new-skill.mjs", 2],
   ["packs/base/plugins/workflow/runtime/commands/pin.mjs", 3],
@@ -91,7 +91,7 @@ export const LONG_LINE_PINS = [
   ["packs/base/plugins/workflow/runtime/lib/delivery-persist.mjs", 3],
   ["packs/base/plugins/workflow/runtime/lib/delivery-policy.mjs", 9],
   ["packs/base/plugins/workflow/runtime/lib/delivery.mjs", 31],
-  ["packs/base/plugins/workflow/runtime/lib/dispatch.mjs", 46],
+  ["packs/base/plugins/workflow/runtime/lib/dispatch.mjs", 34],
   ["packs/base/plugins/workflow/runtime/lib/doctor.mjs", 10],
   ["packs/base/plugins/workflow/runtime/lib/fork.mjs", 9],
   ["packs/base/plugins/workflow/runtime/lib/gate.mjs", 7],
@@ -105,7 +105,7 @@ export const LONG_LINE_PINS = [
   ["packs/base/plugins/workflow/runtime/lib/migrations.mjs", 67],
   ["packs/base/plugins/workflow/runtime/lib/pin.mjs", 11],
   ["packs/base/plugins/workflow/runtime/lib/preflight.mjs", 39],
-  ["packs/base/plugins/workflow/runtime/lib/prepare.mjs", 43],
+  ["packs/base/plugins/workflow/runtime/lib/prepare.mjs", 40],
   ["packs/base/plugins/workflow/runtime/lib/project-files.mjs", 19],
   ["packs/base/plugins/workflow/runtime/lib/prototype-v1.mjs", 2],
   ["packs/base/plugins/workflow/runtime/lib/records-restore.mjs", 2],
@@ -131,19 +131,13 @@ export const LONG_LINE_PINS = [
 // planDispatch and briefText (dispatch.mjs); the rest are out of that item's list and stay pinned.
 export const LONG_FUNCTION_PINS = [
   ["packs/base/plugins/workflow/runtime/commands/checkpoint.mjs", "run", 165],
-  ["packs/base/plugins/workflow/runtime/commands/join.mjs", "join", 131],
-  ["packs/base/plugins/workflow/runtime/commands/migrate.mjs", "run", 161],
   ["packs/base/plugins/workflow/runtime/commands/prepare.mjs", "run", 96],
   ["packs/base/plugins/workflow/runtime/commands/remove.mjs", "run", 82],
   ["packs/base/plugins/workflow/runtime/lib/collectors.mjs", "collectSecrets", 135],
   ["packs/base/plugins/workflow/runtime/lib/delivery.mjs", "evaluateUpdate", 122],
-  ["packs/base/plugins/workflow/runtime/lib/dispatch.mjs", "briefText", 99],
-  ["packs/base/plugins/workflow/runtime/lib/dispatch.mjs", "planDispatch", 108],
   ["packs/base/plugins/workflow/runtime/lib/migrations.mjs", "plan0003", 137],
   ["packs/base/plugins/workflow/runtime/lib/preflight.mjs", "checkRepository", 82],
-  ["packs/base/plugins/workflow/runtime/lib/prepare.mjs", "planPrepare", 111],
   ["packs/base/plugins/workflow/runtime/lib/release.mjs", "planRelease", 83],
-  ["packs/base/plugins/workflow/runtime/lib/verify.mjs", "runVerify", 118],
 ];
 
 const lineOverPin = (path) => LONG_LINE_PINS.find(([p]) => p === path);

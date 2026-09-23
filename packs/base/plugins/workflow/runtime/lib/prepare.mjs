@@ -27,12 +27,13 @@ import { samePath } from "./path-form.mjs";
 import { HARNESS_FILES, HARNESS_TEMPLATE, planHarnessFile, readHarnessTemplate } from "./harness.mjs";
 import { CONFIG_REL, ConfigError, LAYOUT_VERSION, PROJECT_DIR, ROLES, resolveProject, templateVars, validRelPath } from "./config.mjs";
 import {
-  CATALOG_REL, GITIGNORE_LINES, LOCK_REL, RECORDS_README_REL, ROLE_LABELS, SECURITY_README_REL,
-  entryFolderReadme, gitignoreWithSkilliton, recordTemplate, recordsReadme, securityReadme,
+  CATALOG_REL, LOCK_REL, RECORDS_README_REL, ROLE_LABELS, SECURITY_README_REL,
+  entryFolderReadme, recordTemplate, recordsReadme, securityReadme,
 } from "./project-files.mjs";
 import { NO_REPOSITORY_PROGRAMS, gitEnvironment } from "./journal.mjs";
 import { DEFAULT_SKIP, detectStack, hotspots } from "./stack.mjs";
 import { DEFAULT_TIMEOUT_SECONDS, DRAFT_FILE, POLICY_FILE, POLICY_SCHEMA } from "./delivery-policy.mjs";
+import { checkPreparePlan, planGitignoreStep } from "./prepare-plan.mjs";
 import { PROTOTYPE_RUNTIME_PATH } from "./prototype-v1.mjs";
 import { LEGACY_CONFIG_REL, LEGACY_NAME, LEGACY_PROJECT_DIR } from "./legacy-names.mjs";
 
@@ -495,10 +496,7 @@ function deliveryDraft(project, test) {
   };
 }
 
-// Everything prepare would do, without writing. items: [{ path, action: "create" | "update" | "adopt" | "current",
-// what, before, after }] in write order; changes: the create and update items. notes: facts the person should read.
-export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLUGIN_ROOT) } = {}) {
-  const project = loadProject(root, { allowLegacy: true });
+function planPrepareGuards(root, project, runtimeVersion) {
   if (project.legacyNames) {
     const what = project.layoutVersion === 1 ? "layout 1, written by the standalone prototype (copied runtime, skillgate:project blocks)" : `layout ${project.layoutVersion ?? "2"}, under the earlier ${LEGACY_NAME} names (${LEGACY_PROJECT_DIR}/)`;
     const needs = new NeedsMigration(`this project uses ${what}, and prepare writes layout ${LAYOUT_VERSION} only. Nothing was written. Preview the migration: ${selfCommand()} migrate --dir ${argPath(root)}; then apply it: ${selfCommand()} migrate --apply --dir ${argPath(root)}`);
@@ -514,15 +512,10 @@ export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLU
   if (leftovers.length) {
     refuse(`this project still holds content from the standalone prototype: ${leftovers.join("; ")}. prepare does not remove it, and two instruction writers must not share a project. To migrate it, keep the configuration in ${LEGACY_CONFIG_REL} (the prototype's folder) with "prepare": { "version": 1 }, leaving no ${CONFIG_REL}, and run ${selfCommand()} migrate --dir ${argPath(root)}. Nothing was written`);
   }
+}
 
-  const items = [], notes = [];
-  const add = (path, action, what, before = null, after = null) => items.push({ path, action, what, before, after });
-  const createOrAdopt = (path, what, adoptWhat, render) => {
-    const info = inspectPath(root, path);
-    if (info.exists) add(path, "adopt", adoptWhat);
-    else add(path, "create", what, null, Buffer.from(render(), "utf8"));
-  };
-
+async function planPrepareItems(ctx, runtimeVersion) {
+  const { root, project, add, notes, createOrAdopt } = ctx;
   for (const role of ROLES) {
     const path = project.artifacts[role];
     createOrAdopt(path, `${ROLE_LABELS[role]}, created as "not yet assessed"`, `${ROLE_LABELS[role]}, ${describeSource(project.artifactSource[role])}; left exactly as it is`, () => recordTemplate(role, project));
@@ -553,12 +546,7 @@ export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLU
     }
   }
   createOrAdopt(RECORDS_README_REL, "explains the immutable observation records", "already present; left exactly as it is", () => recordsReadme(project));
-
-  const ignore = readPath(root, ".gitignore");
-  const ignoreText = ignore === null ? "" : ignore.toString("latin1");
-  const ignoreNext = gitignoreWithSkilliton(ignoreText);
-  if (ignore !== null && ignoreNext === ignoreText) add(".gitignore", "current", `already lists ${GITIGNORE_LINES.join(" and ")}`);
-  else add(".gitignore", ignore === null ? "create" : "update", `${ignore === null ? "lists" : "add"} ${GITIGNORE_LINES.join(" and ")} (the lock and private evidence stay out of Git)`, ignore, Buffer.from(ignoreNext, "latin1"));
+  planGitignoreStep(ctx);
 
   const template = readHarnessTemplate(HARNESS_TEMPLATE);
   const vars = templateVars(project);
@@ -573,7 +561,7 @@ export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLU
     else add(name, plan.exists ? "update" : "create", plan.summary, plan.exists ? Buffer.from(plan.text, "latin1") : null, Buffer.from(plan.next, "latin1"));
   }
 
-  const configInfo = inspectPath(root, CONFIG_REL);
+  inspectPath(root, CONFIG_REL); // validates the path (not a symlink, hard link, wrong type) before it is read or written
   const draft = draftDispatch(root, project);
   const next = nextConfig(project, runtimeVersion, draft);
   const draftedWords = draft.fields.map((f) => `dispatch.${f.key} ${showValue(f.value)} drafted from ${f.source}`);
@@ -593,18 +581,21 @@ export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLU
   } else if (draft.test && policyInfo.exists) add(POLICY_FILE, "adopt", "delivery policy already present; left exactly as it is, no draft written");
   else if (draft.test && draftInfo.exists) add(DRAFT_FILE, "adopt", `delivery policy draft already present; left exactly as it is. Review it, then: ${selfCommand()} delivery confirm --apply`);
   else if (!draft.test && !policyInfo.exists && !draftInfo.exists) notes.push(`No delivery policy draft was written (no test command was detected); write ${POLICY_FILE} by hand, see: ${selfCommand()} delivery --help.`);
+  checkPreparePlan(ctx);
+  return draft;
+}
 
-  const seen = new Map();
-  for (const item of items) {
-    const key = item.path.toLowerCase();
-    if (seen.has(key)) refuse(`two files prepare manages resolve to the same path, ${item.path} (${seen.get(key)}; ${item.what}). Give them separate paths in ${CONFIG_REL}. Nothing was written`);
-    seen.set(key, item.what);
-  }
-
-  for (const rel of [SECURITY_README_REL, RECORDS_README_REL, ...["tasks", "decisions", "lessons"].map((k) => `${project.directories[k]}/README.md`)]) {
-    const bytes = items.some((i) => i.path === rel && i.action === "adopt") ? readPath(root, rel) : null;
-    if (bytes && bytes.includes(PROTOTYPE_RUNTIME_PATH)) notes.push(`${rel} still tells people to run ${PROTOTYPE_RUNTIME_PATH}, which layout 2 does not have; replace that text by hand with skilliton security status (prepare never rewrites a file it adopted).`);
-  }
+// Everything prepare would do, without writing. items: [{ path, action: "create" | "update" | "adopt" | "current",
+// what, before, after }] in write order; changes: the create and update items. notes: facts the person should read.
+export async function planPrepare(root, { runtimeVersion = readPluginVersion(PLUGIN_ROOT) } = {}) {
+  const project = loadProject(root, { allowLegacy: true });
+  planPrepareGuards(root, project, runtimeVersion);
+  const items = [], notes = [];
+  const add = (path, action, what, before = null, after = null) => items.push({ path, action, what, before, after });
+  const createOrAdopt = (path, what, adoptWhat, render) => (inspectPath(root, path).exists
+    ? add(path, "adopt", adoptWhat) : add(path, "create", what, null, Buffer.from(render(), "utf8")));
+  const ctx = { root, project, items, notes, add, createOrAdopt };
+  const draft = await planPrepareItems(ctx, runtimeVersion);
 
   return { project, root, runtimeVersion, items, notes, draft, changes: items.filter((i) => i.action === "create" || i.action === "update" || i.action === "draft") };
 }
