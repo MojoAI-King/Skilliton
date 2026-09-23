@@ -156,6 +156,9 @@ jobs:
       - name: Onboarding CLI
         run: node scripts/skilliton.test.mjs
 
+      - name: The skill writers (new-skill, import) never write through a symbolic link
+        run: node --test scripts/skill-writers.test.mjs
+
       - name: Doctor from an installed copy (the marketplace's catalog, CLAUDE_CONFIG_DIR)
         run: node --test scripts/doctor-installed.test.mjs scripts/windows-cmd.test.mjs
 

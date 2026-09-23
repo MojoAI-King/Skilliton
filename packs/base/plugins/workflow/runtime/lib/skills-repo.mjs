@@ -2,13 +2,51 @@
 // commands/new-skill.mjs and commands/import.mjs, which both add a skill to a plugin and then bump it, so an
 // installed copy of that plugin updates. Node only, no dependencies.
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { lstatSync, readFileSync, readlinkSync, realpathSync, writeFileSync } from "node:fs";
+import { isAbsolute, join, relative } from "node:path";
 import { backupFile, isDir, isFile, listDirNames, newStamp, refuse, sameJson, say, selfCommand, tilde, validateName } from "./core.mjs";
 
 const BASE_NOTE = "note: packs/base is the upstream base pack. A company fork leaves packs/base unchanged and adds its own skills under packs/<company>/plugins/, so upstream updates merge cleanly (docs/CONTRACTS.md).";
 
-function findPlugin(repo, plugin, pack) {
+const isInside = (child, parent) => { const r = relative(parent, child); return r === "" || (!r.startsWith("..") && !isAbsolute(r)); };
+
+// Refuses (exit 2) unless every existing component of `parts`, walked from the repository root down, is a real entry
+// (lstat, never a symbolic link) whose real path is inside the repository. A writer that followed a linked `skills`
+// folder would create the skill wherever the link points while printing the in-repository path, then bump the
+// version for a skill the repository does not hold. The walk stops at the first component that does not exist yet:
+// whatever is created below it is created inside a folder already proved to be in the repository. The root itself
+// may be reached through a link (a temporary folder often is); only what is below it is checked.
+function proveInside(repo, parts, command) {
+  const rootReal = realpathSync(repo);
+  let at = repo, rel = "";
+  for (const part of parts) {
+    at = join(at, part);
+    rel = rel ? `${rel}/${part}` : part;
+    let st;
+    try { st = lstatSync(at); } catch (e) { if (e.code === "ENOENT") return; throw e; }
+    if (st.isSymbolicLink()) {
+      let target = "an unreadable target";
+      try { target = readlinkSync(at); } catch { /* keep the fallback */ }
+      refuse(`${rel} is a symbolic link (to ${tilde(target)}), and ${command} writes only inside the repository, never through a link. `
+        + "Nothing was written. Replace the link with the folder itself, then run again.");
+    }
+    const real = realpathSync(at);
+    if (!isInside(real, rootReal)) {
+      refuse(`${rel} resolves to ${tilde(real)}, outside the repository ${tilde(rootReal)}, and ${command} writes only inside it. Nothing was written.`);
+    }
+  }
+}
+
+// The folder a new skill goes to, proved inside the repository at every component, with the plugin's manifest (the
+// file the version bump writes) proved the same way. Call before writing anything, in preview and --apply alike.
+function skillDestination(repo, plugin, skillName, command) {
+  const parts = ["packs", plugin.pack, "plugins", plugin.name];
+  proveInside(repo, [...parts, ".claude-plugin", "plugin.json"], command);
+  proveInside(repo, [...parts, "skills", skillName], command);
+  return { dir: join(plugin.dir, "skills", skillName), rel: `${plugin.rel}/skills/${skillName}` };
+}
+
+function findPlugin(repo, plugin, pack, command = "this command") {
   validateName(plugin, "plugin name");
   if (pack !== undefined) validateName(pack, "--pack");
   const packs = pack !== undefined ? [pack] : listDirNames(join(repo, "packs"));
@@ -18,6 +56,7 @@ function findPlugin(repo, plugin, pack) {
     refuse(`no plugin "${plugin}" under packs/${pack ?? "*"}/plugins/ in ${tilde(repo)}. Plugins that exist: ${known.length ? known.join(", ") : "none"}. To create it: ${selfCommand()} new-plugin ${plugin} --pack ${pack ?? "<pack>"} --apply`);
   }
   if (hits.length > 1) refuse(`plugin "${plugin}" exists in more than one pack (${hits.join(", ")}); add --pack <pack> to choose one`);
+  proveInside(repo, ["packs", hits[0], "plugins", plugin, ".claude-plugin", "plugin.json"], command);
   const rel = `packs/${hits[0]}/plugins/${plugin}`;
   const dir = join(repo, "packs", hits[0], "plugins", plugin);
   const manifest = join(dir, ".claude-plugin", "plugin.json");
@@ -50,4 +89,4 @@ function writeVersionBump(command, plugin, bump) {
   say(`bumped ${plugin.name} version ${bump.from} -> ${bump.to} (installed copies only update when the version changes)`);
 }
 
-export { BASE_NOTE, findPlugin, planVersionBump, writeVersionBump };
+export { BASE_NOTE, findPlugin, planVersionBump, skillDestination, writeVersionBump };

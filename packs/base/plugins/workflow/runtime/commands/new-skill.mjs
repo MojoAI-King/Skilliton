@@ -4,7 +4,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs, refuse, resolveSkillsRepo, say, tilde, validateName } from "../lib/core.mjs";
-import { BASE_NOTE, findPlugin, planVersionBump, writeVersionBump } from "../lib/skills-repo.mjs";
+import { BASE_NOTE, findPlugin, planVersionBump, skillDestination, writeVersionBump } from "../lib/skills-repo.mjs";
 
 export const help = `new-skill: create a skill inside a plugin, and bump the plugin's version.
 
@@ -17,7 +17,8 @@ Names use lowercase letters, digits, and hyphens. Without --description the desc
 placeholder; replace it, because Claude reads that line to decide when to use the skill.
 --pack picks between plugins with the same name in different packs. --repo defaults to the repo this script is in.
 Preview by default: shows the SKILL.md that would be created and the version bump, and writes nothing. Pass --apply
-to write them. Refuses (exit 2), changing nothing, if the skill already exists or a name is not allowed.`;
+to write them. Refuses (exit 2), changing nothing, if the skill already exists, a name is not allowed, or a folder on the
+way to the skill (the pack, the plugin, its skills folder) or plugin.json is a symbolic link: it writes only inside --repo.`;
 
 const DESCRIPTION_PLACEHOLDER = "TODO(skilliton) Replace this line. Say what this skill does and exactly when Claude should use it; Claude reads this line to decide whether to load the skill.";
 
@@ -68,9 +69,9 @@ export async function run(argv) {
   validateName(skillName, "skill name");
   if (o.description !== undefined) validateDescription(o.description);
   const repo = resolveSkillsRepo(o.repo);
-  const plugin = findPlugin(repo, pluginName, o.pack);
-  const skillRel = `${plugin.rel}/skills/${skillName}`;
-  const skillDir = join(plugin.dir, "skills", skillName);
+  const plugin = findPlugin(repo, pluginName, o.pack, "new-skill");
+  // Proved inside the repository before anything is written, so the version is bumped only for a skill it holds.
+  const { dir: skillDir, rel: skillRel } = skillDestination(repo, plugin, skillName, "new-skill");
   if (existsSync(skillDir)) refuse(`${skillRel} already exists; nothing was changed. Choose another name, or edit the existing skill.`);
   const bump = planVersionBump(plugin.manifest, plugin.manifestRel);
   const skeleton = skillSkeleton(skillName, o.description);

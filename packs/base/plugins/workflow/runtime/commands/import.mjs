@@ -7,7 +7,7 @@ import { constants as fsConstants, copyFileSync, existsSync, mkdirSync, readdirS
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { SKILLS_REPO, isDir, isFile, parseArgs, readBytes, refuse, resolveSkillsRepo, say, scanSecrets, tilde, validateName, writeBytes } from "../lib/core.mjs";
 import { detectEol } from "../lib/harness.mjs";
-import { BASE_NOTE, findPlugin, planVersionBump, writeVersionBump } from "../lib/skills-repo.mjs";
+import { BASE_NOTE, findPlugin, planVersionBump, skillDestination, writeVersionBump } from "../lib/skills-repo.mjs";
 
 export const help = `import: copy an existing skill folder into a plugin, after scanning it.
 
@@ -22,7 +22,8 @@ Pass --apply to copy them. Before anything is copied (in either mode), every fil
   2. secret-shaped text (AWS access key ids; Anthropic, GitHub, Slack, and Stripe live keys; private key blocks)
      and absolute home-directory paths (macOS, Linux, and Windows forms).
 Any hit refuses the import (exit 2) and lists file:line with the rule; the matched text is never printed.
-Symbolic links are refused; .git folders and .DS_Store files are skipped.
+Symbolic links are refused; .git folders and .DS_Store files are skipped. A symbolic link on the way to the destination
+(the pack, the plugin, its skills folder, the skill folder or plugin.json) is refused too: import writes only inside --repo.
 Then the folder is copied to packs/<pack>/plugins/<plugin>/skills/<skill>/ (<skill> is --name, or the folder's name),
 the copied SKILL.md gets a frontmatter "name" matching that folder, and the plugin's version is bumped.
 Review the skill's text for company-specific content before committing: the scan only knows the patterns above.`;
@@ -100,9 +101,9 @@ export async function run(argv) {
   const skillName = o.name ?? basename(src);
   validateName(skillName, o.name !== undefined ? "--name" : "skill name (taken from the folder's name; choose another with --name)");
   const repo = resolveSkillsRepo(o.repo);
-  const plugin = findPlugin(repo, o.into, o.pack);
-  const destRel = `${plugin.rel}/skills/${skillName}`;
-  const dest = join(plugin.dir, "skills", skillName);
+  const plugin = findPlugin(repo, o.into, o.pack, "import");
+  // Proved inside the repository before anything is copied, so the version is bumped only for a skill it holds.
+  const { dir: dest, rel: destRel } = skillDestination(repo, plugin, skillName, "import");
   if (existsSync(dest)) refuse(`${destRel} already exists; nothing was copied. Choose another name with --name.`);
   if (isInside(dest, src)) refuse(`the destination ${destRel} is inside the folder being imported; nothing was copied`);
   const files = walkSkillFolder(src);
