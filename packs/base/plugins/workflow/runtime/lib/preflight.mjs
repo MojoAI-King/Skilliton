@@ -33,6 +33,7 @@ import { noProxyInUse, proxyInUse, realHome } from "./journal.mjs";
 import { runGit, trustDir } from "./trust.mjs";
 import { joinDir } from "./join.mjs";
 import { claudeConfigDir, codexHome } from "./verify.mjs";
+import { REDACTION_SHAPES } from "./secret-rules.mjs";
 
 const PROBE = join(PLUGIN_ROOT, "runtime", "preflight", "probe.sh");
 const LS_REMOTE_TIMEOUT_MS = 45000;
@@ -463,13 +464,9 @@ const GITHUB_REPO = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
 // has seen before: a secret has no word breaks, while a name, a branch, a host and a path all break at their
 // separators, so the rule reads runs rather than whole strings. That is why there is no "this looks like a path, so
 // leave it alone" escape: a secret inside a path is still a secret.
-const SPECIFIC_TOKENS = /\b(gh[pousr]|github_pat|glpat|xox[baprs]|sk-ant|sk-proj|npm|dop_v1|shpat|sbp)[_-][A-Za-z0-9_-]{12,}/g;
-// A key from one of the services that writes the environment into the key itself (rk_live_, sk_test_).
-const LIVE_KEYS = /\b[A-Za-z]{2,4}_(live|test)_[A-Za-z0-9]{8,}/g;
-const AWS_KEY_IDS = /\b(AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{12,}\b/g;
-const GOOGLE_KEYS = /\bAIza[A-Za-z0-9_-]{20,}/g;
-// A signed token: three base64url parts separated by dots, the first beginning with the encoding of {"a.
-const A_SIGNED_TOKEN = /\beyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}/g;
+// The token, key and signed-token forms are lib/secret-rules.mjs REDACTION_SHAPES; liveKeys is a key from one of the
+// services that writes the environment into the key itself (rk_live_, sk_test_).
+const { specificTokens: SPECIFIC_TOKENS, liveKeys: LIVE_KEYS, awsKeyIds: AWS_KEY_IDS, googleKeys: GOOGLE_KEYS, signedToken: A_SIGNED_TOKEN, credentials: CREDENTIALS } = REDACTION_SHAPES;
 // Prefixes that are also ordinary words in a folder name (sk-inventory-rewrite, pat-experiments-2026). skilliton-audit: allow known-token-prefix folder names, the control this rule lets through
 // The prefix alone says nothing, so what follows has to look like a secret rather than like words.
 const WEAK_PREFIXES = /\b(sk|rk|pk|pat|key|token|secret|apikey)[_-][A-Za-z0-9_-]{8,}/gi;
@@ -518,6 +515,7 @@ export function redact(value) {
     .replace(/\/\/[^/@\s]*@/g, "//<credentials removed>@")
     .replace(/([?&#][^=&\s]*(?:token|key|secret|pass|pat|auth|credential)[^=&\s]*=)[^&\s]+/gi, "$1<removed>")
     .replace(A_SIGNED_TOKEN, "<removed>")
+    .replace(CREDENTIALS, "<removed>")
     .replace(SPECIFIC_TOKENS, "<removed>")
     .replace(LIVE_KEYS, (match) => (readsAsWords(match.replace(/^[A-Za-z]{2,4}_(live|test)_/, "")) ? match : "<removed>"))
     .replace(AWS_KEY_IDS, "<removed>")

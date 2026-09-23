@@ -24,6 +24,7 @@ import { accessSync, constants as fsConstants, copyFileSync, existsSync, mkdirSy
 import { homedir } from "node:os";
 import { basename, delimiter, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CREDENTIAL_SHAPES, SIGNED_TOKEN_ERE } from "./secret-rules.mjs";
 const RUNTIME_LIB = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(RUNTIME_LIB, "..", "..");
 // A company skills repository (a fork of this one) holds this plugin at <repo>/packs/<pack>/plugins/<plugin>/. An
@@ -291,14 +292,12 @@ function resolveSkillsRepo(value) {
 
 // ---------- the secret scan, shared by import and propose ----------
 
+// The shapes are lib/secret-rules.mjs's. A copy is refused on a credential's prefix alone where the prefix is
+// distinctive (a key cut short is still a key someone pasted), else on its whole shape; a signed token too; and on a
+// home folder path, which is not a secret but names a person and a machine.
 const SECRET_RULES = [
-  { rule: "aws-access-key-id", re: /AKIA[0-9A-Z]{16}/ },
-  { rule: "anthropic-api-key", re: /sk-ant-/ },
-  { rule: "github-token", re: /ghp_/ },
-  { rule: "github-fine-grained-token", re: /github_pat_/ },
-  { rule: "slack-token", re: /xox[baprs]-/ },
-  { rule: "stripe-live-secret-key", re: /sk_live_/ },
-  { rule: "private-key-block", re: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ },
+  ...CREDENTIAL_SHAPES.map(({ rule, prefix, ere }) => ({ rule, re: new RegExp(prefix ?? ere) })),
+  { rule: "json-web-token", re: new RegExp(SIGNED_TOKEN_ERE) },
   { rule: "home-directory-path", re: /(?:\/Users|\/home)\/[A-Za-z0-9._-]+\/|\b[A-Za-z]:[\\/](?:Users|Documents and Settings)[\\/][^\\/\s]+[\\/]/ },
 ];
 

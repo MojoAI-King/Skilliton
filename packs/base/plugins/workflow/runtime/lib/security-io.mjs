@@ -8,6 +8,7 @@
 import { closeSync, constants, fchmodSync, fstatSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
+import { EVIDENCE_SHAPES } from './secret-rules.mjs';
 
 export const LIMIT = { catalog: 1024 * 1024, record: 64 * 1024, applicability: 1024 * 1024, backlog: 4 * 1024 * 1024, file: 32 * 1024 * 1024, total: 256 * 1024 * 1024, scanTotal: 1024 * 1024 * 1024, records: 5000, controls: 500, attachments: 32, decisions: 5000, manifestEntries: 200000 };
 export const SECURITY_DIR = '.skilliton/security';
@@ -85,16 +86,9 @@ export const fail = (code, detail) => { throw new SecurityRefusal(code, detail);
 
 export const object = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-// The prototype's secret shapes, one named rule each. secretShaped() is true when any rule matches, which is exactly
-// what the prototype's single expression tested. The secrets collector scans tracked files with the same rules.
-export const SECRET_SHAPES = [
-  { rule: 'private-key-block', re: /-----BEGIN [A-Z ]*PRIVATE KEY-----/i },
-  { rule: 'known-token-prefix', re: /\b(?:gh[pousr]_|github_pat_|sk-(?:proj-|ant-)?|AKIA|ASIA)[A-Za-z0-9_-]{12,}/i },
-  { rule: 'json-web-token', re: /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/i },
-  { rule: 'credential-assignment', re: /\b(?:password|passwd|secret|token|api[-_ ]?key|authorization)\s*[:=]\s*\S+/i },
-  { rule: 'bearer-credential', re: /\bBearer\s+\S+/i },
-  { rule: 'long-encoded-run', re: /[A-Za-z0-9+/_=-]{48,}/i },
-];
+// The engine's secret shapes, one named rule each, from lib/secret-rules.mjs. secretShaped() is true when any rule
+// matches. The secrets collector scans tracked files with the same rules.
+export const SECRET_SHAPES = EVIDENCE_SHAPES;
 export const secretShaped = (s) => SECRET_SHAPES.some(({ re }) => re.test(s));
 // Attached file paths: every shape applies to the whole path, except the long encoded run, which applies to each
 // path part. Across parts it refused ordinary deep paths (packs/base/plugins/workflow/runtime/lib/security is a

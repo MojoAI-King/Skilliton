@@ -912,22 +912,38 @@ EOF
   return 1
 }
 
+# The same list, in the same order, as CREDENTIAL_SHAPES in the workflow plugin's runtime/lib/secret-rules.mjs, which
+# the other scanners import; scripts/secret-rules.test.mjs fails when the two differ. Change both together.
 SECRET_RES=(
-  'AKIA[0-9A-Z]{16}'
+  '(AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}'
   'sk-ant-[A-Za-z0-9_-]{20,}'
-  'ghp_[A-Za-z0-9]{30,}'
+  'sk-proj-[A-Za-z0-9_-]{20,}'
+  'gh[pousr]_[A-Za-z0-9]{30,}'
   'github_pat_[A-Za-z0-9_]{30,}'
+  'glpat-[A-Za-z0-9_-]{20,}'
   'xox[baprs]-[A-Za-z0-9-]{10,}'
   'sk_live_[A-Za-z0-9]{16,}'
+  'npm_[A-Za-z0-9]{30,}'
+  'dop_v1_[A-Za-z0-9]{30,}'
+  'shpat_[A-Za-z0-9]{30,}'
+  'sbp_[A-Za-z0-9]{30,}'
+  'AIza[A-Za-z0-9_-]{30,}'
   '-----BEGIN [A-Z ]*PRIVATE KEY-----'
 )
 SECRET_LABELS=(
   'an AWS access key ID'
   'an Anthropic API key'
-  'a GitHub personal access token'
+  'an OpenAI project key'
+  'a GitHub access token'
   'a GitHub fine-grained token'
+  'a GitLab access token'
   'a Slack token'
   'a Stripe live secret key'
+  'an npm access token'
+  'a DigitalOcean token'
+  'a Shopify access token'
+  'a Supabase access token'
+  'a Google API key'
   'a private key'
 )
 SECRET_ALT=$(IFS='|'; printf '%s' "${SECRET_RES[*]}")

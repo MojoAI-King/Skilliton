@@ -386,7 +386,7 @@ expect "git commit (staged removal of .env.production)" allow "$RD" 'git commit 
 
 section "deny: staged content shaped like a secret (each pattern must fire)"
 i=0
-for pair in "FAKE_AWS|AWS access key ID" "FAKE_ANTHROPIC|Anthropic API key" "FAKE_GH|GitHub personal access token" \
+for pair in "FAKE_AWS|AWS access key ID" "FAKE_ANTHROPIC|Anthropic API key" "FAKE_GH|GitHub access token" \
             "FAKE_GH_PAT|GitHub fine-grained token" "FAKE_SLACK|Slack token" "FAKE_STRIPE|Stripe live secret key" "FAKE_PEM|private key"; do
   var=${pair%%|*}; label=${pair#*|}; value=${!var}
   printf 'line one\nconst token = "%s";\n' "$value" > "$RS/config.js"

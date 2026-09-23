@@ -144,6 +144,8 @@ jobs:
 
       - name: Guardrails hook, the ways past it found in review (pattern refspecs, deletes, wrappers, the config, quotes)
         run: bash scripts/guardrails-bypass.test.sh
+      - name: One set of secret shapes (the runtime scanners and the guardrails hook agree)
+        run: node scripts/secret-rules.test.mjs
 
       - name: Onboarding CLI
         run: node scripts/skilliton.test.mjs

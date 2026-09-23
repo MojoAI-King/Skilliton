@@ -20,7 +20,7 @@
 // copied: a second implementation of one rule is a second thing to drift (the same reason area 06 batch 01 refused a
 // second dash rule beside scripts/scrub-check.sh).
 
-import { SECRET_SHAPES } from "./security.mjs";
+import { EVIDENCE_SHAPES as SECRET_SHAPES } from "./secret-rules.mjs";
 
 // How much is read. A change larger than this is audited as far as the limits allow and the rest is reported as
 // skipped, with the reason, because a silent partial audit would read as a clean one.

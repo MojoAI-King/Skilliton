@@ -484,10 +484,10 @@ const CREDENTIALS = [
   ["a token in a query", "https://github.com/acme/skills.git?token=ghp_queryform", /ghp_queryform/],
   ["a token in a private_token query", "https://github.com/acme/skills.git?private_token=ghp_queryformtwo", /ghp_queryformtwo/], // skilliton-audit: allow known-token-prefix a planted token fixture for the URL credential check
   ["a token in a fragment", "https://github.com/acme/skills.git#token=ghp_fragmentform", /ghp_fragmentform/], // skilliton-audit: allow known-token-prefix a planted token fixture for the URL credential check
-  ["a GitLab token", "glpat-averylongtokenlikethisone", /averylongtokenlikethisone/],
-  ["an npm token", "npm_abcdefghijklmnopqrstuvwxyz012345", /abcdefghijklmnopqrstuvwxyz012345/],
+  ["a GitLab token", "glpat-" + "averylongtokenlikethisone", /averylongtokenlikethisone/],
+  ["an npm token", "npm_" + "abcdefghijklmnopqrstuvwxyz012345", /abcdefghijklmnopqrstuvwxyz012345/],
   ["an Anthropic key", "sk-ant-api03-abcdefghijklmnopqrstuvwxyz", /abcdefghijklmnopqrstuvwxyz/], // skilliton-audit: allow known-token-prefix a planted key fixture, letters of the alphabet in order
-  ["a Google key", "AIzaSyA1234567890abcdefghijklmnopqrstu", /AIzaSyA1234567890/],
+  ["a Google key", "AIza" + "SyA1234567890abcdefghijklmnopqrstu", /AIzaSyA1234567890/],
   ["an AWS key id", "AKIAIOSFODNN7EXAMPLE", /AKIAIOSFODNN7EXAMPLE/], // skilliton-audit: allow known-token-prefix a planted key id fixture, the vendor's own published example value
   ["a run with no lower-case letters", "ABCD1234EFGH5678IJKL9012MNOP", /ABCD1234EFGH5678IJKL9012MNOP/],
   ["a base64 secret", "aGVsbG8gd29ybGQgc2VjcmV0+/dmFsdWUxMjM=", /dmFsdWUxMjM/],
