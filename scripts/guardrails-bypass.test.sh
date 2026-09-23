@@ -215,6 +215,22 @@ reason_has "  the reason is the secret-file one" "looks like a file that holds p
 expect "git stage -A (the .env is untracked)"          deny "$RS" 'git stage -A'
 expect "negative: git stage README.md"                 allow "$RS" 'git stage README.md'
 
+# ---------------------------------------------------------------- N32
+section "N32: quotes, command substitutions and arithmetic in the tokenizer"
+expect "a quoted \$(cat <<EOF) whose body has an odd double quote, then a force-push" deny "$RF" $'git commit -m "$(cat <<\'EOF\'\nUse a 12" pipe\nEOF\n)" && git push --force origin main'
+expect "echo \$((1<<n)), then a force-push on the next line" deny "$RF" $'echo $((1<<n))\ngit push --force origin main'
+expect "\"\$((1<<n))\" inside quotes, then a force-push" deny "$RF" $'echo "$((1<<n))"\ngit push --force origin main'
+expect "(( x = 1<<n )), then a force-push"            deny "$RF" $'(( x = 1<<n ))\ngit push --force origin main'
+expect "a force-push inside a quoted \$( ) is read"  deny "$RF" 'echo "done: $(git push -f origin main)"'
+expect "the quoted word goes on after \$( ): --no-verify after it" deny "$RF" 'git commit -m "$(date)" --no-verify' # skilliton-audit: allow verification-off a test case that runs the flag at the guard
+expect "nested \$( \$( ) ) inside quotes, then a force-push" deny "$RF" 'echo "$(echo $(date))" && git push -f origin main'
+expect "an unclosed quote asks"                       ask  "$RF" 'git status && echo "unclosed'
+reason_has "  the reason says where it could not tell" "could not tell where a quote"
+expect "an unclosed quoted \$( asks"                 ask  "$RF" 'git log -1 --format="$(echo x'
+expect "negative: the usual commit with a heredoc message" allow "$RF" $'git commit -m "$(cat <<\'EOF\'\nFix the (odd) case: a 12" pipe\n\nMore text.\nEOF\n)"'
+expect "negative: a quoted \$( ) that runs nothing risky" allow "$RF" 'git commit -m "release $(date +%Y) notes"'
+expect "negative: arithmetic, then an ordinary push"  allow "$RF" $'echo $((1<<3)) "$((2<<n))"\ngit push origin feature'
+
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi
 echo "RESULT: FAIL ($fails failed, $oks ok)"; exit 1

@@ -31,8 +31,9 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #   and git -C, and reads past env, sudo, nice, timeout, exec, caffeinate, stdbuf, ionice and time with the values
 #   their options take; after a program it does not know, a later git, rm or mv that would be stopped asks. It is not
 #   a shell parser: it does not expand variables, globs, aliases, or
-#   functions, and it does not look inside scripts, bash -c strings, eval, xargs, command
-#   substitution inside double quotes, or git aliases; a shell, eval or xargs string that
+#   functions, and it does not look inside scripts, bash -c strings, eval, xargs, a backtick
+#   substitution inside double quotes, or git aliases (a $( inside double quotes is read as the
+#   command it is, and $(( )) is arithmetic, never a heredoc; an unclosed one asks); a shell, eval or xargs string that
 #   names git asks instead of allowing in silence. It stops ordinary and accidental
 #   commands, not a command someone has deliberately hidden.
 #
@@ -66,7 +67,7 @@ INSTRUCTION_FILES=$'CLAUDE.md\nAGENTS.md'
 NORM=""; PT_WHAT=""; PHYS=""
 DENY_REASON=""; ASK_REASON=""
 TOKS=(); SEGW=(); SEGR=(); ARGS=(); GARGS=(); PA=(); FILES=()
-RT=$'\037'; REDIRS=""
+RT=$'\037'; REDIRS=""; UNSURE_MARK=$'\035'; TOK_UNSURE=0
 EFF_DIR=""; GDIR=""; RESOLVED=""; CUR_BRANCH=""; SC_LETTERS=""; SC_NEXT=0
 SN_RULE=""; HIT_FILE=""; HIT_RULE=""; REASON=""; ESCAPED=""
 
@@ -333,14 +334,29 @@ EOF
 # reason (this awk's substr() measures the whole string on every call). Words are capped at
 # 4096 characters: flags, paths, and branch names are short, and the cap keeps time linear.
 AWK_TOKENIZER='
-function flush() { if (have) { if (skipnext == 2) print RT tok; else if (!skipnext) print tok; skipnext = 0 } tok = ""; have = 0 }
-function sep() { flush(); print SEP; skipnext = 0 }
+# Inside a $( that opened within double quotes, the words are a command of their own (bash reads its quotes afresh), so
+# they are held in DEF and printed as their own segments after the segment that holds the quoted word, which goes on.
+function emit(x) { if (depth > 0) DEF = DEF x "\n"; else print x }
+function flush() { if (have) { if (skipnext == 2) emit(RT tok); else if (!skipnext) emit(tok); skipnext = 0 } tok = ""; have = 0 }
+function sep() { flush(); emit(SEP); skipnext = 0; if (depth == 0 && DEF != "") { printf "%s", DEF; DEF = "" } }
+# arith(k): $(( ... )) or (( ... )) from the first ( at k, added to the word as it is, so a << inside it is never a
+# heredoc. Returns the index of the closing paren; one that does not close on this line makes the result unsure.
+function arith(k,   pd, ch) {
+  pd = 0
+  for (; k <= m; k++) {
+    if (k - off > 4096) { off = k - 1; chunk = substr(line, k, 4400) }
+    ch = at(k); add(ch)
+    if (ch == "(") pd++
+    else if (ch == ")") { pd--; if (pd == 0) return k }
+  }
+  unsure = 1; return m
+}
 function add(ch) { if (length(tok) < 4096) tok = tok ch; have = 1 }
 function at(k) { return substr(chunk, k - off, 1) }
-BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RT = sprintf("%c", 31) }
+BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RT = sprintf("%c", 31); UN = sprintf("%c", 29) }
 {
   n = split($0, L, "\n")
-  q = ""; tok = ""; have = 0; skipnext = 0; nhd = 0; hdi = 0; cont = 0
+  q = ""; tok = ""; have = 0; skipnext = 0; nhd = 0; hdi = 0; cont = 0; depth = 0; DEF = ""; unsure = 0
   for (ln = 1; ln <= n; ln++) {
     line = L[ln]; m = length(line); off = 0; chunk = substr(line, 1, 4400)
     for (i = 1; i <= m; i++) {
@@ -355,6 +371,11 @@ BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RT = sprintf("%c", 31) }
           add(c); continue
         }
         if (c == "\"") { q = ""; continue }
+        if (c == "$" && at(i + 1) == "(") {
+          if (at(i + 2) == "(") { add(c); i = arith(i + 1); continue }
+          depth++; ST[depth] = tok; SS[depth] = skipnext; PC[depth] = 0
+          tok = ""; have = 0; skipnext = 0; q = ""; i++; continue
+        }
         add(c); continue
       }
       if (c == " " || c == "\t") { flush(); continue }
@@ -370,6 +391,12 @@ BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RT = sprintf("%c", 31) }
       }
       if (c == "|") { d = at(i + 1); if (d == "|" || d == "&") i++; sep(); continue }
       if (c == "(" || c == ")" || c == "`") {
+        if (c == ")" && depth > 0 && PC[depth] == 0) {
+          # the $( opened inside double quotes closes: back into the quoted word, which carries $() in place of it
+          sep(); tok = ST[depth] "$()"; have = 1; skipnext = SS[depth]; depth--; q = "\""; continue
+        }
+        if (c == "(" && at(i + 1) == "(" && (!have || substr(tok, length(tok), 1) == "$")) { i = arith(i); continue }
+        if (depth > 0) { if (c == "(") PC[depth]++; else if (c == ")") PC[depth]-- }
         if (c == "(" && have && substr(tok, length(tok), 1) == "$") { tok = substr(tok, 1, length(tok) - 1); if (tok == "") have = 0 }
         sep(); continue
       }
@@ -393,7 +420,7 @@ BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RT = sprintf("%c", 31) }
           if (w != "" && w !~ /^[0-9]+$/) { nhd++; HD[nhd] = w; HDT[nhd] = strip }
           continue
         }
-        if (d == "(") { i++; sep(); continue }
+        if (d == "(") { i++; if (depth > 0) PC[depth]++; sep(); continue }
         rw = (c == ">") ? 2 : 1
         if (c == ">" && (d == ">" || d == "|")) { i++; d = at(i + 1) }
         if (c == "<" && d == ">") { i++; d = at(i + 1); rw = 2 }
@@ -421,6 +448,9 @@ BEGIN { RS = "\001"; SEP = sprintf("%c", 30); RT = sprintf("%c", 31) }
     }
   }
   flush()
+  if (DEF != "") { print SEP; printf "%s", DEF }
+  # an unclosed quote, command substitution or arithmetic: what follows may not have been read as bash reads it
+  if (q != "" || depth > 0 || unsure) { print SEP; print UN }
 }'
 
 tokenize() { # fills TOKS from IN_CMD; returns 1 when awk fails
@@ -429,7 +459,10 @@ tokenize() { # fills TOKS from IN_CMD; returns 1 when awk fails
   out=$(printf '%s' "$IN_CMD" | awk -v SQ="'" "$AWK_TOKENIZER" 2>/dev/null); rc=$?
   [ "$rc" -eq 0 ] || return 1
   [ -n "$out" ] || return 0
-  while IFS= read -r t; do TOKS[${#TOKS[@]}]=$t; done <<EOF
+  while IFS= read -r t; do
+    if [ "$t" = "$UNSURE_MARK" ]; then TOK_UNSURE=1; continue; fi
+    TOKS[${#TOKS[@]}]=$t
+  done <<EOF
 $out
 EOF
   return 0
@@ -1477,6 +1510,9 @@ main_pretooluse() {
     exit 0
   fi
   walk_segments
+  if [ "$TOK_UNSURE" = 1 ]; then
+    ask "Check first: guardrails could not tell where a quote, a command substitution or an arithmetic expression in this command ends, so part of it may not have been read the way the shell will read it. Read the command yourself and confirm only if it is what you intend."
+  fi
   [ "$CFG_STATE" = unreadable ] && note=$'\n'"$CONFIG_NOTE"
   if [ -n "$DENY_REASON" ]; then
     emit_decision deny "$DENY_REASON$note"
