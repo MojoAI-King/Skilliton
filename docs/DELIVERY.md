@@ -32,6 +32,7 @@ Neither one is the assistant guardrails hook, and neither is a security or compl
 - **protectedBranches** lists plain branch names (`main`, `release/2.x`), with no `refs/` prefix and no wildcards.
 - **checks** run in order. `command` is an argument list, never a shell string: `["npm", "test"]`, not `"npm test"`. If you need a shell, say so explicitly: `["sh", "-c", "..."]`. `name` is 1 to 64 letters, digits, spaces or `. _ : + / -`, and unique. `timeoutSeconds` is optional (default 600, at most 86400). An empty list is allowed and means nothing runs.
 - **policyPaths** are repository paths; a trailing `/` means a folder and everything in it. The list must cover `.skilliton/delivery.json` itself, or a change to the policy would need no approval. Add any file that controls what the checks do, such as a test configuration or `.gitattributes`, if a quiet change to it should need approval.
+- **protectedPaths** (optional) are the files the checks run. A change to one needs a commit signed by an approver, the same approvers file the policy signature uses, and the gate refuses the push before it extracts or runs anything, so a rewritten check never executes. A trailing `/` means a folder and everything in it; any other entry is matched exactly. Without the key, the gate protects every argument of a check command that names a file in the pushed tree (for `["node", "scripts/checks.mjs"]`, that is `scripts/checks.mjs`), plus `.github/workflows/`. An argument that names no file there, such as a flag, a program on PATH or a script the tree does not hold, protects nothing, and a check whose script is missing fails when it cannot start. An explicit list replaces the default, and may be empty. The default does not follow what a check script imports: list those files here if a quiet change to them should need approval. This repository lists `scripts/` and `.github/workflows/`, so every check and every test the checks run needs an approver's signed commit.
 - Unknown keys are refused, so a typo cannot silently turn a rule off.
 
 ## 2. Which branches are protected
@@ -78,9 +79,10 @@ For each update to a protected branch, in this order:
 1. Deleting the branch is rejected. An update that does not contain the current tip (a force push) is rejected.
 2. The policy is read from the branch's **current** tip, never from the pushed commits. The only exception is the push that creates a protected branch: its tip must contain a valid policy and be signed by an approver, and that policy's checks run.
 3. Every pushed commit whose change against its first parent touches a policy path must carry an SSH signature from a key in the approvers file. Other signature types are refused, because the approvers file cannot vouch for them.
-4. The pushed tip must still hold a valid policy; otherwise every later push would be rejected.
-5. The pushed tip, which is the combined result of everyone's work, is extracted with `git archive` into a temporary folder, and every file is compared with the commit. If `.gitattributes` export rules or content filters changed or dropped a file, the push is rejected rather than checked against something that is not the commit.
-6. Each check runs in that folder with its timeout and a minimal environment: `PATH`, a temporary `HOME`, `LANG`. The first failure rejects the push:
+4. Every pushed commit that changes a protected path (`protectedPaths`, or the default above) against its first parent must be signed by an approver, and the combined result must hold exactly the content such a commit gave each protected path, so a merge cannot bring back an earlier checks script. A path that a policy path also covers is judged by the policy-path rule, with its message. A rejection names the path and says an approver's signed commit is needed.
+5. The pushed tip must still hold a valid policy; otherwise every later push would be rejected.
+6. The pushed tip, which is the combined result of everyone's work, is extracted with `git archive` into a temporary folder, and every file is compared with the commit. If `.gitattributes` export rules or content filters changed or dropped a file, the push is rejected rather than checked against something that is not the commit.
+7. Each check runs in that folder with its timeout and a minimal environment: `PATH`, a temporary `HOME`, `LANG`. The first failure rejects the push:
 
    ```text
    remote: skilliton delivery: rejected refs/heads/main: check "tests" failed (exit 1)
@@ -92,6 +94,8 @@ A rejected push updates no ref at all, including other refs in the same push. Th
 ### Check before you push
 
 ```sh
+
+   A check's output is read a line at a time with a bounded carry. A run of more than 400 characters without a newline is kept as a line of its own, so a check that prints megabytes on one line holds no more than that, and the rejection still shows the last lines.
 skilliton delivery check                    # the current branch against origin, as last fetched
 skilliton delivery check --ref main --remote origin --approvers <allowed_signers>
 ```

@@ -1,8 +1,26 @@
 {
   "schema": "skilliton.delivery/1",
-  "protectedBranches": ["main"],
-  "checks": [
-    { "name": "checks", "command": ["node", "scripts/checks.mjs"], "timeoutSeconds": 1800 }
+  "protectedBranches": [
+    "main"
   ],
-  "policyPaths": [".skilliton/delivery.json", ".github/workflows/", ".github/CODEOWNERS", "CODEOWNERS"]
+  "checks": [
+    {
+      "name": "checks",
+      "command": [
+        "node",
+        "scripts/checks.mjs"
+      ],
+      "timeoutSeconds": 1800
+    }
+  ],
+  "policyPaths": [
+    ".skilliton/delivery.json",
+    ".github/workflows/",
+    ".github/CODEOWNERS",
+    "CODEOWNERS"
+  ],
+  "protectedPaths": [
+    "scripts/",
+    ".github/workflows/"
+  ]
 }
