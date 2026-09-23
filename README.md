@@ -12,7 +12,7 @@ Open a git repository in Claude Code with the plugins installed:
 
 - **The session starts where the last one stopped.** A hook shows the assistant the last handoff and the project's state, and it tells you where things stand.
 - **Dangerous commands are stopped by a hook.** The common forms of force-pushing a protected branch, skipping git hooks, committing a secret-shaped file and deleting the project's records are blocked; throwing away uncommitted work asks you first. What the hook cannot see is listed in the guardrails skill.
-- **The session stays lean.** A whole-file read over 50 KB is refused with how to read a range instead.
+- **Big files are read a part at a time.** A whole-file read over 50 KB is refused, with how to read a range instead.
 - **Work is written down.** The assistant is asked to open a task record before changing code, and a stop with unrecorded changes is held once until a checkpoint is recorded.
 - **Batches and housekeeping are prompted.** Six or more items in one message bring a note to split them into worktree lanes, and after a merge the stop is held until maintenance runs. The hooks prompt; the assistant does the work.
 

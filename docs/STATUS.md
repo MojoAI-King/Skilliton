@@ -12,19 +12,19 @@ Written by `node scripts/living-docs.mjs --apply` from PLAN.md section 7 (the mi
 |---|---|---|---|
 | M0 | Shared direction | Done | none |
 | M1 | One prepared repository | Verified locally | none |
-| M2 | Normal-work continuity | Verified on Claude Code | O6, O9 |
+| M2 | Normal-work continuity | Verified on Claude Code | O9 |
 | M3 | Approved company updates | Verified at install level | O8 |
-| M4 | Security and shared delivery | Verified locally | O15 |
+| M4 | Security and shared delivery | Verified locally and on a hosted repository | none |
 | M5 | Beginner/team rehearsal | Not started: needs a real person | O16 |
 | M6 | Make it yours | Verified locally | none |
-| M7 | One command per machine | Verified locally | B6 |
-| M8 | Autopilot on arrival | Second increment built 2026-09-19 | B2, B3, B13 |
+| M7 | One command per machine | Verified locally | none |
+| M8 | Autopilot on arrival | Second increment built 2026-09-19 | B2 |
 | M9 | One name | Verified locally | none |
 | M10 | Security audit that runs itself | Three of its six parts built 2026-09-20 | B17, B45 |
 | M11 | Routines while working | Two of three routines built 2026-09-20 | B21 |
-| M12 | Enrollment through device management | Spike measured on Linux | B22, B29, B30 |
+| M12 | Enrollment through device management | Spike measured on Linux | B22, B29, B30, B79 |
 | M13 | Any AI coding tool | Not started | B23, O24 |
-| M14 | Proof of value and team view | Not started | B15, B16 |
+| M14 | Proof of value and team view | Started: first comparison run 2026-09-22 | B15, B16 |
 
 <!-- living-docs:milestones:end -->
 
