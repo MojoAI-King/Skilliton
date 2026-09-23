@@ -16,7 +16,7 @@ const DRY = args.includes("--dry");
 const OUT = flag("--out", join(process.cwd(), "out"));
 const REPS = Number(flag("--reps", "3"));
 const MODEL = flag("--model", "claude-sonnet-5");
-const ONLY = flag("--only", "A,B,C,D,E").split(",");
+const ONLY = flag("--only", "A,B,C,D,E").split(","); // F, the second run's orientation task, runs only when named
 const CEILING = Number(flag("--ceiling", "10000000"));
 const SK = process.env.SKILLITON_REPO ?? new URL("../..", import.meta.url).pathname.replace(/\/$/, "");
 const PLUGINS = ["workflow", "guardrails", "context-hygiene", "code-quality"].map((p) => join(SK, "packs/base/plugins", p));
@@ -77,13 +77,37 @@ const TASKS = {
   },
 };
 
+// Task F (docs/COMPARISON_PROTOCOL.md, the second run): a project with a handoff, an open task and one uncommitted
+// file. Both arms are prepared, so the records are the same files; the "without" arm then loses the managed block
+// (CLAUDE.md and AGENTS.md, which preparation wrote), so the only difference is Skilliton's hooks and instructions.
+const F_FILES = Object.fromEntries(Array.from({ length: 28 }, (_, i) => [`src/lib/module${i}.js`, `// module ${i}\nexport const value${i} = ${i};\n`]));
+TASKS.F = {
+  title: "Orientation",
+  setup: (d) => repo(d, { ...F_FILES, "src/routes/login.js": "export function login(user, password) {\n  return check(user, password);\n}\n", "package.json": PKG, "README.md": "# fixture\n" }),
+  prepareBoth: true,
+  afterPrepare: (d, arm) => {
+    writeFileSync(join(d, "docs/HANDOFF.md"), "# Handoff\n\nKind: Living.\n\n## RESUME HERE\n\nWritten: 2026-09-22 18:00 EDT\n\n- **State:** login works without limits.\n- **Next:** add rate limiting to the /login route in src/routes/login.js, five tries a minute per user.\n- **Blocked:** nothing.\n");
+    mkdirSync(join(d, "docs/tasks"), { recursive: true });
+    writeFileSync(join(d, "docs/tasks/2026-09-22-harden-the-login-flow-f001.md"), "# Task: Harden the login flow\n\nKind: Living. Task record.\n\n- **ID:** 2026-09-22-harden-the-login-flow-f001\n- **State:** in-progress\n- **Branch:** main\n- **Owner:** unassigned\n- **Updated:** 2026-09-22T22:00:00.000Z\n\n## Request\n\nMake the login route safe against guessing.\n\n## Acceptance criteria\n\n- [ ] rate limiting on /login\n");
+    if (arm === "without") for (const f of ["CLAUDE.md", "AGENTS.md"]) rmSync(join(d, f), { force: true });
+    git(d, "add", "-A"); git(d, "commit", "-qm", "project records");
+  },
+  dirty: (d) => writeFileSync(join(d, "src/routes/login.js"), "export function login(user, password) {\n  // TODO: count attempts per user\n  return check(user, password);\n}\n"),
+  sessions: ["Where does this project stand, and what should I do next? Answer in five lines or fewer."],
+  check: (d, runs) => {
+    const r = runs[0] ?? {}; const text = String(r.result ?? ""); const u = r.usage ?? {};
+    const facts = { nextStep: /rate.?limit/i.test(text), openTask: /harden/i.test(text), uncommittedFile: /login\.js/.test(text) && /uncommitted|not (yet )?committed|modified|unstaged|local change|working tree/i.test(text) };
+    return { inputTokens: (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0), outputTokens: u.output_tokens ?? 0, turns: r.turns ?? null, seconds: r.ms !== null && r.ms !== undefined ? Math.round(r.ms / 100) / 10 : null, facts, success: facts.nextStep && facts.openTask && facts.uncommittedFile };
+  },
+};
+
 function runSession(dir, prompt, arm) {
   const base = ["-p", prompt, "--setting-sources", "project,local", "--max-turns", "30", "--model", MODEL, "--output-format", "json", "--dangerously-skip-permissions"];
   const withArgs = arm === "with" ? PLUGINS.flatMap((p) => ["--plugin-dir", p]) : [];
   const env = { ...process.env, SKILLITON_AUTO_PREPARE: "off" };
   const r = spawnSync("claude", [...base, ...withArgs], { cwd: dir, encoding: "utf8", env, input: "", timeout: 20 * 60000 });
   let parsed = null; try { parsed = JSON.parse(r.stdout); } catch { /* reported below */ }
-  return { exit: r.status, signal: r.signal, usage: parsed?.usage ?? null, result: parsed?.result ?? null, isError: parsed?.is_error ?? null, cost: parsed?.total_cost_usd ?? null, raw: parsed ? null : String(r.stdout).slice(0, 2000) };
+  return { exit: r.status, signal: r.signal, usage: parsed?.usage ?? null, result: parsed?.result ?? null, isError: parsed?.is_error ?? null, cost: parsed?.total_cost_usd ?? null, turns: parsed?.num_turns ?? null, ms: parsed?.duration_ms ?? null, raw: parsed ? null : String(r.stdout).slice(0, 2000) };
 }
 
 mkdirSync(OUT, { recursive: true });
@@ -93,7 +117,8 @@ for (const key of ONLY) {
   for (let rep = 1; rep <= (DRY ? 1 : REPS); rep++) for (const arm of ["without", "with"]) {
     const dir = join(OUT, `${key}-${arm}-${rep}`, "repo");
     task.setup(dir, arm);
-    if (arm === "with") { const p = sh(dir, `node ${SK}/scripts/skilliton.mjs prepare --dir . --apply && git ${ID.join(" ")} add -A && git ${ID.join(" ")} commit -qm prepared`); if (p.status !== 0) throw new Error(`prepare failed in ${dir}: ${p.stderr}`); }
+    if (arm === "with" || task.prepareBoth) { const p = sh(dir, `node ${SK}/scripts/skilliton.mjs prepare --dir . --apply && git ${ID.join(" ")} add -A && git ${ID.join(" ")} commit -qm prepared`); if (p.status !== 0) throw new Error(`prepare failed in ${dir}: ${p.stderr}`); }
+    task.afterPrepare?.(dir, arm);
     task.dirty?.(dir);
     const start = git(dir, "rev-parse", "HEAD").stdout.trim();
     if (DRY) { console.log(`${key} ${arm}: fixture built at ${dir}; ${task.sessions.length} session(s)`); continue; }
