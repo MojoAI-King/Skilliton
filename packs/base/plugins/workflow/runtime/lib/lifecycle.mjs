@@ -162,13 +162,15 @@ function readHandoffRecord(root, rel) {
 
 // ---------- session history ----------
 
-// An interrupted session is a session-start with no later session-end. One whose newest activity (a session-start or
-// a stop) is within LIVE_SESSION_WINDOW_MS reads as live instead: likely still open elsewhere, not crashed.
+// An interrupted session is a session-start with no later session-end. One whose newest activity (any journal event
+// of that session, session-end excepted) is within LIVE_SESSION_WINDOW_MS reads as live instead: likely still open
+// elsewhere, not crashed. Found 2026-09-23: a session-start-or-stop allowlist here never matched, because no caller
+// appends a bare "stop" (the stop hook appends stop-reminded, maintain-reminded, dispatch-reminded, or nothing).
 const LIVE_SESSION_WINDOW_MS = 30 * 60 * 1000;
 
-// The latest "at" of a session-start or stop event for one session id, or null. ISO timestamps sort as strings.
+// The latest "at" of any journal event for one session id, session-end excepted, or null. Strings sort as ISO dates.
 const lastActivityAt = (events, sessionId) => events
-  .filter((e) => (e.event === "session-start" || e.event === "stop") && (e.session ?? null) === sessionId && typeof e.at === "string")
+  .filter((e) => e.event !== "session-end" && (e.session ?? null) === sessionId && typeof e.at === "string")
   .reduce((latest, e) => (latest === null || e.at > latest ? e.at : latest), null);
 
 // With currentSession (a hook knows its own id): previous is the latest session-start of another session.

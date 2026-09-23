@@ -108,6 +108,20 @@ test("a previous session's own stop event counts as activity, so a session start
   assert.match(second.out, /^- Previous session: another session looks active in this checkout \(last seen [^)]+\), or it was interrupted: if it is open in another window, work in a worktree lane or check before committing shared records$/m);
 }));
 
+// N61b: a session started 40 minutes ago (past the 30 minute window on its own) but with a stop-reminded event 5
+// minutes ago still reads as live. Unlike the synthetic "stop" event above, stop-reminded is an event this build's
+// stop hook actually appends (hook.mjs), so this is the case that was silently broken before lastActivityAt counted
+// any of a session's own journal events (session-end excepted) instead of only session-start or a bare "stop".
+test("a previous session's stop-reminded event also counts as activity", async () => withTemp("live-stop-reminded", async ({ dir, env }) => {
+  const p = initRepo(join(dir, "p"), env);
+  assert.equal(hook(p, "session-start", { session_id: "s1" }, env).code, 0);
+  backdateSession(p, env, "s1", 40);
+  appendRawEvent(p, env, { at: minutesEarlier(new Date().toISOString(), 5), event: "stop-reminded", session: "s1" });
+  const second = hook(p, "session-start", { session_id: "s2" }, env);
+  assert.equal(second.code, 0, second.all);
+  assert.match(second.out, /^- Previous session: another session looks active in this checkout \(last seen [^)]+\), or it was interrupted: if it is open in another window, work in a worktree lane or check before committing shared records$/m);
+}));
+
 test("a previous session with no recent activity and no session-end is still reported as interrupted", async () => withTemp("interrupted", async ({ dir, env }) => {
   const p = initRepo(join(dir, "p"), env);
   assert.equal(hook(p, "session-start", { session_id: "s1" }, env).code, 0);
