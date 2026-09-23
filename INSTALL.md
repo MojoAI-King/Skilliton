@@ -5,7 +5,8 @@ Kind: Living. Written for two readers: a person installing Skilliton, and an AI 
 ## What you need
 
 - **Claude Code**, signed in. The path 2 commands use its command line (`claude`). With only the VS Code extension, see rule 1 of [the agent section](#if-you-are-an-ai-agent-installing-this-for-someone).
-- **git**, and **Node.js 22 or later** (`node --version`).
+- **git**, and **Node.js 22 or later** (`node --version`). Node.js 22 is tested; Node.js 20 ran in one review and is not a supported floor.
+- **OpenSSH's `ssh-keygen`** (`ssh-keygen -V`). The demo and `skilliton verify` use it to check signatures; on Debian and Ubuntu it is the `openssh-client` package, usually already installed.
 - macOS or Linux. Windows is not supported yet: after the port, preparation, every session hook and the guard's decisions work on a hosted Windows machine, but a command of several hundred KB takes the guard longer than its timeout (backlog B80), and no signed-in Claude Code session has run there ([evidence](evidence/live/windows/2026-09-23-hosted-runner-port.md)).
 
 ## Pick a path
@@ -33,6 +34,8 @@ node scripts/checks.mjs
 ```
 
 ## 2. Try it in your own Claude Code
+
+**This path tracks the `main` branch, unsigned, with automatic updates, and is for trying it out; it is not for a machine that holds client work.** See [path 3](#3-roll-it-out-to-a-team) for that.
 
 **Install the four plugins** from this repository's marketplace. The first command prints `Successfully added marketplace`, and each install prints `Successfully installed plugin`:
 
@@ -82,7 +85,7 @@ claude plugin marketplace remove skilliton
 
 ## 3. Roll it out to a team
 
-A company forks this repository, names it, signs its releases and hands each developer one join file. That path is [docs/RELEASING.md](docs/RELEASING.md) for the company and [docs/ONBOARDING.md](docs/ONBOARDING.md) for the developer. In short, a developer runs, once per machine:
+**This is the signed path for a machine that holds client work:** it pins to a signed release rather than tracking a branch. A company forks this repository, names it, signs its releases and hands each developer one join file. That path is [docs/RELEASING.md](docs/RELEASING.md) for the company and [docs/ONBOARDING.md](docs/ONBOARDING.md) for the developer. In short, a developer runs, once per machine:
 
 ```bash
 git clone https://github.com/<company>/<skills-repo> ~/company-skills
