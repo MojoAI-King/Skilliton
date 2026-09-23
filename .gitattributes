@@ -1,0 +1,4 @@
+# Every text file is checked out with LF line ends on every platform. Git for Windows turns core.autocrlf on by
+# default, and a CRLF checkout changes the bytes a plugin's tree hash is computed over (verify would call every
+# plugin tampered), the harness template the tests compare with, and the shell scripts the hooks run.
+* text=auto eol=lf
