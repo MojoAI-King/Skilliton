@@ -109,6 +109,7 @@ if [ -z "$project_dir" ] && [ -n "$parser" ] && [ ! -t 0 ]; then
   input=""
   IFS= read -r -t 3 -d '' input || true   # reads to end of input; a non-zero status at EOF is expected
   project_dir=$(stdin_cwd "$input")
+  case "${OSTYPE:-}" in msys*|cygwin*) project_dir=${project_dir%$'\r'} ;; esac   # a native jq.exe or python3 on Windows ends its output with CRLF
 fi
 [ -n "$project_dir" ] || project_dir=$PWD
 
@@ -123,6 +124,7 @@ if [ -f "$config" ]; then
       *'"handoff"'*) note ".skilliton/config.json has handoff settings but was not read (no jq, node, or python3 found); using $DEFAULT_FILE and $DEFAULT_MAX bytes." ;;
     esac
   elif values=$(config_values "$config"); then
+    case "${OSTYPE:-}" in msys*|cygwin*) values=${values//$'\r'/} ;; esac
     file_tag=${values%%"$nl"*}
     max_tag=${values#*"$nl"}
     case "$file_tag" in

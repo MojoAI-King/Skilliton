@@ -174,6 +174,10 @@ trap guard_exit EXIT
 
 # ---------------------------------------------------------------- reading JSON
 
+# On Windows (Git Bash), a native jq.exe or python3 writes CRLF, which left every value with a trailing \r and turned
+# every git rule into an ask (a hosted Windows runner, 2026-09-22). There, and only there, CRLF becomes LF.
+unix_lines() { case "${OSTYPE:-}" in msys*|cygwin*) out=${out//$'\r\n'/$'\n'}; out=${out%$'\r'} ;; esac; }
+
 pick_parser() { # sets GUARD_PARSER to the first usable JSON reader
   local p
   GUARD_PARSER=""
@@ -216,6 +220,7 @@ read_input() { # sets IN_KEYS, IN_CWD and IN_CMD from GUARD_RAW; returns 1 when 
     python3) out=$(printf '%s' "$GUARD_RAW" | python3 -c "$PY_INPUT" 2>/dev/null); rc=$? ;;
     *) return 1 ;;
   esac
+  unix_lines
   [ "$rc" -eq 0 ] || return 1
   IN_KEYS=${out%%$'\n'*}
   case "$IN_KEYS" in codex|none) ;; *) IN_KEYS=""; return 1 ;; esac
@@ -294,6 +299,7 @@ load_config() { # reads $PROJECT_DIR/.skilliton/config.json into CFG_*; defaults
     python3) out=$(python3 -c "$PY_CONFIG" "$f" 2>/dev/null); rc=$? ;;
     *) rc=1; out="" ;;
   esac
+  unix_lines
   case "$out" in FP=*) ;; *) rc=1 ;; esac
   if [ "$rc" -ne 0 ]; then CFG_STATE=unreadable; return 0; fi
   CFG_STATE=loaded

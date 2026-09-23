@@ -59,6 +59,11 @@ jobs:
         run: |
           set +e
           cd "$HOME/First Last/skilliton" && node --test scripts/path-form.test.mjs; echo "exit $?"
+      - name: windows-cmd.test
+        continue-on-error: true
+        run: |
+          set +e
+          cd "$HOME/First Last/skilliton" && node --test scripts/windows-cmd.test.mjs; echo "exit $?"
       - name: allowlist.test
         continue-on-error: true
         run: |

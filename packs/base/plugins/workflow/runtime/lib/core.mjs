@@ -138,9 +138,21 @@ function which(tool) {
   return null;
 }
 
+// Node will not start a .cmd or .bat file without a shell (EINVAL), and that is how npm installs `claude` on Windows.
+// There, and only when the path and every argument hold no character cmd.exe would read, it goes through cmd.exe;
+// otherwise the spawn fails as before and the failure is reported. Returns [program, args] or null.
+function windowsCmdLine(file, args, platform = process.platform, comspec = process.env.ComSpec) {
+  if (platform !== "win32" || !/\.(cmd|bat)$/i.test(file)) return null;
+  if (!/^[^"&|<>^%!]+$/.test(file) || !args.every((a) => /^[A-Za-z0-9_.=:\/\\-]*$/.test(a))) return null;
+  return [comspec || "cmd.exe", ["/d", "/s", "/c", `""${file}"${args.map((a) => ` ${a}`).join("")}"`]];
+}
+
 // Run a program with a timeout; never throws for the program's own failure.
 function runProgram(file, args, timeoutMs = 20000, { env } = {}) {
-  const r = spawnSync(file, args, { encoding: "utf8", timeout: timeoutMs, stdio: ["ignore", "pipe", "pipe"], env: env ?? process.env });
+  const viaCmd = windowsCmdLine(file, args);
+  const r = viaCmd
+    ? spawnSync(viaCmd[0], viaCmd[1], { encoding: "utf8", timeout: timeoutMs, stdio: ["ignore", "pipe", "pipe"], env: env ?? process.env, windowsVerbatimArguments: true })
+    : spawnSync(file, args, { encoding: "utf8", timeout: timeoutMs, stdio: ["ignore", "pipe", "pipe"], env: env ?? process.env });
   const failure = r.error ? (r.error.code === "ETIMEDOUT" ? `timed out after ${timeoutMs / 1000}s` : r.error.message)
     : r.status !== 0 ? `exit ${r.status ?? "signal " + r.signal}` : null;
   return { ok: failure === null, failure, status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
@@ -339,7 +351,7 @@ function readPluginVersion(pluginDir) {
 export {
   PLUGIN_ROOT, SKILLS_REPO, HOME, BACKUPS,
   Refused, refuse, say, isPlainObject, clone, sameJson, sha12, statOrNull, isDir, isFile, tilde, selfCommand,
-  resolveExistingDir, NAME_RE, validateName, parseArgs, which, runProgram, newStamp, backupFile, unifiedDiff,
+  resolveExistingDir, NAME_RE, validateName, parseArgs, which, runProgram, windowsCmdLine, newStamp, backupFile, unifiedDiff,
   readBytes, writeBytes, forDisplay, argPath,
   buildTeamSettings, readJsonObject,
   listDirNames, requireSkillsRepo, resolveSkillsRepo,

@@ -1,9 +1,8 @@
 // preflight.mjs: does this machine let Skilliton work? (docs/IT-ALLOWLIST.md, backlog B27)
 //
-// On a managed laptop the interesting failures are not bugs: a program the hooks need is not installed, endpoint
-// security will not let a shell start it, a folder cannot be written, or the company's plugin repository cannot be
-// reached. Those failures are quiet. A hook that cannot run prints a notice into a session nobody reads closely, and
-// `join` fails half way through.
+// On a managed laptop the interesting failures are not bugs: a program the hooks need is missing, endpoint security
+// will not start it, a folder cannot be written, or the plugin repository cannot be reached. Those failures are quiet:
+// a hook that cannot run prints a notice into a session nobody reads closely, and `join` fails half way through.
 //
 // This runs the checks first. It sets nothing up, and the only things it writes it takes away again:
 //   programs   every program in the allow list is looked for and started once, each from the same kind of parent that
@@ -82,6 +81,7 @@ export const PROGRAMS = [
   { name: "cp", by: "hook", need: "maintainer", what: "the scrub check's own self-test", blocks: null },
   { name: "mktemp", by: "hook", need: "maintainer", what: "the scrub check's own self-test", blocks: null },
   { name: "rm", by: "hook", need: "maintainer", what: "the scrub check's own self-test", blocks: null },
+  { name: "cmd.exe", by: "runtime", need: "required", what: "on Windows, starting npm's claude launcher, a .cmd file Node cannot start by itself", platform: "win32", blocks: "setup" },
   { name: "xcode-select", by: "hook", need: "feature", what: "on a Mac, telling a real python3 from the developer-tools stub", platform: "darwin", blocks: "sessions" },
   { name: "claude", by: "client", need: "client", what: "Claude Code itself: the marketplace, the plugins and every session", blocks: "setup" },
   { name: "codex", by: "client", need: "client", what: "Codex itself, for teams that use it", blocks: "setup" },

@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 // allowlist.test.mjs: docs/IT-ALLOWLIST.md matches the code (backlog B26).
 //
-// The allow list tells an IT or security team what to allow on a managed laptop. A page like that is worth nothing the
-// day the code starts a program it does not name, so three checks read the code itself (scripts/inventory.mjs), never a
-// copy of it:
+// The allow list tells IT what to allow on a managed laptop, and it is worth nothing the day the code starts a program
+// it does not name, so three checks read the code itself (scripts/inventory.mjs), never a copy of it:
 //
 //   programs  every program the plugins, their hooks, the launchers and the command line start is named in section 1,
 //             and every program section 1 names is started somewhere or has an entry below saying who starts it. A
@@ -53,6 +52,7 @@ const WRAPPERS = ["runProgram", "runClient", "startOnce"];
 // call sites the file has, so a new one fails this test instead of passing under an existing entry.
 export const DYNAMIC_CALLS = [
   { file: `${WORKFLOW}/runtime/lib/core.mjs`, callee: "spawnSync", arg: "file", count: 1, programs: [], why: "inside runProgram, the wrapper; every caller of it is read below" },
+  { file: `${WORKFLOW}/runtime/lib/core.mjs`, callee: "spawnSync", arg: "viaCmd[0]", count: 1, programs: ["cmd.exe"], why: "inside runProgram on Windows only, to start a .cmd or .bat file Node cannot start itself (docs/IT-ALLOWLIST.md section 8)" },
   { file: `${WORKFLOW}/runtime/lib/join.mjs`, callee: "spawnSync", arg: "binary.path", count: 1, programs: [], why: "inside runClient, the wrapper; every caller of it is read below" },
   { file: `${WORKFLOW}/runtime/lib/doctor.mjs`, callee: "runProgram", arg: "bin", count: 1, programs: ["claude"], why: "doctor asks a Claude Code copy bundled in an editor extension for its version" },
   { file: `${WORKFLOW}/runtime/lib/doctor.mjs`, callee: "runProgram", arg: "cli.path", count: 2, programs: ["claude"], why: "doctor runs claude plugin list and marketplace list" },
