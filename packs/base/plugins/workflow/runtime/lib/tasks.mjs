@@ -34,6 +34,8 @@ export const TASK_STATES = ["planned", "in-progress", "blocked", "review", "done
 export const CLOSED_STATES = ["done-local", "merged", "released", "verified", "abandoned"];
 export const NOT_WRITTEN = "not yet written";
 export const MAX_TASK_BYTES = 1024 * 1024;
+export const CHECKPOINT_GROWTH_LIMIT = 15;
+export const CHECKPOINT_AGE_LIMIT_MS = 24 * 60 * 60 * 1000;
 
 const HEADER_FIELDS = ["ID", "State", "Branch", "Owner", "Updated"];
 const HEADER_RE = /^[-*] \*\*(ID|State|Branch|Owner|Updated):\*\*(?:[ \t]+(.*?))?[ \t]*$/;
@@ -225,6 +227,9 @@ export function parseTask(text, label) {
     const items = itemsBetween(lines, lastHeading.line + 1, checkpointsSection.end);
     lastCheckpoint = { at: lastHeading.text, state: items.State ?? null, evidence: items.Evidence ?? null, next: items.Next ?? null, git: items.Git ?? null };
   }
+  // The heading text is whatever was written after "### "; only a value that parses as a date is used by
+  // checkpointGrowth below, the same tolerance readTask already gives a hand-edited record.
+  const firstCheckpointAt = headings.length ? headings[0].text : null;
 
   const handoffSection = named("Handoff")[0] ?? null;
   let handoff = null;
@@ -247,12 +252,13 @@ export function parseTask(text, label) {
   return {
     id: values.ID, title: titleMatch[1], state: values.State, branch: values.Branch, owner: values.Owner, updated: values.Updated,
     checkpoints: headings.length, handoff,
-    criteria, lastCheckpoint, sections: a.sections.map((s) => s.name),
+    criteria, lastCheckpoint, firstCheckpointAt, sections: a.sections.map((s) => s.name),
   };
 }
 
 // Reads one task record. The contract shape is { id, title, state, branch, owner, updated, checkpoints, handoff };
-// file, criteria, lastCheckpoint and sections are extra. label names the file in messages (default: the path).
+// file, criteria, lastCheckpoint, firstCheckpointAt and sections are extra. label names the file in messages
+// (default: the path).
 export function readTask(file, { label = file } = {}) {
   let st;
   try { st = lstatSync(file); } catch (e) {
@@ -451,6 +457,21 @@ export function rewriteHandoffSection(lines, values, cr = "") {
     }
   }
   return lines;
+}
+
+// A task that has grown past its start (field report N53, backlog B74): it already holds CHECKPOINT_GROWTH_LIMIT or
+// more checkpoints, or its first one is more than CHECKPOINT_AGE_LIMIT_MS old, as of `atMs` (the new checkpoint's own
+// time, not the machine's clock at some other moment). `task` is a record already read (parseTask/readTask), so the
+// count and the first checkpoint's heading are the ones on disk before the new checkpoint is added. Returns
+// { count, firstCheckpointAt } to report, or null when neither limit is passed (including when there is no
+// checkpoint yet, or the first heading is not a date read() can parse, in which case age is never guessed at).
+export function checkpointGrowth(task, atMs) {
+  const count = task.checkpoints;
+  const firstMs = task.firstCheckpointAt ? Date.parse(task.firstCheckpointAt) : NaN;
+  const overCount = count >= CHECKPOINT_GROWTH_LIMIT;
+  const overAge = Number.isFinite(firstMs) && Number.isFinite(atMs) && atMs - firstMs > CHECKPOINT_AGE_LIMIT_MS;
+  if (!overCount && !overAge) return null;
+  return { count, firstCheckpointAt: task.firstCheckpointAt };
 }
 
 // Plans (and with apply writes) one checkpoint at the end of the "## Checkpoints" section, and sets Updated. With

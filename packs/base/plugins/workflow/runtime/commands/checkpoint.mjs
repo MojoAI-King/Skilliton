@@ -11,7 +11,7 @@ import { WRITTEN_AHEAD_MS, guardCommand, openProject } from "../lib/lifecycle.mj
 import { TransactionFailed, describeFailure, readPath } from "../lib/prepare.mjs";
 import { INDEX_KINDS, INDEX_RECORD_ROLE, ROLE_LABELS } from "../lib/project-files.mjs";
 import { regenerateIndexes } from "../lib/records.mjs";
-import { appendCheckpoint, checkText, currentTask, findTask, gitLine } from "../lib/tasks.mjs";
+import { appendCheckpoint, checkpointGrowth, checkText, CLOSED_STATES, currentTask, findTask, gitLine } from "../lib/tasks.mjs";
 
 export const help = `checkpoint: add a checkpoint to a task record: the state of the work, the evidence for it, the next step, and the
 mechanical Git state (branch, short commit, number of uncommitted paths). The same write brings the task record's
@@ -29,6 +29,10 @@ ambiguous. Each value is one line. Shows every change; --apply writes them, each
 Without --evidence the checkpoint says "none given". Without --blocked or --watch-out the handoff keeps the previous
 note's value when a person wrote one, else says "nothing" and "nothing known"; each carry-over is printed.
 Off an integration branch the shared handoff and the indexes are never touched, and the output says so.
+
+When the record already held 15 or more checkpoints, or its first one is more than 24 hours old, one note is
+printed (never blocking, and the record's own contents are unaffected) naming the count and the date, and pointing
+at task close and task start for a task that has moved on from its criteria.
 
 Refused, with nothing written: a handoff record with no "## RESUME HERE" section or "Written:" line, a Written value
 that cannot be read or is later than this machine's clock by more than five minutes, and a task record whose Updated
@@ -100,6 +104,13 @@ export async function run(argv) {
     const plan = appendCheckpoint(project, id, { at: atIso, state: o.state, evidence: o.evidence, next: o.next, git }, { apply, backupDir: apply ? backupRoot(root) : null, handoff: handoffValues, aheadMs: WRITTEN_AHEAD_MS });
     say(`checkpoint${apply ? "" : " (preview)"}: task ${id} in ${plan.rel}`);
     say(forDisplay(unifiedDiff(plan.before, plan.after, `a/${plan.rel}`, `b/${plan.rel}`)).trimEnd());
+    // A task that has grown past its start (field report N53, backlog B74): read from the record as it stood before
+    // this checkpoint was added, so "already holds" never counts the one being written. Never blocks; the record's
+    // contents are unaffected either way.
+    const growth = checkpointGrowth(task, at.getTime());
+    if (growth) {
+      say(`checkpoint: note: This task has ${growth.count} checkpoints since ${growth.firstCheckpointAt}. If the work has moved on from its criteria, close it (${cmd} task close ${id} --state <${CLOSED_STATES.join("|")}>) and start one per new piece of work: ${cmd} task start "<title>" --apply`);
+    }
     for (const label of carried) say(`handoff: ${label} carried over from the previous note`);
     for (const label of defaulted) say(`handoff: ${label} not given and nothing to carry over; written as "${handoffValues[label]}"`);
     if (o.handoff === true && !integration) say(`handoff: the shared handoff is written on an integration branch (${integrationList}), and ${whereWeAre}; the note went to the task record's Handoff section only`);
