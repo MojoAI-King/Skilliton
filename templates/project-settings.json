@@ -5,7 +5,7 @@
         "source": "github",
         "repo": "MojoAI-King/Skilliton"
       },
-      "autoUpdate": true
+      "autoUpdate": false
     }
   },
   "enabledPlugins": {
