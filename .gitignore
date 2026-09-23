@@ -39,3 +39,6 @@ PLAN.private*
 /.skilliton/private-evidence/
 LANES.md
 LANES-*.md
+
+# The comparison runner leaves each session's fixture repository beside its result; the results are the evidence, the fixtures are not.
+evidence/comparison/*/*/repo/
