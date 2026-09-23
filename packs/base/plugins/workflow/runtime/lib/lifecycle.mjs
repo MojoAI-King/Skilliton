@@ -162,11 +162,18 @@ function readHandoffRecord(root, rel) {
 
 // ---------- session history ----------
 
-// An interrupted session is a session-start with no later session-end for the same session id.
+// An interrupted session is a session-start with no later session-end. One whose newest activity (a session-start or
+// a stop) is within LIVE_SESSION_WINDOW_MS reads as live instead: likely still open elsewhere, not crashed.
+const LIVE_SESSION_WINDOW_MS = 30 * 60 * 1000;
+
+// The latest "at" of a session-start or stop event for one session id, or null. ISO timestamps sort as strings.
+const lastActivityAt = (events, sessionId) => events
+  .filter((e) => (e.event === "session-start" || e.event === "stop") && (e.session ?? null) === sessionId && typeof e.at === "string")
+  .reduce((latest, e) => (latest === null || e.at > latest ? e.at : latest), null);
+
 // With currentSession (a hook knows its own id): previous is the latest session-start of another session.
 // Without it (status cannot know which session it runs in): latest is the newest session-start, reported as ended or
-// not ended; previous is the newest session-start of another session before it. Only previous can be called
-// interrupted, because a later session started after it.
+// not; previous is the newest session-start of another session before it. Only previous is ever interrupted or live.
 function sessionHistory(events, { currentSession } = {}) {
   const starts = [];
   events.forEach((e, i) => { if (e.event === "session-start") starts.push({ e, i }); });
@@ -176,12 +183,16 @@ function sessionHistory(events, { currentSession } = {}) {
   const newestWhere = (test) => { for (let k = starts.length - 1; k >= 0; k--) if (test(starts[k])) return starts[k]; return null; };
   if (currentSession !== undefined) {
     const previous = describe(newestWhere((s) => idOf(s) !== currentSession));
-    return { mode: "hook", latest: null, previous, interrupted: Boolean(previous && !previous.ended) };
+    const unended = Boolean(previous && !previous.ended);
+    const at = unended && previous.session !== null ? lastActivityAt(events, previous.session) : null;
+    const age = at !== null ? Date.now() - Date.parse(at) : NaN;
+    const live = Number.isFinite(age) && age >= 0 && age <= LIVE_SESSION_WINDOW_MS;
+    return { mode: "hook", latest: null, previous, interrupted: unended && !live, live, lastSeen: live ? at : null };
   }
   const latestStart = starts.length ? starts[starts.length - 1] : null;
   const previousStart = latestStart ? newestWhere((s) => s.i < latestStart.i && idOf(s) !== idOf(latestStart)) : null;
   const previous = describe(previousStart);
-  return { mode: "status", latest: describe(latestStart), previous, interrupted: Boolean(previous && !previous.ended) };
+  return { mode: "status", latest: describe(latestStart), previous, interrupted: Boolean(previous && !previous.ended), live: false, lastSeen: null };
 }
 
 // ---------- checks ----------
@@ -447,12 +458,13 @@ function sessionsCheck(root, git, currentSession) {
   const history = sessionHistory(journal.events, { currentSession });
   const data = {
     journal: { path: journal.path, exists: journal.exists, events: journal.events.length, corrupt: journal.corrupt, truncated: journal.truncated },
-    mode: history.mode, latest: history.latest, previous: history.previous, interrupted: history.interrupted, uncommitted: git.dirty,
+    mode: history.mode, latest: history.latest, previous: history.previous, interrupted: history.interrupted, live: history.live, lastSeen: history.lastSeen, uncommitted: git.dirty,
   };
   const who = (s) => `session ${s.session ?? "(no id)"} (started ${s.startedAt})`;
   const parts = [];
   if (history.mode === "hook") {
     if (!history.previous) parts.push("none recorded in this worktree's journal");
+    else if (history.live) parts.push(`another session looks active in this checkout (last seen ${history.lastSeen}): work in a worktree lane, or check before committing shared records`);
     else if (history.interrupted) parts.push(`interrupted: ${who(history.previous)} has no session-end`);
     else parts.push(`${who(history.previous)} ended normally`);
   } else if (!history.latest) {
@@ -464,7 +476,7 @@ function sessionsCheck(root, git, currentSession) {
   if (history.interrupted) parts.push(`${git.dirty ?? "unknown"} uncommitted change(s) in the working tree now`);
   if (journal.corrupt) parts.push(`${journal.corrupt} corrupt journal line(s) ignored`);
   if (journal.truncated) parts.push("only the newest 8 MB of the journal were read");
-  const status = history.interrupted && git.dirty > 0 ? "attention" : journal.corrupt || journal.truncated || !journal.exists ? "note" : "ok";
+  const status = history.interrupted && git.dirty > 0 ? "attention" : history.live || journal.corrupt || journal.truncated || !journal.exists ? "note" : "ok"; // live blocks nothing: a note, never attention
   return { status, summary: parts.join("; "), data };
 }
 

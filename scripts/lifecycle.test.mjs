@@ -703,7 +703,7 @@ test("session-start names every missing piece and stays within handoff.maxBytes"
   const smallest = hook(narrow, "session-start", { session_id: "s2" }, env);
   assert.ok(smallest.code === 0 && Buffer.byteLength(smallest.out) <= 200, smallest.out);
 
-  writeConfig(narrow, { handoff: { maxBytes: 5 } });
+  writeConfig(narrow, { handoff: { maxBytes: 5 } }); backdate(narrow, env, (e) => e.event === "session-start" && e.session === "s2", 40);
   const broken = hook(narrow, "session-start", { session_id: "s3" }, env);
   assert.equal(broken.code, 0, broken.all);
   assert.match(broken.out, /^- Configuration \(needs attention\): \.skilliton\/config\.json: handoff\.maxBytes must be a whole number from 200 to 100000$/m);
@@ -928,10 +928,11 @@ test("session-start shows the current task, its last checkpoint and its handoff"
 test("an interrupted previous session is detected", async () => withTemp("interrupted", async ({ dir, env }) => {
   const p = initRepo(join(dir, "p"), env);
   assert.match(hook(p, "session-start", { session_id: "s1" }, env).out, /^- Previous session: none recorded/m);
+  backdate(p, env, (e) => e.event === "session-start" && e.session === "s1", 40); // past the live window (session-liveness.test.mjs)
   const second = hook(p, "session-start", { session_id: "s2" }, env);
   assert.match(second.out, /^- Previous session: interrupted: session s1 \(started [^)]+\) has no session-end; 0 uncommitted change\(s\) in the working tree now$/m);
 
-  writeFileSync(join(p, "unsaved.txt"), "work in progress\n");
+  writeFileSync(join(p, "unsaved.txt"), "work in progress\n"); backdate(p, env, (e) => e.event === "session-start" && e.session === "s2", 40);
   const third = hook(p, "session-start", { session_id: "s3" }, env);
   assert.match(third.out, /^- Previous session \(needs attention\): interrupted: session s2 \(started [^)]+\) has no session-end; 1 uncommitted change\(s\) in the working tree now$/m);
 
