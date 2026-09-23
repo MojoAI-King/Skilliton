@@ -42,6 +42,21 @@ jobs:
           set +e
           mkdir -p "$HOME/First Last"
           git clone -q "$GITHUB_WORKSPACE" "$HOME/First Last/skilliton" && echo "cloned to $HOME/First Last/skilliton"
+      - name: A delivery check by a bare name, with a decoy of that name in the project folder
+        continue-on-error: true
+        run: |
+          set +e
+          # docs/WINDOWS.md section 4: a program started by name may be found in the current folder before PATH. The
+          # decoy is whoami.exe copied in as node.exe; it rejects -e, so the check passes only if PATH's node ran.
+          K="$HOME/First Last/skilliton"; D="$HOME/decoy try"
+          mkdir -p "$D/.skilliton" && cd "$D" && git init -q -b main && echo node.exe >> .git/info/exclude
+          cp /c/Windows/System32/whoami.exe ./node.exe
+          printf '{"schema":"skilliton.delivery/1","protectedBranches":["main"],"checks":[{"name":"node","command":["node","-e","process.exit(0)"],"timeoutSeconds":60}],"policyPaths":[".skilliton/delivery.json"]}\n' > .skilliton/delivery.json
+          git add -A && git -c user.name=t -c user.email=t@example.invalid commit -qm policy
+          node "$K/scripts/skilliton.mjs" gate; code=$?; echo "gate exit $code"
+          log=$(ls -t .git/skilliton/gate/* 2>/dev/null | head -1); [ -n "$log" ] && head -c 800 "$log"
+          if [ "$code" = 0 ]; then echo "PASS bare name: PATH's node ran, not the node.exe in the project folder"; exit 0; fi
+          echo "FAIL bare name: the check did not pass; the log above shows whether the decoy ran"; exit 1
       - name: preflight --wide
         continue-on-error: true
         run: |
