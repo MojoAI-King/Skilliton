@@ -336,7 +336,7 @@ export function appendEvent(root, event, { state = null } = {}) {
     let fd = null;
     try {
       fd = openSync(path, "r");
-      const size = fstatSync(fd).size;
+      const size = fileSize(fd);
       if (size > 0) {
         const last = Buffer.alloc(1);
         readSync(fd, last, 0, 1, size - 1);
@@ -354,6 +354,15 @@ export function appendEvent(root, event, { state = null } = {}) {
   return { path, record };
 }
 
+// The size of an open journal, refusing a folder with EISDIR. POSIX refuses the read of a folder itself. On a hosted
+// Windows runner (2026-09-22) the stop hook read a journal replaced by a folder with no error at all; that Windows opens
+// a folder for reading, and it then reads as empty, is the likely cause, inferred and not measured.
+function fileSize(fd) {
+  const st = fstatSync(fd);
+  if (st.isDirectory()) throw Object.assign(new Error("illegal operation on a directory"), { code: "EISDIR" });
+  return st.size;
+}
+
 // Reads the journal: { path, exists, events (file order), corrupt: number of lines that are not events,
 // truncated: true when only the last MAX_READ_BYTES were read }. Throws when the file exists but cannot be read.
 export function readJournal(root) {
@@ -362,7 +371,7 @@ export function readJournal(root) {
   let truncated = false;
   try {
     fd = openSync(path, "r");
-    const size = fstatSync(fd).size;
+    const size = fileSize(fd);
     const length = Math.min(size, MAX_READ_BYTES);
     const buffer = Buffer.alloc(length);
     let read = 0;
