@@ -114,6 +114,17 @@ exactly()  { printf '%s\n' "$1" > "$tmp/expected"
              if cmp -s "$tmp/expected" "$OUT"; then ok "$CASE: stdout is exactly the expected text"
              else bad "$CASE: stdout differs from the expected text"; fi; }
 
+# put_tool <program> <path>: make <path> start <program>, for a PATH that holds only chosen tools. A symbolic link
+# everywhere but Git Bash, where `ln -s` copies the file by default and a copied program cannot find the DLLs beside
+# its original (the first Windows run: exit 127 in every restricted-PATH case). There it is a two-line script that
+# starts the program by its full path, so the PATH stays as restricted as the link would keep it.
+put_tool() {
+  case $(uname -s) in
+    MINGW*|MSYS*|CYGWIN*) printf '#!%s\nexec "%s" "$@"\n' "$BASH" "$1" > "$2" && chmod +x "$2" ;;
+    *) ln -s "$1" "$2" ;;
+  esac
+}
+
 echo "handoff-hook test"
 echo "hook under test: $LABEL"
 echo "bash: $BASH_VERSION"
@@ -209,7 +220,7 @@ echo "== (g) CLAUDE_PROJECT_DIR unset: project dir from the stdin JSON cwd, with
 for p in jq node python3; do
   if ! command -v "$p" >/dev/null 2>&1; then skip "(g-$p): $p not installed on this machine"; continue; fi
   bin="$tmp/bin-$p"; mkdir -p "$bin"
-  ln -s "$BASH" "$bin/bash"; ln -s "$(command -v "$p")" "$bin/$p"
+  put_tool "$BASH" "$bin/bash"; put_tool "$(command -v "$p")" "$bin/$p"
   CASE="(g-$p) control"
   found=$(PATH="$bin" "$bin/bash" -c 'for t in jq node python3; do command -v "$t"; done' 2>/dev/null)
   if [ "$found" = "$bin/$p" ]; then ok "$CASE: only $p is on the restricted PATH"; else bad "$CASE: restricted PATH finds: $found"; fi
@@ -233,9 +244,9 @@ echo
 
 # ---- (h) no parser at all -----------------------------------------------------------------
 echo "== (h) no jq, node, or python3: PATH holds bash and coreutils only"
-bin="$tmp/bin-none"; mkdir -p "$bin"; ln -s "$BASH" "$bin/bash"
+bin="$tmp/bin-none"; mkdir -p "$bin"; put_tool "$BASH" "$bin/bash"
 for t in basename cat cp cut date dirname env head ls mkdir mv printf rm sleep sort tail tee touch tr uniq wc; do
-  tp=$(command -v "$t" 2>/dev/null); case "$tp" in /*) ln -s "$tp" "$bin/$t" ;; esac
+  tp=$(command -v "$t" 2>/dev/null); case "$tp" in /*) put_tool "$tp" "$bin/$t" ;; esac
 done
 CASE="(h) control"
 found=$(PATH="$bin" "$bin/bash" -c 'for t in jq node python3; do command -v "$t"; done' 2>/dev/null)

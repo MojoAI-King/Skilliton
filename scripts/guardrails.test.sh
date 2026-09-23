@@ -182,12 +182,12 @@ new_repo() { # new_repo <dir>: branch main with one commit (README.md, deploy.ke
   git -C "$1" add README.md deploy.key && git -C "$1" commit -q -m init && git -C "$1" branch feature
 }
 
-make_bin() { # make_bin <dir> <tool>...: a PATH directory that holds only these tools
-  local d=$1 t p; shift
+make_bin() { # make_bin <dir> <tool>...: a PATH directory that holds only these tools (Git Bash: see put_tool in handoff-hook.test.sh)
+  local d=$1 t p w=; shift; case $(uname -s) in MINGW*|MSYS*|CYGWIN*) w=1 ;; esac
   mkdir -p "$d"
   for t in "$@"; do
     p=$(command -v "$t" 2>/dev/null)
-    case "$p" in /*) ln -sf "$p" "$d/$t" ;; esac
+    case "$p" in /*) if [ -n "$w" ]; then printf '#!%s\nexec "%s" "$@"\n' "$BASH" "$p" > "$d/$t" && chmod +x "$d/$t"; else ln -sf "$p" "$d/$t"; fi ;; esac
   done
 }
 
