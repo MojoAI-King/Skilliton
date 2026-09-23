@@ -6,6 +6,7 @@ Each closed item keeps its ID, outcome, closure date and evidence.
 
 | ID | Outcome | Closed | Evidence |
 |---|---|---|---|
+| B81 | One `maintain --apply` leaves the collector-backed security records current: when a collector wrote and the findings step then rewrote the backlog it fingerprinted, the same run collects once more and writes the findings again | 2026-09-23 | lib/maintain.mjs runMaintain; scripts/maintain-security-collectors.test.mjs, which fails against the code before it |
 | B70 | Applicability is proposed from what the repository shows: `security applicability --propose` writes a proposal from a fixed list of signals, and `--accept-proposal --decided-by <label> --apply` records it, so the owner answers once | 2026-09-23 | a756174, scripts/security-propose.test.mjs; decision 2026-09-23-applicability-signals-match-import-shape-bcbd |
 | B6 (O17) | A signed release of this repository: 0.9.0 and then 1.0.0, each tagged `skilliton-release/<version>`, signed with the owner's SSH key and pushed; a fresh clone from GitHub read 1.0.0 as approved | 2026-09-22 | `releases/0.9.0.json`, `releases/1.0.0.json`; evidence/live/2026-09-22-release-1.0.0.md |
 | B7 | Applicability decisions for this repository's own security register: fifteen recorded with `--decided-by owner` after the owner's confirmation, 13 apply and 2 do not, 0 undecided. Evidence for the 13 is separate work (docs/SECURITY_PROPOSAL.md) | 2026-09-22 | `.skilliton/security/applicability.json`; area 05 batch 03 item 1 |

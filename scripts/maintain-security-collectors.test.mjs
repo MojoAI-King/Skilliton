@@ -104,47 +104,38 @@ test("maintain --apply collects secrets and the delivery policy for missing reco
   assert.deepEqual(records(p), []);
 
   // Apply: secrets is collected (no delivery.json yet, so delivery-policy is gated off, not run). The findings step,
-  // right after, rewrites docs/BACKLOG.md to drop the finding this just-collected record closes; docs/BACKLOG.md is
-  // itself one of the tracked files the secrets collector fingerprinted a moment earlier in this same run, so that
-  // rewrite leaves the brand-new record stale before the run even ends.
+  // right after, rewrites docs/BACKLOG.md, which is one of the tracked files the secrets collector fingerprinted a
+  // moment earlier, so the new record is stale before the run ends; the same run collects once more and writes the
+  // findings again, which then change nothing (B81), so one run settles.
   const run1 = cli(p, ["maintain", "--apply"], env);
   assert.equal(run1.code, 0, run1.all);
-  assert.match(run1.out, /wrote\s+security collect secrets\s+recorded observed for SG-SECRETS-IN-SOURCE/);
+  assert.match(run1.out, /wrote\s+security collect secrets\s+recorded observed for SG-SECRETS-IN-SOURCE\n/);
+  assert.match(run1.out, /wrote\s+security collect secrets\s+recorded observed for SG-SECRETS-IN-SOURCE again, because the findings rewrite/);
+  assert.match(run1.out, /current\s+security findings/);
   assert.match(run1.out, /not run\s+security collect delivery-policy\s+SG-CHECK-CRITERIA is missing, but \.skilliton\/delivery\.json does not exist/);
   let recs = records(p);
-  assert.equal(recs.length, 1, JSON.stringify(recs));
-  assert.equal(recs[0].controlId, "SG-SECRETS-IN-SOURCE");
-  assert.equal(recs[0].reviewer, "skilliton maintain");
-  assert.equal(recs[0].assessment, "observed");
+  assert.equal(recs.length, 2, JSON.stringify(recs));
+  for (const r of recs) {
+    assert.equal(r.controlId, "SG-SECRETS-IN-SOURCE");
+    assert.equal(r.reviewer, "skilliton maintain");
+    assert.equal(r.assessment, "observed");
+  }
 
-  // The next apply finds that stale record and collects once more (the corrective run the rewrite above made
-  // necessary); its own findings step this time changes nothing further, so this is the last write for this control.
-  const run2 = cli(p, ["maintain", "--apply"], env);
-  assert.equal(run2.code, 0, run2.all);
-  assert.match(run2.out, /wrote\s+security collect secrets\s+recorded observed for SG-SECRETS-IN-SOURCE/);
-  assert.equal(records(p).length, 2, "one corrective re-collection settles the record; documented in LANE_REPORT.md");
-
-  // From here the record is truly current and is left alone: two more applies in a row write nothing further for it.
+  // From here the record is current and is left alone: two more applies in a row write nothing further for it.
   for (const run of [cli(p, ["maintain", "--apply"], env), cli(p, ["maintain", "--apply"], env)]) {
     assert.equal(run.code, 0, run.all);
     assert.match(run.out, /current\s+security collect secrets\s+SG-SECRETS-IN-SOURCE is current/);
   }
   assert.equal(records(p).length, 2, "a current record is left alone, not re-collected, once settled");
 
-  // Now the delivery policy exists: collect delivery-policy runs and settles the same way (one corrective re-run of
-  // secrets from the resulting findings rewrite, then both stay current).
+  // Now the delivery policy exists: collect delivery-policy runs, its findings rewrite makes the secrets record stale,
+  // and the same run collects secrets once more; the next run finds both current.
   writePolicy(p);
   commit(p, env, "add delivery policy");
-  const withPolicy1 = cli(p, ["maintain", "--apply"], env);
-  assert.equal(withPolicy1.code, 0, withPolicy1.all);
-  assert.match(withPolicy1.out, /current\s+security collect secrets\s+SG-SECRETS-IN-SOURCE is current/);
-  assert.match(withPolicy1.out, /wrote\s+security collect delivery-policy\s+recorded observed for SG-CHECK-CRITERIA/);
-  assert.equal(records(p).length, 3, JSON.stringify(records(p)));
-
-  const withPolicy2 = cli(p, ["maintain", "--apply"], env);
-  assert.equal(withPolicy2.code, 0, withPolicy2.all);
-  assert.match(withPolicy2.out, /wrote\s+security collect secrets\s+recorded observed for SG-SECRETS-IN-SOURCE/);
-  assert.match(withPolicy2.out, /current\s+security collect delivery-policy\s+SG-CHECK-CRITERIA is current/);
+  const withPolicy = cli(p, ["maintain", "--apply"], env);
+  assert.equal(withPolicy.code, 0, withPolicy.all);
+  assert.match(withPolicy.out, /wrote\s+security collect delivery-policy\s+recorded observed for SG-CHECK-CRITERIA\n/);
+  assert.match(withPolicy.out, /wrote\s+security collect secrets\s+recorded observed for SG-SECRETS-IN-SOURCE again/);
   assert.equal(records(p).length, 4, JSON.stringify(records(p)));
 
   const settled = cli(p, ["maintain", "--apply"], env);

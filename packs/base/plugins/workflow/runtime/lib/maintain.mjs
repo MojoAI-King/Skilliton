@@ -113,8 +113,18 @@ export async function runMaintain(project, { root, gitDir, apply = false, sessio
   });
   for (const p of indexes.problems) steps.push({ name: "indexes", status: "not run", detail: p });
 
+  const wroteSince = (from, name) => steps.slice(from).some((st) => st.status === "wrote" && st.name.startsWith(name));
+  let mark = steps.length;
   await refreshCollectors(root, { apply, steps });
+  const collected = wroteSince(mark, "security collect ");
+  mark = steps.length;
   await findingsStep(root, { apply, steps });
+  // The secrets collector fingerprints every tracked file, the backlog included, so the findings rewrite just after it
+  // leaves the record it wrote stale (B81). Collect once more and write the findings again, so one run settles.
+  if (collected && wroteSince(mark, "security findings")) {
+    await refreshCollectors(root, { apply, steps, again: true });
+    await findingsStep(root, { apply, steps });
+  }
 
   let wrote = false;
   if (apply) {
@@ -132,7 +142,7 @@ export async function runMaintain(project, { root, gitDir, apply = false, sessio
   // A control the security evidence has decided does not apply, or that is not in this project's catalog, is left
   // alone; so is one that is already current. A collector that throws is reported as not run, never as success, and
   // never stops the rest of maintenance (matching how the security findings step below handles its own failures).
-async function refreshCollectors(root, { apply, steps }) {
+async function refreshCollectors(root, { apply, steps, again = false }) {
   if (!existsSync(join(root, CATALOG_REL))) return;
   try {
     const { evaluateSecurity } = await import("./security.mjs");
@@ -157,7 +167,8 @@ async function refreshCollectors(root, { apply, steps }) {
         if (!apply) { steps.push({ name, status: "would write", detail: `${controlId} is ${row.freshness}` }); return; }
         try {
           const result = collect();
-          steps.push({ name, status: "wrote", detail: `recorded ${result.record.assessment} for ${controlId}` });
+          const why = again ? " again, because the findings rewrite changed a file the first collection read" : "";
+          steps.push({ name, status: "wrote", detail: `recorded ${result.record.assessment} for ${controlId}${why}` });
         } catch (e) {
           steps.push({ name, status: "not run", detail: `${e?.message ?? String(e)}${e?.detail ? `. ${e.detail}` : ""}` });
         }
