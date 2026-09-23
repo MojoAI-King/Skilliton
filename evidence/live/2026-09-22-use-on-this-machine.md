@@ -31,7 +31,7 @@ Journal events, summed over the six repositories:
 | dispatch-suggested | 2 | the prompt hook directed `/workflow:dispatch` |
 | dispatch-reminded | 1 | the stop hook asked once more because no lane plan was written |
 
-One more count comes from the same journals. **Of the 64 checkpoint reminders, 33 were followed by a checkpoint in the same repository within 30 minutes.** The other 31 include reminders the assistant answered by saying why the work should not be recorded, which the reminder allows. One such case, a reminder on a clean tree right after a commit, was found on 2026-09-22 and fixed for release 1.0.1 (docs/decisions/2026-09-22-a-clean-working-tree-gets-no-checkpoint-8302.md).
+One more count comes from the same journals. **Of the 64 checkpoint reminders, 33 were followed by a checkpoint in the same repository within 30 minutes.** The other 31 include reminders the assistant answered by saying why the work should not be recorded, which the reminder allows. One such case, a reminder on a clean tree right after a commit, was found on 2026-09-22 and fixed for release 1.1.0 (docs/decisions/2026-09-22-a-clean-working-tree-gets-no-checkpoint-8302.md).
 
 ## What this shows and what it does not
 

@@ -35,7 +35,7 @@ Not exercised that day: Skilliton's dispatch (the repository used its own), `ski
 | N56 | another session edited a user-level skill and the repository's copy diverged, found as a red build | the copy is the host's own file, not Skilliton's | backlog B76 |
 | N57 | gate verdicts do not separate the change from the machine (another session's browser, untracked file, skill edit; about 45 minutes of reruns) | real, not built; the repository used its own gate, not `skilliton gate` | backlog B77 |
 | N58 | `security findings` writes 25 lines into the backlog the owner reads daily | real; moving it is a records layout change | backlog B78 |
-| N59 | "SKILLITON_LESSONS not set; injecting nothing" at every session start | already fixed on main in 9ffa3b9 (context-hygiene 0.3.1); it reaches installs with 1.0.1 | |
+| N59 | "SKILLITON_LESSONS not set; injecting nothing" at every session start | already fixed on main in 9ffa3b9 (context-hygiene 0.3.1); it reaches installs with 1.1.0 | |
 
 ## Also said in the report, and checked
 

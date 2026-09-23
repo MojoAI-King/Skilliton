@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-lane-instruction-size-aa5b
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/instruction-size-0923
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T07:00:49.645Z
+- **Updated:** 2026-09-23T13:30:51.580Z
 
 ## Request
 

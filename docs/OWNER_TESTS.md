@@ -14,7 +14,7 @@ At 21:33 EDT you wrote "Feel free to not ask me any more questions. I'm just goi
 
 1. **The security decisions** are recorded with `--decided-by owner` as docs/SECURITY_PROPOSAL.md proposed (13 apply, 2 do not). Read the table there and tell the next session if any row should change.
 2. **The measured comparison** ran under docs/COMPARISON_PROTOCOL.md: evidence/comparison/2026-09-22/SUMMARY.md. What is left is yours: open claude.ai, Settings, Usage, and write down what it shows for 2026-09-22 after 21:30 EDT, so the token counts can be cross-checked (10-02 item 2).
-3. **Release 1.0.1** is signed by the session with your git SSH key once the last change of the night is merged; the handoff says when.
+3. **Release 1.1.0** is signed by the session with your git SSH key once the last change of the night is merged; the handoff says when.
 4. **The join file (B53)** is handed out by the company, never committed to the repository, which is what the design already assumes; docs/ONBOARDING.md step 1 says so.
 
 ## 2. Three things only a person can see in the extension (5 minutes)
@@ -66,7 +66,7 @@ These were measured in headless runs. What is left is how they look to a person 
 - **a. Preparation.** Start a Claude Code session there and send `hello`. The block's first note reads `Prepared just now (this machine joined ...)`. Commit the new files: `git add -A && git commit -qm prepared`.
 - **b. Dispatch.** Send as one message: `1. Fix the typo in the README title 2. Add an MIT LICENSE file 3. Add a .editorconfig 4. Make index.js print hello 5. Add a CONTRIBUTING.md 6. Add a CHANGELOG.md` (one item per line). The assistant should run `/workflow:dispatch` before editing, and write `LANES.md`. If it does the chores first, it should be held when it tries to finish, with `Skilliton dispatch was named for a prompt in this session ...`. Write down which happened.
 - **c. Maintenance.** In the terminal: `git add -A && git commit -qm chores && git checkout -qb feature && echo x > feature.txt && git add -A && git commit -qm feature && git checkout -q main && git merge --no-ff -qm "merge feature" feature`. Then send `say ok`. It should be held with `Skilliton maintenance is due: 1 merge commit(s) landed ...` and run `skilliton maintain --apply`.
-- **d. The guardrails notice.** Turn the force-push rule off for this scratch repository only, in your own terminal (once 1.0.1 is installed, the assistant is refused when it tries this itself):
+- **d. The guardrails notice.** Turn the force-push rule off for this scratch repository only, in your own terminal (once 1.1.0 is installed, the assistant is refused when it tries this itself):
 
   ```bash
   node -e 'const f=".skilliton/config.json";const c=JSON.parse(require("fs").readFileSync(f,"utf8"));c.guardrails={...(c.guardrails||{}),blockForcePush:false};require("fs").writeFileSync(f,JSON.stringify(c,null,2)+"\n")' && git add -A && git commit -qm "force push allowed here" && git commit -q --amend -m "force push allowed here, amended"

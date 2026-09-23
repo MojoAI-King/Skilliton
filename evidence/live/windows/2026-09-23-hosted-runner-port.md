@@ -45,7 +45,7 @@ Kind: Evidence. GitHub Actions run 35815835006 of `.github/workflows/windows.yml
 ## What this settles and what it does not
 
 - **Settled:** the WINDOWS.md commands, preparation, status, every session hook and the guard's decisions work on a clean Windows machine with Git for Windows; each failure of the first run has a fix with a test or is listed above (area 03 batch 02 items 2 to 4).
-- **Not settled:** a Claude Code session on Windows (no login on the runner), a developer's workstation with endpoint security, and B80. Windows stays **not supported** in 1.0.1.
+- **Not settled:** a Claude Code session on Windows (no login on the runner), a developer's workstation with endpoint security, and B80. Windows stays **not supported** in 1.1.0.
 
 ## Rerun after B79, 2026-09-23 (run 35838465792, main at aba8b6f)
 
