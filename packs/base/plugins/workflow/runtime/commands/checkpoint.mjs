@@ -104,27 +104,12 @@ export async function run(argv) {
     const plan = appendCheckpoint(project, id, { at: atIso, state: o.state, evidence: o.evidence, next: o.next, git }, { apply, backupDir: apply ? backupRoot(root) : null, handoff: handoffValues, aheadMs: WRITTEN_AHEAD_MS });
     say(`checkpoint${apply ? "" : " (preview)"}: task ${id} in ${plan.rel}`);
     say(forDisplay(unifiedDiff(plan.before, plan.after, `a/${plan.rel}`, `b/${plan.rel}`)).trimEnd());
-    // A task that has grown past its start (field report N53, backlog B74): read from the record as it stood before
-    // this checkpoint was added, so "already holds" never counts the one being written. Never blocks; the record's
-    // contents are unaffected either way.
-    const growth = checkpointGrowth(task, at.getTime());
-    if (growth) {
-      say(`checkpoint: note: This task has ${growth.count} checkpoints since ${growth.firstCheckpointAt}. If the work has moved on from its criteria, close it (${cmd} task close ${id} --state <${CLOSED_STATES.join("|")}>) and start one per new piece of work: ${cmd} task start "<title>" --apply`);
-    }
+    const growth = growthNote(task, at.getTime(), cmd, id);
+    if (growth) say(growth);
     for (const label of carried) say(`handoff: ${label} carried over from the previous note`);
     for (const label of defaulted) say(`handoff: ${label} not given and nothing to carry over; written as "${handoffValues[label]}"`);
     if (o.handoff === true && !integration) say(`handoff: the shared handoff is written on an integration branch (${integrationList}), and ${whereWeAre}; the note went to the task record's Handoff section only`);
-    if (sharedPlan) {
-      if (sharedPlan.created) say(`handoff: ${sharedPlan.rel} does not exist and is created from the record template`);
-      if (sharedPlan.dropped) say(`handoff: the previous note in ${sharedPlan.rel} was the placeholder preparation wrote, so it is replaced, not kept under Earlier`);
-      else if (sharedPlan.rotated) say(`handoff: the previous note (Written: ${sharedPlan.rotated}) moves to the top of Earlier`);
-      if (sharedPlan.archivedCount) say(`handoff: ${sharedPlan.archivedCount} older note(s) beyond the five kept move to the top of ${sharedPlan.archiveRel}${sharedPlan.archiveCreated ? " (created from the record template)" : ""}`);
-      if (sharedPlan.resumeBytes > sharedPlan.maxBytes) say(`handoff: note: the new RESUME HERE section is ${sharedPlan.resumeBytes} bytes, over the ${sharedPlan.maxBytes} bytes handoff.maxBytes allows; the session-start hook clips it`);
-      for (const change of sharedPlan.changes) {
-        const before = change.before === null ? "" : change.before.toString("latin1");
-        say(forDisplay(unifiedDiff(before, change.after.toString("latin1"), `a/${change.path}`, `b/${change.path}`)).trimEnd());
-      }
-    }
+    if (sharedPlan) sayHandoffPlan(sharedPlan);
 
     // 3. The indexes: planned with the task record's new text laid over the file, so the preview matches the write.
     let indexPlan = null, indexSkip = null, indexRefusal = null;
@@ -225,4 +210,28 @@ function sayIndexes(plan, written) {
   if (written && plan.result) say(`indexes: backups of the previous versions are under ${tilde(plan.result.backupDir)}`);
   for (const p of plan.problems) say(`indexes: problem: ${p}`);
   for (const n of plan.notes ?? []) say(`indexes: note: ${n}`);
+}
+
+// A task that has grown past its start (field report N53, backlog B74), read from the record as it stood before this
+// checkpoint was added, so "already holds" never counts the one being written. Never blocks; the record is unaffected.
+function growthNote(task, atMs, cmd, id) {
+  const growth = checkpointGrowth(task, atMs);
+  if (!growth) return null;
+  const close = `${cmd} task close ${id} --state <${CLOSED_STATES.join("|")}>`;
+  return `checkpoint: note: This task has ${growth.count} checkpoints since ${growth.firstCheckpointAt}. `
+    + `If the work has moved on from its criteria, close it (${close}) and start one per new piece of work: `
+    + `${cmd} task start "<title>" --apply`;
+}
+
+// What the shared handoff write does beyond the note itself: creation, rotation, archiving, size, and each diff.
+function sayHandoffPlan(sharedPlan) {
+  if (sharedPlan.created) say(`handoff: ${sharedPlan.rel} does not exist and is created from the record template`);
+  if (sharedPlan.dropped) say(`handoff: the previous note in ${sharedPlan.rel} was the placeholder preparation wrote, so it is replaced, not kept under Earlier`);
+  else if (sharedPlan.rotated) say(`handoff: the previous note (Written: ${sharedPlan.rotated}) moves to the top of Earlier`);
+  if (sharedPlan.archivedCount) say(`handoff: ${sharedPlan.archivedCount} older note(s) beyond the five kept move to the top of ${sharedPlan.archiveRel}${sharedPlan.archiveCreated ? " (created from the record template)" : ""}`);
+  if (sharedPlan.resumeBytes > sharedPlan.maxBytes) say(`handoff: note: the new RESUME HERE section is ${sharedPlan.resumeBytes} bytes, over the ${sharedPlan.maxBytes} bytes handoff.maxBytes allows; the session-start hook clips it`);
+  for (const change of sharedPlan.changes) {
+    const before = change.before === null ? "" : change.before.toString("latin1");
+    say(forDisplay(unifiedDiff(before, change.after.toString("latin1"), `a/${change.path}`, `b/${change.path}`)).trimEnd());
+  }
 }

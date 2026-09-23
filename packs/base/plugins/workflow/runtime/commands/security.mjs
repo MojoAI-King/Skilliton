@@ -274,10 +274,13 @@ async function applicabilityAccept({ o }) {
   });
   const skipped = result.plan.filter((p) => p.skip);
   for (const p of result.plan) {
-    say(`  ${p.controlId}: ${p.applies ? 'applies' : 'does not apply'}${p.skip ? ' - skipped, a decision already exists (use --replace to overwrite it)' : ''} - ${p.reason}`);
+    const skip = p.skip ? ' - skipped, a decision already exists (use --replace to overwrite it)' : '';
+    say(`  ${p.controlId}: ${p.applies ? 'applies' : 'does not apply'}${skip} - ${p.reason}`);
   }
   if (!o.apply) {
-    say(`Preview: ${result.plan.length - skipped.length} decision(s) would be recorded in ${security.APPLICABILITY_REL}, ${skipped.length} skipped. Nothing was written. Add --apply to write them.`);
+    const recorded = result.plan.length - skipped.length;
+    say(`Preview: ${recorded} decision(s) would be recorded in ${security.APPLICABILITY_REL}, ${skipped.length} skipped. `
+      + 'Nothing was written. Add --apply to write them.');
     return 0;
   }
   say(`Recorded ${result.written} decision(s) in ${security.APPLICABILITY_REL}, ${skipped.length} left alone (a decision already existed).`);

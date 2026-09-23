@@ -77,7 +77,7 @@ export const LONG_LINE_PINS = [
   ["packs/base/plugins/workflow/runtime/commands/record.mjs", 3],
   ["packs/base/plugins/workflow/runtime/commands/release.mjs", 6],
   ["packs/base/plugins/workflow/runtime/commands/remove.mjs", 10],
-  ["packs/base/plugins/workflow/runtime/commands/security.mjs", 15],
+  ["packs/base/plugins/workflow/runtime/commands/security.mjs", 14],
   ["packs/base/plugins/workflow/runtime/commands/status.mjs", 1],
   ["packs/base/plugins/workflow/runtime/commands/task.mjs", 9],
   ["packs/base/plugins/workflow/runtime/commands/usage.mjs", 3],
@@ -130,7 +130,7 @@ export const LONG_LINE_PINS = [
 // as it splits run (migrate.mjs), join (join.mjs), runVerify (verify.mjs), planPrepare (prepare.mjs), and
 // planDispatch and briefText (dispatch.mjs); the rest are out of that item's list and stay pinned.
 export const LONG_FUNCTION_PINS = [
-  ["packs/base/plugins/workflow/runtime/commands/checkpoint.mjs", "run", 165],
+  ["packs/base/plugins/workflow/runtime/commands/checkpoint.mjs", "run", 157],
   ["packs/base/plugins/workflow/runtime/commands/prepare.mjs", "run", 96],
   ["packs/base/plugins/workflow/runtime/commands/remove.mjs", "run", 82],
   ["packs/base/plugins/workflow/runtime/lib/collectors.mjs", "collectSecrets", 135],

@@ -214,8 +214,11 @@ export async function runGate(plan, { root, gitDir, label, tailLines, env = proc
   const where = provenance(root);
   if (where) log.write(`tree: ${where.shortHead ?? "no commits"}${where.branch ? ` on ${where.branch}` : ""}, uncommitted: ${where.dirty.join(", ") || "none"}\n`);
   const machine = machineLoad();
-  if (startTree) log.write(`at start: untracked ${startTree.untracked.join(", ") || "none"}; tracked changed against HEAD ${startTree.trackedChanged.join(", ") || "none"}\n`);
-  log.write(machine.measured ? `load average (1m): ${machine.loadavg1.toFixed(2)} across ${machine.cpuCount} CPU(s)\n` : `load average (1m): not measured on ${machine.reason}\n`);
+  const names = (list) => list.join(", ") || "none";
+  if (startTree) log.write(`at start: untracked ${names(startTree.untracked)}; tracked changed against HEAD ${names(startTree.trackedChanged)}\n`);
+  log.write(machine.measured
+    ? `load average (1m): ${machine.loadavg1.toFixed(2)} across ${machine.cpuCount} CPU(s)\n`
+    : `load average (1m): not measured on ${machine.reason}\n`);
   await new Promise((r) => log.end(r)); // the end of the log is where a suite prints its summary; never lose it
   return { results, log: path, where, startTree, machine };
 }

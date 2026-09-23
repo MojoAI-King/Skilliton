@@ -69,12 +69,15 @@ export async function run(argv) {
     }
     say(`  log: ${tilde(outcome.log)}`);
     if (failed) {
-      const listed = (list) => list.length ? `${list.length} (${list.slice(0, 5).join(", ")}${list.length > 5 ? `, and ${list.length - 5} more (in the log)` : ""})` : "0";
+      const more = (list) => (list.length > 5 ? `, and ${list.length - 5} more (in the log)` : "");
+      const listed = (list) => (list.length ? `${list.length} (${list.slice(0, 5).join(", ")}${more(list)})` : "0");
       if (startTree) {
         say(`  untracked when the run started: ${listed(startTree.untracked)}`);
         say(`  tracked file(s) changed against HEAD: ${listed(startTree.trackedChanged)}`);
       } else say("  untracked / tracked-changed: not recorded (git could not describe this folder)");
-      say(machine.measured ? `  load average (1m): ${machine.loadavg1.toFixed(2)} across ${machine.cpuCount} CPU(s)` : `  load average (1m): not measured on ${machine.reason}`);
+      say(machine.measured
+        ? `  load average (1m): ${machine.loadavg1.toFixed(2)} across ${machine.cpuCount} CPU(s)`
+        : `  load average (1m): not measured on ${machine.reason}`);
       say("  a failure in a file outside these lists may come from the machine or another session, not the change");
     }
     return failed ? 1 : 0;

@@ -84,27 +84,51 @@ function importLike(name) {
 const SIGNALS = {
   'web-framework': {
     label: 'a web framework or server', kind: 'content',
-    patterns: [importLike('express'), importLike('fastify'), importLike('koa'), importLike('hapi'), importLike('nestjs'), importLike('django'), importLike('flask'), importLike('fastapi'), importLike('rails'), importLike('sinatra'), importLike('actix-web'), importLike('rocket'), importLike('gin-gonic'), /net\/http/i, /spring-boot/i, /http\.createServer/i, /ListenAndServe/i],
+    patterns: [
+      importLike('express'), importLike('fastify'), importLike('koa'), importLike('hapi'), importLike('nestjs'),
+      importLike('django'), importLike('flask'), importLike('fastapi'), importLike('rails'), importLike('sinatra'),
+      importLike('actix-web'), importLike('rocket'), importLike('gin-gonic'), /net\/http/i, /spring-boot/i,
+      /http\.createServer/i, /ListenAndServe/i
+    ],
   },
   'sign-in': {
     label: 'a sign-in or token library', kind: 'content',
-    patterns: [importLike('passport'), importLike('next-auth'), importLike('auth0'), importLike('oauth2'), importLike('openid'), importLike('jsonwebtoken'), importLike('jose'), importLike('devise'), importLike('warden'), /django\.contrib\.auth/i, /flask_login/i, /firebase-auth/i, /supabase.{0,20}auth/i],
+    patterns: [
+      importLike('passport'), importLike('next-auth'), importLike('auth0'), importLike('oauth2'),
+      importLike('openid'), importLike('jsonwebtoken'), importLike('jose'), importLike('devise'),
+      importLike('warden'), /django\.contrib\.auth/i, /flask_login/i, /firebase-auth/i, /supabase.{0,20}auth/i
+    ],
   },
   session: {
     label: 'session or cookie handling', kind: 'content',
-    patterns: [importLike('express-session'), importLike('cookie-session'), /connect\.sid/i, /set-cookie/i, /flask\.session/i, /django\.contrib\.sessions/i, /rack::session/i, /httponly/i],
+    patterns: [
+      importLike('express-session'), importLike('cookie-session'), /connect\.sid/i, /set-cookie/i, /flask\.session/i,
+      /django\.contrib\.sessions/i, /rack::session/i, /httponly/i
+    ],
   },
   database: {
     label: 'a database or query library', kind: 'content',
-    patterns: [importLike('pg'), importLike('postgres'), importLike('mysql'), importLike('mysql2'), importLike('sqlite3'), importLike('mongoose'), importLike('prisma'), importLike('knex'), importLike('sequelize'), importLike('typeorm'), importLike('sqlalchemy'), importLike('activerecord'), /django\.db/i, /database\/sql/i, /gorm\.io/i],
+    patterns: [
+      importLike('pg'), importLike('postgres'), importLike('mysql'), importLike('mysql2'), importLike('sqlite3'),
+      importLike('mongoose'), importLike('prisma'), importLike('knex'), importLike('sequelize'),
+      importLike('typeorm'), importLike('sqlalchemy'), importLike('activerecord'), /django\.db/i, /database\/sql/i,
+      /gorm\.io/i
+    ],
   },
   'child-process': {
     label: 'a child process or shell use', kind: 'content',
-    patterns: [/child_process/i, /\bspawnSync?\b/, /\bexecFileSync?\b/, /\bexecSync\b/, /subprocess\.(run|Popen|call)/, /\bos\.system\(/, /\bos\/exec\b/, /Runtime\.getRuntime\(\)\.exec/, /ProcessBuilder\(/, /Process::/], // inventory: a pattern, not a use: the proposal looks for this name in a project's files
+    patterns: [
+      /child_process/i, // inventory: a pattern, not a use: the proposal looks for this name in a project's files
+      /\bspawnSync?\b/, /\bexecFileSync?\b/, /\bexecSync\b/, /subprocess\.(run|Popen|call)/, /\bos\.system\(/,
+      /\bos\/exec\b/, /Runtime\.getRuntime\(\)\.exec/, /ProcessBuilder\(/, /Process::/,
+    ],
   },
   'dependency-manifest': {
     label: 'a dependency manifest', kind: 'name',
-    names: new Set(['package.json', 'requirements.txt', 'pyproject.toml', 'poetry.lock', 'pipfile', 'gemfile', 'gemfile.lock', 'cargo.toml', 'go.mod', 'go.sum', 'composer.json', 'pom.xml', 'build.gradle', 'build.gradle.kts', 'mix.exs']),
+    names: new Set([
+      'package.json', 'requirements.txt', 'pyproject.toml', 'poetry.lock', 'pipfile', 'gemfile', 'gemfile.lock',
+      'cargo.toml', 'go.mod', 'go.sum', 'composer.json', 'pom.xml', 'build.gradle', 'build.gradle.kts', 'mix.exs'
+    ]),
   },
 };
 
@@ -134,7 +158,10 @@ function scanSignals(root) {
   const top = runGit(root, ['rev-parse', '--show-toplevel']);
   if (top.status !== 0) fail('NOT_A_GIT_REPOSITORY');
   let topReal, rootReal;
-  try { topReal = realpathSync.native(top.stdout.toString('utf8').replace(/\r?\n$/, '')); rootReal = realpathSync.native(root); } catch { fail('GIT_FAILED', 'git named a repository root that could not be resolved'); }
+  try {
+    topReal = realpathSync.native(top.stdout.toString('utf8').replace(/\r?\n$/, ''));
+    rootReal = realpathSync.native(root);
+  } catch { fail('GIT_FAILED', 'git named a repository root that could not be resolved'); }
   if (!samePath(topReal, rootReal)) fail('NOT_REPOSITORY_ROOT');
 
   const head = runGit(root, ['rev-parse', '--verify', '--quiet', 'HEAD']);
@@ -155,7 +182,9 @@ function scanSignals(root) {
     if (!st) continue; // listed by git but missing from the working tree
     fingerprintLines.push(`${rel} ${st.isFile() ? st.size : -1} ${st.mtimeMs}`);
     if (!st.isFile() || st.size > LIMIT.file) continue;
-    if (budget.bytesRead + st.size > budget.total) fail('INPUT_LIMIT', 'the tracked files add up to more than the scan budget, so the scan stopped and nothing was written');
+    if (budget.bytesRead + st.size > budget.total) {
+      fail('INPUT_LIMIT', 'the tracked files add up to more than the scan budget, so the scan stopped and nothing was written');
+    }
     let buffer;
     try { ({ buffer } = readRepositoryFile(root, rel, budget)); } catch { continue; }
     if (buffer.subarray(0, 8000).includes(0)) continue; // binary
@@ -202,7 +231,8 @@ export function writeProposal(root, proposal) {
   const path = join(root, PROPOSAL_REL);
   const data = Buffer.from(`${JSON.stringify(proposal, null, 2)}\n`, 'utf8');
   let fd;
-  try { fd = openSync(path, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW, 0o644); } catch (e) { fail(e.code === 'ELOOP' ? 'SYMLINK_REFUSED' : 'WRITE_FAILED'); }
+  const flags = constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW;
+  try { fd = openSync(path, flags, 0o644); } catch (e) { fail(e.code === 'ELOOP' ? 'SYMLINK_REFUSED' : 'WRITE_FAILED'); }
   try {
     let offset = 0;
     while (offset < data.length) offset += writeSync(fd, data, offset, data.length - offset);
@@ -237,7 +267,8 @@ export function acceptProposal(root, { decidedBy, apply = false, replace = false
   const { exists, proposal } = readProposal(root);
   if (!exists) refuse(`no proposal at ${PROPOSAL_REL}; run: security applicability --propose --apply first`);
   if (!proposalIsFresh(root, proposal)) {
-    refuse(`${PROPOSAL_REL} is older than the tracked files it read (generated ${proposal.generatedAt}); the tracked files have since changed size, timestamp or membership. Run --propose again, then --accept-proposal.`);
+    refuse(`${PROPOSAL_REL} is older than the tracked files it read (generated ${proposal.generatedAt}); the tracked files `
+      + 'have since changed size, timestamp or membership. Run --propose again, then --accept-proposal.');
   }
   const existing = latestDecisions(readApplicability(root).decisions);
   const plan = proposal.controls.map((c) => ({

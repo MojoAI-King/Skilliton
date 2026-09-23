@@ -113,47 +113,66 @@ export async function runMaintain(project, { root, gitDir, apply = false, sessio
   });
   for (const p of indexes.problems) steps.push({ name: "indexes", status: "not run", detail: p });
 
+  await refreshCollectors(root, { apply, steps });
+  await findingsStep(root, { apply, steps });
+
+  let wrote = false;
+  if (apply) {
+    appendEvent(root, { event: "maintain", session, at: new Date().toISOString() });
+    steps.push({ name: "journal", status: "wrote", detail: "maintain event recorded; the stop hook measures the next one from here" });
+    wrote = true;
+  } else {
+    steps.push({ name: "journal", status: "would write", detail: "a maintain event, which the stop hook measures the next one from" });
+  }
+  return { integration: true, branch: indexes.branch, steps, wrote };
+}
+
   // Refresh the collector-backed records that are missing or stale, one control at a time, never the tests
   // collector (it runs the project's own checks, which can take long and belong to the gate, not maintenance).
   // A control the security evidence has decided does not apply, or that is not in this project's catalog, is left
   // alone; so is one that is already current. A collector that throws is reported as not run, never as success, and
   // never stops the rest of maintenance (matching how the security findings step below handles its own failures).
-  if (existsSync(join(root, CATALOG_REL))) {
-    try {
-      const { evaluateSecurity } = await import("./security.mjs");
-      const { collectSecrets, collectDeliveryPolicy, DELIVERY_REL } = await import("./collectors.mjs");
-      const ev = evaluateSecurity(root);
-      if (ev.result === "invalid") {
-        steps.push({ name: "security collectors", status: "not run", detail: "the security evidence is invalid (see security status); collectors were not run" });
-      } else {
-        const rowFor = (id) => ev.rows.find((row) => row.control.id === id) ?? null;
-        const deliveryPolicyExists = existsSync(join(root, DELIVERY_REL));
-        const REVIEWER = "skilliton maintain";
-        // gate: a reason the collector must not run even though its record is missing or stale (the delivery-policy
-        // collector needs the policy file to exist; the secrets collector has no such precondition).
-        const refresh = (controlId, name, collect, gate = null) => {
-          const row = rowFor(controlId);
-          if (!row || row.applies === "no") return;
-          const due = row.freshness === "missing" || row.freshness === "stale";
-          if (!due) { steps.push({ name, status: "current", detail: `${controlId} is ${row.freshness}${row.freshness === "expired" ? " (maintain refreshes missing or stale records only)" : ""}` }); return; }
-          if (gate) { steps.push({ name, status: "not run", detail: `${controlId} is ${row.freshness}, but ${gate}` }); return; }
-          if (!apply) { steps.push({ name, status: "would write", detail: `${controlId} is ${row.freshness}` }); return; }
-          try {
-            const result = collect();
-            steps.push({ name, status: "wrote", detail: `recorded ${result.record.assessment} for ${controlId}` });
-          } catch (e) {
-            steps.push({ name, status: "not run", detail: `${e?.message ?? String(e)}${e?.detail ? `. ${e.detail}` : ""}` });
-          }
-        };
-        refresh("SG-SECRETS-IN-SOURCE", "security collect secrets", () => collectSecrets(root, { reviewer: REVIEWER, apply: true }));
-        refresh("SG-CHECK-CRITERIA", "security collect delivery-policy", () => collectDeliveryPolicy(root, { reviewer: REVIEWER, apply: true }),
-          deliveryPolicyExists ? null : `${DELIVERY_REL} does not exist`);
-      }
-    } catch (e) {
-      steps.push({ name: "security collectors", status: "not run", detail: e?.message ?? String(e) });
+async function refreshCollectors(root, { apply, steps }) {
+  if (!existsSync(join(root, CATALOG_REL))) return;
+  try {
+    const { evaluateSecurity } = await import("./security.mjs");
+    const { collectSecrets, collectDeliveryPolicy, DELIVERY_REL } = await import("./collectors.mjs");
+    const ev = evaluateSecurity(root);
+    if (ev.result === "invalid") {
+      const detail = "the security evidence is invalid (see security status); collectors were not run";
+      steps.push({ name: "security collectors", status: "not run", detail });
+    } else {
+      const rowFor = (id) => ev.rows.find((row) => row.control.id === id) ?? null;
+      const deliveryPolicyExists = existsSync(join(root, DELIVERY_REL));
+      const REVIEWER = "skilliton maintain";
+      // gate: a reason the collector must not run even though its record is missing or stale (the delivery-policy
+      // collector needs the policy file to exist; the secrets collector has no such precondition).
+      const refresh = (controlId, name, collect, gate = null) => {
+        const row = rowFor(controlId);
+        if (!row || row.applies === "no") return;
+        const due = row.freshness === "missing" || row.freshness === "stale";
+        const onlyDue = row.freshness === "expired" ? " (maintain refreshes missing or stale records only)" : "";
+        if (!due) { steps.push({ name, status: "current", detail: `${controlId} is ${row.freshness}${onlyDue}` }); return; }
+        if (gate) { steps.push({ name, status: "not run", detail: `${controlId} is ${row.freshness}, but ${gate}` }); return; }
+        if (!apply) { steps.push({ name, status: "would write", detail: `${controlId} is ${row.freshness}` }); return; }
+        try {
+          const result = collect();
+          steps.push({ name, status: "wrote", detail: `recorded ${result.record.assessment} for ${controlId}` });
+        } catch (e) {
+          steps.push({ name, status: "not run", detail: `${e?.message ?? String(e)}${e?.detail ? `. ${e.detail}` : ""}` });
+        }
+      };
+      refresh("SG-SECRETS-IN-SOURCE", "security collect secrets", () => collectSecrets(root, { reviewer: REVIEWER, apply: true }));
+      refresh("SG-CHECK-CRITERIA", "security collect delivery-policy", () => collectDeliveryPolicy(root, { reviewer: REVIEWER, apply: true }),
+        deliveryPolicyExists ? null : `${DELIVERY_REL} does not exist`);
     }
+  } catch (e) {
+    steps.push({ name: "security collectors", status: "not run", detail: e?.message ?? String(e) });
   }
+}
 
+// The security findings block in the backlog, from the register as it stands after the collectors ran.
+async function findingsStep(root, { apply, steps }) {
   if (existsSync(join(root, CATALOG_REL))) {
     try {
       const { planFindings, writeFindings } = await import("./security.mjs");
@@ -167,14 +186,4 @@ export async function runMaintain(project, { root, gitDir, apply = false, sessio
   } else {
     steps.push({ name: "security findings", status: "not run", detail: `no security register at ${CATALOG_REL}` });
   }
-
-  let wrote = false;
-  if (apply) {
-    appendEvent(root, { event: "maintain", session, at: new Date().toISOString() });
-    steps.push({ name: "journal", status: "wrote", detail: "maintain event recorded; the stop hook measures the next one from here" });
-    wrote = true;
-  } else {
-    steps.push({ name: "journal", status: "would write", detail: "a maintain event, which the stop hook measures the next one from" });
-  }
-  return { integration: true, branch: indexes.branch, steps, wrote };
 }
