@@ -176,7 +176,7 @@ await R.step("G1", "a prototype (layout 1) project migrates to layout 3 (the int
   return { ok: old.code === 0 && hadCopy && refused.code === 2 && apply.code === 0 && migrated && receipts === 2, detail: `prototype setup exit ${old.code} (copied runtime present: ${hadCopy}); prepare on layout 1 refused: exit ${refused.code}; migrate preview ${preview.code}, apply ${apply.code}; migrated with human text kept: ${migrated}; receipts ${receipts}` };
 });
 
-await R.step("S1", "security evidence: an observation goes stale when its source changes and becomes one backlog finding", () => {
+await R.step("S1", "security evidence: an observation goes stale when its source changes and becomes one finding in the findings file", () => {
   const miss = need("security"); if (miss) return miss;
   mkdirSync(join(fresh, "src"), { recursive: true });
   mkdirSync(join(fresh, ".skilliton", "private-evidence"), { recursive: true });
@@ -194,7 +194,8 @@ await R.step("S1", "security evidence: an observation goes stale when its source
   const unchangedRecord = recordFile && readFileSync(join(recordsDir, recordFile), "utf8") === recordBytes;
   const f1 = sg(["security", "findings", "--dir", fresh, "--apply"]);
   const f2 = sg(["security", "findings", "--dir", fresh, "--apply"]);
-  const backlog = readFileSync(join(fresh, "docs", "BACKLOG.md"), "utf8");
+  const findingsFile = join(fresh, "docs", "SECURITY_FINDINGS.md"); // since workflow 0.25.0 (B78) the rows live here
+  const backlog = existsSync(findingsFile) ? readFileSync(findingsFile, "utf8") : "";
   const rows = (backlog.match(/SEC-SG-SECURITY-TESTS/g) ?? []).length;
   return { ok: rec.code === 0 && !!recordFile && st2.code === 1 && staleShown && unchangedRecord && f1.code === 0 && f2.code === 0 && rows === 1, detail: `record exit ${rec.code}; status before change exit ${st1.code}; after change exit ${st2.code}, stale shown: ${staleShown}; original record unchanged: ${unchangedRecord}; findings twice: ${f1.code}/${f2.code}; backlog rows for the finding: ${rows}` };
 }, { requires: ["N1"] });

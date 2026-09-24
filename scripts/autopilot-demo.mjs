@@ -99,10 +99,11 @@ git(app, ["merge", "-q", "--no-edit", "task/discount"]);
 writeFileSync(join(app, "price.js"), "export const unitPrice = 4;\nexport const price = (qty) => qty * unitPrice;\n");
 sg(["security", "findings", "--dir", app, "--apply"]);
 sg(["security", "findings", "--dir", app, "--apply"]);
-const backlog = readFileSync(join(app, "docs", "BACKLOG.md"), "utf8");
-assert.equal((backlog.match(/SEC-SG-SECURITY-TESTS/g) ?? []).length, 1);
+const findings = readFileSync(join(app, "docs", "SECURITY_FINDINGS.md"), "utf8");
+assert.equal((findings.match(/SEC-SG-SECURITY-TESTS/g) ?? []).length, 1);
+assert.match(readFileSync(join(app, "docs", "BACKLOG.md"), "utf8"), /Security findings: \d+ open, listed in/);
 git(app, ["checkout", "--", "price.js"]);
-pass("a passing test run became an observation; changing the code it covers made it stale; the finding appears once in the backlog");
+pass("a passing test run became an observation; changing the code it covers made it stale; the finding appears once in its own file, and the backlog links to it");
 
 // ---------- 4. delivery gate ----------
 const keys = join(ws, "keys");
