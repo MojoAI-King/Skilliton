@@ -229,6 +229,9 @@ jobs:
       - name: Security findings in their own file, and migration 0004 (B78)
         run: node scripts/security-findings.test.mjs
 
+      - name: security.findingsFile is checked when the config is read (B78)
+        run: node scripts/config-findings-file.test.mjs
+
       - name: Maintain refreshes the collector-backed security records that are missing or stale
         run: node --test scripts/maintain-security-collectors.test.mjs
 

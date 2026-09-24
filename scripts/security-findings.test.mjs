@@ -105,7 +105,9 @@ test('security.findingsFile names another file; an unsafe name or a missing fold
     const refusedDir = fixture(t, { config: { security: { findingsFile: bad } } });
     const r = run(refusedDir, 'security', 'findings', '--apply');
     assert.equal(r.code, 2, r.out);
-    assert.match(r.out, /UNSAFE_PATH/);
+    // Refused either when the config is read (security.findingsFile names the setting) or by the writer (UNSAFE_PATH):
+    // the backlog record itself passes the config's shape rule and is refused by the writer, which knows the artifacts.
+    assert.match(r.out, /UNSAFE_PATH|security\.findingsFile must be a repository-relative \.md path/);
     assert.equal(r.out.includes(bad), false, 'the value is never echoed');
   }
   const missingFolder = fixture(t, { config: { security: { findingsFile: 'nowhere/FINDINGS.md' } } });

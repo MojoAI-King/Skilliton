@@ -190,6 +190,11 @@ export function configProblems(config) {
   }
   const security = isObject(config.security) ? config.security : {};
   if (security.maxAgeDays !== undefined && security.maxAgeDays !== null && !(Number.isInteger(security.maxAgeDays) && security.maxAgeDays >= 1 && security.maxAgeDays <= 3650)) problems.push("security.maxAgeDays must be null or a whole number from 1 to 3650");
+  // The same rule the findings writer applies (lib/security.mjs findingsFileRel), said at read time so a bad value is
+  // named by validate and doctor before a maintenance run trips on it. The value itself is never echoed.
+  const findings = security.findingsFile;
+  const findingsOk = typeof findings === "string" && findings.endsWith(".md") && !findings.startsWith("/") && !findings.split(/[\\/]/).includes("..");
+  if (findings !== undefined && !findingsOk) problems.push("security.findingsFile must be a repository-relative .md path");
   const dispatch = isObject(config.dispatch) ? config.dispatch : {};
   for (const key of Object.keys(dispatch)) if (!Object.hasOwn(DISPATCH_DEFAULTS, key)) problems.push(`dispatch has the unknown key "${key}" (known: ${Object.keys(DISPATCH_DEFAULTS).join(", ")})`);
   for (const key of ["laneRoot", "laneTestCommand"]) {

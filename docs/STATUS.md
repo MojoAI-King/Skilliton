@@ -40,5 +40,8 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 | ID | Title | State | Branch | Owner |
 |---|---|---|---|---|
 | [2026-09-23-everything-a-session-can-finish-the-usag-b6c7](tasks/2026-09-23-everything-a-session-can-finish-the-usag-b6c7.md) | Everything a session can finish: the usage batch, the open backlog rows and the security records | in-progress | main | unassigned |
+| [2026-09-23-lane-guard-4301](tasks/2026-09-23-lane-guard-4301.md) | Lane guard | in-progress | lane/guard-0924 | unassigned |
+| [2026-09-23-lane-hooks-and-tasks-a9e1](tasks/2026-09-23-lane-hooks-and-tasks-a9e1.md) | Lane hooks-and-tasks | in-progress | lane/hooks-and-tasks-0924 | unassigned |
+| [2026-09-23-lane-pin-at-tag-3bf0](tasks/2026-09-23-lane-pin-at-tag-3bf0.md) | Lane pin-at-tag | in-progress | lane/pin-at-tag-0924 | unassigned |
 | [2026-09-23-lane-security-records-43cb](tasks/2026-09-23-lane-security-records-43cb.md) | Lane security-records | in-progress | lane/security-records-0924 | unassigned |
 <!-- skilliton:index:tasks:end -->
