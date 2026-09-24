@@ -1,11 +1,11 @@
 // pin.mjs: pinning a clone of the company skills repository to a signed release tag, and moving it between
 // releases (docs/CONTRACTS.md section 13, batch docs/areas/08-make-it-yours/batch-03-pinned-installs.md).
 //
-// What a pin is, and what it is not. `claude plugin marketplace add` takes no ref, tag or branch, and
-// `marketplace update` takes none either (measured 2026-09-21), so a client's own download of a plugin cannot be
-// pinned from here. What can be pinned is the clone the marketplace and the launcher point at: the runtime that
-// `skilliton` runs, the catalog and the manifest that verify checks an installed plugin against. That is what this
-// module moves, and the sentence join prints says exactly that much and no more.
+// What a pin is, and what it is not. This module pins the clone the launcher points at: the runtime that `skilliton`
+// runs, the catalog and the manifest that verify checks an installed plugin against. The client's own download is
+// moved by lib/marketplace-pin.mjs, which adds the marketplace at <source>#<release tag> (measured on Claude Code
+// 2.1.278; the 2026-09-21 note that the client takes no ref was wrong for that version). A tag is a name, not a
+// commit, so verify stays the check of what was installed.
 //
 // The pin follows the signature, not the ref. Checking out the tag name would follow wherever that ref points now;
 // this checks out the commit the verified tag object names, which is the commit whose manifest hash the signer put
