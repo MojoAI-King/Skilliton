@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/friction-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T15:59:47.260Z
+- **Updated:** 2026-09-24T16:09:30.937Z
 
 ## Request
 
@@ -14,7 +14,7 @@ LANES.md, dispatched 2026-09-24: the items below are this lane's whole scope, an
 
 ## Acceptance criteria
 
-- [ ] N34. [TOUCH] An edit to a file that was already changed re-arms the stop reminder: lib/journal.mjs fingerprintOf takes HEAD, the porcelain and a content digest of the changed paths (git hash-object on each changed or untracked path from the porcelain, at most 200 paths and files under 8 MB each, a path over either bound contributing its size and mtime instead, and the bound named in the code comment); every caller keeps working; the one-time effect after upgrade (old events' fingerprints never match, so one reminder may repeat once) is named under Run-time behavior; a new scripts/fingerprint-content.test.mjs: editing an already-modified tracked file changes the fingerprint, editing an untracked file changes it, touching nothing does not, and the bounds hold.
+- [x] N34. [TOUCH] An edit to a file that was already changed re-arms the stop reminder: lib/journal.mjs fingerprintOf takes HEAD, the porcelain and a content digest of the changed paths (git hash-object on each changed or untracked path from the porcelain, at most 200 paths and files under 8 MB each, a path over either bound contributing its size and mtime instead, and the bound named in the code comment); every caller keeps working; the one-time effect after upgrade (old events' fingerprints never match, so one reminder may repeat once) is named under Run-time behavior; a new scripts/fingerprint-content.test.mjs: editing an already-modified tracked file changes the fingerprint, editing an untracked file changes it, touching nothing does not, and the bounds hold.
 - [ ] N35. [TOUCH] A session that ended with changes and no checkpoint is said so at the next start: lib/lifecycle.mjs, where the previous session is described as "ended normally" (line 471 at the base): when that session's last journal events show a dirty tree at its end (its session-end or last stop event carries dirty greater than 0) and it recorded no checkpoint, say "the previous session ended with <n> uncommitted change(s) and no checkpoint: read git status and the open task before carrying on" instead; a session that ended clean or with a checkpoint still reads "ended normally"; cases in a new scripts/previous-session.test.mjs.
 - [ ] N36. [TOUCH] A checkpoint written by hand is not silently lost: lib/tasks.mjs and commands/task.mjs: when a task record's Checkpoints section holds text the parser does not read as a checkpoint (a hand-edited entry), task show and the session-start task line say "<n> line(s) under Checkpoints could not be read as checkpoints; record them with skilliton checkpoint" rather than reporting 0 checkpoints with no word; new cases in a new test file.
 - [ ] N37. [TOUCH] Closing a task refreshes the tasks index: commands/task.mjs task close --apply regenerates the tasks index (the same writer index --apply uses for tasks) after it writes, and says so on one line; a case in the new test file.
@@ -30,9 +30,16 @@ not yet written
 
 ## Checkpoints
 
+### 2026-09-24T16:09:30.937Z
+
+- **State:** N34 done: the working tree fingerprint carries a content digest of changed paths (lib/journal.mjs contentDigest)
+- **Evidence:** node --test scripts/fingerprint-content.test.mjs 9 of 9; stop-clean-tree, stop-first, task-drift, lifecycle.test (59 of 59) pass
+- **Next:** N35 previous session end state
+- **Git:** lane/friction-0924 @ 47e7252, 7 uncommitted
+
 ## Handoff
 
-- **State:** not yet written
-- **Next:** not yet written
-- **Blocked:** not yet written
-- **Watch out:** not yet written
+- **State:** N34 done: the working tree fingerprint carries a content digest of changed paths (lib/journal.mjs contentDigest). Evidence: node --test scripts/fingerprint-content.test.mjs 9 of 9; stop-clean-tree, stop-first, task-drift, lifecycle.test (59 of 59) pass.
+- **Next:** N35 previous session end state
+- **Blocked:** nothing
+- **Watch out:** nothing known

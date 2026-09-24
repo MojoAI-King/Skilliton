@@ -123,11 +123,11 @@ function rewriteEvents(dir, env, edit) {
 
 const minutesEarlier = (iso, minutes) => new Date(Date.parse(iso) - minutes * 60000).toISOString();
 const backdate = (dir, env, test, minutes) => rewriteEvents(dir, env, (e) => (test(e) ? { ...e, at: minutesEarlier(e.at, minutes) } : e));
-
-// The fingerprint computed independently of the runtime: sha256 of HEAD, a newline, and the porcelain status.
-function fingerprint(dir, env) {
+// The fingerprint computed independently of the runtime: sha256 of HEAD, the porcelain status, and each changed path's object id.
+function fingerprint(dir, env, status = git(dir, ["status", "--porcelain=v1", "-uall"], env)) {
   const head = spawnSync("git", ["rev-parse", "-q", "--verify", "HEAD^{commit}"], { cwd: dir, env, encoding: "utf8" }).stdout.trim();
-  return createHash("sha256").update(`${head}\n${git(dir, ["status", "--porcelain=v1", "-uall"], env)}`).digest("hex");
+  const ids = (status.match(/(?<=^...).+/gm) ?? []).map((p) => `${p} ${existsSync(join(dir, p)) ? git(dir, ["hash-object", p], env).trim() : "gone"}`);
+  return createHash("sha256").update(`${head}\n${status}${ids.length ? `\n${ids.join("\n")}` : ""}`).digest("hex");
 }
 const porcelainCount = (dir, env) => git(dir, ["status", "--porcelain=v1", "-uall"], env).split("\n").filter(Boolean).length;
 

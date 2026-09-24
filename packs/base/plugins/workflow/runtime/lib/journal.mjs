@@ -7,16 +7,16 @@
 // "fingerprint": sha256 }. A few optional extra keys (task, source, trigger, reason, git) may follow; readers ignore
 // keys they do not know.
 //
-// Fingerprint: sha256 of the HEAD commit id, a newline, and the exact output of `git status --porcelain=v1 -uall`.
-// It changes when the set of changed paths or their status codes change, or when HEAD moves. It does not change when
-// a file that is already modified is edited again, because porcelain output does not carry content.
+// Fingerprint: sha256 of the HEAD commit id, the exact output of `git status --porcelain=v1 -uall`, and a content
+// digest of the changed paths (contentDigest below). It changes when HEAD moves, when the set of changed paths or
+// their status codes change, and when a file that is already modified or untracked is edited again.
 //
 // A corrupt line (not JSON, not an event, or cut short by a crash) is counted and reported, never a crash.
 // Nothing here imports from outside the plugin folder.
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { appendFileSync, closeSync, fstatSync, mkdirSync, openSync, readSync } from "node:fs";
+import { appendFileSync, closeSync, fstatSync, lstatSync, mkdirSync, openSync, readSync } from "node:fs";
 import { userInfo } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { resolveProgram } from "./core.mjs";
@@ -166,10 +166,11 @@ export function gitEnvironment({ keepConfig = false, optionalLocks = false, pinH
 // Runs git in a folder. Returns { status, stdout, stderr }. Throws GitError only when git could not run at all or
 // timed out; a non-zero exit is returned for the caller to judge. --no-optional-locks keeps `git status` from
 // refreshing the index while a person's own git command may hold its lock.
-export function runGit(dir, args, { timeoutMs = 15000 } = {}) {
+// input, when given, is written to git's stdin (hash-object --stdin-paths reads its paths there).
+export function runGit(dir, args, { timeoutMs = 15000, input } = {}) {
   const env = gitEnvironment();
   const r = spawnSync(resolveProgram("git"), ["-C", dir, "--no-optional-locks", ...NO_REPOSITORY_PROGRAMS, ...args], {
-    encoding: "utf8", timeout: timeoutMs, maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"], env,
+    encoding: "utf8", timeout: timeoutMs, maxBuffer: 256 * 1024 * 1024, stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"], env, input,
   });
   if (r.error) {
     if (r.error.code === "ENOENT") throw new GitError("git was not found on PATH", "missing");
@@ -250,13 +251,74 @@ export function mergesSince(root, baseHead, { limit = 5, timeoutMs = 10000 } = {
 export const journalPath = (root) => join(gitDir(root), "skilliton", "journal.jsonl");
 export const backupRoot = (root) => join(gitDir(root), "skilliton-backups");
 
-export const fingerprintOf = (head, porcelain) => createHash("sha256").update(`${head ?? ""}\n${porcelain}`, "utf8").digest("hex");
+// digest is contentDigest's output; a caller without one passes nothing and gets the HEAD-and-porcelain fingerprint.
+export const fingerprintOf = (head, porcelain, digest = "") =>
+  createHash("sha256").update(`${head ?? ""}\n${porcelain}${digest ? `\n${digest}` : ""}`, "utf8").digest("hex");
+
+// The bounds on contentDigest, so a hook with a small time budget never reads a large tree. At most DIGEST_MAX_PATHS
+// changed paths are hashed with `git hash-object`, and only files under DIGEST_MAX_FILE_BYTES; a path over either
+// bound (the 201st path onwards, a file of 8 MB or more, a symbolic link, a folder) contributes its size and mtime
+// instead, which still moves when it is written. A deleted path contributes "gone".
+export const DIGEST_MAX_PATHS = 200;
+export const DIGEST_MAX_FILE_BYTES = 8 * 1024 * 1024;
+
+// A path as porcelain v1 (without -z) prints it: the destination of a rename or copy, and C-quoted when it holds a
+// quote, a backslash, a control character or a byte over 0x7f (git's core.quotePath).
+export function porcelainPath(line) {
+  let rest = line.slice(3);
+  if (/^[RC]/.test(line) || /^.[RC]/.test(line)) {
+    const arrow = rest.lastIndexOf(" -> ");
+    if (arrow >= 0) rest = rest.slice(arrow + 4);
+  }
+  if (!(rest.startsWith('"') && rest.endsWith('"') && rest.length >= 2)) return rest;
+  const bytes = [];
+  const body = rest.slice(1, -1);
+  const escapes = { a: 7, b: 8, t: 9, n: 10, v: 11, f: 12, r: 13, '"': 34, "\\": 92 };
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i];
+    if (c !== "\\") { bytes.push(...Buffer.from(c, "utf8")); continue; }
+    const next = body[i + 1];
+    if (next === undefined) break;
+    if (/[0-7]/.test(next)) { bytes.push(parseInt(body.slice(i + 1, i + 4), 8)); i += 3; continue; }
+    bytes.push(escapes[next] ?? next.charCodeAt(0)); i++;
+  }
+  return Buffer.from(bytes).toString("utf8");
+}
+
+// The content digest of the changed paths in porcelain: one "<path> <object id | size:mtime | gone>" line per path,
+// in porcelain order, with the bounds above. A hash-object that cannot run falls back to size and mtime for every
+// path, so the fingerprint is weaker in that case but never missing.
+export function contentDigest(root, porcelain, { timeoutMs = 10000 } = {}) {
+  const paths = porcelain.split("\n").filter((line) => line.length > 3).map(porcelainPath);
+  if (paths.length === 0) return "";
+  const parts = paths.map((path, i) => {
+    let st;
+    try { st = lstatSync(join(root, path)); } catch { return { path, mark: "gone" }; }
+    const mark = `${st.size}:${st.mtimeMs}`;
+    const hashable = i < DIGEST_MAX_PATHS && st.isFile() && st.size < DIGEST_MAX_FILE_BYTES;
+    return { path, mark, hash: hashable };
+  });
+  const toHash = parts.filter((p) => p.hash);
+  if (toHash.length > 0) {
+    let ids = null;
+    try {
+      const r = runGit(root, ["hash-object", "--no-filters", "--stdin-paths"], { timeoutMs, input: toHash.map((p) => p.path).join("\n") + "\n" });
+      const lines = r.status === 0 ? r.stdout.split("\n").filter(Boolean) : [];
+      if (lines.length === toHash.length) ids = lines;
+    } catch (e) {
+      if (!(e instanceof GitError)) throw e;
+    }
+    if (ids) toHash.forEach((p, i) => { p.mark = ids[i]; });
+  }
+  return parts.map((p) => `${p.path} ${p.mark}`).join("\n");
+}
 
 // The mechanical Git state of the work tree at root:
 //   { branch: name | null (detached), head: full commit id | null (no commits yet), shortHead, porcelain,
 //     dirty: number of changed paths, fingerprint, statusProblem: null | text }
 // With tolerateStatusTimeout, a `git status` that times out gives dirty and fingerprint null and says so in
-// statusProblem, so a hook with a small time budget can still record the event.
+// statusProblem, so a hook with a small time budget can still record the event; the content digest then gets 400 ms,
+// and past that it falls back to size and mtime.
 export function readGitState(root, { statusTimeoutMs = 60000, tolerateStatusTimeout = false, shortHead = false } = {}) {
   const branch = readBranch(root);
 
@@ -278,9 +340,10 @@ export function readGitState(root, { statusTimeoutMs = 60000, tolerateStatusTime
     statusProblem = e.message;
   }
   const dirty = porcelain === null ? null : porcelain.split("\n").filter((line) => line.length > 0).length;
+  const digestMs = tolerateStatusTimeout ? 400 : 10000;
   return {
     branch, head, shortHead: head ? (short ?? head.slice(0, 7)) : null, porcelain, dirty,
-    fingerprint: porcelain === null ? null : fingerprintOf(head, porcelain), statusProblem,
+    fingerprint: porcelain === null ? null : fingerprintOf(head, porcelain, contentDigest(root, porcelain, { timeoutMs: digestMs })), statusProblem,
   };
 }
 
