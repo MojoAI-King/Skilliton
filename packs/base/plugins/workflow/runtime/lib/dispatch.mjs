@@ -16,10 +16,10 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { PLUGIN_ROOT, refuse, tilde } from "./core.mjs";
-import { readBranch, runGit } from "./journal.mjs";
+import { backupRoot, readBranch, runGit } from "./journal.mjs";
 import { newId } from "./ids.mjs";
 import { OperationFailed } from "./lifecycle.mjs";
-import { renderTask, taskRel } from "./tasks.mjs";
+import { closeTask, listTasks, renderTask, taskRel } from "./tasks.mjs";
 
 import { BRIEF_FILE, LANE_FILE, REPORT_FILE, briefText } from "./dispatch-brief.mjs";
 export { LANE_FILE, BRIEF_FILE, REPORT_FILE };
@@ -512,4 +512,67 @@ export function applyMerge(root, plan) {
     written.push(entry.path);
   }
   return { written };
+}
+
+// ---------- close ----------
+
+const gitLines = (root, args) => {
+  const r = runGit(root, args);
+  if (r.status !== 0) throw new OperationFailed(`git ${args.join(" ")} failed (exit ${r.status}); nothing was written`);
+  return r.stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+};
+
+// Every lane/* branch, whether the integration branch contains it, its worktree (by branch, or by the lane's own folder
+// once detached), whether that folder holds uncommitted work, and its task record. Records come back through planMerge.
+export function planClose(root, project) {
+  const merge = planMerge(root, project);
+  const branch = readBranch(root);
+  if (!branch || !project.integrationBranches.includes(branch)) {
+    const here = branch ? `branch ${branch}` : "a detached HEAD";
+    refuse(`dispatch close marks lanes merged into the integration branch (${project.integrationBranches.join(", ")}), and this is ${here}. `
+      + "Nothing was written");
+  }
+  const merged = new Set(gitLines(root, ["branch", "--merged", branch, "--format=%(refname:short)"]));
+  const trees = registeredWorktrees(root);
+  const tasks = listTasks(project, { all: true }).tasks;
+  const lanes = gitLines(root, ["branch", "--list", "lane/*", "--format=%(refname:short)"]).sort().map((laneBranch) => {
+    const task = tasks.find((t) => t.branch === laneBranch) ?? null;
+    const name = /^Lane (\S+)$/.exec(task?.title ?? "")?.[1] ?? null;
+    const byFolder = name ? trees.find((w) => resolve(w.path) === join(merge.laneRoot, name)) : null;
+    const tree = trees.find((w) => w.branch === laneBranch) ?? byFolder ?? null;
+    const dir = tree && existsSync(tree.path) ? resolve(tree.path) : null;
+    const status = dir ? runGit(dir, ["status", "--porcelain"]) : null;
+    const dirty = !status ? null : status.status !== 0 ? -1 : status.stdout.split(/\r?\n/).filter((l) => l.trim()).length;
+    return { branch: laneBranch, name, merged: merged.has(laneBranch), task, dir, attached: tree?.branch === laneBranch, dirty };
+  });
+  return { branch, merge, lanes };
+}
+
+// Brings the merged lanes' records back, closes each merged lane's task record that is still in progress (with its
+// backup), and detaches each merged lane's folder to the integration branch. A merged lane whose folder holds
+// uncommitted work, or whose state could not be read, refuses the whole close before anything is written. Nothing is
+// ever deleted: not a branch, not a folder.
+export function applyClose(root, project, plan) {
+  const blocked = plan.lanes.filter((l) => l.merged && l.dir && l.dirty !== 0);
+  if (blocked.length) {
+    refuse(`${blocked.map((l) => `${tilde(l.dir)} (${l.dirty < 0 ? "its state could not be read" : `${l.dirty} uncommitted change(s)`})`).join(", ")} `
+      + "must be committed or cleared before its lane is closed, because closing detaches the folder. Nothing was written");
+  }
+  const mergedBranches = new Set(plan.lanes.filter((l) => l.merged).map((l) => l.branch));
+  const brought = applyMerge(root, { bring: plan.merge.bring.filter((e) => mergedBranches.has(e.branch)) }).written;
+  const tasks = listTasks(project, { all: true }).tasks;
+  for (const lane of plan.lanes.filter((l) => l.merged)) {
+    const task = tasks.find((t) => t.branch === lane.branch) ?? null;
+    lane.before = task?.state ?? null;
+    if (task?.state === "in-progress") closeTask(project, task.id, "merged", { apply: true, backupDir: backupRoot(root) });
+    lane.after = task ? (task.state === "in-progress" ? "merged" : task.state) : null;
+    lane.taskId = task?.id ?? null;
+    if (lane.dir && lane.attached) {
+      const r = runGit(lane.dir, ["checkout", "-q", "--detach", plan.branch]);
+      if (r.status !== 0) {
+        throw new OperationFailed(`${tilde(lane.dir)} could not be detached (git checkout exit ${r.status}); its task record was already closed`);
+      }
+    }
+  }
+  return { brought };
 }

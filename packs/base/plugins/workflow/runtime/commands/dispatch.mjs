@@ -2,7 +2,7 @@
 // the engine is lib/dispatch.mjs.
 
 import { parseArgs, refuse, say, selfCommand, tilde } from "../lib/core.mjs";
-import { BRIEF_FILE, LANE_FILE, REPORT_FILE, applyDispatch, applyMerge, planDispatch, planMerge } from "../lib/dispatch.mjs";
+import { BRIEF_FILE, LANE_FILE, REPORT_FILE, applyClose, applyDispatch, applyMerge, planClose, planDispatch, planMerge } from "../lib/dispatch.mjs";
 import { guardCommand, openProject } from "../lib/lifecycle.mjs";
 
 export const help = `dispatch: turn a lane plan into one Git worktree per lane, each holding a brief.
@@ -27,6 +27,12 @@ The plan is ${LANE_FILE} at the repository root, written by the dispatch skill (
       conflict (here and different), and a conflict is named and never overwritten. Without --apply it writes
       nothing; with it the records are written into this working tree and nothing is committed, so the diff is read
       first. Run it in the main checkout, not in a lane.
+  dispatch close [--dir <project>] [--apply]
+      For every lane/* branch the integration branch already contains (git branch --merged): brings its records back
+      the way merge does, closes its task record as merged when it is still in-progress (the record is backed up
+      first), and detaches its folder to the integration branch, so the lane branch is no longer checked out anywhere.
+      A merged lane whose folder holds uncommitted work refuses the whole close, naming the folder, before anything is
+      written. Nothing is deleted: not a branch, not a folder. One line per lane; without --apply it writes nothing.
 
 The lane root, the main-only paths, the lane test command and the lane setup come from the dispatch section of
 .skilliton/config.json. Setup commands are never run: they are printed and written into each brief for a person to
@@ -37,7 +43,7 @@ written LANE DONE); 2 invalid or refused (nothing was created); 3 operation fail
 could not be written; what was created is named).`;
 
 // A bare `dispatch` still means "plan the lanes", so only a recognised first plain argument routes to a subcommand.
-const ALLOWED = { merge: ["apply", "dir"] };
+const ALLOWED = { merge: ["apply", "dir"], close: ["apply", "dir"] };
 const OPTIONS = ["apply", "preview", "file", "dir"];
 
 export async function run(argv) {
@@ -45,7 +51,7 @@ export async function run(argv) {
   if (o.help) { say(help); return 0; }
   const [sub, ...args] = o._;
   if (sub !== undefined && !Object.prototype.hasOwnProperty.call(ALLOWED, sub)) {
-    refuse(`dispatch takes no plain arguments except the subcommand merge (got "${sub}"); the lane plan is ${LANE_FILE}, or --file <path>`);
+    refuse(`dispatch takes no plain arguments except the subcommands merge and close (got "${sub}"); the lane plan is ${LANE_FILE}, or --file <path>`);
   }
   if (sub !== undefined) {
     if (args.length) refuse(`dispatch ${sub} takes no plain arguments (got "${args[0]}")`);
@@ -55,7 +61,7 @@ export async function run(argv) {
         ? `dispatch ${sub} previews by default and writes only with --apply, so it does not take --preview`
         : `--${key} is not used by dispatch ${sub}`);
     }
-    return guardCommand(`dispatch ${sub}`, () => mergeBody(o));
+    return guardCommand(`dispatch ${sub}`, () => (sub === "close" ? closeBody(o) : mergeBody(o)));
   }
   if (o.apply && o.preview) refuse("--apply and --preview ask for opposite things; --apply shows the plan and then creates the worktrees, and without it dispatch only shows the plan");
   return guardCommand("dispatch", () => body(o));
@@ -181,4 +187,41 @@ async function mergeBody(o) {
     : "Nothing was written: no lane record is missing from this branch.");
   if (plan.conflicts.length) say(`The ${plan.conflicts.length} conflict${plan.conflicts.length === 1 ? " above was" : "s above were"} left alone; merge each one by hand.`);
   return attention ? 1 : 0;
+}
+
+// ---------- close ----------
+
+function closeLine(lane, apply) {
+  const head = `  ${lane.branch.padEnd(28)} `;
+  if (!lane.merged) return `${head}not merged into this branch; left alone`;
+  const parts = [];
+  const state = apply ? lane.before : lane.task?.state ?? null;
+  if (!state) parts.push("no task record on this branch for it");
+  else if (state === "in-progress") parts.push(`task ${apply ? lane.taskId : lane.task.id} ${apply ? "closed" : "would close"} as merged`);
+  else parts.push(`task already ${state}`);
+  if (!lane.dir) parts.push("its folder is gone, so there is nothing to detach");
+  else if (!lane.attached) parts.push(`${tilde(lane.dir)} already detached`);
+  else if (lane.dirty !== 0) parts.push(`${tilde(lane.dir)} holds uncommitted work, so the close is refused`);
+  else parts.push(`${tilde(lane.dir)} ${apply ? "now detached" : "would be detached"} to this branch`);
+  return `${head}merged: ${parts.join("; ")}`;
+}
+
+async function closeBody(o) {
+  const { root, project } = openProject(o.dir);
+  const plan = planClose(root, project);
+  const apply = o.apply === true;
+  const done = apply ? applyClose(root, project, plan) : null;
+  const merged = plan.lanes.filter((l) => l.merged).length;
+  say(`skilliton dispatch close${apply ? "" : " (preview)"}: ${plan.lanes.length} lane branch${plan.lanes.length === 1 ? "" : "es"}, `
+    + `${merged} merged into ${plan.branch}`);
+  for (const lane of plan.lanes) say(closeLine(lane, apply));
+  const bring = plan.merge.bring.filter((e) => plan.lanes.some((l) => l.merged && l.branch === e.branch));
+  const verb = apply ? "brought back" : "would come back";
+  if (bring.length) say(`${bring.length} record${bring.length === 1 ? "" : "s"} ${verb}: ${bring.map((e) => e.path).join(", ")}`);
+  say("");
+  say(apply
+    ? `Closed. ${done.brought.length} record(s) brought back and the task records changed in this working tree; nothing was committed. `
+      + `Read git status and commit on ${plan.branch}.`
+    : "Preview only; nothing was written. To close the merged lanes, run the same command with --apply.");
+  return 0;
 }

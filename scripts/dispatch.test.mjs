@@ -324,7 +324,7 @@ test("--apply and --preview together are refused, and a plain argument is refuse
   assert.match(both.err, /--apply and --preview ask for opposite things/);
   const plain = sg(ctx, ["dispatch", "lanes.md"]);
   assert.equal(plain.code, 2);
-  assert.match(plain.err, /dispatch takes no plain arguments except the subcommand merge \(got "lanes\.md"\); the lane plan is LANES\.md, or --file <path>/);
+  assert.match(plain.err, /dispatch takes no plain arguments except the subcommands merge and close \(got "lanes\.md"\); the lane plan is LANES\.md, or --file <path>/);
   assert.equal(existsSync(ctx.laneRoot), false);
   const withFile = sg(ctx, ["dispatch", "merge", "--file", "LANES.md"]);
   assert.equal(withFile.code, 2);
