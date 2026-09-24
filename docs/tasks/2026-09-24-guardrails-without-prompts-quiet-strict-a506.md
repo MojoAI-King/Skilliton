@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/quiet-guard-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T19:52:48.478Z
+- **Updated:** 2026-09-24T21:54:54.051Z
 
 ## Request
 
@@ -50,9 +50,16 @@ not yet written
 - **Next:** Merge like the other lanes (rebase on main, the five suites plus the modes suite, ff-only, push); main then takes CHANGELOG, CONTRACTS, the two indexes, README and INSTALL, and the harness template's confirmation sentence
 - **Git:** lane/quiet-guard-0924 @ ba2067d, 0 uncommitted
 
+### 2026-09-24T21:54:54.051Z
+
+- **State:** Rebased onto 3edc730 (main after release 1.4.0, which shipped guardrails 0.11.0 without this lane); four commits, clean; the fast-forward merge was refused by the client's auto-mode check and waits for a person; a 1.4.1 release with guardrails 0.12.0 is the path to VERIFIED on the owner's machine
+- **Evidence:** On 3edc730: guardrails.test.sh 670, bypass 144 (224 and 163 inside), review 224, review2 163, timing 16, modes 61, all exit 0
+- **Next:** A person runs git merge --ff-only lane/quiet-guard-0924 on a clean main and pushes; the integrating window pastes the changelog entry from LANE_REPORT.md, updates CONTRACTS, the indexes, README/INSTALL and the harness template sentence, then releases 1.4.1; the owner installs it and verify reads VERIFIED
+- **Git:** lane/quiet-guard-0924 @ d8412fd, 0 uncommitted
+
 ## Handoff
 
-- **State:** Lane committed: 2ba2a2f (the owner's terminal: guard, skill, plugin.json 0.12.0, five suite pins, modes suite, proposed decision and lesson) and ba2067d (the modes suite closes stdin on its session-start calls, which hung in a terminal). Installed live on this machine over both plugin caches. Met: Q1, Q3, Q5 (notes); partial: Q2 (sorted by reason text, no per-site kind), Q4 (dropped stash or branch still asks), Q6 (no mutants), Q7 (replay from the scratchpad), Q8 (main-only wording in LANE_REPORT.md). Evidence: Five shipped suites as shipped: 670, 144 (wrapping 224 and 163), 224, 163, 16; modes suite 61 under Claude Code's shell and under a pseudo-terminal; the pre-fix copy hung at the session-start section until a 75 s alarm; scrub-check PASS before each commit; replay of 189 asks: 13 ask, 33 fix, 143 noted.
-- **Next:** Merge like the other lanes (rebase on main, the five suites plus the modes suite, ff-only, push); main then takes CHANGELOG, CONTRACTS, the two indexes, README and INSTALL, and the harness template's confirmation sentence
+- **State:** Rebased onto 3edc730 (main after release 1.4.0, which shipped guardrails 0.11.0 without this lane); four commits, clean; the fast-forward merge was refused by the client's auto-mode check and waits for a person; a 1.4.1 release with guardrails 0.12.0 is the path to VERIFIED on the owner's machine. Evidence: On 3edc730: guardrails.test.sh 670, bypass 144 (224 and 163 inside), review 224, review2 163, timing 16, modes 61, all exit 0.
+- **Next:** A person runs git merge --ff-only lane/quiet-guard-0924 on a clean main and pushes; the integrating window pastes the changelog entry from LANE_REPORT.md, updates CONTRACTS, the indexes, README/INSTALL and the harness template sentence, then releases 1.4.1; the owner installs it and verify reads VERIFIED
 - **Blocked:** nothing
 - **Watch out:** nothing known
