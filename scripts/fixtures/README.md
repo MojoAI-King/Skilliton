@@ -2,6 +2,8 @@
 
 Kind: Living.
 
+**Moved in workflow 0.25.0:** the meter's own cases, `transcripts/proj-a` and `transcripts/proj-b` (and `transcripts-dirs/`), now live with the meter at `packs/base/plugins/workflow/fixtures/meter/`, so an installed plugin can run its test; the descriptions below hold there unchanged. `transcripts-direction/` and `transcripts-models/` stay here.
+
 Synthetic transcripts with hand-computed expected totals, so the meter's correctness is checkable by anyone, independent of the investigation that produced it. Every expected value in `scripts/token-cost.test.mjs` was computed by hand from these files, with the arithmetic written beside it in the test, not by running the meter.
 
 ## `transcripts/proj-a` (the original dedup cases)

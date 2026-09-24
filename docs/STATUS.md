@@ -44,4 +44,6 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 | [2026-09-23-lane-hooks-and-tasks-a9e1](tasks/2026-09-23-lane-hooks-and-tasks-a9e1.md) | Lane hooks-and-tasks | in-progress | lane/hooks-and-tasks-0924 | unassigned |
 | [2026-09-23-lane-pin-at-tag-3bf0](tasks/2026-09-23-lane-pin-at-tag-3bf0.md) | Lane pin-at-tag | in-progress | lane/pin-at-tag-0924 | unassigned |
 | [2026-09-23-lane-security-records-43cb](tasks/2026-09-23-lane-security-records-43cb.md) | Lane security-records | in-progress | lane/security-records-0924 | unassigned |
+| [2026-09-23-lane-usage-2ca2](tasks/2026-09-23-lane-usage-2ca2.md) | Lane usage | in-progress | lane/usage-0924 | unassigned |
+| [2026-09-24-lane-friction-f6f3](tasks/2026-09-24-lane-friction-f6f3.md) | Lane friction | in-progress | lane/friction-0924 | unassigned |
 <!-- skilliton:index:tasks:end -->

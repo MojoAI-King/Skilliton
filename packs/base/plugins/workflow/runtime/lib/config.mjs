@@ -77,6 +77,7 @@ export const DISPATCH_DEFAULTS = {
   mainOnlyChecks: [],
   maxItemsPerLane: 8,
   minItemsForLanes: 6,
+  contextCeiling: null, // the context bound dispatch close measures each lane against; null is 200000
 };
 
 // kind: "invalid" (the configuration or a path in it is wrong; exit 2) or "failed" (it could not be read; exit 3).
@@ -208,6 +209,10 @@ export function configProblems(config) {
   for (const key of ["maxItemsPerLane", "minItemsForLanes"]) {
     const v = dispatch[key];
     if (v !== undefined && !(Number.isInteger(v) && v >= 1 && v <= 100)) problems.push(`dispatch.${key} must be a whole number from 1 to 100`);
+  }
+  const ceiling = dispatch.contextCeiling;
+  if (ceiling !== undefined && ceiling !== null && !(Number.isInteger(ceiling) && ceiling >= 10000 && ceiling <= 2000000)) {
+    problems.push("dispatch.contextCeiling must be null or a whole number of tokens from 10000 to 2000000");
   }
   return problems;
 }

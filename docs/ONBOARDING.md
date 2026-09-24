@@ -44,7 +44,7 @@ Preparing does not write `.claude/settings.json`; `skilliton project-settings --
 
 - **A command was blocked:** the assistant explains why and suggests a safe next step. Do not try to get around it; ask your maintainer if the rule seems wrong for your case.
 - **A push was rejected by the delivery gate:** the message names the failing check. Pull the latest shared branch, run the checks locally (`skilliton delivery check`), fix, and push again.
-- **The session ended in the middle of work:** start a new one. The session start tells you the previous session was interrupted, shows the last checkpoint and what is uncommitted, and the assistant resumes from there.
+- **The session ended in the middle of work:** start a new one. The session start says the previous session was interrupted (it left no session end, as after a crash), or that it ended with uncommitted changes and no checkpoint (as when it ran out of turns), shows the last checkpoint and what is uncommitted, and the assistant resumes from there.
 - **The session start says "stale":** the handoff or some security evidence is older than the latest changes. Ask the assistant to reconcile (`/workflow:maintain` on the shared branch, or a checkpoint on your task branch).
 
 ## 5. Receiving updates

@@ -130,6 +130,9 @@ jobs:
 
       - name: A failing gate verdict separates the change from the machine (B77)
         run: node scripts/gate-context.test.mjs
+
+      - name: The delivery gate's rejection keeps the failing test names
+        run: node --test scripts/check-tail.test.mjs
       - name: Stack detection (what prepare reads from a repository)
         run: node --test scripts/stack.test.mjs
 
@@ -199,6 +202,15 @@ jobs:
       - name: The first stop of a session that changed files and recorded nothing is held once (holdFirstStop)
         run: node scripts/stop-first.test.mjs
 
+      - name: An edit to a file that was already changed re-arms the stop reminder (a content digest in the fingerprint)
+        run: node --test scripts/fingerprint-content.test.mjs
+
+      - name: A session that ended with changes and no checkpoint is said so at the next start
+        run: node --test scripts/previous-session.test.mjs
+
+      - name: A hand-written checkpoint is named, and closing a task refreshes the tasks index
+        run: node --test scripts/task-records.test.mjs
+
       - name: A task drifting from its criteria is noticed at the stop hook (B74)
         run: node scripts/task-drift.test.mjs
 
@@ -238,6 +250,9 @@ jobs:
       - name: security.findingsFile is checked when the config is read (B78)
         run: node scripts/config-findings-file.test.mjs
 
+      - name: dispatch.contextCeiling is a known key with its range checked
+        run: node scripts/config-dispatch-ceiling.test.mjs
+
       - name: Maintain refreshes the collector-backed security records that are missing or stale
         run: node --test scripts/maintain-security-collectors.test.mjs
 
@@ -252,6 +267,12 @@ jobs:
 
       - name: Pin moves the marketplace to the release tag, join adds it there (stub client, B18)
         run: node --test scripts/pin-marketplace.test.mjs
+
+      - name: verify names a clone pinned to one release while the installed plugins match another
+        run: node --test scripts/verify-pin.test.mjs
+
+      - name: doctor outside a git repository says there is nothing to prepare
+        run: node --test scripts/doctor-outside-repo.test.mjs
 
       - name: Join prints no credential typed into a marketplace URL
         run: node --test scripts/join-redact.test.mjs

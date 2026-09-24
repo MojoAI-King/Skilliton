@@ -113,7 +113,7 @@ If the team keeps a shared lessons file, its path is `maintain.teamLessonsFile` 
 
 ## 5. Commit
 
-- Stage **only** the documents you changed, by explicit path. Never `git add -A` in a session that touched other files.
+- Stage **only** the documents you changed, by explicit path. Never `git add -A` in a session that touched other files. The usage ledger (`.skilliton/usage/ledger.jsonl`) is one of them when `maintain --apply` appended a row: commit it with the maintenance, because it is what keeps a batch's token counts once the transcripts expire.
 - Follow the repo's commit message style (read `git log`).
 - Push only if the branch already tracks a remote and earlier documentation commits were pushed; otherwise leave it local and say so.
 

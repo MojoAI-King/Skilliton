@@ -127,6 +127,7 @@ When every item is done, write LANE_REPORT.md at the worktree root (never commit
   Merge-time expectations (conflicts you expect and how to resolve them; seams you touched; files outside your list)
   Run-time behavior (anything the first run after release does once: migrations, backfills, a screen that reads oddly for a while)
   Leftovers for other lanes (name the lane that owns the file)
+  Cost and peak context (what the lane cost and the largest context it reached, when it can be read; else "not measured")
 Then say "LANE DONE" and list the commits, each with its N number.
 
 Items:
@@ -157,6 +158,6 @@ When the user says a lane is done:
 3. Run `mainOnlyChecks` in main. A red that appears only here is undone with `git reset --keep <main-before-merge>` before reporting, since nothing was pushed.
 4. The next lane rebases on the new main. Repeat.
 5. After the last lane: confirm every lane branch is contained in main and no lane folder holds uncommitted work, then run `skilliton index --apply` (the decision, lesson and task indexes regenerate from the entry files the lanes added) and `maintain` once to write the decisions and status from the task records and commit messages.
-6. Close the batch: detach each lane folder to main (`git -C <folder> checkout --detach main`), delete the lane branches, keep the folders.
+6. Close the batch: `skilliton dispatch close --apply` brings each merged lane's records back, marks its task record merged, detaches each clean lane folder to main and prints each lane's cost and peak context against the bound; then delete the lane branches by hand, and keep the folders.
 
 A lane's green is not the merge's green: the lane proves it is internally sound, not that it is sound on top of the other lanes.

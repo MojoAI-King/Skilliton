@@ -139,6 +139,12 @@ function briefChecksAndSetup(lane, ctx, setup) {
     : "This project names no lane test command (`dispatch.laneTestCommand` in .skilliton/config.json). Use the project's " +
       "own check, and say which one you ran. Two lanes running the same check at once can share a port, a database or a " +
       "build folder: if that is possible here, say so rather than trusting the result.");
+  lines.push("");
+  lines.push(
+    "Keep every single command under about eight minutes: run a long suite one file at a time, and leave the full check " +
+    "list to the integration branch. A lane run as an agent that stays silent for ten minutes inside one call is " +
+    "stopped as stalled (B87).",
+  );
   if (ctx.mainOnlyChecks.length) {
     lines.push("");
     lines.push(`Do not run: ${ctx.mainOnlyChecks.join(", ")}. ${ctx.integrationBranch} runs those once at merge.`);

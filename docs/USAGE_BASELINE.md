@@ -19,12 +19,12 @@ paragraph above and nothing from the tables below, and read the placeholder as "
 4. Record the Tier 1 numbers from the Usage screen by hand: five-hour %, weekly %, any model-specific sub-ceiling %, and their reset times.
 5. Fill the scorecard baseline column below from the transcripts, not from memory.
 6. For the per-batch view, run `skilliton usage` rather than reading the meter by hand: it runs the meter's own test
-   first, then the meter once per batch that merged, and prints one row per window. Two limits are worth knowing
-   before the numbers are read. The meter buckets by day, so a row is whole days, from the day after the previous
-   batch merged through the day this one merged; and in this repository the merge commits landed on two days
-   (13 on 2026-09-16 and 2 on 2026-09-21), and later lanes were merged without a merge commit, so `skilliton usage`
-   here shows two rows and no row after 2026-09-21 (measured 2026-09-23: "2 batch row(s) from 15 merge(s)"). The
-   per-batch scorecard tells batches apart only where each batch lands as a merge commit.
+   first, then prints one row per batch. Since workflow 0.25.0 a batch ends at a maintain event, a closed task or a
+   merge commit, and a row spans the exact instants between two boundaries, so a repository that merges lanes
+   fast-forward gets rows (before, rows came from merge commits only, and this repository showed two rows and none
+   after 2026-09-21). Each `maintain --apply` also appends the batch's token counts to the committed ledger
+   `.skilliton/usage/ledger.jsonl`, so a row outlives the transcripts it came from; `skilliton usage summary` is the
+   one place a period is compared with a baseline, and it says saved only when the usage screen agrees.
 
 ## Recorded
 
