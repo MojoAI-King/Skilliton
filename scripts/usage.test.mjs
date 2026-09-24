@@ -19,7 +19,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { batchRows, describeUsage, foldScopes, parseMerges, RECONSTRUCTION_NOTE } from "../packs/base/plugins/workflow/runtime/lib/usage.mjs";
+import { PLUGIN_METER, batchRows, describeUsage, foldScopes, parseMerges, RECONSTRUCTION_NOTE } from "../packs/base/plugins/workflow/runtime/lib/usage.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
@@ -141,16 +141,30 @@ function fixture({ meter = STUB_METER, meterTest = PASSING_TEST } = {}) {
     writeFileSync(join(dir, "scripts", "token-cost.mjs"), meter);
     if (meterTest !== null) writeFileSync(join(dir, "scripts", "token-cost.test.mjs"), meterTest);
   }
-  return { dir, log: join(dir, "meter-calls.log") };
+  return withTranscripts({ dir, log: join(dir, "meter-calls.log") });
 }
 
-function usage(f, args = []) {
+// Every run gets an empty transcripts folder of its own, so the plugin's meter, when a case falls back to it, reads
+// nothing from this machine and its answer cannot depend on who runs the test.
+function withTranscripts(f) {
+  f.projects = realpathSync(mkdtempSync(join(tmpdir(), "skilliton-usage-transcripts-")));
+  TEMPS.push(f.projects);
+  return f;
+}
+
+// The contract probe asks for 1970-01-01..1970-01-01; it is logged by the stub like any call and is dropped here, so a
+// count of calls is a count of the windows the command asked for.
+const isProbe = (call) => call[0] === "1970-01-01" && call[1] === "1970-01-01";
+
+function usage(f, args = [], extraEnv = {}) {
   const r = spawnSync(process.execPath, [SKILLITON, "usage", "--dir", f.dir, ...args], {
     encoding: "utf8",
-    env: { ...process.env, SKILLITON_TZ: TZ, STUB_METER_LOG: f.log },
+    env: { ...process.env, SKILLITON_TZ: TZ, STUB_METER_LOG: f.log, SKILLITON_PROJECTS: f.projects, ...extraEnv },
   });
-  const calls = existsSync(f.log) ? readFileSync(f.log, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
-  return { code: r.status, out: r.stdout ?? "", err: r.stderr ?? "", all: `${r.stdout ?? ""}${r.stderr ?? ""}`, calls };
+  const logged = existsSync(f.log) ? readFileSync(f.log, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
+  const calls = logged.filter((c) => !isProbe(c));
+  const probes = logged.length - calls.length;
+  return { code: r.status, out: r.stdout ?? "", err: r.stderr ?? "", all: `${r.stdout ?? ""}${r.stderr ?? ""}`, calls, probes };
 }
 
 const REPO_CHECKS = [
@@ -209,30 +223,47 @@ const REPO_CHECKS = [
     eq(r.calls.length, 0, "the meter was never run, so no figure could have been printed");
     hasNot(r.out, /est usd/, "and no table was printed");
   }],
-  ["a meter that is not there is refused, and nothing is written", () => {
+  ["a project with no meter of its own is read through the plugin's meter, proved first", () => {
     const r = usage(fixture({ meter: null }));
-    eq(r.code, 2, `exit status (output was:\n${r.all})`);
-    has(r.all, /no meter at scripts\/token-cost\.mjs/, "the refusal names the path it looked at");
-    has(r.all, /Nothing was written/, "and says nothing was written");
+    eq(r.code, 0, `exit status (output was:\n${r.all})`);
+    has(r.out, /meter: \S*runtime\/meter\/token-cost\.mjs, proved in this run by \S*runtime\/meter\/token-cost\.test\.mjs \(meter fixture test passed\)/,
+      "the plugin's meter is named with its own test");
+    hasNot(r.out, /^note:/m, "and no notice: there was nothing of the project's to pass over");
+    eq(PLUGIN_METER.endsWith(join("runtime", "meter", "token-cost.mjs")), true, "the plugin's meter is found from the runtime's own folder");
   }],
-  ["a meter with no test beside it is refused before it is ever run", () => {
+  ["a project meter with no test beside it is passed over, named, and never run", () => {
     const r = usage(fixture({ meterTest: null }));
+    eq(r.code, 0, `exit status (output was:\n${r.all})`);
+    has(r.out, /note: this project's scripts\/token-cost\.mjs has no token-cost\.test\.mjs beside it, so the plugin's meter is used instead/,
+      "the notice names what is missing and what is used instead");
+    eq(r.calls.length + r.probes, 0, "and the project's meter was not run at all");
+  }],
+  ["a project meter that does not speak the contract is named with what it lacks, and the plugin's meter is used", () => {
+    const r = usage(fixture({ meter: STUB_METER.replace(/console\.log\(JSON\.stringify\(\{[\s\S]*\}\)\);\n$/, 'console.log("{}");\n') }));
+    eq(r.code, 0, `exit status (output was:\n${r.all})`);
+    has(r.out, /does not speak the meter's contract \(its --json answer lacks byScope, tz, incomplete, unpriced_models\)/, "every missing key is named");
+    has(r.out, /meter: \S*runtime\/meter\/token-cost\.mjs/, "and the plugin's meter did the reading");
+    eq(r.probes, 1, "the project's meter was asked once, for the empty window, and not for a real one");
+    eq(r.calls.length, 0, "and never for a batch window");
+  }],
+  ["a meter named with --meter that does not speak the contract is refused, and nothing is written", () => {
+    const f = fixture();
+    mkdirSync(join(f.dir, "other"));
+    writeFileSync(join(f.dir, "other", "token-cost.mjs"), 'console.log("{}");\n');
+    writeFileSync(join(f.dir, "other", "token-cost.test.mjs"), PASSING_TEST);
+    const r = usage(f, ["--meter", "other"]);
     eq(r.code, 2, `exit status (output was:\n${r.all})`);
-    has(r.all, /has no test beside it/, "the refusal names what is missing");
-    eq(r.calls.length, 0, "and the meter was not run");
+    has(r.all, /does not speak the meter's contract: its --json answer lacks byScope, tz, incomplete, unpriced_models\. Nothing was written/, "the refusal names it");
   }],
   ["a meter bucketing in another timezone is a failure, not a quietly wrong window", () => {
     const f = fixture();
     // The stub reports whatever STUB_METER_TZ names. A meter with its own hard coded zone, or a machine whose
     // SKILLITON_TZ was changed between the two, produces exactly this disagreement: the rows would name days the
     // meter never bucketed by, and every figure would be off by the hours between the two zones.
-    const r = spawnSync(process.execPath, [SKILLITON, "usage", "--dir", f.dir], {
-      encoding: "utf8",
-      env: { ...process.env, SKILLITON_TZ: TZ, STUB_METER_TZ: "UTC", STUB_METER_LOG: f.log },
-    });
-    eq(r.status, 3, `exit status (output was:\n${r.stdout}${r.stderr})`);
-    has(r.stderr, /worked out in America\/New_York and the meter buckets in UTC/, "the failure names both zones");
-    hasNot(r.stdout, /est usd/, "and no table was printed from windows that do not line up");
+    const r = usage(f, [], { STUB_METER_TZ: "UTC" });
+    eq(r.code, 3, `exit status (output was:\n${r.all})`);
+    has(r.err, /worked out in America\/New_York and the meter buckets in UTC/, "the failure names both zones");
+    hasNot(r.out, /est usd/, "and no table was printed from windows that do not line up");
   }],
   ["--since is refused when it is not a revision, before git is asked anything", () => {
     const f = fixture();
@@ -255,7 +286,7 @@ const REPO_CHECKS = [
     mkdirSync(join(dir, "scripts"), { recursive: true });
     writeFileSync(join(dir, "scripts", "token-cost.mjs"), STUB_METER);
     writeFileSync(join(dir, "scripts", "token-cost.test.mjs"), PASSING_TEST);
-    const f = { dir, log: join(dir, "meter-calls.log") };
+    const f = withTranscripts({ dir, log: join(dir, "meter-calls.log") });
     const r = usage(f);
     eq(r.code, 0, `exit status (output was:\n${r.all})`);
     has(r.out, /no merge commit was found/, "it says there is no batch to report");

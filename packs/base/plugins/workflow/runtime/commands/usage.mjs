@@ -1,5 +1,6 @@
 // commands/usage.mjs: `skilliton usage` (docs/CONTRACTS.md section 6). The reading is lib/usage.mjs and the pricing
-// is the project's own meter; this file parses arguments, asks git which batches merged, and prints the scorecard.
+// is the meter (the plugin's own, or the project's when it speaks the contract); this file parses arguments, asks git
+// which batches merged, and prints the scorecard.
 
 import { parseArgs, refuse, resolveExistingDir, say, selfCommand, tilde } from "../lib/core.mjs";
 import { DEFAULT_LIMIT, MAX_LIMIT, RECONSTRUCTION_NOTE, batchRows, describeUsage, findMeter, foldScopes, meterTz, meterWindow, parseMerges, proveMeter } from "../lib/usage.mjs";
@@ -12,11 +13,13 @@ export const help = `usage: what this machine's own transcripts say the work cos
   usage --since <rev>                  only the merges after <rev>
   usage --limit <n>                    how many rows to keep, newest first (at most ${MAX_LIMIT})
   usage --project <key>[,<key>]        only these project folders, passed to the meter as it takes them
-  usage --meter <path>                 the meter to use, when it is not scripts/token-cost.mjs
+  usage --meter <path>                 the meter to use instead of the default (see below)
   usage --json                         the same rows as one JSON object
 
-It reads nothing itself. The project's meter does the reading and the pricing, and its own test is run first, in this
-run: a number from a meter whose test has not just passed is not printed here.
+It reads nothing itself. The meter does the reading and the pricing, and its own test is run first, in this run: a
+number from a meter whose test has not just passed is not printed here. The meter is the one this plugin ships
+(runtime/meter/token-cost.mjs), unless the project has its own scripts/token-cost.mjs with its test beside it that
+speaks the same contract; one that does not is named, with what it lacked, and the plugin's meter is used instead.
 
 A window is whole days, in the timezone the meter buckets by, because that is the finest the meter can tell apart. A
 row runs from the day after the previous batch merged through the day this one merged, so the rows tile the calendar:
@@ -43,6 +46,7 @@ export async function run(argv) {
 
     const repo = resolveGitRoot(resolveExistingDir(o.dir, "--dir"));
     const meter = findMeter(repo.root, o.meter ?? null);
+    if (meter.notice) say(`note: ${meter.notice}`);
     const tz = meterTz();
     const git = gitFor(repo.root);
 

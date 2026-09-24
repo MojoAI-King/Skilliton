@@ -119,7 +119,6 @@ export const LONG_LINE_PINS = [
   ["packs/base/plugins/workflow/runtime/lib/tasks.mjs", 7],
   ["packs/base/plugins/workflow/runtime/lib/treehash.mjs", 2],
   ["packs/base/plugins/workflow/runtime/lib/trust.mjs", 16],
-  ["packs/base/plugins/workflow/runtime/lib/usage.mjs", 9],
   ["packs/base/plugins/workflow/runtime/lib/verify.mjs", 23],
   ["packs/base/plugins/workflow/runtime/skilliton.mjs", 4],
 ];
