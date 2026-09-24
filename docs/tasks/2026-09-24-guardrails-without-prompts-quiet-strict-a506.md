@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/quiet-guard-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T19:31:40.550Z
+- **Updated:** 2026-09-24T19:52:48.478Z
 
 ## Request
 
@@ -43,9 +43,16 @@ not yet written
 - **Next:** Owner: bash scripts/guardrails-modes.test.sh (expect PASS 60), then git add -A and commit; then the lane merges like the others and main takes CHANGELOG, CONTRACTS, the decision index and the harness template's confirmation sentence
 - **Git:** lane/quiet-guard-0924 @ 38a22ad, 12 uncommitted
 
+### 2026-09-24T19:52:48.478Z
+
+- **State:** Lane committed: 2ba2a2f (the owner's terminal: guard, skill, plugin.json 0.12.0, five suite pins, modes suite, proposed decision and lesson) and ba2067d (the modes suite closes stdin on its session-start calls, which hung in a terminal). Installed live on this machine over both plugin caches. Met: Q1, Q3, Q5 (notes); partial: Q2 (sorted by reason text, no per-site kind), Q4 (dropped stash or branch still asks), Q6 (no mutants), Q7 (replay from the scratchpad), Q8 (main-only wording in LANE_REPORT.md)
+- **Evidence:** Five shipped suites as shipped: 670, 144 (wrapping 224 and 163), 224, 163, 16; modes suite 61 under Claude Code's shell and under a pseudo-terminal; the pre-fix copy hung at the session-start section until a 75 s alarm; scrub-check PASS before each commit; replay of 189 asks: 13 ask, 33 fix, 143 noted
+- **Next:** Merge like the other lanes (rebase on main, the five suites plus the modes suite, ff-only, push); main then takes CHANGELOG, CONTRACTS, the two indexes, README and INSTALL, and the harness template's confirmation sentence
+- **Git:** lane/quiet-guard-0924 @ ba2067d, 0 uncommitted
+
 ## Handoff
 
-- **State:** Installed on this machine by the owner: both plugin caches hold the lane's guard, quiet mode live (an eval ran with no dialog and was noted). Lane still uncommitted (12 paths): the owner ran finish-lane.py, which fixed the fleet test expectation and the skill's defaults JSON; the proposed decision and lesson entries are written; the modes suite run and the commit are the owner's next two commands. Evidence: Shipped suites as shipped: guardrails.test.sh 670 ok, bypass 144 (wrapping review 224 and review2 163), timing 16; modes suite 59 of 60 before finish-lane.py, rerun pending; scrub-check PASS; notes file in the main checkout's git dir holds three lines, none with command text.
-- **Next:** Owner: bash scripts/guardrails-modes.test.sh (expect PASS 60), then git add -A and commit; then the lane merges like the others and main takes CHANGELOG, CONTRACTS, the decision index and the harness template's confirmation sentence
+- **State:** Lane committed: 2ba2a2f (the owner's terminal: guard, skill, plugin.json 0.12.0, five suite pins, modes suite, proposed decision and lesson) and ba2067d (the modes suite closes stdin on its session-start calls, which hung in a terminal). Installed live on this machine over both plugin caches. Met: Q1, Q3, Q5 (notes); partial: Q2 (sorted by reason text, no per-site kind), Q4 (dropped stash or branch still asks), Q6 (no mutants), Q7 (replay from the scratchpad), Q8 (main-only wording in LANE_REPORT.md). Evidence: Five shipped suites as shipped: 670, 144 (wrapping 224 and 163), 224, 163, 16; modes suite 61 under Claude Code's shell and under a pseudo-terminal; the pre-fix copy hung at the session-start section until a 75 s alarm; scrub-check PASS before each commit; replay of 189 asks: 13 ask, 33 fix, 143 noted.
+- **Next:** Merge like the other lanes (rebase on main, the five suites plus the modes suite, ff-only, push); main then takes CHANGELOG, CONTRACTS, the two indexes, README and INSTALL, and the harness template's confirmation sentence
 - **Blocked:** nothing
 - **Watch out:** nothing known
