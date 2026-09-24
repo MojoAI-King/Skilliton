@@ -20,7 +20,7 @@ import * as collectors from '../lib/collectors.mjs';
 import * as propose from '../lib/security-propose.mjs';
 
 export const help = `security: project security evidence. Status, recorded observations, applicability decisions, evidence
-collectors, and open findings in the backlog record. Commands that write show their change first and write only with
+collectors, and open findings in their own file. Commands that write show their change first and write only with
 --apply. --dir names the project folder (default: the current folder).
 
   security status [--dir <project>] [--require-collected] [--apply]
@@ -76,8 +76,10 @@ collectors, and open findings in the backlog record. Commands that write show th
       Without --apply a collector shows its plan and runs nothing. A collector that cannot run records nothing.
 
   security findings [--dir <project>] [--apply]
-      Show, or with --apply write, one row per open finding (keyed SEC-<control id>, sorted) in the managed section
-      of the backlog record, between <!-- skilliton:security-findings:start --> and <!-- skilliton:security-findings:end -->.
+      Show, or with --apply write, one row per open finding (keyed SEC-<control id>, sorted) in the findings file
+      (security.findingsFile in .skilliton/config.json, default docs/SECURITY_FINDINGS.md, created when absent),
+      between <!-- skilliton:security-findings:start --> and <!-- skilliton:security-findings:end -->. The backlog
+      record keeps between the same two markers one line: a link to that file with the count of open findings.
       Rerunning never duplicates a row, a resolved finding leaves the section, and text outside the markers is
       never changed.
 
@@ -376,22 +378,26 @@ async function findings({ o }) {
   const root = projectDir(o);
   const plan = security.planFindings(root);
   const n = plan.findings.length;
-  if (plan.before === plan.after) {
-    say(`${plan.rel}: the security findings section is already up to date (${n} open finding(s)). Nothing to write.`);
+  const due = plan.files.filter((f) => f.before !== f.after);
+  if (!due.length) {
+    say(`${plan.rel} and ${plan.backlogRel}: the security findings are already up to date (${n} open finding(s)). Nothing to write.`);
     return 0;
   }
   if (!o.apply) {
-    process.stdout.write(forDisplay(unifiedDiff(plan.before, plan.after, `a/${plan.rel}`, `b/${plan.rel}`)));
-    say(`Preview: ${n} open finding(s) for the managed section of ${plan.rel}. Nothing was written. Add --apply to write it.`);
+    for (const f of due) process.stdout.write(forDisplay(unifiedDiff(f.before, f.after, f.exists ? `a/${f.rel}` : '/dev/null', `b/${f.rel}`)));
+    say(`Preview: ${n} open finding(s) for ${plan.rel}, and the one-line link to it in ${plan.backlogRel}. Nothing was written. Add --apply to write it.`);
     return 0;
   }
-  let backup;
-  try { backup = backupFile('security', join(root, plan.rel), newStamp()); } catch {
-    throw new security.SecurityRefusal('WRITE_FAILED', `the backup of ${plan.rel} could not be written, so it was not changed`);
+  const stamp = newStamp(), backups = [];
+  for (const f of due.filter((d) => d.exists)) {
+    try { backups.push(backupFile('security', join(root, f.rel), stamp)); } catch {
+      throw new security.SecurityRefusal('WRITE_FAILED', `the backup of ${f.rel} could not be written, so nothing was changed`);
+    }
   }
   security.writeFindings(root, plan);
-  say(`Wrote ${n} open finding(s) to the security findings section of ${plan.rel}; text outside its markers is unchanged.`);
-  say(`Backup of the previous file: ${tilde(backup)}`);
+  say(`Wrote ${n} open finding(s) to ${plan.rel} and the one-line link to it in ${plan.backlogRel}; text outside the markers is unchanged.`);
+  for (const f of due.filter((d) => !d.exists)) say(`Created ${f.rel} (commit it with the backlog record).`);
+  if (backups.length) say(`Backup of the previous file(s): ${backups.map((b) => tilde(b)).join(', ')}`);
   return 0;
 }
 

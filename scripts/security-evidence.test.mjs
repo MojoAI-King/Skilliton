@@ -655,37 +655,37 @@ test('findings: identical across three runs, a resolved finding leaves the secti
   const second = { ...control(), id: 'DEMO-REVIEW', title: 'Synthetic review observation' };
   const dir = fixture(t, [control(), second]);
   mkdirSync(join(dir, 'docs'));
-  const backlog = join(dir, 'docs', 'BACKLOG.md');
+  const backlog = join(dir, 'docs', 'BACKLOG.md'), findingsFile = join(dir, 'docs', 'SECURITY_FINDINGS.md');
   const head = Buffer.concat([Buffer.from('# Backlog\r\n\r\nKind: Living.\r\n\r\n- [ ] keep the caf', 'utf8'), Buffer.from([0xc3, 0xa9]), Buffer.from(' item\r\n', 'utf8')]);
   writeFileSync(backlog, head);
   assert.equal(run(dir, 'record', '--control', 'DEMO-REVIEW', '--assessment', 'gap', '--note', 'Synthetic review gap', '--reviewer', 'fixture-reviewer', '--apply').code, 0);
   const runs = [];
   for (let i = 0; i < 3; i++) {
     assert.equal(run(dir, 'findings', '--apply').code, 0);
-    runs.push(readFileSync(backlog));
+    runs.push(Buffer.concat([readFileSync(backlog), readFileSync(findingsFile)]));
   }
-  assert.ok(runs[0].equals(runs[1]) && runs[1].equals(runs[2]), 'three runs leave identical bytes');
+  assert.ok(runs[0].equals(runs[1]) && runs[1].equals(runs[2]), 'three runs leave identical bytes in both files');
   assert.ok(runs[0].subarray(0, head.length).equals(head), 'the human text before the section is byte-identical');
-  const text = runs[0].toString('utf8');
+  const text = readFileSync(findingsFile, 'utf8');
   assert.equal(text.split(START).length - 1, 1);
-  assert.match(text, /\| SEC-DEMO-ACCESS \| Synthetic access observation \| missing \| record an assessment or run a collector \|\r\n/);
-  assert.match(text, /\| SEC-DEMO-REVIEW \| Synthetic review observation \| gap \| resolve the gap, then record a new assessment \|\r\n/);
+  assert.match(text, /\| SEC-DEMO-ACCESS \| Synthetic access observation \| missing \| record an assessment or run a collector \|\n/);
+  assert.match(text, /\| SEC-DEMO-REVIEW \| Synthetic review observation \| gap \| resolve the gap, then record a new assessment \|\n/);
   assert.ok(text.indexOf('SEC-DEMO-ACCESS') < text.indexOf('SEC-DEMO-REVIEW'));
-
+  assert.match(readFileSync(backlog, 'utf8'), /\r\nSecurity findings: 2 open, listed in [^\r\n]+\r\n<!-- skilliton:security-findings:end -->\r\n$/);
   const tail = Buffer.from('\r\n## Later human notes\r\n', 'utf8');
-  writeFileSync(backlog, Buffer.concat([runs[0], tail]));
+  writeFileSync(backlog, Buffer.concat([readFileSync(backlog), tail]));
   assert.equal(run(dir, 'record', '--control', 'DEMO-REVIEW', '--assessment', 'observed', '--source', 'source.js', '--artifact', 'result.txt', '--note', 'Synthetic review resolved', '--reviewer', 'fixture-reviewer', '--apply').code, 0);
   assert.equal(run(dir, 'findings', '--apply').code, 0);
   const after = readFileSync(backlog);
-  assert.doesNotMatch(after.toString('utf8'), /SEC-DEMO-REVIEW/);
-  assert.equal(after.toString('utf8').split('SEC-DEMO-ACCESS').length - 1, 1);
+  assert.doesNotMatch(readFileSync(findingsFile, 'utf8'), /SEC-DEMO-REVIEW/);
+  assert.equal(readFileSync(findingsFile, 'utf8').split('SEC-DEMO-ACCESS').length - 1, 1);
   assert.ok(after.subarray(0, head.length).equals(head));
   assert.ok(after.subarray(after.length - tail.length - END.length - 2).equals(Buffer.concat([Buffer.from(`${END}\r\n`), tail])), 'the human text after the section is byte-identical');
   assert.equal(recordFiles(dir).length, 2, 'history stays in the observation records');
 
   assert.equal(record(dir).code, 0);
   assert.equal(run(dir, 'findings', '--apply').code, 0);
-  assert.match(readFileSync(backlog, 'utf8'), /No open findings: every applicable control has a current observed record/);
+  assert.match(readFileSync(findingsFile, 'utf8'), /No open findings: every applicable control has a current observed record/);
   const unchanged = run(dir, 'findings', '--apply');
   assert.equal(unchanged.code, 0);
   assert.match(unchanged.out, /already up to date/);

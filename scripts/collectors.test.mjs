@@ -131,7 +131,7 @@ test('tests collector: a failing command records gap, and findings pick it up', 
   mkdirSync(join(dir, 'docs'));
   writeFileSync(join(dir, 'docs', 'BACKLOG.md'), '# Backlog\n');
   assert.equal(sg(dir, ['findings', '--dir', dir, '--apply']).code, 0);
-  assert.match(readFileSync(join(dir, 'docs', 'BACKLOG.md'), 'utf8'), /\| SEC-SG-SECURITY-TESTS \| [^|]+ \| gap; applicability undecided \|/);
+  assert.match(readFileSync(join(dir, 'docs', 'SECURITY_FINDINGS.md'), 'utf8'), /\| SEC-SG-SECURITY-TESTS \| [^|]+ \| gap; applicability undecided \|/);
 });
 
 test('tests collector: a check that runs past its timeout is stopped and recorded as gap', (t) => {

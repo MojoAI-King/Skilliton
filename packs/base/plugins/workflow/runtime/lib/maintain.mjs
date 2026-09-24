@@ -182,13 +182,13 @@ async function refreshCollectors(root, { apply, steps, again = false }) {
   }
 }
 
-// The security findings block in the backlog, from the register as it stands after the collectors ran.
+// The security findings file and its one-line link in the backlog, from the register as it stands after the collectors ran.
 async function findingsStep(root, { apply, steps }) {
   if (existsSync(join(root, CATALOG_REL))) {
     try {
       const { planFindings, writeFindings } = await import("./security.mjs");
       const plan = planFindings(root);
-      const same = plan.before === plan.after;
+      const same = !plan.changed;
       if (!same && apply) writeFindings(root, plan);
       steps.push({ name: "security findings", status: same ? "current" : apply ? "wrote" : "would write", detail: `${plan.findings.length} open finding(s) in ${plan.rel}` });
     } catch (e) {

@@ -128,22 +128,22 @@ test("maintain --apply collects secrets and the delivery policy for missing reco
   }
   assert.equal(records(p).length, 2, "a current record is left alone, not re-collected, once settled");
 
-  // Now the delivery policy exists: collect delivery-policy runs, its findings rewrite makes the secrets record stale,
-  // and the same run collects secrets once more; the next run finds both current.
+  // Now the delivery policy exists: collect delivery-policy runs. The open count is unchanged (the control is still
+  // undecided), so the backlog's one findings line (B78) does not change and the secrets record stays current.
   writePolicy(p);
   commit(p, env, "add delivery policy");
   const withPolicy = cli(p, ["maintain", "--apply"], env);
   assert.equal(withPolicy.code, 0, withPolicy.all);
   assert.match(withPolicy.out, /wrote\s+security collect delivery-policy\s+recorded observed for SG-CHECK-CRITERIA\n/);
-  assert.match(withPolicy.out, /wrote\s+security collect secrets\s+recorded observed for SG-SECRETS-IN-SOURCE again/);
-  assert.equal(records(p).length, 4, JSON.stringify(records(p)));
+  assert.doesNotMatch(withPolicy.out, /wrote\s+security collect secrets/);
+  assert.equal(records(p).length, 3, JSON.stringify(records(p)));
 
   const settled = cli(p, ["maintain", "--apply"], env);
   assert.equal(settled.code, 0, settled.all);
   assert.match(settled.out, /current\s+security collect secrets\s+SG-SECRETS-IN-SOURCE is current/);
   assert.match(settled.out, /current\s+security collect delivery-policy\s+SG-CHECK-CRITERIA is current/);
   const recsFinal = records(p);
-  assert.equal(recsFinal.length, 4, "settled: no further record for either control");
+  assert.equal(recsFinal.length, 3, "settled: no further record for either control");
   for (const r of recsFinal) assert.equal(r.reviewer, "skilliton maintain");
   assert.ok(recsFinal.some((r) => r.controlId === "SG-CHECK-CRITERIA" && r.assessment === "observed"));
   assert.ok(!recsFinal.some((r) => r.controlId === "SG-SECURITY-TESTS"), "the tests collector never wrote a record");

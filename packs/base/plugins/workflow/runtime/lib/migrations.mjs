@@ -430,7 +430,7 @@ export const MIGRATIONS = [
     allows: (path, project) => allowed0003(path, project),
     receiptProblem: receiptProblem0003,
   },
-];
+  ...(await import("./migrations-findings.mjs")).FINDINGS_MIGRATIONS]; // 0004-security-findings-file (B78), on the list's closing line
 
 // ---------- 0100-instructions-<sha12> ----------
 
