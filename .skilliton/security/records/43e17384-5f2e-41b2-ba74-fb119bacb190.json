@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "id": "43e17384-5f2e-41b2-ba74-fb119bacb190",
+  "controlId": "SG-INPUT-INJECTION",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "71c6c731d80ad20e8ca0504db8f39bf1fb47c984b6d46603749a98d77f3e0cc7",
+  "recordedAt": "2026-09-24T23:54:18.981Z",
+  "assessment": "gap",
+  "note": "Gap, reassessed after 1.4.1: linkedFileProblem derives the root from a planned file whose path is join(repo, rel) with rel a fixed name or validated plugin names, so no typed text reaches it; still no test puts escape text through any rendering. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/core.mjs",
+      "sha256": "3f238737851aa02dac25de5fbbf98db19d9bd41c2dc525055d0135de0b0fb5bb"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/fork.mjs",
+      "sha256": "c5e9ccc16ad12dc24848048cc25b51e3a4b226c736300104feed541d317c8f86"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/commands/usage.mjs",
+      "sha256": "da5b2d76c55260e9094b430d7f2ffa941d802ae18421a8af51cfb7e8ef7c5b92"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/security-io.mjs",
+      "sha256": "9a3a2192911f0cd7f4454f75e7326750bbac3921b8dfa57c8464123889ca77a6"
+    },
+    {
+      "path": "scripts/security-evidence.test.mjs",
+      "sha256": "8704e34baaa3be5213a9cc85b7ea615d510403d884fde7b0c628d643a086bbe7"
+    },
+    {
+      "path": "scripts/security-record-refusals.test.mjs",
+      "sha256": "d16f6d7a225271001b6f8899f537d72287bc843a67aea462f0ba56d4b7a1b912"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/usage-ledger.mjs",
+      "sha256": "b887e5e24f39e2c7fa969af87bcf4541e8167997717bee6d0f003b72d1204298"
+    },
+    {
+      "path": "scripts/usage-ledger-links.test.mjs",
+      "sha256": "1200671c74959bfd065f5bb2664c4989ce53cb6a3e934b2a20afa1d18e88864b"
+    },
+    {
+      "path": "scripts/security-entry-paths.test.mjs",
+      "sha256": "9890dd93a9854ac50daa2554a1678d173492c4e90475ca430f1f8c984d34ead7"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassessment-3-SG-INPUT-INJECTION.md",
+      "sha256": "2bbc8ab25cc570d79ac02c65655800bfccabbb13e13921dbf79eff4cb57af797"
+    }
+  ]
+}

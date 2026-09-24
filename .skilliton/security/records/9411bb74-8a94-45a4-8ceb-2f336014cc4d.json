@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "9411bb74-8a94-45a4-8ceb-2f336014cc4d",
+  "controlId": "SG-WORKFLOW-IMPROVEMENT",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "2b5e83492282f70a4927f631714fe0e26c4e688f6d01b9bce27c3fcbf575899b",
+  "recordedAt": "2026-09-24T23:54:49.840Z",
+  "assessment": "observed",
+  "note": "Reassessed after 1.4.1: the writer-link lesson now names the write-site list and the dispatch link test, and the eval lesson became tested changes (the grader pattern check, the stop reminder test), all in CI and shipped in 1.4.1. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "releases/1.4.1.json",
+      "sha256": "a410ec8475d4493667a0c8f6ff453dd0d84586f2743853fd790f115cd8dbec3b"
+    },
+    {
+      "path": "docs/lessons/2026-09-24-a-fix-that-hardens-the-writers-it-names-772e.md",
+      "sha256": "b213d2a289a27a0406af42f3c1f52561c6fffc57cdc59822fa1080c07ede92f8"
+    },
+    {
+      "path": "docs/lessons/2026-09-24-an-eval-difference-came-from-graders-one-0135.md",
+      "sha256": "ef4059f177a2c3e3df14bfc5b8100dbabf67541be17767d0bb09ff50e0ec8504"
+    },
+    {
+      "path": "scripts/write-links.test.mjs",
+      "sha256": "3201383bdd9bb3d7f1fd3a2e00db4dd17b1ac8f9ea8964b560cbefe6f52632c8"
+    },
+    {
+      "path": "scripts/write-sites.test.mjs",
+      "sha256": "1c2064bc3f242a64be90dbbc2eb99613890f2bde428e39628a6508037c11caca"
+    },
+    {
+      "path": "scripts/dispatch-links.test.mjs",
+      "sha256": "9afe93cf7bafc061f57ac8dfdab4a2cfd6410a92f73de202acfe2725a4417fab"
+    },
+    {
+      "path": "scripts/stop-reason-answer.test.mjs",
+      "sha256": "fd09e0eff1c5b9024dc493cd79f840483526862e83d6003a8a6987ae4a1a3bba"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassess-3-SG-WORKFLOW-IMPROVEMENT.md",
+      "sha256": "ad1e03a043066e999558a1506c868cbc1043a1918519b02a6c300f2bbcfb0cea"
+    }
+  ]
+}

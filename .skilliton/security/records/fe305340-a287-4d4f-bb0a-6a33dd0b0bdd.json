@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "id": "fe305340-a287-4d4f-bb0a-6a33dd0b0bdd",
+  "controlId": "SG-COMMAND-INJECTION",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "db18be1e8be9a6db00eeb1b3b7c770100981f83f9f93f622b9c247b3ca74a88a",
+  "recordedAt": "2026-09-24T23:54:18.909Z",
+  "assessment": "observed",
+  "note": "Reassessed after 1.4.1: core.mjs gained linkedFileProblem, a wrapper that starts no program and builds no command; no spawn changed in the fingerprinted files, so the earlier claim stands. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/core.mjs",
+      "sha256": "3f238737851aa02dac25de5fbbf98db19d9bd41c2dc525055d0135de0b0fb5bb"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/audit.mjs",
+      "sha256": "aa149ffdf74c874e7d9f9873bed21a66d7f9e6e98d470c1527f7bfd7ee9788e6"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/gate.mjs",
+      "sha256": "6081191642590e84c2b6e35d9511c002ce003670e62add23d80f6151a2370132"
+    },
+    {
+      "path": "scripts/audit.test.mjs",
+      "sha256": "547703d77e901d36ff7d5793fb101041c1b9c99a9a88725c33878f0218c04711"
+    },
+    {
+      "path": "scripts/windows-cmd.test.mjs",
+      "sha256": "f71aaa100a930c78d3a1a8f9b874fb63c520527a6166f44e61b9cb9902c02148"
+    },
+    {
+      "path": "scripts/git-config.test.mjs",
+      "sha256": "d379edaa11f1e56d2744b05903a9d7019551931b8ca1e22c419ec9798dfeb3bb"
+    },
+    {
+      "path": "scripts/gate-process-label.test.mjs",
+      "sha256": "80cabae4803c9e656849a80602322bddee301eeb27c6a88c34fa318c35c17f4e"
+    },
+    {
+      "path": "scripts/gate-context.test.mjs",
+      "sha256": "76388059b6f8ca783eabf37f3da4b3f3a38a0b6d5596cc3f055cd889f0d2b893"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassessment-3-SG-COMMAND-INJECTION.md",
+      "sha256": "a242f31c56de52a6154dfdd3433e740ffc8d4f019514f09752d701feb80ee5f9"
+    }
+  ]
+}
