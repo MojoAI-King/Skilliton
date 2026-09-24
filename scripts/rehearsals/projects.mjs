@@ -21,6 +21,10 @@ const R = new Rehearsal("projects", "Project preparation and continuity rehearsa
 const env = isolatedEnv(ws);
 const BIN = join(REPO, "packs", "base", "plugins", "workflow", "bin", "skilliton");
 const sg = (args, opts = {}) => run(process.execPath, [CLI, ...args], { env, ...opts });
+// 0002-integrated-layout and 0003-skilliton-names (a layout-1 or layout-2 project) now run through this one-shot
+// script, not skilliton migrate (N19, B69), which refuses a project still below its target layout.
+const LEGACY_CLI = join(REPO, "scripts", "legacy-migrate.mjs");
+const legacyMigrate = (args, opts = {}) => run(process.execPath, [LEGACY_CLI, ...args], { env, ...opts });
 const hook = (event, payload, opts = {}) => run(BIN, ["hook", event], { env, input: JSON.stringify(payload), ...opts });
 const built = (command) => !/not built in this version/.test(sg([command, "--help"]).all);
 const need = (...commands) => { const missing = commands.filter((c) => !built(c)); return missing.length ? { ok: false, detail: `not built yet: ${missing.join(", ")}` } : null; };
@@ -168,8 +172,8 @@ await R.step("G1", "a prototype (layout 1) project migrates to layout 3 (the int
   commit(legacy, "prototype setup");
   const hadCopy = existsSync(join(legacy, ".skillgate", "bin", "security-evidence.mjs"));
   const refused = sg(["prepare", "--dir", legacy, "--apply"]);
-  const preview = sg(["migrate", "--dir", legacy]);
-  const apply = sg(["migrate", "--dir", legacy, "--apply"]);
+  const preview = legacyMigrate(["--dir", legacy]);
+  const apply = legacyMigrate(["--dir", legacy, "--apply"]);
   const claude = readFileSync(join(legacy, "CLAUDE.md"), "utf8");
   const migrated = !existsSync(join(legacy, ".skillgate")) && existsSync(join(legacy, ".skilliton", "config.json")) && !claude.includes("skillgate:project") && claude.includes("skilliton:harness:start") && claude.includes("Keep this.");
   const receipts = existsSync(join(legacy, ".skilliton", "migrations")) ? readdirSync(join(legacy, ".skilliton", "migrations")).length : 0;
