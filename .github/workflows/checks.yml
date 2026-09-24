@@ -241,6 +241,9 @@ jobs:
       - name: Machine setup with join and undo (stand-in clients)
         run: node --test scripts/join.test.mjs
 
+      - name: Pin moves the marketplace to the release tag, join adds it there (stub client, B18)
+        run: node --test scripts/pin-marketplace.test.mjs
+
       - name: Join prints no credential typed into a marketplace URL
         run: node --test scripts/join-redact.test.mjs
 
