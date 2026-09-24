@@ -11,6 +11,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ConfigError, KNOWN_SECTIONS, LAYOUT_VERSION, configProblems, readProjectConfig, resolveProject, templateVars } from "../lib/config.mjs";
+import { GitError, gitTopLevel } from "../lib/journal.mjs";
 import { LEGACY_NAME } from "../lib/legacy-names.mjs";
 import { PLUGIN_ROOT, Refused, SKILLS_REPO, argPath, cmpVersion, isFile, isPlainObject, listDirNames, parseArgs, readBytes, readJsonMaybe, readPluginVersion, refuse, resolveExistingDir, runProgram, say, selfCommand, sha12, tilde, which } from "../lib/core.mjs";
 import { HARNESS_FILES, HARNESS_TEMPLATE, findBlock, legacyBlockLine, readHarnessTemplate, templateBody } from "../lib/harness.mjs";
@@ -64,10 +65,16 @@ export async function run(argv) {
     checks.push({ status, label, required, next });
     say(`${status.padEnd(10)} ${label}: ${detail}${required && status !== "OK" ? " [required]" : ""}`);
   };
-  const ctx = { dir, dirArg: o.dir ? ` --dir ${argPath(dir)}` : "", report, editors: [], editorsError: null, cli: null, records: null, harnessTemplate: null, harnessVars: null, varsProblem: null };
+  // Every hint names the project folder by its absolute path, so it works wherever it is pasted; notRepo is true only
+  // when git said the folder is outside any repository (undefined when git could not be asked).
+  const notRepo = repositoryOf(dir) === null;
+  const ctx = {
+    dir, dirArg: ` --dir ${argPath(dir)}`, notRepo, report, editors: [], editorsError: null, cli: null, records: null,
+    harnessTemplate: null, harnessVars: null, varsProblem: null,
+  };
 
   say("skilliton doctor (writes nothing)");
-  say(`project: ${tilde(dir)}`);
+  say(`project: ${tilde(dir)}${notRepo ? " (not a git repository)" : ""}`);
   say(`skills repo: ${SKILLS_REPO ? tilde(SKILLS_REPO) : "none (this is an installed copy of the runtime)"}`);
   say(`runtime: workflow ${readPluginVersion(PLUGIN_ROOT) ?? "(version unreadable)"} at ${tilde(PLUGIN_ROOT)}`);
   const config = claudeConfig();
@@ -215,6 +222,17 @@ function checkAutoUpdate(c) {
 
 // ---------------------------------------------------------------- the harness block in this project
 
+// What a folder outside any git repository is told instead of "prepare the project": prepare refuses there.
+const NOT_A_REPOSITORY = "this folder is not a git repository, so there is nothing to prepare: run doctor inside a repository";
+
+// The top of the work tree holding dir, null when git says there is none, undefined when git could not be asked.
+function repositoryOf(dir) {
+  try { return gitTopLevel(dir); } catch (e) {
+    if (e instanceof GitError) return undefined;
+    throw e;
+  }
+}
+
 function readHarnessVars(c) {
   try {
     const project = resolveProject(c.dir, { allowLegacy: true });
@@ -226,9 +244,14 @@ function readHarnessVars(c) {
 function checkHarnessFile(c, name) {
   const { report, dirArg } = c;
   // A project that was never prepared gets the block from prepare, which writes the records the block names too.
-  const writeHarness = c.unprepared ? `prepare the project, which writes the harness block and its records: ${selfCommand()} prepare --apply${dirArg}`
+  const writeHarness = c.notRepo ? NOT_A_REPOSITORY
+    : c.unprepared ? `prepare the project, which writes the harness block and its records: ${selfCommand()} prepare --apply${dirArg}`
     : `write the harness block: ${selfCommand()} harness --apply${dirArg}`;
-  if (!c.harnessTemplate) { report("UNVERIFIED", name, "not compared: the harness template could not be read", { required: true, next: "reinstall the workflow plugin, or restore packs/base/plugins/workflow/templates/harness.md in the skills repo" }); return; }
+  if (!c.harnessTemplate) {
+    const next = `reinstall the workflow plugin, or restore ${tilde(HARNESS_TEMPLATE)}`;
+    report("UNVERIFIED", name, "not compared: the harness template could not be read", { required: true, next });
+    return;
+  }
   if (!c.harnessVars) { report("UNVERIFIED", name, `not compared: the block names this project's record files, and the project configuration cannot be used (${c.varsProblem})`, { required: true, next: "fix .skilliton/config.json as described, then run doctor again" }); return; }
   const path = join(c.dir, name);
   if (!isFile(path)) { report("MISSING", name, "does not exist, so it has no harness block", { required: true, next: writeHarness }); return; }
@@ -277,6 +300,7 @@ function checkLayout(c) {
   try { project = resolveProject(dir, { allowLegacy: true }); } catch (e) { if (!(e instanceof ConfigError)) throw e; report("UNVERIFIED", "project layout", "not checked: the project configuration cannot be used (see above)"); return; }
   const installed = readPluginVersion(PLUGIN_ROOT);
   if (project.legacyNames) report("WARN", "project layout", `layout ${project.layoutVersion ?? "unknown"} under the earlier ${LEGACY_NAME} names (${project.configRel}); until it is migrated, only migrate, status and doctor work in this project`, { required: true, next: `move it to the Skilliton names: ${selfCommand()} migrate --apply${dirArg}` });
+  else if (project.layoutVersion === null && c.notRepo) report("WARN", "project layout", `not prepared by Skilliton; ${NOT_A_REPOSITORY}`);
   else if (project.layoutVersion === null) report("WARN", "project layout", `not prepared by Skilliton (no prepare.version). To adopt this project's records and add the missing ones: ${selfCommand()} prepare${dirArg}`);
   else if (project.layoutVersion < LAYOUT_VERSION) report("WARN", "project layout", `layout ${project.layoutVersion}, and this runtime writes layout ${LAYOUT_VERSION}; preview the migration: ${selfCommand()} migrate${dirArg}`, { required: true, next: `migrate the project layout: ${selfCommand()} migrate --apply${dirArg}` });
   else report("OK", "project layout", `layout ${project.layoutVersion} (current for this runtime)`);

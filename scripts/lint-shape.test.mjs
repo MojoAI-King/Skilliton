@@ -58,7 +58,7 @@ export const LONG_LINE_PINS = [
   ["packs/base/plugins/workflow/runtime/commands/company.mjs", 10],
   ["packs/base/plugins/workflow/runtime/commands/delivery.mjs", 2],
   ["packs/base/plugins/workflow/runtime/commands/dispatch.mjs", 9],
-  ["packs/base/plugins/workflow/runtime/commands/doctor.mjs", 42],
+  ["packs/base/plugins/workflow/runtime/commands/doctor.mjs", 40],
   ["packs/base/plugins/workflow/runtime/commands/gate.mjs", 6],
   ["packs/base/plugins/workflow/runtime/commands/harness.mjs", 2],
   ["packs/base/plugins/workflow/runtime/commands/hook.mjs", 9],
