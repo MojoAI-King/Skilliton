@@ -9,7 +9,11 @@ Bring every living document in this repository up to date, so that a fresh sessi
 
 **The test is not "did git change". It is "would closing this conversation lose anything."** A clean working tree does not mean there is nothing to do: plans, comparisons, decisions, and findings the user asked for often exist only in the chat. Find that material and write it into a file (an existing doc that fits, or a new `docs/<topic>.md` when none does), then link it from the repo's entry doc (`CLAUDE.md`, `AGENTS.md`, or `README.md`).
 
-## 0. The repo's own checklist comes first
+## First step: run skilliton maintain --apply and read its output
+
+Before anything else, run skilliton maintain --apply and read its output. Every maintenance starts here, whichever way it was asked for (this skill, a personal maintain skill, or the stop hook's reminder), so that the journal sees every maintenance: the command records a maintain event, which is what the stop hook measures the next maintenance from, and without that event the stop hook keeps asking. It also regenerates the decision, lesson and task indexes, and refreshes the security findings section of the backlog when the project keeps a security register. Read what it printed: a step it reports as refused or not run goes into the report (section 6), never past it. Where `skilliton` is not found, say so and run `bin/skilliton` or `node scripts/skilliton.mjs`; in a project Skilliton has not prepared, say the command does not apply here and go on.
+
+## 0. Then the repo's own checklist, before the generic steps
 
 If `docs/MAINTAIN.md` exists, read it and run its steps as part of this ritual. It holds what is specific to this repo (index generators, archive scripts, generated tables). This skill stays generic. If a repo keeps re-deriving the same setup from prose, that is the signal to create one.
 
@@ -44,7 +48,7 @@ If none exist, offer `skilliton prepare` (it previews first, adopts what exists,
 - **Finished items** are marked done with evidence (commit hash, test count). In a backlog, move a finished item to an archive file with its closure date instead of deleting it; a live queue that carries finished work is how people pick up work that already shipped.
 - **Cross-file consistency, checked not assumed:** for each item you touched, search the other living documents for it and confirm they agree on its state (done, next, blocked) and its owner.
 - **Task records:** read the open ones (`skilliton task list`). A task whose work is finished gets its real state, not a hopeful one: `done-local` when it is only on a branch, `merged`, `released` or `verified` only with the evidence for that state (`skilliton task close <id> --state <state> --apply`). Its outcome moves into the status record; the backlog item moves to the archive with the closure date and evidence.
-- **The mechanical half, first:** run `skilliton maintain --apply`. It regenerates the decision, lesson and task indexes, refreshes the security findings section of the backlog when the project keeps a security register, and records a maintain event in the journal, which is what the stop hook measures the next maintenance from; without that event the stop hook keeps asking. Everything after this bullet is the half only you can do.
+- **The mechanical half** is the first step above (`skilliton maintain --apply`), already run by now. Everything in this section is the half only you can do.
 - **Indexes:** after adding or merging entry files, run `skilliton index --apply`. It regenerates the decision, lesson and task indexes between their markers and never touches text outside them.
 
 ### The resume marker (`docs/HANDOFF.md`)
