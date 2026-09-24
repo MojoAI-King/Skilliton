@@ -275,6 +275,15 @@ async function reportPreview(project, pending, ctx) {
   return 1;
 }
 
+// After every pending migration applied: 0003 moves private evidence out from under the earlier folder, so this
+// checks it is still Git-ignored (a negation elsewhere in .gitignore could undo the line 0003 added) before saying
+// it is safe to commit. Ported from commands/migrate.mjs's own finishApply, which the same check protects there.
+async function checkPrivateEvidence(root, ids) {
+  if (!ids.includes(ID_0003)) return true;
+  const { privateEvidenceIgnored } = await import("../packs/base/plugins/workflow/runtime/lib/collectors.mjs");
+  return privateEvidenceIgnored(root);
+}
+
 async function applyPending(project, pending, repo, ctx) {
   let current = project;
   const applied = [];
@@ -295,6 +304,15 @@ async function applyPending(project, pending, repo, ctx) {
     applied.push(migration.id);
     say(`Applied ${migration.id}. Receipt: ${done.receiptRel}.${done.result.backupDir ? ` Backups: ${tilde(done.result.backupDir)} (inside the Git folder, never committed).` : ""}`);
     current = loadProject(ctx.root, { allowLegacy: true });
+  }
+  const ignored = await checkPrivateEvidence(ctx.root, applied);
+  if (ignored !== true) {
+    const problem = ignored === false
+      ? `.skilliton/private-evidence/ is not ignored by Git in this project after the move, so evidence there could be committed. Do not commit yet: find the .gitignore rule that re-includes it (git check-ignore -v --no-index .skilliton/private-evidence/x shows the rule), fix it, then commit`
+      : `whether .skilliton/private-evidence/ is ignored by Git could not be checked; before committing, run git check-ignore --no-index .skilliton/private-evidence/x and confirm it prints the path`;
+    say("");
+    say(`Summary: layout ${current.layoutVersion}; ${applied.length} migration(s) applied (${applied.join(", ")}), but ${problem}.`);
+    return 1;
   }
   say("");
   say(`Summary: layout ${current.layoutVersion}; ${applied.length} migration(s) applied (${applied.join(", ")}). Commit the changed files together with the receipt(s). Next: skilliton migrate --dir ${argPath(ctx.root)} shows anything else current expects. To undo: node scripts/legacy-migrate.mjs --dir ${argPath(ctx.root)} --rollback ${applied.at(-1)} --apply`);

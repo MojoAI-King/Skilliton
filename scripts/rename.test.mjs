@@ -21,6 +21,11 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const REPO = join(here, "..");
 const CLI = join(here, "skilliton.mjs");
+// 0003-skilliton-names itself now runs through this one-shot script (N19, B69), not skilliton migrate, which refuses
+// a layout-2 project and names this script instead; skilliton migrate keeps the instructions refresh (0100-...) and
+// 0004-security-findings-file. legacyMigrate below calls it the way sg calls CLI, minus the "migrate" subcommand
+// token this script does not take (it is its own entry point, not a skilliton.mjs subcommand).
+const LEGACY_CLI = join(here, "legacy-migrate.mjs");
 const GUARD = join(REPO, "packs", "base", "plugins", "guardrails", "hooks", "guard-bash.sh");
 // The last commit before the rename. It was e5900d5 until the history rewrite of 2026-09-23, which kept its tree and
 // author date and gave it this hash; e5900d5 is in no clone made since.
@@ -55,6 +60,9 @@ function sg(ctx, args, { env = {}, cli = CLI, cwd = ctx.dir } = {}) {
   const r = spawnSync(process.execPath, [cli, ...args], { cwd, env: { ...ctx.env, ...env }, encoding: "utf8" });
   return { code: r.status, out: r.stdout, err: r.stderr, all: `${r.stdout}${r.stderr}` };
 }
+// 0003-skilliton-names, previewed/applied/rolled back through scripts/legacy-migrate.mjs; same args as sg's "migrate"
+// calls, minus the leading "migrate" token.
+const legacyMigrate = (ctx, ...args) => sg(ctx, args, { cli: LEGACY_CLI });
 
 // The earlier release's runtime, skills repository files and command line, extracted from Git history.
 function earlierRelease(ctx) {
@@ -125,14 +133,14 @@ test("a project the earlier release prepared is refused by other commands, migra
   }
   assert.deepEqual(snapshot(ctx.dir), before, "refused commands wrote nothing");
 
-  const preview = sg(ctx, ["migrate", "--dir", ctx.dir]);
+  const preview = legacyMigrate(ctx, "--dir", ctx.dir);
   assert.equal(preview.code, 1, preview.all);
   assert.match(preview.out, /0003-skilliton-names \(layout 2 to 3\)/);
   assert.match(preview.out, /create\s+\.skilliton\/private-evidence\/run\.txt/);
   assert.match(preview.out, /update\s+\.claude\/settings\.json\s+the marketplace "skillgate" and its plugin keys renamed to "skilliton"/);
   assert.deepEqual(snapshot(ctx.dir), before, "the preview wrote nothing");
 
-  const applied = sg(ctx, ["migrate", "--dir", ctx.dir, "--apply"]);
+  const applied = legacyMigrate(ctx, "--dir", ctx.dir, "--apply");
   assert.equal(applied.code, 0, applied.all);
   assert.equal(existsSync(join(ctx.dir, ".skillgate")), false, "the earlier folder is gone");
   const config = JSON.parse(read(ctx, ".skilliton/config.json"));
@@ -161,7 +169,7 @@ test("a project the earlier release prepared is refused by other commands, migra
   assert.equal(check.code, 0, `nothing else is missing or outdated after the migration: ${check.all}`);
   assert.doesNotMatch(Object.entries(snapshot(ctx.dir)).filter(([p]) => !p.endsWith("/") && !p.startsWith("docs/decisions/2") && !p.startsWith(".skilliton/migrations/") && p !== ".gitignore").map(([p, b]) => `${p}\n${Buffer.from(b, "base64").toString("utf8")}`).join("\n"), /skillgate:harness|skillgate:index|\.skillgate\//, "no generated marker or path under the earlier names is left");
 
-  const rolled = sg(ctx, ["migrate", "--dir", ctx.dir, "--rollback", "0003-skilliton-names", "--apply"]);
+  const rolled = legacyMigrate(ctx, "--dir", ctx.dir, "--rollback", "0003-skilliton-names", "--apply");
   assert.equal(rolled.code, 0, rolled.all);
   assert.deepEqual(snapshot(ctx.dir), before, "every file, including the ignored evidence, is back as the earlier release left it");
 });
@@ -172,7 +180,7 @@ test("migration 0003 refuses what it cannot move safely, and changes nothing", {
   const attempt = (label, setup, message, undo) => {
     setup();
     const before = snapshot(ctx.dir);
-    const r = sg(ctx, ["migrate", "--dir", ctx.dir, "--apply"]);
+    const r = legacyMigrate(ctx, "--dir", ctx.dir, "--apply");
     assert.equal(r.code, 2, `${label}: ${r.all}`);
     assert.match(r.err, message, label);
     assert.deepEqual(snapshot(ctx.dir), before, `${label}: nothing changed`);
@@ -202,11 +210,11 @@ test("migration 0003 refuses what it cannot move safely, and changes nothing", {
   attempt("a managed block a person edited", () => writeFileSync(join(ctx.dir, "CLAUDE.md"), text.replace(inner, `${inner}A line a person added inside the block.\n`)),
     /managed instruction block in CLAUDE\.md is neither what the earlier release writes for the current template nor what its last instructions receipt/, () => writeFileSync(join(ctx.dir, "CLAUDE.md"), text));
 
-  const applied = sg(ctx, ["migrate", "--dir", ctx.dir, "--apply"]);
+  const applied = legacyMigrate(ctx, "--dir", ctx.dir, "--apply");
   assert.equal(applied.code, 0, `with every obstacle removed the project migrates: ${applied.all}`);
   // A receipt the earlier runtime wrote moves with the project, is listed as applied, and is never rolled back by this one.
   for (const stage of ["after the move", "after rolling the move back"]) {
-    if (stage === "after rolling the move back") { const back = sg(ctx, ["migrate", "--dir", ctx.dir, "--rollback", "0003-skilliton-names", "--apply"]); assert.equal(back.code, 0, back.all); }
+    if (stage === "after rolling the move back") { const back = legacyMigrate(ctx, "--dir", ctx.dir, "--rollback", "0003-skilliton-names", "--apply"); assert.equal(back.code, 0, back.all); }
     const before = snapshot(ctx.dir);
     const legacy = sg(ctx, ["migrate", "--dir", ctx.dir, "--rollback", "0100-instructions-aaaaaaaaaaaa", "--apply"]);
     assert.equal(legacy.code, 2, `${stage}: ${legacy.all}`);
@@ -222,7 +230,7 @@ test("review regressions: evidence stays out of Git, receipts cannot be bent, an
   const claude = read(edited, "CLAUDE.md");
   writeFileSync(join(edited.dir, "CLAUDE.md"), claude.replace("<!-- skillgate:harness:end -->", "A rule a person added inside the block.\n<!-- skillgate:harness:end -->"));
   const beforeEdit = snapshot(edited.dir);
-  const refusedEdit = sg(edited, ["migrate", "--dir", edited.dir, "--apply"]);
+  const refusedEdit = legacyMigrate(edited, "--dir", edited.dir, "--apply");
   assert.equal(refusedEdit.code, 2, refusedEdit.all);
   assert.match(refusedEdit.err, /CLAUDE\.md is neither what the earlier release writes for the current template nor what an earlier instructions receipt recorded/);
   assert.deepEqual(snapshot(edited.dir), beforeEdit);
@@ -234,7 +242,7 @@ test("review regressions: evidence stays out of Git, receipts cannot be bent, an
   const settings = JSON.parse(readFileSync(settingsPath, "utf8"));
   settings.extraKnownMarketplaces.skilliton = { source: { source: "github", repo: "example/other" } };
   writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
-  const collision = sg(both, ["migrate", "--dir", both.dir, "--apply"]);
+  const collision = legacyMigrate(both, "--dir", both.dir, "--apply");
   assert.equal(collision.code, 2, collision.all);
   assert.match(collision.err, /already has the marketplace key "skilliton" beside the earlier "skillgate" entries/);
   const settingsBefore = sg(both, ["project-settings", "--dir", both.dir, "--template", join(REPO, "templates", "project-settings.json"), "--apply"]);
@@ -244,20 +252,20 @@ test("review regressions: evidence stays out of Git, receipts cannot be bent, an
   const ignore = fixture(t);
   earlierProject(ignore);
   writeFileSync(join(ignore.dir, ".gitignore"), ".skillgate/private-evidence\n.skillgate/prepare.lock\n");
-  assert.equal(sg(ignore, ["migrate", "--dir", ignore.dir, "--apply"]).code, 0);
+  assert.equal(legacyMigrate(ignore, "--dir", ignore.dir, "--apply").code, 0);
   assert.equal(spawnSync("git", ["-C", ignore.dir, "check-ignore", "-q", ".skilliton/private-evidence/run.txt"]).status, 0, "the moved evidence is ignored");
 
   // A rule that re-includes the moved evidence makes the migration stop short of saying "commit".
   const negated = fixture(t);
   earlierProject(negated);
   writeFileSync(join(negated.dir, ".gitignore"), `${read(negated, ".gitignore")}/.skilliton/private-evidence/\n!/.skilliton/private-evidence/\n`);
-  const exposed = sg(negated, ["migrate", "--dir", negated.dir, "--apply"]);
+  const exposed = legacyMigrate(negated, "--dir", negated.dir, "--apply");
   assert.equal(exposed.code, 1, exposed.all);
   assert.match(exposed.out, /\.skilliton\/private-evidence\/ is not ignored by Git in this project after the move, so evidence there could be committed\. Do not commit yet/);
 
   // Evidence written after the migration blocks the rollback that would leave it outside every ignore line.
   writeFileSync(join(ignore.dir, ".skilliton", "private-evidence", "later.txt"), "collected after the move\n");
-  const leftBehind = sg(ignore, ["migrate", "--dir", ignore.dir, "--rollback", "0003-skilliton-names", "--apply"]);
+  const leftBehind = legacyMigrate(ignore, "--dir", ignore.dir, "--rollback", "0003-skilliton-names", "--apply");
   assert.equal(leftBehind.code, 2, leftBehind.all);
   assert.match(leftBehind.err, /1 file\(s\) were added under \.skilliton\/ after the migration \(\.skilliton\/private-evidence\/later\.txt\)/);
   rmSync(join(ignore.dir, ".skilliton", "private-evidence", "later.txt"));
@@ -269,7 +277,7 @@ test("review regressions: evidence stays out of Git, receipts cannot be bent, an
   writeFileSync(join(ignore.dir, ".skilliton", "delivery.json"), "{}\n");
   receipt.files.push({ path: ".skilliton/delivery.json", action: "create", beforeSha256: null, afterSha256: sha256(Buffer.from("{}\n")) });
   writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
-  const bent = sg(ignore, ["migrate", "--dir", ignore.dir, "--rollback", "0003-skilliton-names", "--apply"]);
+  const bent = legacyMigrate(ignore, "--dir", ignore.dir, "--rollback", "0003-skilliton-names", "--apply");
   assert.equal(bent.code, 2, bent.all);
   assert.match(bent.err, /lists \.skilliton\/delivery\.json without the matching move from \.skillgate\//);
   assert.ok(existsSync(join(ignore.dir, ".skilliton", "delivery.json")), "the file the migration never created was not deleted");
@@ -284,8 +292,8 @@ test("review regressions: evidence stays out of Git, receipts cannot be bent, an
   mkdirSync(join(dated.dir, ".skillgate", "migrations"), { recursive: true });
   writeFileSync(join(dated.dir, ".skillgate", "migrations", "0100-instructions-bbbbbbbbbbbb.json"), `${JSON.stringify(future, null, 2)}\n`);
   const datedBefore = snapshot(dated.dir);
-  assert.equal(sg(dated, ["migrate", "--dir", dated.dir, "--apply"]).code, 0);
-  const undone = sg(dated, ["migrate", "--dir", dated.dir, "--rollback", "0003-skilliton-names", "--apply"]);
+  assert.equal(legacyMigrate(dated, "--dir", dated.dir, "--apply").code, 0);
+  const undone = legacyMigrate(dated, "--dir", dated.dir, "--rollback", "0003-skilliton-names", "--apply");
   assert.equal(undone.code, 0, undone.all);
   assert.deepEqual(snapshot(dated.dir), datedBefore);
 });
@@ -328,7 +336,7 @@ test("files under .skillgate whose names differ only in letter case are refused,
   writeFileSync(join(ctx.dir, ".skillgate", "Notes.txt"), "one\n");
   writeFileSync(join(ctx.dir, ".skillgate", "notes.txt"), "two\n");
   if (readdirSync(join(ctx.dir, ".skillgate")).filter((n) => n.toLowerCase() === "notes.txt").length < 2) { t.skip("NOT RUN: this file system ignores letter case, so both files cannot exist"); return; }
-  const r = sg(ctx, ["migrate", "--dir", ctx.dir, "--apply"]);
+  const r = legacyMigrate(ctx, "--dir", ctx.dir, "--apply");
   assert.equal(r.code, 2, r.all);
   assert.match(r.err, /differ only in letter case/);
 });
