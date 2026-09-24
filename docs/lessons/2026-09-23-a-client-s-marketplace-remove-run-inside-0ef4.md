@@ -24,4 +24,4 @@ Run a client's plugin or marketplace command that changes state from a neutral w
 
 ## What now enforces it
 
-The pin lane's test (the settings file of a fixture project is unchanged after a pin move); nothing yet enforces it for a person or a session running the client by hand.
+`scripts/pin-marketplace.test.mjs`: every stub client call made by `pin` and `join` runs from a folder that is not the project, and a fixture project's `.claude/settings.json` is byte-identical before and after (runtime/lib/marketplace-pin.mjs runs each client command from a new empty temporary folder). Nothing enforces it for a person or a session running the client by hand.
