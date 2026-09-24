@@ -37,8 +37,7 @@ import { REDACTION_SHAPES } from "./secret-rules.mjs";
 const PROBE = join(PLUGIN_ROOT, "runtime", "preflight", "probe.sh");
 const LS_REMOTE_TIMEOUT_MS = 45000;
 const MAX_OUTPUT = 4 * 1024 * 1024;
-// How long to wait after killing a program's process group before answering anyway.
-const AFTER_KILL_MS = 1500;
+const AFTER_KILL_MS = 1500; // how long to wait after killing a program's process group before answering anyway
 // Claude Code installs a plugin under <config>/plugins/cache/<marketplace>/<plugin>/<version>/. A check run from a
 // clone of the skills repository exercises that clone's folder, not the cache, and says so.
 const INSTALLED_COPY = /[\\/]plugins[\\/]cache[\\/]/;
@@ -78,6 +77,7 @@ export const PROGRAMS = [
   { name: "ls", by: "hook", need: "feature", what: "the drift check, finding the newest transcript", blocks: "sessions" },
   { name: "xargs", by: "hook", need: "feature", what: "the scrub check that import and propose run", blocks: "sessions" },
   { name: "tar", by: "runtime", need: "feature", what: "the delivery gate on a shared repository", blocks: "sessions" },
+  { name: "ps", by: "runtime", need: "feature", what: "a failing skilliton gate verdict naming the other node processes running", blocks: null },
   { name: "cp", by: "hook", need: "maintainer", what: "the scrub check's own self-test", blocks: null },
   { name: "mktemp", by: "hook", need: "maintainer", what: "the scrub check's own self-test", blocks: null },
   { name: "rm", by: "hook", need: "maintainer", what: "the scrub check's own self-test", blocks: null },

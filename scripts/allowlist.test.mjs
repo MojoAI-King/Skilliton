@@ -164,8 +164,7 @@ export const STARTED_BY_OTHERS = [
   ["sh", "the same shell, named without its path"],
 ];
 
-// Where the code reaches outside a repository, and the section 2 location each belongs to. The text is matched
-// against the file, so changing one of these lines brings someone back to this list and to the allow list.
+// Where the code reaches outside a repository and its section 2 location; matched against the file, so an edit brings someone back here.
 export const OUTSIDE_A_REPOSITORY = [
   [`${WORKFLOW}/runtime/lib/core.mjs`, "const HOME = homedir();", "the backups folder ~/.claude/backups/skilliton/ and short paths in messages"],
   [`${WORKFLOW}/runtime/lib/join.mjs`, 'process.env.SKILLITON_JOIN_DIR || join(homedir(), ".config", "skilliton", "joined")', "~/.config/skilliton/joined/<company>.json"],
@@ -173,6 +172,7 @@ export const OUTSIDE_A_REPOSITORY = [
   [`${WORKFLOW}/runtime/lib/trust.mjs`, 'process.env.SKILLITON_TRUST_DIR || join(homedir(), ".config", "skilliton", "trust")', "~/.config/skilliton/trust/<company>.allowed_signers"],
   [`${WORKFLOW}/runtime/lib/verify.mjs`, 'process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude")', "Claude Code's own folder, read, and written by its own commands"],
   [`${WORKFLOW}/runtime/lib/verify.mjs`, 'process.env.CODEX_HOME || join(homedir(), ".codex")', "Codex's own folder, read, and created by join when it is missing"],
+  [`${WORKFLOW}/runtime/lib/skill-drift.mjs`, 'process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude")', "Claude Code's own folder, read only by the session start to compare a project's skill copies"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, "process.env.HOME !== pinned.home", "nothing: it compares this session's home folder with the one the system records, to say which the reachability check read"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, "the home folder the system records for this user", "nothing: the same comparison, printed"],
   [`${WORKFLOW}/runtime/lib/legacy-names.mjs`, 'join(homedir(), ".config", OLD)', "the folder used before the rename, named in messages and never written"],
