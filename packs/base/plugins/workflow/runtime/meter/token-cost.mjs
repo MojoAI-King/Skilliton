@@ -31,8 +31,9 @@
 // Tier 1 (real quota, logged by the status line) is the number that matters.
 //
 // Usage:
-//   node token-cost.mjs [FROM_DAY TO_DAY] [--project <substring>]... [--until <ISO time>] [--by-project] [--json]
-//   FROM_DAY/TO_DAY are YYYY-MM-DD in SKILLITON_TZ, inclusive. --project matches the project
+//   node token-cost.mjs [FROM_DAY TO_DAY] [--project <substring>]... [--since <ISO time>] [--until <ISO time>] [--by-project] [--json]
+//   FROM_DAY/TO_DAY are YYYY-MM-DD in SKILLITON_TZ, inclusive. --since is exclusive and --until inclusive, so two
+//   windows that share an end count no record twice; the day form and the instant form compose. --project matches the project
 //   directory name, case-insensitive; repeat it for a union. Project names are passed on the
 //   command line only and never committed.
 //
@@ -48,17 +49,24 @@ import { priceTokens } from "./pricing.mjs";
 const FIELDS = ["requests", "input", "output", "cache_read", "cache_write_5m", "cache_write_1h"];
 const out = (line = "") => process.stdout.write(`${line}\n`);
 
+// A time given with --since or --until, or exit 2 naming it.
+function timeArg(name, value) {
+  if (!value) return null;
+  const ms = Date.parse(value);
+  if (Number.isNaN(ms)) { process.stderr.write(`${name} is not a valid time: ${value}\n`); process.exit(2); }
+  return ms;
+}
+
 function parseMeterArgs(argv) {
   const flag = (k) => argv.includes(k);
   const values = (k) => argv.flatMap((a, i) => (a === k && argv[i + 1] ? [argv[i + 1]] : []));
+  const since = values("--since")[0];
   const until = values("--until")[0];
-  const untilMs = until ? Date.parse(until) : null;
-  if (until && Number.isNaN(untilMs)) { process.stderr.write(`--until is not a valid time: ${until}\n`); process.exit(2); }
-  const valueArgs = new Set(argv.flatMap((a, i) => (["--project", "--until"].includes(a) ? [i + 1] : [])));
+  const valueArgs = new Set(argv.flatMap((a, i) => (["--project", "--since", "--until"].includes(a) ? [i + 1] : [])));
   const [from, to] = argv.filter((a, i) => !a.startsWith("--") && !valueArgs.has(i));
   return {
     json: flag("--json"), byProject: flag("--by-project"), projects: values("--project").map((p) => p.toLowerCase()),
-    until, untilMs, from, to,
+    since, sinceMs: timeArg("--since", since), until, untilMs: timeArg("--until", until), from, to,
   };
 }
 
@@ -128,10 +136,14 @@ function tokensOf(u) {
   };
 }
 
+// The day form and the instant form compose: a record is in the window when its day is inside FROM_DAY..TO_DAY (when
+// given) and its time is after --since (exclusive) and at or before --until (inclusive), so windows that share an end
+// never count a record twice.
 function outOfWindow(s, ms) {
-  const { from, to, untilMs } = s.opts;
+  const { from, to, sinceMs, untilMs } = s.opts;
   const day = new Date(ms).toLocaleDateString("en-CA", { timeZone: s.tz }); // YYYY-MM-DD
-  return { day, out: (from && day < from) || (to && day > to) || (untilMs != null && ms > untilMs) };
+  const outside = (from && day < from) || (to && day > to) || (sinceMs != null && ms <= sinceMs) || (untilMs != null && ms > untilMs);
+  return { day, out: Boolean(outside) };
 }
 
 function addRecord(s, rec, file) {
@@ -208,19 +220,19 @@ function jsonReport(s) {
     sc.peak_context = Math.max(sc.peak_context, b.peak_context);
   }
   for (const sc of Object.values(byScope)) { sc.cost_usd = round(sc.cost_usd); sc.cost_all_5m_usd = round(sc.cost_all_5m_usd); }
-  const { from, to, until, projects } = s.opts;
+  const { from, to, since, until, projects } = s.opts;
   return {
-    ...s.counters, tz: s.tz, window: { from: from ?? null, to: to ?? null, until: until ?? null }, projects,
+    ...s.counters, tz: s.tz, window: { from: from ?? null, to: to ?? null, since: since ?? null, until: until ?? null }, projects,
     unpriced_models: s.unpriced, incomplete: isIncomplete(s), byScope,
   };
 }
 
 function tableReport(s) {
   const c = s.counters;
-  const { byProject, until, projects } = s.opts;
+  const { byProject, since, until, projects } = s.opts;
   const ratio = (c.records / Math.max(c.distinct, 1)).toFixed(2);
   out(`files=${c.files} records=${c.records} distinct=${c.distinct} duplicates=${c.duplicates} dedup_ratio=${ratio}x tz=${s.tz}`
-    + `${until ? ` until=${until}` : ""}${projects.length ? ` projects=${projects.length} filter(s)` : ""}`);
+    + `${since ? ` since=${since}` : ""}${until ? ` until=${until}` : ""}${projects.length ? ` projects=${projects.length} filter(s)` : ""}`);
   out(`not summed: no_ids=${c.no_ids} no_timestamp=${c.no_timestamp} unparseable_lines=${c.unparseable_lines} unreadable_files=${c.unreadable_files}`
     + ` out_of_window=${c.out_of_window} filtered_project=${c.filtered_project} synthetic=${c.synthetic}`);
   const width = byProject ? 40 : 10;

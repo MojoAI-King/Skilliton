@@ -94,6 +94,19 @@ check("until out_of_window (window is checked before the project filter)", u.out
 scope("until", u, "top", { requests: 2, peak_context: 3010, cost_usd: 0.0081 });
 check("until subagent absent", u.byScope.subagent, undefined);
 
+// --since is exclusive and --until inclusive, so windows that share an end never count a record twice.
+// proj-a, (14:00Z, 16:00Z]: r1 sits exactly on --since and is out; r2 (15:00Z) and r3 (16:00Z, exactly on --until) are
+// in: 1850 + 17300 = 19150 micro-usd; peak 3010 (r2). Out of window: r1 (on --since), r4 (16:30Z), r5, r7 and r9 = 5.
+const si = run("--project", "proj-a", "--since", "2026-09-14T14:00:00Z", "--until", "2026-09-14T16:00:00Z");
+check("since out_of_window", si.out_of_window, 5);
+scope("since", si, "top", { requests: 2, input: 15, peak_context: 3010, cost_usd: 0.01915 });
+check("since is named in the window", si.window.since, "2026-09-14T14:00:00Z");
+// The two forms compose: Sep 15 alone keeps r5 (12:00Z) and r7 (12:10Z); --since 12:00Z then drops r5, which sits on
+// it, leaving r7 (unpriced, input 10). r9 is synthetic and is counted as such, never as a request.
+const sd = run("2026-09-15", "2026-09-15", "--since", "2026-09-15T12:00:00Z");
+scope("day and since", sd, "top", { requests: 1, input: 10, cost_usd: 0 });
+check("day and since unpriced", sd.unpriced_models, { "claude-unknown-9": 1 });
+
 // day window: Sep 15 only (America/New_York) keeps r5 and r7
 const d = run("2026-09-15", "2026-09-15");
 scope("day window", d, "top", { requests: 2, input: 1010, peak_context: 12000, cost_usd: 0.07 });

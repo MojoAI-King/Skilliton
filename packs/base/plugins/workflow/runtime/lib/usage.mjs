@@ -5,14 +5,22 @@
 // same contract. This file finds it, refuses to believe it until its own test has passed in this run, works out the
 // window each merged batch covers, and turns the meter's JSON into rows.
 //
-// Two limits are deliberate, and both are printed rather than hidden:
+// A batch ends at a boundary, and there are three kinds, because a merge commit alone misses most of them: a
+// repository that fast-forwards, or commits straight to its integration branch, makes no merge commit at all.
 //
-//   1. The meter buckets by day, in its own timezone. A batch's window is therefore whole days, from the day after
-//      the previous batch merged through the day this one merged, and not the two merge instants. Rows tile the
-//      calendar exactly: no day is counted twice and no day is left out. A day carrying two merges is one row naming
-//      both, because this meter cannot separate them and a row that pretended otherwise would be a made-up number.
-//   2. Every figure is reconstructed from local transcripts. It is not a bill. PLAN.md sections 6 and 8 govern any
-//      number that leaves this repository, and nothing here may be turned into a sentence about savings.
+//   maintain  a maintain event in this machine's journal (lib/journal.mjs; the journal lives under the Git folder, so it
+//             is one machine's and is never committed)
+//   task      a task record whose State is merged, done-local, released or verified, at its Updated time
+//   merge     a merge commit on the current branch, at its committer time
+//
+// A row runs from the instant the previous row ended (exclusive) to the latest boundary it names (inclusive), and the
+// meter is asked for exactly that span with --since and --until, so rows tile time with no gap and no overlap.
+// Boundaries inside the same clock minute are one row naming all of them: a merge, the task it closed and the
+// maintenance after it are one piece of work, and splitting them would make rows of a few seconds each. The oldest row
+// has no lower bound, and says so rather than inventing a start.
+//
+// Every figure is reconstructed from local transcripts. It is not a bill. PLAN.md sections 6 and 8 govern any number
+// that leaves this repository, and nothing here may be turned into a sentence about savings.
 
 import { existsSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
@@ -122,20 +130,15 @@ export function proveMeter(meter) {
   return { test: meter.test, summary: summary.length > 120 ? `${summary.slice(0, 120)} ...` : summary };
 }
 
-// The day a moment falls on, in the meter's timezone, as YYYY-MM-DD. The meter buckets by the same rule, so a window
-// worked out here and a window the meter reports mean the same thing.
-function dayIn(iso, tz) {
-  const at = new Date(iso);
-  if (Number.isNaN(at.getTime())) {
-    throw new OperationFailed(`git reported a commit date this command cannot read: ${JSON.stringify(iso)}`);
-  }
-  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(at);
-}
+// The task states that end a piece of work, and so end a batch. abandoned is closed too, but nothing was delivered by
+// it, so it bounds nothing.
+const BATCH_TASK_STATES = ["merged", "done-local", "released", "verified"];
 
-const dayAfter = (day) => {
-  const [y, m, d] = day.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
-};
+function instant(iso, what) {
+  const ms = Date.parse(iso ?? "");
+  if (Number.isNaN(ms)) throw new OperationFailed(`${what} this command cannot read: ${JSON.stringify(iso)}`);
+  return ms;
+}
 
 // The merge commits git reported, newest first: [{ sha, shortSha, at, subject }]. The fields arrive NUL separated so
 // a subject carrying anything at all cannot be mistaken for a field boundary.
@@ -146,28 +149,58 @@ export function parseMerges(stdout) {
   });
 }
 
-// One row per day that ended in a merge, oldest first, each with the whole days it covers. The oldest row has no
-// lower bound: everything the meter can see up to that day belongs to it, and the row says so rather than inventing
-// a start. `limit` keeps the newest rows, and the row that then becomes the oldest keeps its real lower bound.
-export function batchRows(merges, tz, { limit = null } = {}) {
-  const byDay = new Map();
-  for (const m of [...merges].reverse()) {
-    const day = dayIn(m.at, tz);
-    if (!byDay.has(day)) byDay.set(day, []);
-    byDay.get(day).push(m);
+// Every boundary, oldest first: { kind, at (ISO), ms, ... }. maintains are journal events, tasks are task records
+// (lib/tasks.mjs), merges come from parseMerges. A time that cannot be read is a failure, never a guess.
+export function batchBoundaries({ maintains = [], tasks = [], merges = [] }) {
+  const out = [];
+  for (const e of maintains) {
+    if (e.event !== "maintain") continue;
+    out.push({ kind: "maintain", at: e.at, ms: instant(e.at, "the journal holds a maintain event time") });
   }
-  const days = [...byDay.keys()].sort();
-  const all = days.map((day, i) => ({ day, merges: byDay.get(day), from: i === 0 ? null : dayAfter(days[i - 1]), to: day }));
-  return limit !== null && all.length > limit ? all.slice(all.length - limit) : all;
+  for (const t of tasks) {
+    if (!BATCH_TASK_STATES.includes(t.state)) continue;
+    const ms = instant(t.updated, `task ${t.id} has an Updated time`);
+    out.push({ kind: "task", at: new Date(ms).toISOString(), ms, id: t.id, title: t.title, state: t.state });
+  }
+  for (const m of merges) out.push({ kind: "merge", at: m.at, ms: instant(m.at, "git reported a commit date"), ...m });
+  return out.sort((a, b) => a.ms - b.ms);
 }
 
-// The meter, over one row's window. `projects` is passed straight through: a project folder name is particular to one
-// machine and is never written into this repository, so it arrives on the command line and goes no further.
-export function meterWindow(meter, { from, to, projects = [], env = process.env }) {
-  const args = [from ?? "1970-01-01", to];
+// One row per clock minute that holds a boundary, oldest first: { from, to, tasks, merges, maintains }. from is the
+// previous row's to (or `since`, or null for the oldest row), to is the latest boundary in the row. `since` drops every
+// boundary at or before it. `limit` keeps the newest rows, and the row that then becomes the oldest keeps its real
+// lower bound.
+export function batchRows(boundaries, { limit = null, since = null } = {}) {
+  const sinceMs = since ? instant(since, "the start of the range is a time") : null;
+  const groups = new Map();
+  for (const b of boundaries) {
+    if (sinceMs !== null && b.ms <= sinceMs) continue;
+    const minute = Math.floor(b.ms / 60000);
+    if (!groups.has(minute)) groups.set(minute, []);
+    groups.get(minute).push(b);
+  }
+  const rows = [];
+  let from = since ? new Date(sinceMs).toISOString() : null;
+  for (const minute of [...groups.keys()].sort((a, b) => a - b)) {
+    const group = groups.get(minute);
+    const to = new Date(Math.max(...group.map((b) => b.ms))).toISOString();
+    const of = (kind) => group.filter((b) => b.kind === kind);
+    rows.push({ from, to, tasks: of("task"), merges: of("merge"), maintains: of("maintain") });
+    from = to;
+  }
+  return limit !== null && rows.length > limit ? rows.slice(rows.length - limit) : rows;
+}
+
+// The meter, over one span. `since` is exclusive and `until` inclusive, the way the meter reads them; either may be
+// null. `projects` is passed straight through: a project folder name is particular to one machine and is never written
+// into this repository, so it arrives on the command line and goes no further.
+export function meterWindow(meter, { since = null, until = null, projects = [], env = process.env }) {
+  const args = [];
+  if (since) args.push("--since", since);
+  if (until) args.push("--until", until);
   for (const p of projects) args.push("--project", p);
   args.push("--json");
-  const where = `${from ?? "the earliest day the meter can see"}..${to}`;
+  const where = `${since ?? "the earliest record the meter can see"}..${until ?? "now"}`;
   const r = runMeter(meter.path, args, env);
   if (!r.ok) {
     const why = (r.stderr || r.stdout || "").trim().split("\n").slice(-3).join(" ");
@@ -176,7 +209,7 @@ export function meterWindow(meter, { from, to, projects = [], env = process.env 
   const parsed = parseMeterJson(r, where);
   if (parsed.tz && parsed.tz !== meterTz(env)) {
     throw new OperationFailed(`the windows were worked out in ${meterTz(env)} and the meter buckets in ${parsed.tz}, so the rows would not line `
-      + "up with the days they name. Set SKILLITON_TZ to one of them and run it again");
+      + "up with the times they name. Set SKILLITON_TZ to one of them and run it again");
   }
   return parsed;
 }
@@ -197,34 +230,60 @@ export function foldScopes(parsed) {
   return { total, byScope, incomplete: Boolean(parsed.incomplete), unpriced: Object.keys(parsed.unpriced_models ?? {}) };
 }
 
+// An instant as "YYYY-MM-DD HH:MM" in the meter's timezone, which the scorecard names on its second line.
+function localTime(iso, tz) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(iso));
+  const v = (type) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${v("year")}-${v("month")}-${v("day")} ${v("hour")}:${v("minute")}`;
+}
+
 const num = (v) => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const cell = (s, w) => String(s).padStart(w);
+const WINDOW_WIDTH = 34;
 const HEAD = [
-  ["days", 24, false], ["merges", 7, false], ["scope", 10, false], ["requests", 9, true], ["input", 12, true], ["output", 11, true],
-  ["cache read", 13, true], ["cache write", 13, true], ["est usd", 9, true],
+  ["window", WINDOW_WIDTH, false], ["ends", 5, false], ["scope", 10, false], ["requests", 9, true], ["input", 12, true], ["output", 11, true],
+  ["cache read", 14, true], ["cache write", 13, true], ["est usd", 9, true],
 ];
 const line = (values) => HEAD.map(([, w, right], i) => (right ? cell(values[i], w) : String(values[i]).padEnd(w))).join(" ").trimEnd();
+const indent = "".padEnd(WINDOW_WIDTH);
+
+// What ended a row, one line each, in time order.
+function boundaryLines(row, tz) {
+  const all = [...row.maintains, ...row.tasks, ...row.merges].sort((a, b) => a.ms - b.ms);
+  return all.map((b) => {
+    if (b.kind === "task") return `task ${b.id} closed ${b.state} at ${localTime(b.at, tz)}`;
+    if (b.kind === "merge") return `merge ${b.shortSha} ${b.subject}`;
+    return `maintain event at ${localTime(b.at, tz)}`;
+  });
+}
+
+function rowLines(row, tz) {
+  const out = [];
+  const window = `${row.from ? localTime(row.from, tz) : "(earliest)"}..${localTime(row.to, tz)}`;
+  const names = Object.keys(row.folded.byScope).sort();
+  const shown = names.length > 1 ? [...names, "total"] : (names.length ? names : ["total"]);
+  const ends = row.tasks.length + row.merges.length + row.maintains.length;
+  for (const [i, scope] of shown.entries()) {
+    const v = scope === "total" ? row.folded.total : row.folded.byScope[scope];
+    const figures = [num(v.requests), num(v.input), num(v.output), num(v.cache_read), num(v.cache_write_5m + v.cache_write_1h), v.cost_usd.toFixed(2)];
+    out.push(line([i === 0 ? window : "", i === 0 ? ends : "", scope, ...figures]));
+  }
+  for (const l of boundaryLines(row, tz)) out.push(`${indent} ${l}`);
+  const unpriced = row.folded.unpriced.length ? `; unpriced model(s): ${row.folded.unpriced.join(", ")}` : "";
+  if (row.folded.incomplete) out.push(`${indent} INCOMPLETE: the meter could not price part of this window${unpriced}. Do not quote this row.`);
+  return out;
+}
 
 // The scorecard, as lines. It never says a number went down: a sentence about savings needs the usage screen and a
 // cross-check, and it has no business being produced by something that only reads transcripts.
 export function describeUsage({ rows, tz, meter, proof, projects }) {
   const out = [`meter: ${meter.path}, proved in this run by ${meter.test} (${proof.summary})`];
   const which = projects.length ? `; projects: ${projects.join(", ")}` : "; every project on this machine";
-  out.push(`windows are whole days in ${tz}, because that is how the meter buckets${which}`);
-  if (!rows.length) return [...out, "no merge commit was found in the range given, so there is no batch to report."];
+  out.push(`windows run from the end of the previous row to the last boundary in this one, in ${tz}${which}`);
+  if (!rows.length) return [...out, "no batch boundary (a maintain event, a closed task or a merge commit) was found, so there is no batch to report."];
   out.push("", line(HEAD.map(([name]) => name)));
-  for (const row of rows) {
-    const window = `${row.from ?? "(earliest)"}..${row.to}`;
-    const names = Object.keys(row.folded.byScope).sort();
-    const shown = names.length > 1 ? [...names, "total"] : (names.length ? names : ["total"]);
-    for (const [i, scope] of shown.entries()) {
-      const v = scope === "total" ? row.folded.total : row.folded.byScope[scope];
-      const figures = [num(v.requests), num(v.input), num(v.output), num(v.cache_read), num(v.cache_write_5m + v.cache_write_1h), v.cost_usd.toFixed(2)];
-      out.push(line([i === 0 ? window : "", i === 0 ? row.merges.length : "", scope, ...figures]));
-    }
-    for (const m of row.merges) out.push(`${"".padEnd(24)} ${m.shortSha} ${m.subject}`);
-    const unpriced = row.folded.unpriced.length ? `; unpriced model(s): ${row.folded.unpriced.join(", ")}` : "";
-    if (row.folded.incomplete) out.push(`${"".padEnd(24)} INCOMPLETE: the meter could not price part of this window${unpriced}. Do not quote this row.`);
-  }
+  for (const row of rows) out.push(...rowLines(row, tz));
   return [...out, "", RECONSTRUCTION_NOTE];
 }

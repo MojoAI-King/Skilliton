@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// usage.test.mjs: `skilliton usage` groups the meter's reading by the batches that merged, refuses when the meter is
-// not there, and reports nothing at all when the meter's own test fails (PLAN.md section 6; report card area 04
-// batch 04 item 2).
+// usage.test.mjs: `skilliton usage` groups the meter's reading by batch (a batch ends at a maintain event, a closed
+// task or a merge commit), picks the meter it believes, and reports nothing at all when the meter's own test fails
+// (PLAN.md section 6; report card area 04 batch 04 item 2).
 //
 //   node scripts/usage.test.mjs   exit 0 when every check passes, 1 when one fails
 //
@@ -19,7 +19,10 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { PLUGIN_METER, batchRows, describeUsage, foldScopes, parseMerges, RECONSTRUCTION_NOTE } from "../packs/base/plugins/workflow/runtime/lib/usage.mjs";
+import {
+  PLUGIN_METER, batchBoundaries, batchRows, describeUsage, foldScopes, parseMerges, RECONSTRUCTION_NOTE,
+} from "../packs/base/plugins/workflow/runtime/lib/usage.mjs";
+import { renderTask } from "../packs/base/plugins/workflow/runtime/lib/tasks.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
@@ -36,13 +39,20 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 // ---------- the pure half: windows, folding, and what the scorecard says ----------
 
-// Two merges on one day and one on a later day. The pair must become one row, because the meter buckets by day and a
-// row per merge would ask for the same day twice and count it twice.
+// Three merges, two of them 40 seconds apart, and a task closed in the same minute as the second pair: that minute is
+// one row. A maintain event later is a row of its own.
 const MERGES = parseMerges([
-  ["cccccccccccccccccccccccccccccccccccccccc", "2026-09-18T09:00:00-04:00", "Merge the third"].join("\u0000"),
+  ["cccccccccccccccccccccccccccccccccccccccc", "2026-09-16T22:30:40-04:00", "Merge the third"].join("\u0000"),
   ["bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "2026-09-16T22:30:00-04:00", "Merge the second"].join("\u0000"),
   ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "2026-09-16T10:00:00-04:00", "Merge the first"].join("\u0000"),
 ].join("\n"));
+const TASKS = [
+  { id: "2026-09-16-one-aaaa", title: "One", state: "merged", updated: "2026-09-17T02:30:20.000Z" },
+  { id: "2026-09-16-two-bbbb", title: "Two", state: "in-progress", updated: "2026-09-17T01:00:00.000Z" },
+  { id: "2026-09-16-gone-cccc", title: "Gone", state: "abandoned", updated: "2026-09-17T01:00:00.000Z" },
+];
+const MAINTAINS = [{ event: "maintain", at: "2026-09-18T13:00:00.000Z" }, { event: "checkpoint", at: "2026-09-18T12:00:00.000Z" }];
+const BOUNDS = batchBoundaries({ maintains: MAINTAINS, tasks: TASKS, merges: MERGES });
 
 check("git's NUL separated fields are read back whole, subject included", () => {
   eq(MERGES.length, 3, "merges parsed");
@@ -51,35 +61,34 @@ check("git's NUL separated fields are read back whole, subject included", () => 
   eq(MERGES[0].subject, "Merge the third", "the subject");
 });
 
-check("two merges on one day are one row, and the rows tile the calendar", () => {
-  const rows = batchRows(MERGES, TZ);
-  eq(rows.length, 2, "rows");
+check("boundaries come from maintain events, closed tasks and merges, and nothing else", () => {
+  eq(BOUNDS.map((b) => b.kind).join(","), "merge,merge,task,merge,maintain", "an open task, an abandoned one and a checkpoint bound nothing");
+});
+
+check("boundaries inside one minute are one row, and the rows tile time", () => {
+  const rows = batchRows(BOUNDS);
+  eq(rows.length, 3, "rows");
   eq(rows[0].from, null, "the oldest row has no lower bound");
-  eq(rows[0].to, "2026-09-16", "the oldest row ends on the day its merges landed");
-  eq(rows[0].merges.length, 2, "both merges of that day are on one row");
-  eq(rows[1].from, "2026-09-17", "the next row starts the day after the previous row ended");
-  eq(rows[1].to, "2026-09-18", "the next row ends on its own merge day");
+  eq(rows[0].to, "2026-09-16T14:00:00.000Z", "and ends at its merge");
+  eq(rows[1].from, rows[0].to, "the next row starts exactly where the previous one ended");
+  eq(rows[1].to, "2026-09-17T02:30:40.000Z", "a row ends at the latest boundary it names");
+  eq(`${rows[1].merges.length} ${rows[1].tasks.length}`, "2 1", "both merges and the task closed in that minute are on one row");
+  eq(rows[2].from, rows[1].to, "and the maintain row starts where that one ended");
+  eq(rows[2].maintains.length, 1, "the maintain event ends its own row");
 });
 
-check("a day is never counted twice and never left out", () => {
-  const rows = batchRows(MERGES, TZ);
-  for (let i = 1; i < rows.length; i++) {
-    const after = new Date(`${rows[i - 1].to}T00:00:00Z`);
-    after.setUTCDate(after.getUTCDate() + 1);
-    eq(rows[i].from, after.toISOString().slice(0, 10), `row ${i} begins the day after row ${i - 1} ended`);
-  }
-});
-
-check("a limit keeps the newest rows and the new oldest row keeps its real lower bound", () => {
-  const rows = batchRows(MERGES, TZ, { limit: 1 });
+check("a limit keeps the newest rows and the new oldest row keeps its real lower bound; since drops what came before", () => {
+  const rows = batchRows(BOUNDS, { limit: 1 });
   eq(rows.length, 1, "rows kept");
-  eq(rows[0].to, "2026-09-18", "the newest row is the one kept");
-  eq(rows[0].from, "2026-09-17", "it keeps the bound it had, and does not become open ended");
+  eq(rows[0].from, "2026-09-17T02:30:40.000Z", "it keeps the bound it had, and does not become open ended");
+  const later = batchRows(BOUNDS, { since: "2026-09-16T14:00:00.000Z" });
+  eq(later.length, 2, "a boundary exactly at since is not after it");
+  eq(later[0].from, "2026-09-16T14:00:00.000Z", "and the first row starts at since");
 });
 
-check("a merge date git could not have written is reported, never guessed", () => {
+check("a date git could not have written is reported, never guessed", () => {
   let message = null;
-  try { batchRows(parseMerges(["abc", "not-a-date", "Merge"].join("\u0000")), TZ); } catch (e) { message = e.message; }
+  try { batchBoundaries({ merges: parseMerges(["abc", "not-a-date", "Merge"].join("\u0000")) }); } catch (e) { message = e.message; }
   has(String(message), /commit date this command cannot read/, "the failure names what it could not read");
 });
 
@@ -116,31 +125,68 @@ console.log(JSON.stringify({ files: 1, records: 2, tz, window: { from: argv[0], 
 const PASSING_TEST = "#!/usr/bin/env node\nconsole.log(\"token-cost check passed: 9 checks\");\n";
 const FAILING_TEST = "#!/usr/bin/env node\nconsole.log(\"token-cost check FAILED: 1 check of 9\");\nprocess.exit(1);\n";
 
-// A repository with three merges, two of them on one day. The committer date is what %cI reports and what the rows
-// are worked out from, so each merge is given one explicitly rather than inheriting the day the test happens to run.
-function fixture({ meter = STUB_METER, meterTest = PASSING_TEST } = {}) {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), "skilliton-usage-test-")));
-  TEMPS.push(dir);
-  const run = (args, at = null) => {
-    const env = { ...process.env, GIT_AUTHOR_NAME: "Test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "Test", GIT_COMMITTER_EMAIL: "test@example.invalid" };
-    if (at) { env.GIT_AUTHOR_DATE = at; env.GIT_COMMITTER_DATE = at; }
+const GIT_ENV = {
+  ...process.env, GIT_AUTHOR_NAME: "Test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "Test",
+  GIT_COMMITTER_EMAIL: "test@example.invalid", GIT_CONFIG_GLOBAL: "/dev/null",
+};
+
+function gitIn(dir) {
+  return (args, at = null) => {
+    const env = at ? { ...GIT_ENV, GIT_AUTHOR_DATE: at, GIT_COMMITTER_DATE: at } : GIT_ENV;
     const r = spawnSync("git", args, { cwd: dir, encoding: "utf8", env });
     if (r.status !== 0) throw new Error(`git ${args.join(" ")} exited ${r.status}: ${(r.stderr || r.stdout || "").trim()}`);
     return r.stdout;
   };
+}
+
+function newRepo(prefix) {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), prefix)));
+  TEMPS.push(dir);
+  const run = gitIn(dir);
   run(["init", "-q", "-b", "main"]);
   run(["commit", "-q", "--allow-empty", "-m", "the first commit"], "2026-09-15T09:00:00-04:00");
+  return { dir, run };
+}
+
+function placeMeter(dir, meter, meterTest) {
+  if (meter === null) return;
+  mkdirSync(join(dir, "scripts"), { recursive: true });
+  writeFileSync(join(dir, "scripts", "token-cost.mjs"), meter);
+  if (meterTest !== null) writeFileSync(join(dir, "scripts", "token-cost.test.mjs"), meterTest);
+}
+
+// A repository with three merge commits. The committer date is what %cI reports and what the rows are worked out
+// from, so each merge is given one explicitly rather than inheriting the moment the test happens to run.
+function fixture({ meter = STUB_METER, meterTest = PASSING_TEST } = {}) {
+  const { dir, run } = newRepo("skilliton-usage-test-");
   for (const [n, at] of [["one", "2026-09-16T10:00:00-04:00"], ["two", "2026-09-16T22:30:00-04:00"], ["three", "2026-09-18T09:00:00-04:00"]]) {
     run(["checkout", "-q", "-b", `batch-${n}`]);
     run(["commit", "-q", "--allow-empty", "-m", `work ${n}`], at);
     run(["checkout", "-q", "main"]);
     run(["merge", "-q", "--no-ff", `batch-${n}`, "-m", `Merge batch ${n}`], at);
   }
-  if (meter !== null) {
-    mkdirSync(join(dir, "scripts"), { recursive: true });
-    writeFileSync(join(dir, "scripts", "token-cost.mjs"), meter);
-    if (meterTest !== null) writeFileSync(join(dir, "scripts", "token-cost.test.mjs"), meterTest);
-  }
+  placeMeter(dir, meter, meterTest);
+  return withTranscripts({ dir, log: join(dir, "meter-calls.log") });
+}
+
+// A repository that only fast-forwards: no merge commit at all, two closed task records and one maintain event in
+// this machine's journal. The second task closes in the same minute as the maintain event, so that minute is one row.
+function fastForwardFixture() {
+  const { dir, run } = newRepo("skilliton-usage-ff-");
+  run(["checkout", "-q", "-b", "feature"]);
+  run(["commit", "-q", "--allow-empty", "-m", "feature work"], "2026-09-16T09:00:00-04:00");
+  run(["checkout", "-q", "main"]);
+  run(["merge", "-q", "--ff-only", "feature"]);
+  mkdirSync(join(dir, "docs", "tasks"), { recursive: true });
+  const task = (id, state, updated) => writeFileSync(join(dir, "docs", "tasks", `${id}.md`),
+    renderTask({ id, title: id, state, branch: "main", owner: "unassigned", updated, criteria: ["done"] }));
+  task("2026-09-16-alpha-aaaa", "merged", "2026-09-16T15:00:00.000Z");
+  task("2026-09-17-beta-bbbb", "done-local", "2026-09-17T15:00:30.000Z");
+  task("2026-09-17-open-cccc", "in-progress", "2026-09-17T16:00:00.000Z");
+  mkdirSync(join(dir, ".git", "skilliton"), { recursive: true });
+  const event = { at: "2026-09-17T15:00:10.000Z", event: "maintain", session: null, branch: "main", head: null, dirty: 0, fingerprint: null };
+  writeFileSync(join(dir, ".git", "skilliton", "journal.jsonl"), `${JSON.stringify(event)}\n`);
+  placeMeter(dir, STUB_METER, PASSING_TEST);
   return withTranscripts({ dir, log: join(dir, "meter-calls.log") });
 }
 
@@ -168,30 +214,43 @@ function usage(f, args = [], extraEnv = {}) {
 }
 
 const REPO_CHECKS = [
-  ["the meter is asked for whole day windows that tile the calendar", () => {
+  ["the meter is asked for instant windows that tile time, one per batch", () => {
     const r = usage(fixture());
     eq(r.code, 0, `exit status (output was:\n${r.all})`);
-    eq(r.calls.length, 2, `meter runs, one per batch row (calls: ${JSON.stringify(r.calls)})`);
-    eq(r.calls[0].slice(0, 2).join(".."), "1970-01-01..2026-09-16", "the oldest window reaches back as far as the meter can see");
-    eq(r.calls[1].slice(0, 2).join(".."), "2026-09-17..2026-09-18", "the next window begins the day after the previous one ended");
-    for (const call of r.calls) eq(call[call.length - 1], "--json", "the meter is asked for JSON, never for its printed table");
-    has(r.out, /2 batch row\(s\) from 3 merge\(s\)/, "the header counts the rows and the merges behind them");
-    has(r.out, /\(earliest\)\.\.2026-09-16/, "the oldest row says it is open ended rather than inventing a start");
-    has(r.out, /Merge batch one/, "each merge on a row is named");
-    has(r.out, /Merge batch two/, "the second merge of a shared day is named too");
+    eq(r.calls.length, 3, `meter runs, one per batch row (calls: ${JSON.stringify(r.calls)})`);
+    eq(r.calls[0].join(" "), "--until 2026-09-16T14:00:00.000Z --json", "the oldest window reaches back as far as the meter can see");
+    eq(r.calls[1].join(" "), "--since 2026-09-16T14:00:00.000Z --until 2026-09-17T02:30:00.000Z --json", "the next begins where it ended");
+    eq(r.calls[2].join(" "), "--since 2026-09-17T02:30:00.000Z --until 2026-09-18T13:00:00.000Z --json", "and so on, with no gap");
+    has(r.out, /3 batch row\(s\) from 3 merge\(s\), 0 closed task\(s\) and 0 maintain event\(s\)/, "the header counts the rows and what ended them");
+    has(r.out, /\(earliest\)\.\.2026-09-16 10:00/, "the oldest row says it is open ended rather than inventing a start");
+    has(r.out, /merge \S+ Merge batch one/, "each merge on a row is named");
+    has(r.out, /note: no journal on this machine/, "and a missing journal is said, not read as no maintenance");
+  }],
+  ["a repository that only fast-forwards gets its rows from task closes and the maintain event", () => {
+    const r = usage(fastForwardFixture());
+    eq(r.code, 0, `exit status (output was:\n${r.all})`);
+    has(r.out, /2 batch row\(s\) from 0 merge\(s\), 2 closed task\(s\) and 1 maintain event\(s\)/, "no merge commit, and still two rows");
+    eq(r.calls.length, 2, `meter runs (calls: ${JSON.stringify(r.calls)})`);
+    eq(r.calls[0].join(" "), "--until 2026-09-16T15:00:00.000Z --json", "the first row ends at the first task close");
+    eq(r.calls[1].join(" "), "--since 2026-09-16T15:00:00.000Z --until 2026-09-17T15:00:30.000Z --json",
+      "the second runs from there to the later of the task close and the maintain event in the same minute");
+    has(r.out, /task 2026-09-16-alpha-aaaa closed merged at 2026-09-16 11:00/, "the first row names its task");
+    has(r.out, /maintain event at 2026-09-17 11:00\n\s+task 2026-09-17-beta-bbbb closed done-local at 2026-09-17 11:00/, "the second names both, in time order");
+    hasNot(r.out, /open-cccc/, "a task still in progress ends nothing");
   }],
   ["a project filter reaches the meter and nothing else", () => {
     const r = usage(fixture(), ["--project", "one-project,another"]);
     eq(r.code, 0, `exit status (output was:\n${r.all})`);
-    eq(r.calls[0].join(" "), "1970-01-01 2026-09-16 --project one-project --project another --json", "each name is passed through as the meter takes it");
+    eq(r.calls[0].join(" "), "--until 2026-09-16T14:00:00.000Z --project one-project --project another --json", "each name is passed through");
   }],
-  ["--since narrows the merges, and --limit narrows the rows", () => {
+  ["--since narrows the batches to those after the revision, and --limit narrows the rows", () => {
     const since = usage(fixture(), ["--since", "HEAD~1"]);
     eq(since.code, 0, `--since exit status (output was:\n${since.all})`);
-    has(since.out, /1 batch row\(s\) from 1 merge\(s\) after HEAD~1/, "only the merges after the revision are counted");
+    has(since.out, /1 batch row\(s\) from 1 merge\(s\), 0 closed task\(s\) and 0 maintain event\(s\) after HEAD~1/, "only what came after is counted");
+    eq(since.calls[0].join(" "), "--since 2026-09-17T02:30:00.000Z --until 2026-09-18T13:00:00.000Z --json", "and the row starts at that commit");
     const limited = usage(fixture(), ["--limit", "1"]);
     eq(limited.calls.length, 1, "one row means one meter run");
-    eq(limited.calls[0].slice(0, 2).join(".."), "2026-09-17..2026-09-18", "the row kept is the newest one");
+    eq(limited.calls[0].join(" "), "--since 2026-09-17T02:30:00.000Z --until 2026-09-18T13:00:00.000Z --json", "the row kept is the newest one");
   }],
   ["no line of the scorecard carries a comparison the usage screen has not confirmed", () => {
     const r = usage(fixture());
@@ -205,14 +264,13 @@ const REPO_CHECKS = [
     const r = usage(fixture(), ["--json"]);
     eq(r.code, 0, `exit status (output was:\n${r.all})`);
     const parsed = JSON.parse(r.out);
-    eq(parsed.rows.length, 2, "rows in the JSON");
+    eq(parsed.rows.length, 3, "rows in the JSON");
     eq(parsed.rows[0].from, null, "the oldest row is open ended in the JSON too");
-    eq(parsed.rows[1].from, "2026-09-17", "the next row's lower bound");
+    eq(parsed.rows[1].from, "2026-09-16T14:00:00.000Z", "the next row's lower bound");
     eq(parsed.tz, TZ, "the timezone the windows were worked out in");
     eq(parsed.reconstruction, RECONSTRUCTION_NOTE, "the note travels with the JSON");
-    // 7 is one stub run, not two. A row per merge would have asked the meter for 2026-09-16 twice and this would
-    // read 14: the day bucketing is what stops the shared day being counted once for each merge that landed on it.
-    eq(parsed.rows[0].total.requests, 7, "a day carrying two merges is read once, not once per merge");
+    eq(parsed.rows[0].total.requests, 7, "each row is one meter run");
+    eq(parsed.rows[1].merges[0].subject, "Merge batch two", "and names what ended it");
     hasNot(r.out, /est usd/, "the printed table is not also emitted");
   }],
   ["a meter whose own test fails prints no number at all", () => {
@@ -228,7 +286,7 @@ const REPO_CHECKS = [
     eq(r.code, 0, `exit status (output was:\n${r.all})`);
     has(r.out, /meter: \S*runtime\/meter\/token-cost\.mjs, proved in this run by \S*runtime\/meter\/token-cost\.test\.mjs \(meter fixture test passed\)/,
       "the plugin's meter is named with its own test");
-    hasNot(r.out, /^note:/m, "and no notice: there was nothing of the project's to pass over");
+    hasNot(r.out, /^note: this project's/m, "and no notice about a meter: there was nothing of the project's to pass over");
     eq(PLUGIN_METER.endsWith(join("runtime", "meter", "token-cost.mjs")), true, "the plugin's meter is found from the runtime's own folder");
   }],
   ["a project meter with no test beside it is passed over, named, and never run", () => {
@@ -277,19 +335,13 @@ const REPO_CHECKS = [
     has(bent.all, /--since takes a branch, tag or commit/, "the refusal says what it takes");
     eq(bent.calls.length, 0, "and nothing was asked of the meter");
   }],
-  ["a repository with no merge at all says so and asks the meter nothing", () => {
-    const dir = realpathSync(mkdtempSync(join(tmpdir(), "skilliton-usage-test-bare-")));
-    TEMPS.push(dir);
-    const env = { ...process.env, GIT_AUTHOR_NAME: "Test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "Test", GIT_COMMITTER_EMAIL: "test@example.invalid" };
-    spawnSync("git", ["init", "-q", "-b", "main"], { cwd: dir, env });
-    spawnSync("git", ["commit", "-q", "--allow-empty", "-m", "only commit"], { cwd: dir, env });
-    mkdirSync(join(dir, "scripts"), { recursive: true });
-    writeFileSync(join(dir, "scripts", "token-cost.mjs"), STUB_METER);
-    writeFileSync(join(dir, "scripts", "token-cost.test.mjs"), PASSING_TEST);
+  ["a repository with no boundary at all says so and asks the meter nothing", () => {
+    const { dir } = newRepo("skilliton-usage-test-bare-");
+    placeMeter(dir, STUB_METER, PASSING_TEST);
     const f = withTranscripts({ dir, log: join(dir, "meter-calls.log") });
     const r = usage(f);
     eq(r.code, 0, `exit status (output was:\n${r.all})`);
-    has(r.out, /no merge commit was found/, "it says there is no batch to report");
+    has(r.out, /no batch boundary \(a maintain event, a closed task or a merge commit\) was found/, "it says there is no batch to report");
     eq(r.calls.length, 0, "and the meter was not run");
   }],
 ];
@@ -297,7 +349,8 @@ const REPO_CHECKS = [
 // ---------- the printed shape, without a repository ----------
 
 check("an incomplete row is marked, and the mark tells the reader not to quote it", () => {
-  const rows = [{ from: null, to: "2026-09-16", merges: [{ shortSha: "abcdefabcdef", subject: "Merge a batch" }],
+  const rows = [{ from: null, to: "2026-09-16T14:00:00.000Z", tasks: [], maintains: [],
+    merges: [{ kind: "merge", ms: 0, shortSha: "abcdefabcdef", subject: "Merge a batch" }],
     folded: foldScopes({ incomplete: true, unpriced_models: { "a-model": 1 }, byScope: { main: { requests: 1, input: 2, output: 3, cache_read: 4, cache_write_5m: 5, cache_write_1h: 6, cost_usd: 7 } } }) }];
   const text = describeUsage({ rows, tz: TZ, meter: { path: "scripts/token-cost.mjs", test: "scripts/token-cost.test.mjs" }, proof: { summary: "passed" }, projects: [] }).join("\n");
   has(text, /INCOMPLETE/, "the row is marked");
@@ -308,7 +361,7 @@ check("an incomplete row is marked, and the mark tells the reader not to quote i
 check("the scorecard names the meter and the test that proved it in this run", () => {
   const text = describeUsage({ rows: [], tz: TZ, meter: { path: "scripts/token-cost.mjs", test: "scripts/token-cost.test.mjs" }, proof: { summary: "9 checks" }, projects: [] }).join("\n");
   has(text, /proved in this run by scripts\/token-cost\.test\.mjs \(9 checks\)/, "the proof is named with the meter");
-  has(text, /whole days in America\/New_York/, "and the windows say what they are measured in");
+  has(text, /in America\/New_York/, "and the windows say what they are measured in");
 });
 
 // ---------- run ----------

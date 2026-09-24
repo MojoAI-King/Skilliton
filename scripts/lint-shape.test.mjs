@@ -80,7 +80,6 @@ export const LONG_LINE_PINS = [
   ["packs/base/plugins/workflow/runtime/commands/security.mjs", 14],
   ["packs/base/plugins/workflow/runtime/commands/status.mjs", 1],
   ["packs/base/plugins/workflow/runtime/commands/task.mjs", 9],
-  ["packs/base/plugins/workflow/runtime/commands/usage.mjs", 3],
   ["packs/base/plugins/workflow/runtime/lib/audit-install.mjs", 2],
   ["packs/base/plugins/workflow/runtime/lib/audit-run.mjs", 10],
   ["packs/base/plugins/workflow/runtime/lib/auto-prepare.mjs", 8],
