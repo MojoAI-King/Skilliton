@@ -22,7 +22,9 @@
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { runGit } from "./journal.mjs";
-import { RECONSTRUCTION_NOTE, collectBoundaries, findMeter, foldModels, localTime, meterWindow, proveMeter, usageScope } from "./usage.mjs";
+import {
+  RECONSTRUCTION_NOTE, collectBoundaries, findMeter, foldModels, laneFigures, laneFolderOf, localTime, meterWindow, proveMeter, usageScope,
+} from "./usage.mjs";
 import { PRICING_RETRIEVED } from "../meter/pricing.mjs";
 
 export const LEDGER_REL = ".skilliton/usage/ledger.jsonl";
@@ -200,6 +202,20 @@ export function taskStarts(root, project) {
   return starts;
 }
 
+// The lanes whose task closed as merged in the window, each with its own folder's figures: the lane's name only, never
+// its folder or the folder name its transcripts are filed under.
+function closedLanes(root, project, meter, boundaries, env) {
+  const out = [];
+  for (const b of boundaries) {
+    if (b.kind !== "task" || b.state !== "merged") continue;
+    const lane = laneFolderOf(root, project, b);
+    if (!lane) continue;
+    const f = laneFigures(meter, lane.dir, env);
+    out.push({ lane: lane.name, ...Object.fromEntries([...TOKEN_KEYS, "incomplete"].map((k) => [k, f[k]])) });
+  }
+  return out;
+}
+
 // The maintain step: one batch row for the window since the last row, ending at `at`, the maintain event's own time.
 // Returns a maintain step { name, status, detail }. It never throws for the meter's sake: a meter that cannot be
 // believed or read is a step that did not run, and maintenance carries on.
@@ -215,10 +231,10 @@ export function ledgerStep(project, { root, apply, at, env = process.env }) {
   }
   const window = `${start.from ?? `(the ${start.basis})`}..${at}`;
   if (!apply) return step("would write", `a batch row for ${window} in ${LEDGER_REL}, once the meter's own test passes`);
-  let proof, parsed;
+  let proof, parsed, meter;
   try {
     const scope = usageScope(root, project);
-    const meter = findMeter(root, null, { env });
+    meter = findMeter(root, null, { env });
     proof = proveMeter(meter);
     parsed = meterWindow(meter, { since: start.from, until: at, scope, env });
   } catch (e) {
@@ -228,7 +244,13 @@ export function ledgerStep(project, { root, apply, at, env = process.env }) {
   if (!requests) return step("current", `no request in ${window}; nothing written, and the next row starts where this one would have`);
   const inWindow = found.boundaries.filter((b) => (start.from === null || b.ms > Date.parse(start.from)) && b.ms <= Date.parse(at));
   const boundaries = [...inWindow, { kind: "maintain", at, ms: Date.parse(at) }];
-  const row = batchRowFromMeter(parsed, { from: start.from, to: at, fromBasis: start.basis, boundaries });
+  let lanes;
+  try {
+    lanes = closedLanes(root, project, meter, inWindow, env);
+  } catch (e) {
+    return step("not run", `a lane's figures could not be read: ${e?.message ?? e}; no row was written`);
+  }
+  const row = batchRowFromMeter(parsed, { from: start.from, to: at, fromBasis: start.basis, boundaries, lanes });
   const done = appendLedgerRow(root, row, { proof });
   if (!done.written) return step("refused", done.refused);
   return step("wrote", `a batch row for ${window} (${requests} request(s)) in ${LEDGER_REL}; commit it with the maintenance`);

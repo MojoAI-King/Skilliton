@@ -262,3 +262,24 @@ test("usage screen files a reading only with --apply and refuses one off the scr
   assert.match(s.out, /^no controlled comparison filed$/m);
   assert.match(s.out, /It is not a bill/);
 });
+
+test("a batch row carries the figures of each lane closed as merged in its window, by lane name only", (t) => {
+  const f = preparedRepo(t);
+  const laneDir = join(f.base, "repo-lanes", "x");
+  mkdirSync(laneDir, { recursive: true });
+  request(f, "r1", "2026-09-21T12:00:00.000Z");
+  const laneFolder = join(f.base, "projects", folderNameFor(laneDir));
+  mkdirSync(laneFolder, { recursive: true });
+  writeFileSync(join(laneFolder, "s.jsonl"), `${JSON.stringify({ requestId: "rl", timestamp: "2026-09-21T13:00:00.000Z",
+    message: { id: "ml", model: "claude-sonnet-5", usage: { input_tokens: 5000, output_tokens: 50, cache_read_input_tokens: 7000 } } })}\n`);
+  writeFileSync(join(f.dir, "docs", "tasks", "2026-09-21-lane-x-cccc.md"), "# Task: Lane x\n\n- **ID:** 2026-09-21-lane-x-cccc\n"
+    + `- **State:** merged\n- **Branch:** lane/x-0924\n- **Owner:** unassigned\n- **Updated:** ${new Date().toISOString()}\n`);
+  const r = cli(f.dir, ["maintain", "--apply"], f.env);
+  assert.equal(r.code, 0, r.all);
+  const [only] = readLedger(f.dir).rows;
+  assert.deepEqual(only.lanes, [{ lane: "x", requests: 1, input: 5000, output: 50, cache_read: 7000, cache_write_5m: 0, cache_write_1h: 0,
+    peak_context: 12000, incomplete: false }]);
+  const text = readFileSync(join(f.dir, LEDGER_REL), "utf8");
+  assert.equal(text.includes(folderNameFor(laneDir)), false, "never the lane's folder name");
+  assert.equal(text.includes(f.base), false, "and never a path");
+});

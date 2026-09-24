@@ -7,7 +7,9 @@
 // Three lanes are dispatched for real (dispatch --apply writes each lane's task record and commits it on the lane
 // branch); two are merged into main and one is not. Close must mark exactly the two merged lanes' task records merged,
 // detach exactly their folders, leave the third alone, refuse the whole close when a merged lane's folder holds
-// uncommitted work, and never delete a branch or a folder.
+// uncommitted work, and never delete a branch or a folder. It also prints each merged lane folder's own cost and peak
+// context from the meter against the context bound, names the lane that ran past it, and appends those lines to the
+// lane's LANE_REPORT.md under the sixth heading.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -16,6 +18,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpath
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { folderNameFor } from "../packs/base/plugins/workflow/runtime/meter/projects.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CLI = join(here, "skilliton.mjs");
@@ -125,4 +128,38 @@ test("a merged lane whose folder holds uncommitted work refuses the whole close,
   assert.match(r.err, /repo-lanes\/beta \(1 uncommitted change\(s\)\) must be committed or cleared before its lane is closed.*Nothing was written/);
   assert.deepEqual([stateOf(ctx, "alpha"), stateOf(ctx, "beta")], ["in-progress", "in-progress"], "no task record changed");
   assert.deepEqual([onBranch(ctx, "alpha"), onBranch(ctx, "beta")], [true, true], "no folder was detached, the clean one included");
+});
+
+// One request in a lane folder's own transcripts, filed under the folder name Claude Code would give that folder.
+function laneRequest(ctx, name, context) {
+  const folder = join(ctx.projects, folderNameFor(ctx.lane(name)));
+  mkdirSync(folder, { recursive: true });
+  const line = { requestId: `r-${name}`, timestamp: "2026-09-23T12:00:00Z",
+    message: { id: `m-${name}`, model: "claude-sonnet-5", usage: { input_tokens: context, output_tokens: 10 } } };
+  writeFileSync(join(folder, "s.jsonl"), `${JSON.stringify(line)}\n`);
+}
+
+test("each merged lane's cost and peak context is printed against the bound, and appended to its report", (t) => {
+  const ctx = fixture(t);
+  laneRequest(ctx, "alpha", 250000);
+  laneRequest(ctx, "beta", 1000);
+  laneRequest(ctx, "gamma", 999999);
+  const report = join(ctx.lane("alpha"), "LANE_REPORT.md");
+  writeFileSync(report, "# Lane report\n\n## Commits by item\n\n- abc N1\n\nLANE DONE\n");
+  const preview = sg(ctx, ["dispatch", "close"]);
+  assert.equal(preview.code, 0, preview.all);
+  assert.match(preview.out, /^ {2}lane alpha: 1 request\(s\), 250,010 tokens, est usd 0\.50, peak context 250,000 against a bound of 200,000, PAST THE BOUND$/m);
+  assert.match(preview.out, /^ {2}lane beta: 1 request\(s\), 1,010 tokens, est usd 0\.00, peak context 1,000 against a bound of 200,000$/m);
+  assert.match(preview.out, /^ {2}ran past the context bound of 200,000: alpha$/m);
+  assert.doesNotMatch(preview.out, /lane gamma:/, "an unmerged lane is not measured");
+  assert.match(preview.out, /It is not a bill/);
+  assert.doesNotMatch(readFileSync(report, "utf8"), /Cost and peak context/, "the preview appended nothing");
+  const r = sg(ctx, ["dispatch", "close", "--apply"]);
+  assert.equal(r.code, 0, r.all);
+  const text = readFileSync(report, "utf8");
+  assert.match(text, /## Cost and peak context\n\nMeasured by skilliton dispatch close on \d{4}-\d{2}-\d{2}[^\n]*\n- lane alpha: 1 request\(s\)[^\n]*PAST THE BOUND\n- ran past the context bound of 200,000\n\nLANE DONE\n$/,
+    "the section goes in before LANE DONE");
+  assert.equal(gitStatus(ctx.lane("alpha"), "diff", "--quiet"), 0, "the report is not a tracked change");
+  sg(ctx, ["dispatch", "close", "--apply"]);
+  assert.equal(readFileSync(report, "utf8"), text, "a second close does not append the same lines twice");
 });

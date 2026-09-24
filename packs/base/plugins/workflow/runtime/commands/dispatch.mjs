@@ -4,6 +4,10 @@
 import { parseArgs, refuse, say, selfCommand, tilde } from "../lib/core.mjs";
 import { BRIEF_FILE, LANE_FILE, REPORT_FILE, applyClose, applyDispatch, applyMerge, planClose, planDispatch, planMerge } from "../lib/dispatch.mjs";
 import { guardCommand, openProject } from "../lib/lifecycle.mjs";
+import { COST_HEADING, appendCostSection } from "../lib/dispatch-brief.mjs";
+import { RECONSTRUCTION_NOTE, findMeter, laneFigures, proveMeter } from "../lib/usage.mjs";
+import { PRICING_RETRIEVED } from "../meter/pricing.mjs";
+import { basename, join } from "node:path";
 
 export const help = `dispatch: turn a lane plan into one Git worktree per lane, each holding a brief.
 
@@ -33,6 +37,10 @@ The plan is ${LANE_FILE} at the repository root, written by the dispatch skill (
       first), and detaches its folder to the integration branch, so the lane branch is no longer checked out anywhere.
       A merged lane whose folder holds uncommitted work refuses the whole close, naming the folder, before anything is
       written. Nothing is deleted: not a branch, not a folder. One line per lane; without --apply it writes nothing.
+      For each merged lane it also prints what the meter reads from that lane folder's own transcripts (tokens,
+      estimated cost, and peak context against the context bound: dispatch.contextCeiling when set, else 200000),
+      names every lane that ran past it, and with --apply appends the same lines under "${COST_HEADING}" in the
+      lane's ${REPORT_FILE} when there is one (that file is never committed).
 
 The lane root, the main-only paths, the lane test command and the lane setup come from the dispatch section of
 .skilliton/config.json. Setup commands are never run: they are printed and written into each brief for a person to
@@ -206,6 +214,58 @@ function closeLine(lane, apply) {
   return `${head}merged: ${parts.join("; ")}`;
 }
 
+const DEFAULT_CONTEXT_BOUND = 200000;
+const num = (v) => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+function laneCostLine(meter, lane, bound) {
+  const name = basename(lane.dir);
+  try {
+    const f = laneFigures(meter, lane.dir);
+    const over = f.peak_context > bound;
+    const none = f.requests ? "" : " (no transcript is filed under this folder: a lane run as an agent from the main window is recorded in that window's)";
+    return { name, over, line: `lane ${name}: ${f.requests} request(s), ${num(f.tokens)} tokens, est usd ${f.cost_usd.toFixed(2)}, peak context `
+      + `${num(f.peak_context)} against a bound of ${num(bound)}${over ? ", PAST THE BOUND" : ""}${f.incomplete ? "; INCOMPLETE, do not quote" : ""}${none}` };
+  } catch (e) {
+    return { name, over: false, line: `lane ${name}: not measured (${String(e?.message ?? e).split("\n")[0]})` };
+  }
+}
+
+// Cost and peak context per merged lane folder, from the meter over that folder's own transcripts only.
+function laneCosts(root, project, plan) {
+  const lanes = plan.lanes.filter((l) => l.merged && l.dir);
+  if (!lanes.length) return null;
+  const set = project.dispatch?.contextCeiling;
+  const bound = Number.isInteger(set) && set > 0 ? set : DEFAULT_CONTEXT_BOUND;
+  let meter;
+  try {
+    meter = findMeter(root);
+    proveMeter(meter);
+  } catch (e) {
+    return { bound, perLane: new Map(), summary: `cost and peak context: not measured (${String(e?.message ?? e).split("\n")[0]})` };
+  }
+  const perLane = new Map(lanes.map((l) => [l.branch, laneCostLine(meter, l, bound)]));
+  const past = [...perLane.values()].filter((c) => c.over).map((c) => c.name);
+  const summary = past.length ? `ran past the context bound of ${num(bound)}: ${past.join(", ")}` : `no lane ran past the context bound of ${num(bound)}`;
+  return { bound, perLane, summary };
+}
+
+function printCosts(costs, plan, apply) {
+  if (!costs) return;
+  say("");
+  say(`cost and peak context, from each merged lane folder's own transcripts (est usd priced from the meter's table retrieved ${PRICING_RETRIEVED}):`);
+  for (const c of costs.perLane.values()) say(`  ${c.line}`);
+  say(`  ${costs.summary}`);
+  if (!apply) return;
+  const date = new Date().toISOString().slice(0, 10);
+  for (const lane of plan.lanes) {
+    const c = costs.perLane.get(lane.branch);
+    if (!c) continue;
+    const lines = [`Measured by skilliton dispatch close on ${date}, from this folder's own transcripts (a reconstruction, not a bill):`, `- ${c.line}`];
+    if (c.over) lines.push(`- ran past the context bound of ${num(costs.bound)}`);
+    if (appendCostSection(join(lane.dir, REPORT_FILE), lines)) say(`  appended under "${COST_HEADING}" in ${tilde(join(lane.dir, REPORT_FILE))}`);
+  }
+}
+
 async function closeBody(o) {
   const { root, project } = openProject(o.dir);
   const plan = planClose(root, project);
@@ -215,6 +275,7 @@ async function closeBody(o) {
   say(`skilliton dispatch close${apply ? "" : " (preview)"}: ${plan.lanes.length} lane branch${plan.lanes.length === 1 ? "" : "es"}, `
     + `${merged} merged into ${plan.branch}`);
   for (const lane of plan.lanes) say(closeLine(lane, apply));
+  printCosts(laneCosts(root, project, plan), plan, apply);
   const bring = plan.merge.bring.filter((e) => plan.lanes.some((l) => l.merged && l.branch === e.branch));
   const verb = apply ? "brought back" : "would come back";
   if (bring.length) say(`${bring.length} record${bring.length === 1 ? "" : "s"} ${verb}: ${bring.map((e) => e.path).join(", ")}`);
@@ -223,5 +284,6 @@ async function closeBody(o) {
     ? `Closed. ${done.brought.length} record(s) brought back and the task records changed in this working tree; nothing was committed. `
       + `Read git status and commit on ${plan.branch}.`
     : "Preview only; nothing was written. To close the merged lanes, run the same command with --apply.");
+  if (plan.lanes.some((l) => l.merged && l.dir)) { say(""); say(RECONSTRUCTION_NOTE); }
   return 0;
 }

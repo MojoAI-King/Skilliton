@@ -23,7 +23,7 @@ The brief, the files its items name, and what those files lead to. Not the repos
 
 ## What to return
 
-`LANE_REPORT.md` at the root of this worktree, with the five headings the brief lists, each present even when empty, ending with the line `LANE DONE` and the commits with their N numbers. Then, in your reply, the same report in two or three sentences and nothing more: the file is the artifact, the reply is the pointer to it.
+`LANE_REPORT.md` at the root of this worktree, with the six headings the brief lists, each present even when empty, ending with the line `LANE DONE` and the commits with their N numbers. The sixth is "Cost and peak context": what this lane's own transcripts cost and the largest context it reached, from your own `skilliton dispatch close` if it works on this folder, else "not measured". When the lane is closed, `dispatch close` appends the meter's reading of the lane folder under that heading. Then, in your reply, the same report in two or three sentences and nothing more: the file is the artifact, the reply is the pointer to it.
 
 ## Rules that are not negotiable
 

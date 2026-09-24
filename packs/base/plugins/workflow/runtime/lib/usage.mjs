@@ -167,7 +167,7 @@ export function batchBoundaries({ maintains = [], tasks = [], merges = [] }) {
   for (const t of tasks) {
     if (!BATCH_TASK_STATES.includes(t.state)) continue;
     const ms = instant(t.updated, `task ${t.id} has an Updated time`);
-    out.push({ kind: "task", at: new Date(ms).toISOString(), ms, id: t.id, title: t.title, state: t.state });
+    out.push({ kind: "task", at: new Date(ms).toISOString(), ms, id: t.id, title: t.title, state: t.state, branch: t.branch });
   }
   for (const m of merges) out.push({ kind: "merge", at: m.at, ms: instant(m.at, "git reported a commit date"), ...m });
   return out.sort((a, b) => a.ms - b.ms);
@@ -244,6 +244,16 @@ const inside = (parent, child) => {
 // The lane folder root, resolved the way dispatch resolves it: dispatch.laneRoot from the main checkout, else a folder
 // beside the main checkout named after it.
 const laneRootFor = (mainRoot, project) => resolve(mainRoot, project?.dispatch?.laneRoot ?? `../${basename(mainRoot)}-lanes`);
+
+// The folder a dispatched lane lives in, from its task record (dispatch titles it "Lane <name>" and puts it at
+// <lane root>/<name>), or null when the record is not a lane's or the folder is gone.
+export function laneFolderOf(root, project, task) {
+  const name = /^Lane (\S+)$/.exec(task?.title ?? "")?.[1];
+  if (!name || !String(task?.branch ?? "").startsWith("lane/")) return null;
+  const main = worktreesOf(root)[0]?.path ?? root;
+  const dir = join(laneRootFor(main, project), name);
+  return existsSync(dir) ? { name, dir } : null;
+}
 
 // Which transcripts a reading covers: { kind, args, describe }. By default this repository's own folder and each lane
 // worktree's, passed as --project-dir so the meter matches them exactly, never as a substring (a substring of one
@@ -328,6 +338,18 @@ export function foldScopes(parsed) {
     for (const k of Object.keys(total)) total[k] += row[k];
   }
   return { total, byScope, incomplete: Boolean(parsed.incomplete), unpriced };
+}
+
+// One lane folder's own transcripts, all of them: { requests, input, output, cache_read, cache_write_5m, cache_write_1h,
+// tokens, cost_usd, peak_context, incomplete }. The folder is passed as --project-dir and matched exactly, so a lane's
+// figures never include the main checkout's or another lane's.
+export function laneFigures(meter, dir, env = process.env) {
+  const parsed = meterWindow(meter, { scope: { args: ["--by-project", "--project-dir", dir] }, env });
+  const folded = foldScopes(parsed);
+  const peak = Math.max(0, ...Object.values(parsed.byScope ?? {}).map((s) => Number(s?.peak_context ?? 0)));
+  const t = folded.total;
+  const tokens = t.input + t.output + t.cache_read + t.cache_write_5m + t.cache_write_1h;
+  return { ...t, tokens, peak_context: peak, incomplete: folded.incomplete };
 }
 
 // An instant as "YYYY-MM-DD HH:MM" in the meter's timezone, which the scorecard names on its second line.

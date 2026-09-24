@@ -4,12 +4,16 @@
 // constants below so nothing importing them from there needs to change. Nothing here imports from outside the
 // plugin folder.
 
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { formatRecordHeader } from "./config.mjs";
 import { tilde } from "./core.mjs";
 
 export const LANE_FILE = "LANES.md";
 export const BRIEF_FILE = "LANE_BRIEF.md";
 export const REPORT_FILE = "LANE_REPORT.md";
+// The sixth heading of a lane report. The lane writes it (or "not measured"); `skilliton dispatch close` appends what
+// the meter read from the lane folder's own transcripts under it.
+export const COST_HEADING = "Cost and peak context";
 
 const bullet = (items) => items.map((i) => `- ${i}`).join("\n");
 
@@ -90,7 +94,9 @@ function briefScope(lane, ctx, model, ceiling) {
     `**Return:** ${REPORT_FILE} at the root of this worktree, with these headings, each present even when empty: Commits ` +
     `by item (hash, N number); Skipped (item, why); Merge-time expectations (conflicts you expect and how to resolve ` +
     `them, seams you touched, files outside your list); Run-time behavior (what the first run after release does once); ` +
-    `Leftovers for other lanes (name the lane that owns the file). End with the line LANE DONE and the commits, each with its N number.`,
+    `Leftovers for other lanes (name the lane that owns the file); ${COST_HEADING} (what this lane's own transcripts cost and the ` +
+    `largest context it reached, from your own dispatch close if it works here, else "not measured"; dispatch close appends the ` +
+    `meter's reading under it when the lane is closed). End with the line LANE DONE and the commits, each with its N number.`,
     `**Model:** ${model}.`,
     `**Context ceiling:** ${ceiling}. Work that needs more than the ceiling was scoped too wide: stop, write what is done ` +
     `in ${REPORT_FILE}, and say so. Do not compact your way through it.`,
@@ -173,4 +179,32 @@ export function briefText(lane, ctx) {
     ...briefScope(lane, ctx, model, ceiling),
     ...briefChecksAndSetup(lane, ctx, setup),
   ].join("\n");
+}
+
+// Appends lines under the report's cost heading: at the end of that section when the report has one, else as a new
+// section just before its LANE DONE line (or at the end). Returns false, writing nothing, when the report is not there
+// or already holds exactly these lines. The report is never committed (it is in info/exclude).
+export function appendCostSection(reportPath, lines) {
+  if (!existsSync(reportPath)) return false;
+  const text = readFileSync(reportPath, "utf8");
+  const block = lines.join("\n");
+  if (text.includes(block)) return false;
+  const all = text.split("\n");
+  const heading = all.findIndex((l) => l.trim().replace(/^#+\s*/, "") === COST_HEADING && /^#/.test(l.trim()));
+  const done = all.findIndex((l) => /^[ \t]*LANE DONE\b/.test(l));
+  let at;
+  let insert = ["", ...lines, ""];
+  if (heading >= 0) {
+    const next = all.findIndex((l, i) => i > heading && (/^#{1,2}\s/.test(l) || /^[ \t]*LANE DONE\b/.test(l)));
+    at = next < 0 ? all.length : next;
+  } else {
+    at = done < 0 ? all.length : done;
+    insert = ["", `## ${COST_HEADING}`, "", ...lines, ""];
+  }
+  // One blank line either side, never two: the report's own blank lines are left as they are.
+  if (at > 0 && all[at - 1].trim() === "") insert = insert.slice(1);
+  if (at < all.length && all[at].trim() === "") insert = insert.slice(0, -1);
+  all.splice(at, 0, ...insert);
+  writeFileSync(reportPath, all.join("\n"));
+  return true;
 }
