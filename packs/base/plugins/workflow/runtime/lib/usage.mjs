@@ -52,8 +52,8 @@ const DEFAULT_TZ = "America/New_York";
 export const RECONSTRUCTION_NOTE = [
   "Every figure above is reconstructed from this machine's own transcripts. It is not a bill, and it is not the",
   "subscription's own meter: the usage screen is the only real one, and no number here leaves this repository",
-  "without being checked against it. Nothing above says one batch cost less than another, because that is a",
-  "comparison and it needs the same cross-check.",
+  "without being checked against it. A comparison between two spans is drawn only by the summary's verdict line,",
+  "and only when the usage screen's own readings agree with it.",
 ].join("\n");
 
 // The timezone the meter buckets by. It reads the same variable with the same default, and the first result is
@@ -261,7 +261,7 @@ export function usageScope(root, project, { projects = [], all = false } = {}) {
   const lanes = trees.filter((w) => inside(laneRoot, w.path)).map((w) => w.path);
   const dirs = [...new Set([main, root, ...lanes])];
   return {
-    kind: "repository", args: dirs.flatMap((d) => ["--project-dir", d]),
+    kind: "repository", dirs, args: dirs.flatMap((d) => ["--project-dir", d]),
     describe: `this repository's own transcript folder and ${lanes.length} lane folder(s) under ${tilde(laneRoot)}, matched exactly`,
   };
 }
@@ -269,8 +269,9 @@ export function usageScope(root, project, { projects = [], all = false } = {}) {
 // The meter, over one span. `since` is exclusive and `until` inclusive, the way the meter reads them; either may be
 // null. `scope` is usageScope's answer, passed straight through: a project folder name is particular to one machine and
 // is never written into this repository, so it is worked out by the meter at run time and goes no further.
-export function meterWindow(meter, { since = null, until = null, scope = { args: [] }, env = process.env }) {
-  const args = [];
+export function meterWindow(meter, { since = null, until = null, days = null, scope = { args: [] }, env = process.env }) {
+  // days ({ from, to }, YYYY-MM-DD in the meter's timezone) composes with the instant span: a record must be inside both.
+  const args = days ? [days.from, days.to] : [];
   if (since) args.push("--since", since);
   if (until) args.push("--until", until);
   args.push(...scope.args, "--json");
@@ -330,7 +331,7 @@ export function foldScopes(parsed) {
 }
 
 // An instant as "YYYY-MM-DD HH:MM" in the meter's timezone, which the scorecard names on its second line.
-function localTime(iso, tz) {
+export function localTime(iso, tz) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
   }).formatToParts(new Date(iso));

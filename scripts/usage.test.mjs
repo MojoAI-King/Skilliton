@@ -23,6 +23,7 @@ import {
   PLUGIN_METER, batchBoundaries, batchRows, describeUsage, foldScopes, parseMerges, RECONSTRUCTION_NOTE,
 } from "../packs/base/plugins/workflow/runtime/lib/usage.mjs";
 import { renderTask } from "../packs/base/plugins/workflow/runtime/lib/tasks.mjs";
+import { describeSummary, meterTrend, screenRow, screenTrend } from "../packs/base/plugins/workflow/runtime/lib/usage-ledger.mjs";
 import { folderNameFor } from "../packs/base/plugins/workflow/runtime/meter/projects.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -105,6 +106,60 @@ check("the scopes are kept apart and totalled, and an unpriced window says so", 
   eq(folded.byScope.main.requests, 10, "a scope keeps its own figure");
   eq(folded.incomplete, true, "an incomplete window stays incomplete");
   eq(folded.unpriced.join(","), "some-model", "the model it could not price is named");
+});
+
+// ---------- the summary's verdict ----------
+
+// Rows carrying only what the summary reads from them: token totals and a cost.
+const batch = (tokens) => ({ folded: { incomplete: false, total: { input: tokens, output: 0, cache_read: 0, cache_write_5m: 0, cache_write_1h: 0, cost_usd: tokens / 1e6 } } });
+const reading = (at, fiveHour, weekly) => screenRow({ five_hour: String(fiveHour), weekly: String(weekly), at }).row;
+const EVENTS = { gate_runs: 2, read_refusals: 1, compactions: 3, compactions_auto: 3, unreadable_files: 0, unparseable_lines: 0 };
+const TASK_TIMES = { closed: 2, timed: 2, median: 3600000, longest: { id: "2026-09-20-a-aaaa", ms: 7200000 }, untimed: 0 };
+const summary = (meter, screens) => describeSummary({
+  periodLabel: "fixture", baselineLabel: "fixture", meter, screen: screenTrend(screens), tasks: TASK_TIMES, events: EVENTS,
+  comparison: ["no controlled comparison filed"], tz: TZ,
+});
+const METER_DOWN = meterTrend([batch(100), batch(100)], [batch(300), batch(300)]);
+const METER_UP = meterTrend([batch(500)], [batch(300)]);
+const SCREEN_DOWN = [reading("2026-09-20T12:00:00Z", 60, 70), reading("2026-09-22T12:00:00Z", 40, 50)];
+const SUMMARIES = [];
+const verdictOf = (lines) => lines.find((l) => l.startsWith("verdict:")) ?? "";
+
+check("the meter and the screen both down prints saved, and no amount", () => {
+  const lines = summary(METER_DOWN, SCREEN_DOWN);
+  SUMMARIES.push(lines);
+  has(verdictOf(lines), /^verdict: saved\. /, "the verdict");
+  has(lines.join("\n"), /five-hour 60 of 100, weekly 70 of 100/, "each screen reading is printed with its date");
+  has(lines.join("\n"), /It is not a bill/, "and the reconstruction note is on it");
+});
+
+check("the meter down alone prints not established", () => {
+  const lines = summary(METER_DOWN, [SCREEN_DOWN[1], { ...SCREEN_DOWN[0], at: "2026-09-23T12:00:00.000Z" }]);
+  SUMMARIES.push(lines);
+  has(verdictOf(lines), /^verdict: not established: the meter and the usage screen disagree \(the meter went down, the screen did not go down\)/, "the verdict");
+  SUMMARIES.push(summary(METER_UP, SCREEN_DOWN));
+  has(verdictOf(SUMMARIES.at(-1)), /^verdict: not established: the meter and the usage screen disagree/, "and the other way round");
+});
+
+check("no screen reading prints not established and says a reading is missing", () => {
+  const lines = summary(METER_DOWN, []);
+  SUMMARIES.push(lines);
+  has(verdictOf(lines), /^verdict: not established: a usage screen reading is missing/, "the verdict");
+  SUMMARIES.push(summary(METER_DOWN, [SCREEN_DOWN[0]]));
+  has(verdictOf(SUMMARIES.at(-1)), /a usage screen reading is missing \(1 usage screen reading\(s\) filed/, "one reading is not a direction either");
+});
+
+check("no line of any summary carries a percent sign or a dollar sign on the same line as the word saved", () => {
+  const all = SUMMARIES.flat();
+  eq(all.filter((l) => /\bsaved\b/i.test(l)).length, 1, "saved appears once, on the one verdict that earned it");
+  for (const l of all) if (/\bsaved\b/i.test(l)) hasNot(l, /[%$]/, "the line that says saved");
+});
+
+check("a screen reading is a whole number from 0 to 100", () => {
+  eq(screenRow({ five_hour: "101", weekly: "5" }).problem, "--five-hour takes a whole number from 0 to 100 (got \"101\")", "over 100");
+  has(String(screenRow({ five_hour: "4.5", weekly: "5" }).problem), /whole number/, "a fraction");
+  has(String(screenRow({ five_hour: "4" }).problem), /--weekly is needed/, "a missing reading");
+  eq(screenRow({ five_hour: "0", weekly: "100", at: "2026-09-22T12:00:00Z" }).row.weekly, 100, "the ends of the range are fine");
 });
 
 // ---------- the fixture repository and its stub meter ----------

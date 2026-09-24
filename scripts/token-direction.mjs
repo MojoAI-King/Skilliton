@@ -63,7 +63,8 @@ import { createInterface } from "node:readline";
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { homedir } from "node:os";
+import { bashCommandRunsGate, extractBashCommand, lineMarks } from "../packs/base/plugins/workflow/runtime/meter/events.mjs";
+import { folderNameFor, projectsRoot } from "../packs/base/plugins/workflow/runtime/meter/projects.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const METER = join(here, "token-cost.mjs");
@@ -84,14 +85,15 @@ const TODAY = process.env.SKILLITON_TODAY ?? new Date().toLocaleDateString("en-C
 
 function deriveProjectDir() {
   if (projectDirArg) return projectDirArg;
-  const projectsHome = process.env.SKILLITON_PROJECTS ?? join(homedir(), ".claude", "projects");
+  const projectsHome = projectsRoot();
   let root = projectRootArg;
   if (!root) {
     const gitCommonDir = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" }).trim();
     root = dirname(gitCommonDir); // the MAIN worktree, not whichever worktree this script runs from
   }
-  const key = root.replace(/[^a-zA-Z0-9]+/g, "-");
-  return join(projectsHome, key);
+  // One hyphen per character that is not a letter or digit, never collapsed (runtime/meter/projects.mjs says what was
+  // verified); the collapsing form this script used before missed a folder whose path held "/." or "/-".
+  return join(projectsHome, folderNameFor(root));
 }
 
 const PROJECT_DIR = deriveProjectDir();
@@ -110,25 +112,8 @@ function* walk(dir, counters) {
 const dayOf = (ms) => new Date(ms).toLocaleDateString("en-CA", { timeZone: TZ });
 const inWindow = (day) => day >= FROM && day <= TO;
 
-// Matched per shell segment (see the file-header comment for why): the segment must START with
-// the invocation and be followed only by `--cmd`, a numbered or bare redirect, a pipe, or nothing
-// -- never by another word, which is what distinguishes a real invocation from a sentence that
-// happens to start with the same two words.
-const GATE_SEG_RE = /^\s*(skilliton|node\s+\S*skilliton(\.mjs)?)\s+gate\s*(--cmd\b|\d*>|\||$)/;
-const SEGMENT_SPLIT_RE = /[\n;&|]+/;
-
-function bashCommandRunsGate(command) {
-  return command.split(SEGMENT_SPLIT_RE).some((seg) => GATE_SEG_RE.test(seg));
-}
-
-function extractBashCommand(rec) {
-  const content = rec?.message?.content;
-  if (!Array.isArray(content)) return null;
-  for (const item of content) {
-    if (item?.type === "tool_use" && item?.name === "Bash" && typeof item?.input?.command === "string") return item.input.command;
-  }
-  return null;
-}
+// The gate, refusal and compaction rules (see the file-header comment for why they are shaped this way) live in the
+// workflow plugin's runtime/meter/events.mjs, so this script and `skilliton usage summary` count the same way.
 
 async function scan() {
   const counters = { files: 0, unreadable_files: 0, unreadable_dirs: 0, unparseable_lines: 0 };
@@ -147,9 +132,7 @@ async function scan() {
       rl = createInterface({ input: createReadStream(file), crlfDelay: Infinity });
       for await (const line of rl) {
         const hasUsage = line.includes('"usage"');
-        const isCompact = line.includes('"subtype":"compact_boundary"');
-        const isRefusal = line.includes("PreToolUse:Read hook error");
-        const maybeGate = line.includes('"name":"Bash"') && line.includes("gate");
+        const { compact: isCompact, refusal: isRefusal, gate: maybeGate } = lineMarks(line);
         if (!hasUsage && !isCompact && !isRefusal && !maybeGate) continue;
 
         let rec;

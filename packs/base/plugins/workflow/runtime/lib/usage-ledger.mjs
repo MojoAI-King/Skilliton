@@ -19,10 +19,11 @@
 // key shaped like money is refused, as is one for a window already in the ledger, one that would leave a gap or an
 // overlap, and one made without the meter's own test having passed in the same run.
 
-import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { runGit } from "./journal.mjs";
-import { collectBoundaries, findMeter, foldModels, meterWindow, proveMeter, usageScope } from "./usage.mjs";
+import { RECONSTRUCTION_NOTE, collectBoundaries, findMeter, foldModels, localTime, meterWindow, proveMeter, usageScope } from "./usage.mjs";
+import { PRICING_RETRIEVED } from "../meter/pricing.mjs";
 
 export const LEDGER_REL = ".skilliton/usage/ledger.jsonl";
 const MAX_LEDGER_BYTES = 16 * 1024 * 1024;
@@ -180,16 +181,23 @@ function nextRowStart(root, project, { ledger, journal }) {
   const last = batchRowsOf(ledger).at(-1) ?? null;
   if (last) return { from: last.to, basis: "last ledger row" };
   if (journal.exists) return { from: null, basis: "earliest transcript" };
-  // Each commit that added a file there, oldest first: a "@<time>" line, then the paths it added. The first one that
-  // added a task record (a file named for a task id, not the folder's README) is the start.
+  const first = [...taskStarts(root, project).values()].sort()[0] ?? null;
+  return first ? { from: first, basis: "first task record" } : { from: null, basis: "earliest transcript" };
+}
+
+// When each task record was first committed: Map of repository-relative path to an ISO time. One git call; a record
+// that was never committed has no entry. The folder's README is not a task record and is left out.
+export function taskStarts(root, project) {
   const r = runGit(root, ["log", "--diff-filter=A", "--reverse", "--format=@%cI", "--name-only", "--", project.directories.tasks]);
+  const starts = new Map();
   let when = null;
-  for (const line of r.status === 0 ? r.stdout.split("\n") : []) {
-    if (line.startsWith("@")) { when = line.slice(1).trim(); continue; }
-    if (!TASK_FILE_RE.test(line.trim()) || Number.isNaN(Date.parse(when))) continue;
-    return { from: new Date(Date.parse(when)).toISOString(), basis: "first task record" };
+  for (const raw of r.status === 0 ? r.stdout.split("\n") : []) {
+    const line = raw.trim();
+    if (line.startsWith("@")) { when = Date.parse(line.slice(1)); continue; }
+    if (!TASK_FILE_RE.test(line) || Number.isNaN(when) || starts.has(line)) continue;
+    starts.set(line, new Date(when).toISOString());
   }
-  return { from: null, basis: "earliest transcript" };
+  return starts;
 }
 
 // The maintain step: one batch row for the window since the last row, ending at `at`, the maintain event's own time.
@@ -224,4 +232,160 @@ export function ledgerStep(project, { root, apply, at, env = process.env }) {
   const done = appendLedgerRow(root, row, { proof });
   if (!done.written) return step("refused", done.refused);
   return step("wrote", `a batch row for ${window} (${requests} request(s)) in ${LEDGER_REL}; commit it with the maintenance`);
+}
+
+// ---------- the usage screen's readings, and the summary ----------
+
+const SCREEN_OPTIONS = [["five_hour", "--five-hour", true], ["weekly", "--weekly", true], ["model_weekly", "--model-weekly", false]];
+
+// A screen row from what a person read off the usage screen: { row } or { problem }. Each reading is a whole number
+// from 0 to 100, as the screen shows it; --at is when it was read, and defaults to now.
+export function screenRow(given, { now = new Date() } = {}) {
+  const row = { kind: "screen", at: null };
+  for (const [key, option, required] of SCREEN_OPTIONS) {
+    const value = given[key];
+    if (value === undefined) {
+      if (required) return { problem: `${option} is needed: the reading the usage screen shows, a whole number from 0 to 100` };
+      row[key] = null;
+      continue;
+    }
+    if (!/^\d{1,3}$/.test(String(value)) || Number(value) > 100) {
+      return { problem: `${option} takes a whole number from 0 to 100 (got ${JSON.stringify(value)})` };
+    }
+    row[key] = Number(value);
+  }
+  const at = given.at === undefined ? now.getTime() : Date.parse(given.at);
+  if (Number.isNaN(at)) return { problem: `--at takes a date and time (got ${JSON.stringify(given.at)})` };
+  row.at = new Date(at).toISOString();
+  return { row };
+}
+
+const tokenTotal = (f) => f.total.input + f.total.output + f.total.cache_read + f.total.cache_write_5m + f.total.cache_write_1h;
+
+function spanFigures(rows) {
+  const tokens = rows.reduce((n, r) => n + tokenTotal(r.folded), 0);
+  const cost = rows.reduce((n, r) => n + r.folded.total.cost_usd, 0);
+  return { batches: rows.length, tokens, cost, perBatch: rows.length ? tokens / rows.length : null, incomplete: rows.some((r) => r.folded.incomplete) };
+}
+
+// The meter's per-batch trend: tokens per batch this period against the baseline. down is null when either side has no
+// batch, because there is then nothing comparable.
+export function meterTrend(periodRows, baselineRows) {
+  const period = spanFigures(periodRows);
+  const baseline = spanFigures(baselineRows);
+  if (!period.batches || !baseline.batches) {
+    return { period, baseline, down: null, why: `no comparable batch ${period.batches ? "in the baseline" : "in this period"}` };
+  }
+  return { period, baseline, down: period.perBatch < baseline.perBatch, why: null };
+}
+
+// The usage screen's trend: the latest reading against the one before it. down only when every reading both rows carry
+// went down; null, with what is missing, when there are not two readings.
+export function screenTrend(screens) {
+  const sorted = [...screens].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  if (sorted.length < 2) {
+    const missing = `${sorted.length} usage screen reading(s) filed; two are needed to see a direction`;
+    return { previous: sorted[0] ?? null, latest: null, down: null, missing };
+  }
+  const [previous, latest] = sorted.slice(-2);
+  const keys = SCREEN_OPTIONS.map(([k]) => k).filter((k) => Number.isFinite(previous[k]) && Number.isFinite(latest[k]));
+  return { previous, latest, down: keys.every((k) => latest[k] < previous[k]), keys, missing: null };
+}
+
+// The one line that may say saved: only when the meter and the screen both went down. It never carries an amount.
+function verdictLine(meter, screen) {
+  if (screen.missing) return `verdict: not established: a usage screen reading is missing (${screen.missing})`;
+  if (meter.down === null) return `verdict: not established: the meter has ${meter.why}`;
+  if (meter.down && screen.down) {
+    return "verdict: saved. The meter's tokens per batch and the usage screen's readings both went down over this period; no amount is claimed";
+  }
+  if (meter.down !== screen.down) {
+    return `verdict: not established: the meter and the usage screen disagree (the meter ${meter.down ? "went down" : "did not go down"}, `
+      + `the screen ${screen.down ? "went down" : "did not go down"})`;
+  }
+  return "verdict: not established: neither the meter's tokens per batch nor the usage screen's readings went down";
+}
+
+// Start to close for each task closed in the period: { closed, timed, median, longest: { id, ms } | null, untimed }.
+export function taskTimes(tasks, starts, relOf, { sinceMs, untilMs }) {
+  const closed = tasks.filter((t) => ["merged", "done-local", "released", "verified"].includes(t.state)
+    && Date.parse(t.updated) > sinceMs && Date.parse(t.updated) <= untilMs);
+  const timed = closed.flatMap((t) => {
+    const start = starts.get(relOf(t.id));
+    return start ? [{ id: t.id, ms: Date.parse(t.updated) - Date.parse(start) }] : [];
+  }).sort((a, b) => a.ms - b.ms);
+  const mid = Math.floor(timed.length / 2);
+  const median = !timed.length ? null : timed.length % 2 ? timed[mid].ms : (timed[mid - 1].ms + timed[mid].ms) / 2;
+  return { closed: closed.length, timed: timed.length, median, longest: timed.at(-1) ?? null, untimed: closed.length - timed.length };
+}
+
+// The controlled comparison filed under evidence/comparison/<date>/results.jsonl, newest date, as one line per task and
+// arm; or the line that says there is none.
+export function comparisonLines(root) {
+  const base = join(root, "evidence", "comparison");
+  const dates = existsSync(base) ? readdirSync(base).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && existsSync(join(base, d, "results.jsonl"))).sort() : [];
+  if (!dates.length) return ["no controlled comparison filed"];
+  const date = dates.at(-1);
+  const groups = new Map();
+  for (const line of readFileSync(join(base, date, "results.jsonl"), "utf8").split("\n")) {
+    let r = null;
+    try { r = line.trim() ? JSON.parse(line) : null; } catch { r = null; }
+    if (!isObject(r)) continue;
+    const key = `task ${r.task ?? "?"}, arm ${r.arm ?? "?"}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  }
+  const med = (xs) => { const s = xs.filter(Number.isFinite).sort((a, b) => a - b); return s.length ? s[Math.floor((s.length - 1) / 2)] : null; };
+  const lines = [`controlled comparison filed ${date} (evidence/comparison/${date}/results.jsonl), one line per task and arm:`];
+  for (const [key, runs] of [...groups.entries()].sort()) {
+    const ok = runs.filter((r) => r.measured?.success === true).length;
+    const unknown = runs.filter((r) => r.measured?.success == null).length;
+    lines.push(`  ${key}: ${runs.length} run(s), median input tokens ${med(runs.map((r) => r.measured?.inputTokens)) ?? "unknown"}, `
+      + `median output tokens ${med(runs.map((r) => r.measured?.outputTokens)) ?? "unknown"}, succeeded ${ok}, success unknown ${unknown}`);
+  }
+  return lines;
+}
+
+const num = (v) => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+const hours = (ms) => `${(ms / 3600000).toFixed(1)} hours`;
+
+function spanLine(label, f) {
+  if (!f.batches) return `  ${label}: no batch`;
+  const warn = f.incomplete ? "; INCOMPLETE, a model the table does not price is in it" : "";
+  return `  ${label}: ${f.batches} batch(es), ${num(f.tokens)} tokens, est usd ${f.cost.toFixed(2)}, ${num(f.perBatch)} tokens per batch${warn}`;
+}
+
+function readingText(r, tz) {
+  const parts = [`five-hour ${r.five_hour} of 100`, `weekly ${r.weekly} of 100`];
+  if (Number.isFinite(r.model_weekly)) parts.push(`model weekly ${r.model_weekly} of 100`);
+  return `${localTime(r.at, tz)}: ${parts.join(", ")}`;
+}
+
+function screenLines(screen, tz) {
+  if (screen.missing) return [`usage screen: ${screen.missing}${screen.previous ? `; the one filed: ${readingText(screen.previous, tz)}` : ""}`];
+  return [
+    `usage screen, the two latest readings: ${readingText(screen.previous, tz)}`,
+    `                                  then ${readingText(screen.latest, tz)}: ${screen.down ? "went down" : "did not go down"}`,
+  ];
+}
+
+// The summary, as lines. The verdict line is the only one that can carry the word saved, and no line carries an amount
+// saved: the figures are this period's and the baseline's, side by side, each with the date or window it belongs to.
+export function describeSummary({ periodLabel, baselineLabel, meter, screen, tasks, events, comparison, tz }) {
+  const out = [`period: ${periodLabel}`, `baseline: ${baselineLabel}`];
+  out.push(`figures in tokens, and est usd priced from the meter's table retrieved ${PRICING_RETRIEVED}:`);
+  out.push(spanLine("this period", meter.period), spanLine("baseline", meter.baseline));
+  const trend = meter.down === null ? `not comparable (${meter.why})` : meter.down ? "went down" : "did not go down";
+  out.push(`meter trend: tokens per batch ${trend}`);
+  out.push(...screenLines(screen, tz));
+  const t = tasks;
+  out.push(t.timed
+    ? `tasks closed in the period: ${t.closed}; start to close, for ${t.timed} with a committed start: median ${hours(t.median)}, `
+      + `longest ${hours(t.longest.ms)} (${t.longest.id})${t.untimed ? `; ${t.untimed} without a committed start` : ""}`
+    : `tasks closed in the period: ${t.closed}${t.closed ? ", none with a committed start to time from" : ""}`);
+  const unread = events.unreadable_files + events.unparseable_lines;
+  out.push(`in the period: ${events.gate_runs} skilliton gate run(s), ${events.read_refusals} read(s) refused by the read guard, `
+    + `${events.compactions} compaction(s) (${events.compactions_auto} automatic)${unread ? `; ${unread} file(s) or line(s) could not be read` : ""}`);
+  out.push(...comparison, verdictLine(meter, screen), "", RECONSTRUCTION_NOTE);
+  return out;
 }

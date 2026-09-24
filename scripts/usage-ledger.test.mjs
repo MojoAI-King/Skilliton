@@ -237,3 +237,28 @@ test("skilliton usage shows the ledger first, marks committed and live rows, and
   assert.doesNotMatch(only.out, /live, read from the transcripts/);
   assert.match(only.out, /It is not a bill/, "the reconstruction note is on this output too");
 });
+
+test("usage screen files a reading only with --apply and refuses one off the screen's scale; usage summary reads them", (t) => {
+  const f = preparedRepo(t);
+  const preview = cli(f.dir, ["usage", "screen", "--five-hour", "40", "--weekly", "60", "--at", "2026-09-22T12:00:00Z"], f.env);
+  assert.equal(preview.code, 0, preview.all);
+  assert.match(preview.out, /\(preview\): would add .*Nothing was written/);
+  assert.equal(existsSync(join(f.dir, LEDGER_REL)), false);
+  const off = cli(f.dir, ["usage", "screen", "--five-hour", "101", "--weekly", "60", "--apply"], f.env);
+  assert.equal(off.code, 2, off.all);
+  assert.match(off.all, /--five-hour takes a whole number from 0 to 100 \(got "101"\)\. Nothing was written/);
+  for (const [at, h, w] of [["2026-09-22T12:00:00Z", "40", "60"], [new Date().toISOString(), "30", "50"]]) {
+    const r = cli(f.dir, ["usage", "screen", "--five-hour", h, "--weekly", w, "--at", at, "--apply"], f.env);
+    assert.equal(r.code, 0, r.all);
+    assert.match(r.out, /It is not a bill/, "the reconstruction note is on this output too");
+  }
+  assert.deepEqual(readLedger(f.dir).rows.map((r) => [r.kind, r.five_hour, r.weekly, r.model_weekly]), [["screen", 40, 60, null], ["screen", 30, 50, null]]);
+  const s = cli(f.dir, ["usage", "summary"], f.env);
+  assert.equal(s.code, 0, s.all);
+  assert.match(s.out, /since the last usage screen reading/);
+  assert.match(s.out, /usage screen, the two latest readings: 2026-09-22 12:00: five-hour 40 of 100, weekly 60 of 100/);
+  assert.match(s.out, /then .*five-hour 30 of 100, weekly 50 of 100: went down/);
+  assert.match(s.out, /^verdict: not established: the meter has no comparable batch in this period$/m, "no batch, so no direction from the meter");
+  assert.match(s.out, /^no controlled comparison filed$/m);
+  assert.match(s.out, /It is not a bill/);
+});
