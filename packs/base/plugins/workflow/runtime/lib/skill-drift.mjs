@@ -4,20 +4,20 @@
 // copy quietly answering instead of the plugin's.
 //
 // Read only: nothing here writes, and a project with no .claude/skills/ folder costs one stat. The installed plugins
-// are resolved the way doctor resolves them (lib/doctor.mjs): Claude Code's configuration folder is CLAUDE_CONFIG_DIR
-// when it is set, else ~/.claude (the rule in lib/verify.mjs, restated here so a session start does not load the
-// release and trust modules), and plugins/installed_plugins.json there names each install with its installPath. That
-// file's format is not documented; its shape was read on Claude Code 2.1.92 and 2.1.278 (doctor's note).
+// are resolved the way doctor resolves them (lib/doctor.mjs): Claude Code's configuration folder is lib/verify.mjs's
+// claudeConfigDir (CLAUDE_CONFIG_DIR when it is set, else ~/.claude), the one place that folder is declared in
+// docs/IT-ALLOWLIST.md section 2, and plugins/installed_plugins.json there names each install with its installPath.
+// That file's format is not documented; its shape was read on Claude Code 2.1.92 and 2.1.278 (doctor's note).
+// Importing verify.mjs costs a session start about 4 ms (measured 2026-09-24).
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { isFile, isPlainObject, listDirNames, tilde } from "./core.mjs";
+import { claudeConfigDir } from "./verify.mjs";
 
 const SKILL_COPY_LINE = "skill copy differs from the installed one";
 
-const configDir = () => resolve(process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"));
 const hashOf = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
 
 // Each install's folder: [{ plugin, path }] from installed_plugins.json, or { problem } when the file is there and
@@ -40,7 +40,7 @@ function installedPlugins(dir) {
 
 // { differs: [{ name, plugins }], problem }. A copy is named when an installed plugin has a skill of that name and no
 // installed copy of it has the same SKILL.md bytes; a name no installed plugin has is the project's own skill.
-export function skillCopyDrift(root, { claudeDir = configDir() } = {}) {
+export function skillCopyDrift(root, { claudeDir = claudeConfigDir() } = {}) {
   const skills = typeof root === "string" ? join(root, ".claude", "skills") : null;
   const names = skills ? listDirNames(skills).filter((name) => isFile(join(skills, name, "SKILL.md"))) : [];
   if (!names.length) return { differs: [], problem: null };
