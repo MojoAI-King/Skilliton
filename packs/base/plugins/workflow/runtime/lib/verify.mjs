@@ -19,10 +19,11 @@
 import { lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import { Refused, cmpVersion, isPlainObject, refuse, tilde } from "./core.mjs";
+import { Refused, cmpVersion, isPlainObject, refuse, selfCommand, tilde } from "./core.mjs";
 import { VERSION_RE, openRepository, readClaudeCatalog, readCodexCatalog, readReleaseState } from "./release.mjs";
 import { scanTree, treeSha256Of } from "./treehash.mjs";
 import { resolveTrust, runGit } from "./trust.mjs";
+import { pinnedVersion } from "./pin.mjs";
 import { LEGACY_MARKETPLACE, LEGACY_RELEASE_TAG } from "./legacy-names.mjs";
 
 const CLIENTS = ["claude-code", "codex"];
@@ -368,6 +369,23 @@ function buildVerifyDetails({ client, configDir, records, repo, trust, state, li
   };
 }
 
+// The clone verify reads releases from and the installed plugins, when they disagree: the clone is pinned (its record
+// under its git dir, lib/pin.mjs) to release a, and a VERIFIED install has a version that release a does not carry,
+// so the plugins match another release b. Returns { pinned, match: [b], line } with line null when they agree, the
+// clone is not pinned, or nothing is VERIFIED; a pin record that cannot be read is a note. Never changes the exit.
+function pinAgreement(repo, releases, lines, notes) {
+  const { version: pinned, problem } = pinnedVersion(repo);
+  if (problem) notes.push(`the clone's pin could not be read, so it was not compared with the installed plugins: ${problem}`);
+  const release = pinned ? releases.find((r) => r.version === pinned) : null;
+  const verified = lines.filter((l) => l.state === "VERIFIED");
+  const apart = pinned ? verified.filter((l) => !release || componentOf(release, l.plugin)?.version !== l.version) : [];
+  const match = [...new Set(apart.map((l) => l.release))].sort((a, b) => cmpVersion(b, a));
+  if (!match.length) return { pinned, match, line: null };
+  const move = `run ${selfCommand()} pin --release ${pinned} --apply to move the install, or pin --latest`;
+  const line = `the clone is pinned to ${pinned}, the installed plugins match ${match.join(", ")}: ${move}`;
+  return { pinned, match, line };
+}
+
 // Returns { exitCode, result, summary, details, text: [lines] }. Throws Refused for invalid input or missing trust.
 export function runVerify({ client = "claude-code", configDir, source, company, defaultSource, sourceHint }) {
   const repo = resolveVerifySource({ client, source, defaultSource, sourceHint });
@@ -378,8 +396,10 @@ export function runVerify({ client = "claude-code", configDir, source, company, 
   const lines = evaluateAllInstalls(installs, releases);
   const invalid = [...state.problems, ...records.invalid];
   const { counts, exitCode, summary } = summarizeVerify(lines, invalid, names);
+  const pin = pinAgreement(repo, releases, lines, notes);
   const text = buildVerifyText({ client, records, repo, trust, state, notes, invalid, lines, summary });
-  const details = buildVerifyDetails({ client, configDir: dir, records, repo, trust, state, lines, counts, invalid, notes });
+  if (pin.line) text.splice(text.length - 1, 0, pin.line); // just above the Summary line
+  const details = { ...buildVerifyDetails({ client, configDir: dir, records, repo, trust, state, lines, counts, invalid, notes }), pin };
   const result = exitCode === 0 ? "complete" : exitCode === 1 ? "attention" : "invalid";
   return { exitCode, result, summary, details, text };
 }

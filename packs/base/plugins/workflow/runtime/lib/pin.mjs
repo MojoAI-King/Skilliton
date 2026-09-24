@@ -20,7 +20,7 @@
 
 import { lstatSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { isPlainObject, refuse, selfCommand, tilde } from "./core.mjs";
+import { Refused, isPlainObject, refuse, selfCommand, tilde } from "./core.mjs";
 import { RELEASE_TAG, VERSION_RE, openRepository, readReleaseState, short } from "./release.mjs";
 import { resolveTrust, runGit } from "./trust.mjs";
 
@@ -71,6 +71,15 @@ function readPin(repo) {
   const problem = pinProblem(p);
   if (problem) refuse(`${tilde(path)} is not a valid pin record (${problem}), so where this clone was pinned is unknown; remove it by hand. Nothing was changed.`);
   return p;
+}
+
+// The release this clone is pinned to, for verify, which reads and never refuses on the pin: { version, problem },
+// version null when the clone was never pinned or its record cannot be read (problem then says why).
+export function pinnedVersion(repo) {
+  try { return { version: readPin(repo)?.version ?? null, problem: null }; } catch (e) {
+    if (e instanceof Refused) return { version: null, problem: e.message };
+    throw e;
+  }
 }
 
 // Written to a new temporary file and renamed, so a record is never half written.
