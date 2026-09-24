@@ -163,8 +163,8 @@ expect "xargs sh -c (base: allow)"                     ask "$RP" "ls | xargs sh 
 expect "xargs -I{} bash -c (base: allow)"              ask "$RP" "ls | xargs -I{} bash -c 'echo {}'"
 expect "sh ./install.sh (base: allow)"                 ask "$RP" 'sh ./install.sh'
 expect "bash <a file outside scripts/> (base: allow)"  ask "$RP" "bash $TMP/x.sh"
-expect "bash <a script under scripts/ with an uncommitted change> (base: allow)" ask "$RP" 'bash scripts/edited.sh'
-expect "bash <a script under scripts/ that git does not track> (base: allow)" ask "$RP" 'bash scripts/untracked.sh'
+expect "bash <a script under scripts/ with an uncommitted change> (base: allow; 0.10.0: ask; 0.11.0 reads its text, N8)" allow "$RP" 'bash scripts/edited.sh'
+expect "bash <a script under scripts/ that git does not track> (base: allow; 0.10.0: ask; 0.11.0 reads its text, N8)" allow "$RP" 'bash scripts/untracked.sh'
 expect "cp <x> scripts/check.sh && bash scripts/check.sh (base: allow)" ask "$RP" "cp $TMP/x scripts/check.sh && bash scripts/check.sh"
 expect "source <file> (base: allow)"                   ask "$RP" 'source venv/bin/activate'
 expect ". <file> (base: allow)"                        ask "$RP" '. ./env.sh'
@@ -268,6 +268,55 @@ expect "negative: find d* -name '*.tmp' -delete"       allow "$RP" "find d* -nam
 expect "negative: rm -rf docs/* in a project that is not prepared" allow "$R" 'rm -rf docs/*'
 expect "negative: rm -f * (not recursive) in a project that is not prepared" allow "$R" 'rm -f *'
 expect "negative: rm -rf sub/* in a project that is not prepared" allow "$R" 'rm -rf sub/*'
+
+# ---------------------------------------------------------------- N8 (B84)
+section "N8: a file given to source, \".\", sh, bash or zsh is read through the same rules, one level deep"
+RV="$TMP/repo-venv"; new_prepared "$RV" || { echo "FAIL: could not build $RV"; exit 1; }
+mkdir -p "$RV/.venv/bin" "$RV/tools" "$RV/big"
+cp "$root/scripts/fixtures/venv/bin/activate" "$RV/.venv/bin/activate" || { echo "FAIL: the venv activate fixture is missing"; exit 1; }
+printf 'echo building\nls -la\n' > "$RV/tools/ok.sh"
+printf 'echo first\ngit push -f origin main\n' > "$RV/tools/push.sh"
+printf 'git reset --hard\n' > "$RV/tools/reset.sh"
+printf 'rm -rf docs/tasks\n' > "$RV/tools/wipe.sh"
+printf 'source .venv/bin/activate\n' > "$RV/tools/nested-source.sh"
+printf 'bash tools/ok.sh\n' > "$RV/tools/nested-bash.sh"
+printf 'echo "unclosed\n' > "$RV/tools/unclosed.sh"
+printf 'echo hi\001\n' > "$RV/tools/binary.sh"
+awk 'BEGIN { for (i = 0; i < 9000; i++) print "echo hi" }' > "$RV/big/over.sh"   # 72,000 bytes, over the 64 KB cap
+printf 'echo outside\n' > "$TMP/outside.sh"
+ln -s tools/ok.sh "$RV/link.sh"; ln -s tools "$RV/linkdir"
+expect "source .venv/bin/activate, the text venv writes (0.10.0: ask)" allow "$RV" 'source .venv/bin/activate'
+expect ". .venv/bin/activate (0.10.0: ask)"            allow "$RV" '. .venv/bin/activate'
+expect "cd <project> && source .venv/bin/activate && python3 -V (0.10.0: ask)" allow "$RV" "cd $RV && source .venv/bin/activate && python3 -V"
+expect "bash <a file inside the project whose text fires nothing> (0.10.0: ask)" allow "$RV" 'bash tools/ok.sh'
+expect "sh <the same file> (0.10.0: ask)"               allow "$RV" 'sh tools/ok.sh'
+expect "zsh -x <the same file> (0.10.0: ask)"           allow "$RV" 'zsh -x tools/ok.sh'
+expect "bash <a file inside that force-pushes main> denies (0.10.0: ask)" deny "$RV" 'bash tools/push.sh'
+reason_has "  the reason names the file" "In the file tools/push.sh, which bash runs here"
+reason_has "  the reason keeps the inner rule's reason" "main"
+expect "source <a file inside that force-pushes main> denies (0.10.0: ask)" deny "$RV" 'source tools/push.sh'
+expect "bash <a file inside that removes an entry folder> denies (0.10.0: ask)" deny "$RV" 'bash tools/wipe.sh'
+expect "bash <a file inside that runs git reset --hard> asks, with the file named" ask "$RV" 'bash tools/reset.sh'
+reason_has "  the reason names the file" "In the file tools/reset.sh"
+expect "source <a file outside the project> asks"       ask "$RV" "source $TMP/outside.sh"
+reason_has "  the reason says it is outside" "it is outside this project"
+expect "bash <a symbolic link to a harmless file> asks" ask "$RV" 'bash link.sh'
+reason_has "  the reason names the link" "symbolic link"
+expect "bash <a harmless file through a linked folder> asks" ask "$RV" 'bash linkdir/ok.sh'
+reason_has "  the reason names the linked folder" "a folder on its path is a symbolic link"
+expect "bash <a file over the 64 KB cap> asks"          ask "$RV" 'bash big/over.sh'
+reason_has "  the reason gives the size" "72000 bytes"
+expect "a file that itself sources another file asks (one level deep)" ask "$RV" 'bash tools/nested-source.sh'
+reason_has "  the reason says one level deep" "reads one level deep"
+expect "a file that itself runs bash <file> asks (one level deep)" ask "$RV" 'source tools/nested-bash.sh'
+expect "a file whose quote does not close asks"         ask "$RV" 'bash tools/unclosed.sh'
+reason_has "  the reason names the file" "In the file tools/unclosed.sh"
+expect "a file holding bytes that are not text asks"    ask "$RV" 'bash tools/binary.sh'
+expect "a file that does not exist asks"                ask "$RV" 'source tools/missing.sh'
+expect "a file named twice in the command asks (a cp may write it first)" ask "$RV" "cp $TMP/outside.sh tools/ok.sh && bash tools/ok.sh"
+expect "a file after a program that may change it asks" ask "$RV" 'make && bash tools/ok.sh'
+expect "dash <a file> still asks (read for sh, bash, zsh, source and . only)" ask "$RV" 'dash tools/ok.sh'
+expect "bash <file> git push -f origin main asks (its words name git)" ask "$RV" 'bash tools/ok.sh git push -f origin main'
 
 echo
 if [ "$fails" -eq 0 ]; then echo "RESULT: PASS ($oks checks ok)"; exit 0; fi

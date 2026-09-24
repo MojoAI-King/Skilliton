@@ -26,7 +26,9 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #          a force-push or rm -rf whose branch or path holds a variable it cannot resolve; HUSKY=0, SKIP= or
 #          LEFTHOOK=0 in front of a git commit; a shell fed from a pipe, a decoder or a file (| sh, sh -s, base64 -d | sh,
 #          sh <file> other than a committed check script under scripts/, source, ".", eval of $( ), xargs sh, env -S),
-#          because what it runs cannot be read here (N90);
+#          because what it runs cannot be read here (N90), except that a file given to source, ".", sh, bash or zsh
+#          that is inside the project, a regular file with no symbolic link below the project's folder, under the
+#          64 KB cap and readable text is read through these same rules, one level deep (N8, B84; read_script);
 #          and a command that writes the settings file itself (.skilliton/config.json), because a rule
 #          turned off there is a person's decision (the Write and Edit half is managed-block-guard.mjs); a command that
 #          writes, copies over, moves over or removes the client's settings file (.claude/settings.json or
@@ -45,7 +47,8 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #   and git -C, and reads past env, sudo, nice, timeout, exec, caffeinate, stdbuf, ionice and time with the values
 #   their options take; after a program it does not know, a later git, rm or mv that would be stopped asks. It is not
 #   a shell parser: it does not expand variables (other than a leading $PWD or $CLAUDE_PROJECT_DIR), globs, aliases,
-#   or functions, and it does not look inside scripts, bash -c strings, eval, xargs, a backtick
+#   or functions, and it does not look inside scripts (other than one source, ".", sh, bash or zsh is given, read one
+#   level deep as read_script says), bash -c strings, eval, xargs, a backtick
 #   substitution inside double quotes, or git aliases from a configuration file (one set with -c on the command
 #   itself is read as what it runs; a $( inside double quotes is read as the
 #   command it is, and $(( )) is arithmetic, never a heredoc; an unclosed one asks); a shell, eval or xargs string that
@@ -542,6 +545,7 @@ EOF
 walk_segments() { # runs analyze_segment on each segment, in order, so cd carries forward
   local n=${#TOKS[@]} i=0 start=0 redir=0 t
   EFF_DIR=$IN_CWD; REDIRS=""
+  [ "$ANALYZE_DEPTH" -gt 0 ] || SEG_RAN=0
   while [ "$i" -le "$n" ]; do
     if [ "$i" -eq "$n" ] || [ "${TOKS[$i]}" = "$SEP" ]; then
       if [ "$i" -gt "$start" ]; then
@@ -892,7 +896,7 @@ analyze_segment() {
       sh|bash|zsh|dash|ksh|*/sh|*/bash|*/zsh|*/dash|*/ksh) analyze_shell $((k + 1)) ;;
       eval) analyze_eval $((k + 1)) ;;
       xargs|*/xargs) analyze_xargs $((k + 1)) ;;
-      source|.) shell_ask "${SEGW[$k]} runs the file ${SEGW[$((k + 1))]:-it is given} in this shell" ;;
+      source|.) analyze_source $((k + 1)) ;;
       cp|install|ln|*/cp|*/install|*/ln) check_config_words $((k + 1)) dest; check_overwrite $((k + 1)) dest ;;
       touch|mkdir|*/touch|*/mkdir) check_config_words $((k + 1)) any ;;
       sed|gsed|*/sed|*/gsed) check_config_words $((k + 1)) inplace; check_inplace $((k + 1)) sed ;;
@@ -901,6 +905,11 @@ analyze_segment() {
       ex|ed|*/ex|*/ed) check_inplace $((k + 1)) "${SEGW[$k]##*/}" ;;
       node|python|python3|ruby|php|bun|deno|osascript|*/node|*/python|*/python3|*/ruby|*/php|*/bun|*/deno|*/osascript) check_config_words $((k + 1)) text; check_program_text $((k + 1)) ;;
       *) scan_tail "$k" ;;
+    esac
+    # a program that may change a file a later source or shell is given, so that file is not read (N8)
+    case "${SEGW[$k]##*/}" in
+      cd|pushd|popd|pwd|:|echo|printf|print|which|type|grep|egrep|fgrep|rg|cat|less|more|head|tail|ls|wc|jq|test|'['|'[['|true|false|export|local|declare|typeset|readonly|set|unset|alias|unalias|hash) ;;
+      *) SEG_RAN=1 ;;
     esac
   fi
   EFF_DIR=$saved_dir   # env -C and sudo -D move only the command they wrap
@@ -1001,8 +1010,67 @@ analyze_shell() { # analyze_shell <index after sh, bash, zsh, dash or ksh>
   if [ "$cflag" = 1 ]; then analyze_shell_string "$1"; return 0; fi
   if [ "$nflag" = 1 ] && [ "$sflag" = 0 ]; then return 0; fi   # -n reads and checks, and runs nothing
   if [ "$sflag" = 1 ] || [ -z "$file" ]; then shell_ask "$shell reads its commands from its input (a pipe, a heredoc or a redirection)"; return 0; fi
-  if known_check_script "$file"; then analyze_shell_string "$1"; return 0; fi
-  shell_ask "$shell runs the file $file, which is not one of this project's committed check scripts under scripts/"
+  if [ "$SCRIPT_DEPTH" = 0 ] && known_check_script "$file"; then analyze_shell_string "$1"; return 0; fi
+  case "$shell" in
+    sh|bash|zsh) if read_script "$file" "$shell"; then analyze_shell_string "$1"; return 0; fi ;;
+    *) RS_WHY="guardrails reads a file given to sh, bash, zsh, source or \".\" only" ;;
+  esac
+  shell_ask "$shell runs the file $file, which is not one of this project's committed check scripts under scripts/, and guardrails did not read it: $RS_WHY"
+}
+
+analyze_source() { # analyze_source <index after source or .>: the file is read through the rules when it can be (N8)
+  local k=$1 file=${SEGW[$1]:-} how=${SEGW[$(($1 - 1))]}
+  [ "$file" != -- ] || { k=$((k + 1)); file=${SEGW[$k]:-}; }
+  if [ -z "$file" ]; then shell_ask "$how is given no file it can read"; return 0; fi
+  if read_script "$file" "$how"; then analyze_shell_string $((k + 1)); return 0; fi
+  shell_ask "$how runs the file $file in this shell, and guardrails did not read it: $RS_WHY"
+}
+
+# read_script <word naming the file> <what runs it>: a script given to source, ".", sh, bash or zsh is read through the
+# same deny and ask rules as a command (N8, B84), one level deep. Returns 0 when it was read: anything the rules decide
+# is set with deny or ask, naming the file, and nothing is set when nothing fires. Returns 1 when it was not read, with
+# RS_WHY saying why, and the caller asks as before: a file outside the project, a symbolic link at any step below the
+# project's folder, not a regular file, over the CMD_MAX_BYTES cap, unreadable, holding bytes that are not text, named
+# anywhere else in the command (which may write it first), after an earlier part of the command that runs a program
+# (which may change it first), or named inside a file already being read. The file is read as it is before the command
+# runs, as every other file here is.
+SCRIPT_DEPTH=0; SEG_RAN=0; TOP_CMD=""
+read_script() {
+  local raw f proj pproj pdir rel size clean base count=0 rest text where
+  RS_WHY=""
+  if [ "$SCRIPT_DEPTH" != 0 ]; then RS_WHY="it is named inside a file guardrails is already reading, and guardrails reads one level deep"; return 1; fi
+  if [ "$SEG_RAN" = 1 ]; then RS_WHY="an earlier part of this command runs a program, which may change the file before it runs"; return 1; fi
+  resolve_dir "$EFF_DIR" "$1"; raw=$RESOLVED
+  if [ -z "$raw" ]; then RS_WHY="its path holds a variable or a substitution guardrails cannot resolve"; return 1; fi
+  normalize_path "$raw"; f=$NORM
+  normalize_path "$PROJECT_DIR"; proj=$NORM
+  case "$f" in "$proj"/?*) ;; *) RS_WHY="it is outside this project"; return 1 ;; esac
+  if [ -L "$raw" ] || [ -L "$f" ]; then RS_WHY="it is a symbolic link"; return 1; fi
+  if [ ! -e "$f" ]; then RS_WHY="it does not exist yet"; return 1; fi
+  if [ ! -f "$f" ]; then RS_WHY="it is not a regular file"; return 1; fi
+  # a symbolic link at any step: the folder as the system finds it must be the one the text names, below the project
+  rel=${f#"$proj"/}
+  pproj=$(cd -P -- "$proj" 2>/dev/null && pwd -P) || pproj=""
+  pdir=$(cd -P -- "${raw%/*}/" 2>/dev/null && pwd -P) || pdir=""
+  case "$rel" in */*) where="$pproj/${rel%/*}" ;; *) where=$pproj ;; esac
+  if [ -z "$pproj" ] || [ "$pdir" != "$where" ]; then RS_WHY="a folder on its path is a symbolic link"; return 1; fi
+  if [ ! -r "$f" ]; then RS_WHY="it cannot be read"; return 1; fi
+  size=$(wc -c < "$f" 2>/dev/null | tr -d ' ') || size=""
+  case "$size" in ''|*[!0-9]*) RS_WHY="its size could not be read"; return 1 ;; esac
+  if [ "$size" -gt "$CMD_MAX_BYTES" ]; then RS_WHY="it is $size bytes, over the $CMD_MAX_BYTES byte (64 KB) limit guardrails reads"; return 1; fi
+  clean=$(tr -d '\000-\010\016-\037' < "$f" 2>/dev/null | wc -c | tr -d ' ')
+  if [ "$clean" != "$size" ]; then RS_WHY="it holds bytes that are not text"; return 1; fi
+  base=${f##*/}; rest=${TOP_CMD:-$IN_CMD}
+  while :; do case "$rest" in *"$base"*) count=$((count + 1)); rest=${rest#*"$base"} ;; *) break ;; esac; done
+  if [ "$count" -gt 1 ]; then RS_WHY="it is named more than once in this command, so an earlier part may write it first"; return 1; fi
+  text=$(cat -- "$f" 2>/dev/null) || { RS_WHY="it cannot be read"; return 1; }
+  SCRIPT_DEPTH=1
+  analyze_text "$text"
+  SCRIPT_DEPTH=0
+  SEG_RAN=1
+  [ -z "$AT_DENY" ] || deny "In the file $rel, which $2 runs here and which guardrails read through its own rules: $AT_DENY"
+  [ -z "$AT_ASK" ] || ask "In the file $rel, which $2 runs here and which guardrails read through its own rules: $AT_ASK"
+  return 0
 }
 
 analyze_eval() { # analyze_eval <index after eval>: text made while the command runs ($( ), a variable, a backtick) asks
@@ -1203,7 +1271,7 @@ analyze_text() { # analyze_text <command text>: runs the whole check on a comman
   s_segw=(${SEGW[@]+"${SEGW[@]}"})
   s_segr=(${SEGR[@]+"${SEGR[@]}"})
   s_args=(${ARGS[@]+"${ARGS[@]}"})
-  local s_cmd=$IN_CMD s_cwd=$IN_CWD s_eff=$EFF_DIR s_redirs=$REDIRS s_gdir=$GDIR s_deny=$DENY_REASON s_ask=$ASK_REASON s_uns=$TOK_UNSURE
+  local s_cmd=$IN_CMD s_cwd=$IN_CWD s_eff=$EFF_DIR s_redirs=$REDIRS s_gdir=$GDIR s_deny=$DENY_REASON s_ask=$ASK_REASON s_uns=$TOK_UNSURE s_ran=$SEG_RAN
   AT_DENY=""; AT_ASK=""
   if [ "$ANALYZE_DEPTH" -ge 3 ]; then AT_ASK="Check first: aliases inside aliases are nested too deep for guardrails to follow."; return 0; fi
   ANALYZE_DEPTH=$((ANALYZE_DEPTH + 1))
@@ -1216,7 +1284,7 @@ analyze_text() { # analyze_text <command text>: runs the whole check on a comman
   SEGW=(${s_segw[@]+"${s_segw[@]}"})
   SEGR=(${s_segr[@]+"${s_segr[@]}"})
   ARGS=(${s_args[@]+"${s_args[@]}"})
-  IN_CMD=$s_cmd; IN_CWD=$s_cwd; EFF_DIR=$s_eff; REDIRS=$s_redirs; GDIR=$s_gdir; DENY_REASON=$s_deny; ASK_REASON=$s_ask; TOK_UNSURE=$s_uns
+  IN_CMD=$s_cmd; IN_CWD=$s_cwd; EFF_DIR=$s_eff; REDIRS=$s_redirs; GDIR=$s_gdir; DENY_REASON=$s_deny; ASK_REASON=$s_ask; TOK_UNSURE=$s_uns; SEG_RAN=$s_ran
 }
 
 # ---------------------------------------------------------------- helpers for the rules
@@ -2729,6 +2797,7 @@ main_pretooluse() {
   [ -n "$IN_CWD" ] || IN_CWD=${CLAUDE_PROJECT_DIR:-$PWD}
   set_project_dir
   load_config
+  TOP_CMD=$IN_CMD
   if ! tokenize; then
     emit_decision ask "Check first: guardrails could not split this command into its parts, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
     exit 0

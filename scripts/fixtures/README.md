@@ -29,4 +29,6 @@ A separate root from `transcripts/`, read by `scripts/token-cost-models.test.mjs
 ## Field names
 They mirror the Claude Code JSONL shape as measured on real transcripts on 2026-09-16: top-level `requestId`, `timestamp`, `isSidechain`; `message.id`, `message.model`, `message.usage` with `cache_creation.ephemeral_5m_input_tokens` and `ephemeral_1h_input_tokens`. `usage.iterations` is a per-message breakdown and is not summed separately.
 
+`venv/bin/activate` is the activate script `python3 -m venv` writes (Python 3.14, 2026-09-23), with the environment's folder written as `/project/.venv` in place of the folder it was made in. `scripts/guardrails-review2.test.sh` copies it into a fixture project and asks the guardrails hook about `source .venv/bin/activate`, which must go through (N8, B84).
+
 `hook/` holds the original and repaired awk forms plus sample lessons files, so the before-and-after of the SessionStart fix is reproducible.
