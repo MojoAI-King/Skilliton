@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "e134e809-2ef0-4c24-bfae-13b53ec2e9b9",
+  "controlId": "SG-ROOT-CAUSE",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "a16162d4e4ca1f1d3bf1d2fb0c5b52a6efbc776dd71844b564d611ac265d116c",
+  "recordedAt": "2026-09-24T04:06:32.016Z",
+  "assessment": "observed",
+  "note": "Every one of the 59 lesson entries has a mechanism section and a fix section (docs/lessons/README.md fixes the format); security findings such as the undo receipt tamper, the guard judging paths from a subfolder and false tamper results name their mechanism and the correction and test. Limit: only 17 of 59 cite a commit. Details in the note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "docs/lessons/README.md",
+      "sha256": "b962c162186a06e707834f762b32463d70a9140850739cc5d2778bde9df416cc"
+    },
+    {
+      "path": "scripts/join.test.mjs",
+      "sha256": "89e31fb8716b4a43222849a14865b9167152ecaa17eae46b7b07f46ec54732c4"
+    },
+    {
+      "path": "scripts/guardrails.test.sh",
+      "sha256": "f23363223a2a1e1b734b7f1a7a59cc0ddf08659ac1304a485edde4cec4b558a6"
+    },
+    {
+      "path": "scripts/release.test.mjs",
+      "sha256": "5317d2675057ac48df37c6fed9f1f577dad3a4bf9be0760140d7e010ddbd56b0"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-assessment-SG-ROOT-CAUSE.md",
+      "sha256": "96f182159bc5e249b04a7223ac349da0ee328f08b81e23e2f3081edea4028533"
+    }
+  ]
+}

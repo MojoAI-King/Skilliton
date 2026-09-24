@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "2aeceaf8-6138-45e2-b130-c943ba50eed0",
+  "controlId": "SG-SECURITY-LOGGING",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "c9e16ce03711bb01577bc867a20448f068ee738c9d4077ab4d20e0995c11bca0",
+  "recordedAt": "2026-09-24T04:06:32.502Z",
+  "assessment": "gap",
+  "note": "Gap: the journal records lifecycle events only; guardrail blocks and holds and delivery gate rejections are shown and not kept, so there is no log of denied access, no sample entries, and no list of logged events, their location or readers. There is no sign-in. Details in the note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/journal.mjs",
+      "sha256": "1e959b3d32c87aa2ea724fd789cef8373f12677d158a904b12e6e4c18f9065dc"
+    },
+    {
+      "path": "packs/base/plugins/guardrails/hooks/guard-bash.sh",
+      "sha256": "3042aa914683d482cbc0587bc8fdcfc1faa19ffe813232adcb0042473dd14cef"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-assessment-SG-SECURITY-LOGGING.md",
+      "sha256": "1e68059df37a624a54dd599ebe4dce47a57c0aa6b9841cb8b1ba08b4a8be5856"
+    }
+  ]
+}

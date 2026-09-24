@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "7832dd64-785e-4f12-a0b1-27d49a4eece4",
+  "controlId": "SG-CHECK-EVIDENCE",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "96986aa07ac5b71bc9f3ed4065116718146d6cd4c1c40900ba7390deb9feb6e1",
+  "recordedAt": "2026-09-24T04:06:31.876Z",
+  "assessment": "observed",
+  "note": "Release 1.3.0 is a scoped review record linked to its artifacts: evidence/live release note names commits, manifest hash and signed tag; releases manifests hash every evidence file; release create refuses uncommitted evidence (scripts/release.test.mjs). Limits: record artifacts were git-ignored before this batch, and nothing re-hashes release evidence later. Details in the note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "releases/1.3.0.json",
+      "sha256": "62dec18badc94462aa614e9d0df6b8620098b1ab891eebe56befae3256191bf8"
+    },
+    {
+      "path": "evidence/live/2026-09-23-release-1.3.0.md",
+      "sha256": "a4f1127b25c4a52bb30408fe03c9a3a3988a8a8a566191076f9223a1811f8d4b"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/release.mjs",
+      "sha256": "39947637828a74d954cceef49762e1d28216ea81b16dee72629aebe3da97c9be"
+    },
+    {
+      "path": "scripts/release.test.mjs",
+      "sha256": "5317d2675057ac48df37c6fed9f1f577dad3a4bf9be0760140d7e010ddbd56b0"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-assessment-SG-CHECK-EVIDENCE.md",
+      "sha256": "157344cc75b80669716e5ce319fda7019947b04027c315e4c7e7df7a493bada2"
+    }
+  ]
+}

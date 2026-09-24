@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "01be047c-d85f-4913-b856-5c8bb7c1d29b",
+  "controlId": "SG-INPUT-INJECTION",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "71c6c731d80ad20e8ca0504db8f39bf1fb47c984b6d46603749a98d77f3e0cc7",
+  "recordedAt": "2026-09-24T04:06:32.431Z",
+  "assessment": "gap",
+  "note": "Gap: entry points validate their input (parseArgs refusals, the --since shape check, the 64 KB hook cap, text-field and path refusals) with tests, but no test puts Markdown, HTML or terminal escape text through the report and findings rendering to show it is escaped, and the entry points are not listed in one place. There is no database. Details in the note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/core.mjs",
+      "sha256": "86ea37ef884af518463ac102cd897aef663a2259f4e4b10abd6d05f5fdb01893"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/commands/usage.mjs",
+      "sha256": "5251f0a8b95cd2395c9cdf4246413b8787f550de4475571ca44047fd0c2a4bcc"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/security-io.mjs",
+      "sha256": "d0fc8e30797635cd8d455f6bf086392e7e577bb0b1da0e942c61e881f67a0fa4"
+    },
+    {
+      "path": "scripts/security-evidence.test.mjs",
+      "sha256": "8704e34baaa3be5213a9cc85b7ea615d510403d884fde7b0c628d643a086bbe7"
+    },
+    {
+      "path": "scripts/security-record-refusals.test.mjs",
+      "sha256": "d16f6d7a225271001b6f8899f537d72287bc843a67aea462f0ba56d4b7a1b912"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-assessment-SG-INPUT-INJECTION.md",
+      "sha256": "4443ce3e6a88d5cabf190a677a1eba7c14e3057bad424c06f5e243108026f7e4"
+    }
+  ]
+}

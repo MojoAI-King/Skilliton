@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "id": "ee6ce4e2-e0a5-4266-adfe-a8de6b2c0d5a",
+  "controlId": "SG-SECURITY-TESTS",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "43f3ea8411368596e4041725bfbc81e35406462c22fdf316644aba1915202864",
+  "recordedAt": "2026-09-24T04:06:31.947Z",
+  "assessment": "observed",
+  "note": "Suites run 2026-09-24, every one exit 0, each with denied and legitimate cases: guardrails 670 checks, bypass and the two review suites 499, timing 16, delivery 15 tests, delivery-protect 8, delivery-integrity 5, release-refusals 2, read-guard 20. The same suites run in CI on every push. No dedicated red-team suite; the red-team cases live in these. Counts per suite in the note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "scripts/guardrails.test.sh",
+      "sha256": "f23363223a2a1e1b734b7f1a7a59cc0ddf08659ac1304a485edde4cec4b558a6"
+    },
+    {
+      "path": "scripts/guardrails-bypass.test.sh",
+      "sha256": "beb175b759187b92452095d162d853f0856ee06070eaef380671b5fecd72860a"
+    },
+    {
+      "path": "scripts/guardrails-review.test.sh",
+      "sha256": "9353071ca14bd5ed93b30f58a981ffdb6f0ba5c6ab8e14c48fe61b675cea1580"
+    },
+    {
+      "path": "scripts/guardrails-review2.test.sh",
+      "sha256": "2354069952dd85939dc52e8fb61ce1457e55bae3b79a858a032059fa32662c09"
+    },
+    {
+      "path": "scripts/guardrails-timing.test.sh",
+      "sha256": "fab73020eefb89449f84134c1aa8de966b0349fdcc107c9aaf5d9aa6ef5c9da9"
+    },
+    {
+      "path": "scripts/delivery.test.mjs",
+      "sha256": "d0c508d731373b9f18c9324a42c0560e3a9db6da9700eb5124c9714dfd7d5efc"
+    },
+    {
+      "path": "scripts/delivery-protect.test.mjs",
+      "sha256": "51a1eb8af2f7a274be23bfc1a0768020c3dac1c4066588fd243cd6a28797ac40"
+    },
+    {
+      "path": "scripts/delivery-integrity.test.mjs",
+      "sha256": "2e09c87aa1ff26ad87b5488f46a177afc8c2ff58aeed14b6d85ec4b9425db40a"
+    },
+    {
+      "path": "scripts/release-refusals.test.mjs",
+      "sha256": "2f8521ffd3db5265511123c06f39b2dd239b398ced719dc0dca3325db35d2e99"
+    },
+    {
+      "path": "scripts/read-guard.test.mjs",
+      "sha256": "104617dcd337db4079da43749b88f6ba8c432431b3e6427a63c568d2a46b514f"
+    },
+    {
+      "path": "packs/base/plugins/guardrails/hooks/guard-bash.sh",
+      "sha256": "3042aa914683d482cbc0587bc8fdcfc1faa19ffe813232adcb0042473dd14cef"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/delivery.mjs",
+      "sha256": "4960c397e79dbdf2a29c1b4bc6b7c6853fc2c2ad2aaa35443a4981978724b851"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-assessment-SG-SECURITY-TESTS.md",
+      "sha256": "f9ab24e5c8d40cbd85a0c4b1a84cdc046e70835a29a024b31f01ca9cc9072785"
+    }
+  ]
+}

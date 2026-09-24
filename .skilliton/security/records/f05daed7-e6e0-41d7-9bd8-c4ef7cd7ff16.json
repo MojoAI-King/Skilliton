@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "f05daed7-e6e0-41d7-9bd8-c4ef7cd7ff16",
+  "controlId": "SG-RECURRING-PATTERNS",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "d1aa4227c54b2e8234a489358db9fe1f4e4c587d7b3b08c793c1f0aca5615dbb",
+  "recordedAt": "2026-09-24T04:06:32.086Z",
+  "assessment": "gap",
+  "note": "Gap: no document reviews all findings and lessons together and groups them by cause. Findings are grouped per review batch (docs/THREAT_MODEL.md, SECURITY.md) and some lessons group related findings with a prevention change, but there is no periodic cross-finding review with its prevention items. Details in the note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "docs/THREAT_MODEL.md",
+      "sha256": "4c110b83385faac3e0f1c0bf323d523a8bf3048aa68965f98b8dee1f35f9ec88"
+    },
+    {
+      "path": "SECURITY.md",
+      "sha256": "14c80efeee465625ec05b38b396e2954558a7debff00225619c6337d3fe96601"
+    },
+    {
+      "path": "scripts/skill-writers.test.mjs",
+      "sha256": "4c2a3ddf49fee41338a9f61c7da2c4908cead1664b5a22d60f2d84f9298d93b6"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-assessment-SG-RECURRING-PATTERNS.md",
+      "sha256": "d57ecd40ed0020f9195f6ea833747c056da290081f88853ec3443e41ce4564d7"
+    }
+  ]
+}

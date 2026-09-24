@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "c4762589-f269-47c2-b669-942383daf1a1",
+  "controlId": "SG-DEPENDENCY-RISK",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "063767d5c35e0c0e48a7ccaf5ced093af982899c1a0570e4858d0f6b470883da",
+  "recordedAt": "2026-09-24T04:06:32.294Z",
+  "assessment": "gap",
+  "note": "Gap: there are no package dependencies (scripts/lint.test.mjs rule no-dependencies), but no inventory lists Node, git and the two pinned CI actions with their origin, no dated check against known vulnerabilities exists, and no update time frames are agreed. Details in the note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "scripts/lint.test.mjs",
+      "sha256": "2e8321d49919ab9e041ae003687f5da97154ad986f7e59e58255daf986237d17"
+    },
+    {
+      "path": "INSTALL.md",
+      "sha256": "dc5db644c09578c3c487e72e48a13faae307f880d88035c995393950cd5d6d87"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-assessment-SG-DEPENDENCY-RISK.md",
+      "sha256": "b822ca2738cbf5fff27ba7b180ca18a49e30ca6a4df48768a383145ee4e4f809"
+    }
+  ]
+}

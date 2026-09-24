@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "0db4ddd7-1a30-43f8-b573-83dee3a178d5",
+  "controlId": "SG-COMMAND-INJECTION",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "db18be1e8be9a6db00eeb1b3b7c770100981f83f9f93f622b9c247b3ca74a88a",
+  "recordedAt": "2026-09-24T04:06:32.225Z",
+  "assessment": "observed",
+  "note": "runProgram takes argument lists with no shell; every runtime spawn does too; cmd.exe is used only for a plain .cmd path with plain arguments; the one shell is gate --cmd, the text the person typed, marked for the audit. Tests feed hostile input (windows-cmd, audit, git-config, usage suites). Residual items for the backlog are in the note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/core.mjs",
+      "sha256": "86ea37ef884af518463ac102cd897aef663a2259f4e4b10abd6d05f5fdb01893"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/audit.mjs",
+      "sha256": "aa149ffdf74c874e7d9f9873bed21a66d7f9e6e98d470c1527f7bfd7ee9788e6"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/gate.mjs",
+      "sha256": "2c562dde6c46c7fe2f1eff5ef64fa15c30fe82aa85a1775ec964a3b9dfbf8ec9"
+    },
+    {
+      "path": "scripts/audit.test.mjs",
+      "sha256": "547703d77e901d36ff7d5793fb101041c1b9c99a9a88725c33878f0218c04711"
+    },
+    {
+      "path": "scripts/windows-cmd.test.mjs",
+      "sha256": "f71aaa100a930c78d3a1a8f9b874fb63c520527a6166f44e61b9cb9902c02148"
+    },
+    {
+      "path": "scripts/git-config.test.mjs",
+      "sha256": "d379edaa11f1e56d2744b05903a9d7019551931b8ca1e22c419ec9798dfeb3bb"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-assessment-SG-COMMAND-INJECTION.md",
+      "sha256": "21afeb6f8e0a24cd5f3aa71872ae5a43a3b08ba4029f5c2d77bd48a775101345"
+    }
+  ]
+}

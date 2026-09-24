@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "4da384a9-24f0-4c45-ae6b-075b34345113",
+  "controlId": "SG-POLICY-CHANGE-REVIEW",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "236d5de1eb91810f6fa05bcda739c518f73b634b9b541419c71397b84244f20e",
+  "recordedAt": "2026-09-24T04:06:32.572Z",
+  "assessment": "gap",
+  "note": "Gap: the policy paths are listed and every change to them needs an approver signature (tested in scripts/delivery.test.mjs), but nothing requires the signer to differ from the author, they are the same person here, and no review by someone other than the author is recorded; no CODEOWNERS file exists. Details in the note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": ".skilliton/delivery.json",
+      "sha256": "3e26e504de6ff40faf368548f862026285337bfd8b9c09ec78150dba2d2f00bc"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/delivery.mjs",
+      "sha256": "4960c397e79dbdf2a29c1b4bc6b7c6853fc2c2ad2aaa35443a4981978724b851"
+    },
+    {
+      "path": "scripts/delivery.test.mjs",
+      "sha256": "d0c508d731373b9f18c9324a42c0560e3a9db6da9700eb5124c9714dfd7d5efc"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-assessment-SG-POLICY-CHANGE-REVIEW.md",
+      "sha256": "432a40ba232a1a782ec13acf1daca65db2e79117de9630ce17b439127aec68b8"
+    }
+  ]
+}

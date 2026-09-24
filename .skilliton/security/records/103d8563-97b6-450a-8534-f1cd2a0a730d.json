@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "103d8563-97b6-450a-8534-f1cd2a0a730d",
+  "controlId": "SG-ACCESS-CONTROL",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "62808c672f72b21287f7016d618a6c88be600612cdef012595d71c2ac2f90d7e",
+  "recordedAt": "2026-09-24T04:06:32.361Z",
+  "assessment": "observed",
+  "note": "Scoped as the applicability decision scopes it: the server side is the hosted delivery gate and the administrator functions are policy changes, protected branches and record removal. Rules are documented in docs/DELIVERY.md, CONTRACTS section 14 and the guardrails skill; tests deny unsigned and non-approver changes and record removal. No user accounts or per-user data exist.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "docs/DELIVERY.md",
+      "sha256": "f00ff3eb2666e5486dca2b6ab7b946dca574337177cf0ff6c32be64b1c033094"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/delivery.mjs",
+      "sha256": "4960c397e79dbdf2a29c1b4bc6b7c6853fc2c2ad2aaa35443a4981978724b851"
+    },
+    {
+      "path": "scripts/delivery.test.mjs",
+      "sha256": "d0c508d731373b9f18c9324a42c0560e3a9db6da9700eb5124c9714dfd7d5efc"
+    },
+    {
+      "path": "scripts/guardrails.test.sh",
+      "sha256": "f23363223a2a1e1b734b7f1a7a59cc0ddf08659ac1304a485edde4cec4b558a6"
+    },
+    {
+      "path": "packs/base/plugins/guardrails/skills/guardrails/SKILL.md",
+      "sha256": "d2882168b5e7aac52e7cde801160a33460fe7d9d2610528b82a11c80e1789ad1"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-assessment-SG-ACCESS-CONTROL.md",
+      "sha256": "2fe321fd42442799ef0d31a980cffe6fe6f11a3faead0de7354204ef32a3c7bd"
+    }
+  ]
+}

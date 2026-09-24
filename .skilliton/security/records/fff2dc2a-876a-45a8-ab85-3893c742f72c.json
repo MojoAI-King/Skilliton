@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "fff2dc2a-876a-45a8-ab85-3893c742f72c",
+  "controlId": "SG-SECRETS-IN-SOURCE",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "35d74bb402cc65d381356b219d90d1f16da9e49370997ca5cb48d2561818acfb",
+  "recordedAt": "2026-09-24T04:06:32.639Z",
+  "assessment": "needs-human",
+  "note": "Stays needs-human. Scan of 2026-09-24: 2398 lines in 322 files match only generic shapes (long-encoded-run 2372: SHA-256 digests, long slugs and paths, 165 other long runs in tests; 24 assignments and 2 bearer-shaped lines, all synthetic fixtures or comments). A person confirms the 165 runs and the fixtures, and that no runtime secret lives here. The note is 2026-09-24-assessment-SG-SECRETS-IN-SOURCE.md in .skilliton/private-evidence (its name cannot be attached).",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/collectors.mjs",
+      "sha256": "255ca36cbac47f5f8dc142fb022c50158f74017652db857f476398543b83514f"
+    }
+  ],
+  "artifacts": []
+}
