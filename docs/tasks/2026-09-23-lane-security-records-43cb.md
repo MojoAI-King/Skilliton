@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/security-records-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T04:08:52.828Z
+- **Updated:** 2026-09-24T04:12:45.893Z
 
 ## Request
 
@@ -46,9 +46,16 @@ not yet written
 - **Next:** the full check list, then LANE_REPORT.md
 - **Git:** lane/security-records-0924 @ ada4cbd, 13 uncommitted
 
+### 2026-09-24T04:12:45.893Z
+
+- **State:** Lane done: N10, N12 (with a follow-up) and N13 committed; N11 deferred by the main window; every suite in the lane rules passes
+- **Evidence:** security suites 66/66, security-require 8/8, security-findings 6/6, migrate group 76/76, prepare, lint, lint-shape, allowlist, docs, names, scrub, deadcode, footprint, skilliton.test all exit 0; security status missing 0
+- **Next:** main window: merge, add the CI step, run migrate --apply and security findings --apply on main
+- **Git:** lane/security-records-0924 @ 212bf89, 0 uncommitted
+
 ## Handoff
 
-- **State:** N13 done: twelve records written through security record --apply (6 observed, 5 gap, 1 needs-human), each with a committed evidence note except the secrets one, whose name the engine refuses to attach; security status shows every one current; N11 deferred by the main window. Evidence: security status: missing 0, stale 1 (SG-CHECK-CRITERIA, its artifact is not in this checkout), gaps 5, needs a human 1; the guard and delivery suites run for SG-SECURITY-TESTS all exit 0.
-- **Next:** the full check list, then LANE_REPORT.md
-- **Blocked:** nothing
-- **Watch out:** nothing known
+- **State:** Lane done: N10, N12 (with a follow-up) and N13 committed; N11 deferred by the main window; every suite in the lane rules passes. Evidence: security suites 66/66, security-require 8/8, security-findings 6/6, migrate group 76/76, prepare, lint, lint-shape, allowlist, docs, names, scrub, deadcode, footprint, skilliton.test all exit 0; security status missing 0.
+- **Next:** main window: merge, add the CI step, run migrate --apply and security findings --apply on main
+- **Blocked:** migrate does not list a same-layout migration as pending until migrationState and applyPending learn it (LANE_REPORT.md)
+- **Watch out:** records that fingerprint runtime files go stale when other lanes change those files; review, then record again
