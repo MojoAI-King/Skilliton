@@ -6,7 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { ConfigError, readProjectConfig } from "../lib/config.mjs";
 import { LEGACY_NAME } from "../lib/legacy-names.mjs";
-import { argPath, backupFile, buildTeamSettings, clone, isFile, isPlainObject, newStamp, parseArgs, readJsonObject, refuse, requireSkillsRepo, resolveExistingDir, sameJson, say, selfCommand, statOrNull, tilde } from "../lib/core.mjs";
+import { argPath, backupFile, buildTeamSettings, clone, isFile, isPlainObject, linkedWriteProblem, newStamp, parseArgs, readJsonObject, refuse, requireSkillsRepo, resolveExistingDir, sameJson, say, selfCommand, statOrNull, tilde } from "../lib/core.mjs";
 
 export const help = `project-settings: show or write the team .claude/settings.json, which declares the company marketplace
 (auto-update on) and enables the base plugins for the project.
@@ -62,6 +62,8 @@ export async function run(argv) {
   const { settings: team, marketplace, original } = buildTeamSettings(template, o["marketplace-repo"], o["marketplace-name"]);
 
   const path = join(dir, ".claude", "settings.json");
+  const linked = linkedWriteProblem(dir, ".claude/settings.json");
+  if (linked) refuse(`${linked}. Nothing was read or written. Replace it with the file itself, then run again.`);
   const st = statOrNull(path);
   if (st && !st.isFile()) refuse(`${tilde(path)} exists but is not a regular file`);
   const beforeText = st ? readFileSync(path, "utf8") : "";

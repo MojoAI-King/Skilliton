@@ -24,9 +24,9 @@ one-minute load average with the CPU count (not measured on Windows), because a 
 lists may come from the machine or another session, not the change. It also names the files the failing check's output
 mentions that Git tracks and that are outside the change (what differs from the merge base with the integration
 branch, and the working tree), and the other node processes running when the gate started (the count and the first
-three, each cut at 80 characters; not measured on Windows). Checks run in the policy's order and stop at the
-first failure. The checks run with this shell's environment; the shared branch's delivery gate is the one that
-isolates.
+three, each by its program and script file only, since a command line can carry a token; not measured on Windows).
+Checks run in the policy's order and stop at the first failure. The checks run with this shell's environment; the
+shared branch's delivery gate is the one that isolates.
 
 Exit codes: 0 every run passed; 1 a run failed, timed out or was killed (the verdict says which); 2 refused, nothing
 run; 3 the gate itself could not run (the log could not be written, git could not be started).`;

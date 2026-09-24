@@ -9,7 +9,8 @@ import {
 } from "../lib/usage.mjs";
 import { OperationFailed, loadProject, resolveGitRoot } from "../lib/prepare.mjs";
 import {
-  LEDGER_REL, appendLedgerRow, comparisonLines, describeSummary, ledgerDisplayRows, meterTrend, readLedger, screenRow, screenTrend, taskStarts,
+  LEDGER_REL, appendLedgerRow, comparisonLines, describeSummary, ledgerDisplayRows, ledgerLinkProblem, meterTrend, readLedger, screenRow, screenTrend,
+  taskStarts,
   taskTimes,
 } from "../lib/usage-ledger.mjs";
 import { countEvents } from "../meter/events.mjs";
@@ -61,6 +62,15 @@ ${RECONSTRUCTION_NOTE}
 
 Exit codes: 0 every row complete; 1 a row the meter could not price in full; 2 refused, nothing written; 3 it could
 not run.`;
+
+// The repository, once its ledger path is known to be a file inside it: a linked ledger is refused before anything
+// reads or writes it (lib/usage-ledger.mjs ledgerLinkProblem).
+function ledgerRepo(dir) {
+  const repo = resolveGitRoot(resolveExistingDir(dir, "--dir"));
+  const linked = ledgerLinkProblem(repo.root);
+  if (linked) refuse(`${linked}. Remove it, or replace it with the file itself, and run again. Nothing was written.`);
+  return repo;
+}
 
 function parseUsageArgs(argv) {
   const o = parseArgs(argv, { flags: ["json", "all-projects", "ledger-only"], options: ["dir", "meter", "project", "since", "limit"] }, "usage");
@@ -137,7 +147,7 @@ function screenCommand(argv) {
   if (o._.length) refuse(`usage screen takes no plain arguments (got "${o._[0]}"). See: ${selfCommand()} usage --help`);
   const made = screenRow({ five_hour: o["five-hour"], weekly: o.weekly, model_weekly: o["model-weekly"], at: o.at });
   if (made.problem) refuse(`${made.problem}. Nothing was written.`);
-  const repo = resolveGitRoot(resolveExistingDir(o.dir, "--dir"));
+  const repo = ledgerRepo(o.dir);
   const r = made.row;
   const reading = `five-hour ${r.five_hour} of 100, weekly ${r.weekly} of 100${r.model_weekly === null ? "" : `, model weekly ${r.model_weekly} of 100`}`;
   if (o.apply !== true) {
@@ -181,7 +191,7 @@ async function summaryCommand(argv) {
   const o = parseArgs(argv, { flags: [], options: ["dir", "baseline", "meter"] }, "usage summary");
   if (o.help) { say(help); return 0; }
   if (o._.length) refuse(`usage summary takes no plain arguments (got "${o._[0]}"). See: ${selfCommand()} usage --help`);
-  const repo = resolveGitRoot(resolveExistingDir(o.dir, "--dir"));
+  const repo = ledgerRepo(o.dir);
   const tz = meterTz();
   const project = loadProject(repo.root);
   const scope = usageScope(repo.root, project);
@@ -212,7 +222,7 @@ export async function run(argv) {
     if (argv[0] === "summary") return await summaryCommand(argv.slice(1));
     const o = parseUsageArgs(argv);
     if (o.help) { say(help); return 0; }
-    const repo = resolveGitRoot(resolveExistingDir(o.dir, "--dir"));
+    const repo = ledgerRepo(o.dir);
     const tz = meterTz();
     const project = loadProject(repo.root);
     const scope = usageScope(repo.root, project, { projects: o.projects, all: o["all-projects"] === true });

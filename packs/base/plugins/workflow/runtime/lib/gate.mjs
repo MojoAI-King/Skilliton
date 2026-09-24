@@ -233,9 +233,9 @@ function outsideChange(root, named, startTree) {
 }
 
 // The other node processes running when the gate started, from ps -axo pid,ppid,etime,command: this process and the
-// ones above it are left out. { measured: true, count, first: [three "pid etime command" lines, each command cut at
-// 80 characters, newest first] } or { measured: false, reason }. The parent id is read only to leave out the gate's
-// own ancestors. Newest first, because a suite started a moment ago is likelier to compete than an editor's helper.
+// ones above it are left out. { measured: true, count, first: [three "pid etime program script" lines, newest first] }
+// or { measured: false, reason }. The parent id is read only to leave out the gate's own ancestors. Newest first,
+// because a suite started a moment ago is likelier to compete than an editor's helper.
 // ps's elapsed time, [[dd-]hh:]mm:ss, in seconds.
 const seconds = (etime) => {
   const [days, clock] = etime.includes("-") ? etime.split("-") : ["0", etime];
@@ -252,7 +252,16 @@ function nodeProcesses() {
   for (let pid = process.ppid; pid > 1 && !mine.has(pid);) { mine.add(pid); pid = rows.find((row) => row.pid === pid)?.ppid ?? 0; }
   const node = rows.filter((row) => !mine.has(row.pid) && /(^|\/)node(\.exe)?$/.test(row.command.split(/\s+/)[0]));
   node.sort((a, b) => seconds(a.etime) - seconds(b.etime));
-  return { measured: true, count: node.length, first: node.slice(0, 3).map((row) => `${row.pid} ${row.etime} ${row.command.slice(0, 80)}`) };
+  return { measured: true, count: node.length, first: node.slice(0, 3).map((row) => `${row.pid} ${row.etime} ${processLabel(row.command)}`) };
+}
+
+// A process named by its program and its script file, never its other arguments: a command line can carry a token
+// (--token=..., a URL with a password, the text given to -e), and this line reaches the log and the session.
+export function processLabel(command) {
+  const words = command.split(/\s+/).filter(Boolean);
+  const program = (words[0] ?? "").split("/").pop();
+  const script = words.slice(1).find((w) => !w.startsWith("-") && /^[\w@+.\-/]+\.[cm]?[jt]s$/.test(w));
+  return `${program}${script ? ` ${script.split("/").slice(-2).join("/")}` : ""}`.slice(0, 80);
 }
 
 // An error the gate command reports as its log not being written (exit 3): a string code, like a system error.

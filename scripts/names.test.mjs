@@ -23,6 +23,7 @@ export const ALLOWED_PATHS = [
   ["packs/base/plugins/workflow/runtime/lib/legacy-template.mjs", "the template the last release before the rename shipped, frozen so migration 0003 recognises the blocks that release wrote"],
   ["docs/archive/", "archived plans"],
   ["docs/tasks/", "task records are dated history"],
+  [".skilliton/usage/ledger.jsonl", "the usage ledger names task records by id, and ids written before the rename keep the earlier name"],
   ["docs/decisions/", "decision entries are dated history"],
   ["docs/lessons/", "lesson entries are dated history"],
   ["DECISIONS.md", "dated decision sections and open items written before the rename"],

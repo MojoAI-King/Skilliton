@@ -49,6 +49,14 @@ Each is a way the hook's reading of command text falls short of the actions it n
 - **The delivery reader's line bound** can be worked around by a file shaped to sit past it: fixed in guardrails 0.10.0 and workflow 0.24.0, released in 1.3.0.
 - **A hard-linked manifest** is not told apart from the file it links to: fixed in guardrails 0.10.0 and workflow 0.24.0, released in 1.3.0.
 
+### Limits found by the pre-release review of 1.4.0, 2026-09-24
+
+Each was reproduced in a scratch repository before it was fixed, and each fix ships with a test that fails against the code before it.
+
+- **A committed symbolic link at `CLAUDE.md`, `AGENTS.md` or `.claude/settings.json`** made `skilliton harness --apply` and `skilliton project-settings --apply` write into the file the link pointed at, outside the repository, and say they had written the project's own file; `dispatch merge` did the same for a record folder linked outside. Reproduced on `main` before 1.4.0; the same code is in releases 0.9.0 and 1.3.0: fixed in workflow 0.25.0, to ship in 1.4.0. A link that stays inside the repository, such as `AGENTS.md` linked to `CLAUDE.md`, is followed as before (`scripts/write-links.test.mjs`).
+- **The usage ledger**, new in workflow 0.25.0, appended its row through a committed link in its first version: fixed before any release (`scripts/usage-ledger-links.test.mjs`).
+- **A failing `skilliton gate` verdict**, whose competing-processes line is new in workflow 0.25.0, printed other node processes' command lines, which can carry a token: it names each by program and script file only, fixed before any release (`scripts/gate-process-label.test.mjs`).
+
 ## What it is not
 
 The security evidence register keeps observations tied to file fingerprints and marks them stale when their sources change. It is evidence-keeping for a team's own review; it is not a certification, an attestation, or a compliance pass, and nothing here claims one.

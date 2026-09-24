@@ -15,7 +15,7 @@
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { PLUGIN_ROOT, refuse, tilde } from "./core.mjs";
+import { PLUGIN_ROOT, linkedWriteProblem, refuse, tilde } from "./core.mjs";
 import { backupRoot, readBranch, runGit } from "./journal.mjs";
 import { newId } from "./ids.mjs";
 import { OperationFailed } from "./lifecycle.mjs";
@@ -503,6 +503,8 @@ export function applyMerge(root, plan) {
   const soFar = () => (written.length ? `${written.length} record${written.length === 1 ? " was" : "s were"} written first: ${written.join(", ")}` : "No record was written");
   for (const entry of plan.bring) {
     const target = join(root, entry.path);
+    const linked = linkedWriteProblem(root, entry.path);
+    if (linked) throw new OperationFailed(`${entry.path} from lane ${entry.lane} was not written: ${linked}. ${soFar()}`);
     try {
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, entry.content, "utf8");

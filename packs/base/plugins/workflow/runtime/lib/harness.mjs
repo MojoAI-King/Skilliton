@@ -8,7 +8,7 @@
 import { join } from "node:path";
 import { ConfigError, resolveProject, templateVars } from "./config.mjs";
 import { LEGACY_CONFIG_REL, LEGACY_HARNESS_PREFIX, LEGACY_NAME } from "./legacy-names.mjs";
-import { PLUGIN_ROOT, isFile, readBytes, refuse, statOrNull, tilde } from "./core.mjs";
+import { PLUGIN_ROOT, isFile, linkedWriteProblem, readBytes, refuse, statOrNull, tilde } from "./core.mjs";
 
 const HARNESS_TEMPLATE = join(PLUGIN_ROOT, "templates", "harness.md");
 const START_LINE = "<!-- skilliton:harness:start v1 -->";
@@ -115,6 +115,8 @@ function legacyBlockLine(text) {
 
 function planHarnessFile(dir, name, template, undo, vars = null) {
   const path = join(dir, name);
+  const linked = linkedWriteProblem(dir, name);
+  if (linked) refuse(`${linked}. Nothing was read or written. Replace it with the file itself, then run again.`);
   const st = statOrNull(path);
   if (st && !st.isFile()) refuse(`${tilde(path)} exists but is not a regular file`);
   const exists = !!st;

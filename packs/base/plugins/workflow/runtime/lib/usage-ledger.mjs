@@ -19,8 +19,10 @@
 // key shaped like money is refused, as is one for a window already in the ledger, one that would leave a gap or an
 // overlap, and one made without the meter's own test having passed in the same run.
 
-import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import {
+  closeSync, constants as fsConstants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, writeSync,
+} from "node:fs";
+import { join } from "node:path";
 import { runGit } from "./journal.mjs";
 import { isId } from "./ids.mjs";
 import {
@@ -41,9 +43,28 @@ const MONEY_KEY = /(^|_)(cost|usd|price|dollars?)(_|$)/i;
 
 const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
+// Why the ledger cannot be used as a file inside this repository, or null. A symbolic link at .skilliton, at
+// .skilliton/usage or at the ledger itself would carry a read or an append to wherever it points, and a repository can
+// commit such a link; a ledger with a second hard link would change another file's bytes. Each is refused, not followed.
+export function ledgerLinkProblem(root) {
+  let rel = "";
+  for (const part of LEDGER_REL.split("/")) {
+    rel = rel ? `${rel}/${part}` : part;
+    let st = null;
+    try { st = lstatSync(join(root, rel)); } catch (e) { if (e.code === "ENOENT" || e.code === "ENOTDIR") return null; throw e; }
+    if (st.isSymbolicLink()) return `${rel} is a symbolic link, and the usage ledger is never read or written through a link`;
+    if (rel === LEDGER_REL && !st.isFile()) return `${LEDGER_REL} is not a regular file`;
+    if (rel === LEDGER_REL && st.nlink > 1) return `${LEDGER_REL} has ${st.nlink} hard links, so writing it would change another file`;
+    if (rel !== LEDGER_REL && !st.isDirectory()) return `${rel} is not a folder`;
+  }
+  return null;
+}
+
 // { path, exists, rows (file order), corrupt }. A line that is not a batch or screen row is counted, never used.
 export function readLedger(root) {
   const path = join(root, LEDGER_REL);
+  const linked = ledgerLinkProblem(root);
+  if (linked) throw new Error(`${linked}, so it is not read`);
   if (!existsSync(path)) return { path, exists: false, rows: [], corrupt: 0 };
   const text = readFileSync(path, "utf8");
   if (Buffer.byteLength(text) > MAX_LEDGER_BYTES) throw new Error(`${LEDGER_REL} is over ${MAX_LEDGER_BYTES} bytes and is not read`);
@@ -86,30 +107,34 @@ export function appendLedgerRow(root, row, { proof = null } = {}) {
   const refused = (why) => ({ written: false, refused: `${why}. Nothing was written`, path });
   const money = moneyKeys(row);
   if (money.length) return refused(`the row carries ${money.join(", ")}, and a ledger row stores token counts, never a dollar figure`);
+  const linked = ledgerLinkProblem(root);
+  if (linked) return refused(linked);
   const ledger = readLedger(root);
   if (row.kind === "batch") {
     if (!proof) return refused("the meter's own test has not passed in this run, so no figure from it is written");
     const problem = appendProblem(ledger.rows, row);
     if (problem) return refused(problem);
   }
-  mkdirSync(dirname(path), { recursive: true });
-  appendFileSync(path, `${endsClean(path) ? "" : "\n"}${JSON.stringify(row)}\n`);
-  return { written: true, refused: null, path };
-}
-
-// Whether the file is absent, empty, or ends with a newline, so a line cut short by a crash never swallows the next row.
-function endsClean(path) {
-  if (!existsSync(path)) return true;
-  const fd = openSync(path, "r");
+  // Folders one at a time, each checked above: a recursive mkdir would follow a linked parent.
+  for (const rel of [".skilliton", ".skilliton/usage"]) if (!existsSync(join(root, rel))) mkdirSync(join(root, rel));
+  // O_NOFOLLOW is 0 where the platform has none (Windows); the lstat checks above are then the only guard.
+  const fd = openSync(path, fsConstants.O_RDWR | fsConstants.O_APPEND | fsConstants.O_CREAT | (fsConstants.O_NOFOLLOW ?? 0), 0o644);
   try {
-    const size = fstatSync(fd).size;
-    if (!size) return true;
-    const last = Buffer.alloc(1);
-    readSync(fd, last, 0, 1, size - 1);
-    return last[0] === 0x0a;
+    const st = fstatSync(fd);
+    if (!st.isFile() || st.nlink > 1) return refused(`${LEDGER_REL} changed into something other than one regular file while it was opened`);
+    writeSync(fd, `${endsClean(fd, st.size) ? "" : "\n"}${JSON.stringify(row)}\n`);
   } finally {
     closeSync(fd);
   }
+  return { written: true, refused: null, path };
+}
+
+// Whether the open file is empty or ends with a newline, so a line cut short by a crash never swallows the next row.
+function endsClean(fd, size) {
+  if (!size) return true;
+  const last = Buffer.alloc(1);
+  readSync(fd, last, 0, 1, size - 1);
+  return last[0] === 0x0a;
 }
 
 // A batch row from the meter's --json answer. Token counts and the counters only: nothing priced, no folder name, no

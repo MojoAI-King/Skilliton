@@ -20,9 +20,12 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { accessSync, constants as fsConstants, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  accessSync, constants as fsConstants, copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
-import { basename, delimiter, dirname, join, relative, resolve, sep } from "node:path";
+import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CREDENTIAL_SHAPES, SIGNED_TOKEN_ERE } from "./secret-rules.mjs";
 const RUNTIME_LIB = dirname(fileURLToPath(import.meta.url));
@@ -62,6 +65,35 @@ function statOrNull(p) {
   try { return statSync(p); } catch (e) { if (e.code === "ENOENT" || e.code === "ENOTDIR") return null; throw e; }
 }
 const isDir = (p) => statOrNull(p)?.isDirectory() === true;
+
+// Why a write to rel inside root would land outside it, or null. Each component below root is read with lstat: a
+// symbolic link on the way, which a repository can commit, is followed only when it resolves inside root (AGENTS.md
+// linked to CLAUDE.md is a common setup); one that leaves root, or whose target does not exist, would carry the write
+// wherever it points and is refused. A file with a second hard link is refused, because writing it would change another
+// file's bytes. root itself is not checked: it is the folder the person named.
+function linkedWriteProblem(root, rel) {
+  const parts = rel.split(/[\\/]+/).filter(Boolean);
+  const realRoot = realpathSync(root);
+  let at = root;
+  for (let i = 0; i < parts.length; i++) {
+    at = join(at, parts[i]);
+    let st;
+    try { st = lstatSync(at); } catch (e) { if (e.code === "ENOENT" || e.code === "ENOTDIR") return null; throw e; }
+    const shown = parts.slice(0, i + 1).join("/");
+    if (st.isSymbolicLink()) {
+      let real = null;
+      try { real = realpathSync(at); } catch { real = null; }
+      if (real === null) return `${shown} is a symbolic link whose target does not exist, and Skilliton never writes through one`;
+      const inside = relative(realRoot, real);
+      if (inside === "" || inside.startsWith("..") || isAbsolute(inside)) {
+        return `${shown} is a symbolic link to a place outside this repository, and Skilliton never writes through one`;
+      }
+      st = statSync(at);
+    }
+    if (i === parts.length - 1 && st.isFile() && st.nlink > 1) return `${shown} has ${st.nlink} hard links, so writing it would change another file`;
+  }
+  return null;
+}
 const isFile = (p) => statOrNull(p)?.isFile() === true;
 
 // Shorten a path for display: inside HOME becomes ~/...
@@ -363,7 +395,7 @@ function readPluginVersion(pluginDir) {
 
 export {
   PLUGIN_ROOT, SKILLS_REPO, HOME, BACKUPS,
-  Refused, refuse, say, isPlainObject, clone, sameJson, sha12, statOrNull, isDir, isFile, tilde, selfCommand,
+  Refused, refuse, say, isPlainObject, clone, sameJson, sha12, statOrNull, isDir, isFile, linkedWriteProblem, tilde, selfCommand,
   resolveExistingDir, NAME_RE, validateName, parseArgs, which, resolveProgram, runProgram, windowsCmdLine, newStamp, backupFile, unifiedDiff,
   readBytes, writeBytes, forDisplay, argPath,
   buildTeamSettings, readJsonObject,

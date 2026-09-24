@@ -50,6 +50,14 @@ Every line below was reproduced on `main` at 029f159 before it was written here.
 | The team settings template turned automatic plugin updates on | The template defaults to off (a decision entry records why) |
 | The allow list said no runtime git call contacts a remote; `skilliton preflight` runs `git ls-remote` | The sentence now names that one call |
 
+## Limits the pre-release review of 1.4.0 found, 2026-09-24
+
+| Limit | Fix |
+|---|---|
+| `harness --apply` and `project-settings --apply` followed a committed symbolic link at `CLAUDE.md`, `AGENTS.md` or `.claude/settings.json` and wrote outside the repository (reproduced before 1.4.0; the same code is in 0.9.0 and 1.3.0); `dispatch merge` did the same for a linked record folder | Workflow 0.25.0: every component below the repository root is read with lstat; a link that resolves outside, or to nothing, and a file with a second hard link are refused with nothing written |
+| The usage ledger's first version appended through a committed link | Refused before any release: the ledger is never read or written through a link |
+| A failing gate verdict printed other node processes' full command lines | Each is named by its program and script file only |
+
 ## What this page does not claim
 
 No number here is a measurement of risk. Nothing here is a compliance certification. A team that needs one measures its own controls under its own policy; this page tells that team what Skilliton's controls are and where they stop, so the measurement starts from the truth.

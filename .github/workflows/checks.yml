@@ -256,6 +256,15 @@ jobs:
       - name: The dispatch reminder reads a numbered lane plan such as LANES-8.md
         run: node scripts/lane-plan-file.test.mjs
 
+      - name: A failing gate verdict names other node processes by program and script file only
+        run: node scripts/gate-process-label.test.mjs
+
+      - name: The usage ledger is never read or written through a link
+        run: node scripts/usage-ledger-links.test.mjs
+
+      - name: Harness, project-settings and dispatch merge never write through a link that leaves the repository
+        run: node scripts/write-links.test.mjs
+
       - name: Maintain refreshes the collector-backed security records that are missing or stale
         run: node --test scripts/maintain-security-collectors.test.mjs
 
