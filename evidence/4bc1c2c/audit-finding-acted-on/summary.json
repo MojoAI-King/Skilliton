@@ -1,0 +1,400 @@
+{
+  "kind": "skilliton eval evidence",
+  "schema": 1,
+  "commit": "4bc1c2c13fe14a6cccc1b5074476932713c3080b",
+  "rawResultSha256": "c4dbef55d09fa99f50542589c54ada2dd6d1a8cce853d13daebced99d69e049b",
+  "rawResultNote": "The raw aggregate-result.json holds machine paths and model-written text, so it is kept on the machine that ran it and identified here by its hash.",
+  "claudeVersion": "2.1.278",
+  "startedAt": "2026-09-24T21:22:41.360Z",
+  "durationSeconds": 191,
+  "costUsdListPriceEstimate": 3.5999435,
+  "costNote": "List-price estimate reported by claude plugin eval for running the eval itself. Not plan usage, and not a savings figure.",
+  "partial": false,
+  "settings": {
+    "ablation": "with-without",
+    "threshold": 1,
+    "concurrency": 4
+  },
+  "plugins": [
+    {
+      "name": "workflow",
+      "version": "0.25.0"
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 0,
+    "overallScore": 0.6190476190476191,
+    "overallPassRate": 0,
+    "meanDelta": -0.23809523809523803
+  },
+  "cases": [
+    {
+      "name": "audit-finding-acted-on",
+      "runsPerCase": 3,
+      "maxTurns": 30,
+      "score": 0.6190476190476191,
+      "delta": -0.23809523809523803,
+      "arms": {
+        "with": [
+          {
+            "score": 0.7142857142857143,
+            "passed": false,
+            "turns": 23,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "audit-clean-after",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "finding-read",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "fix-is-real",
+                "type": "llm",
+                "passed": false,
+                "scored": true,
+                "votes": [
+                  "FAIL",
+                  "FAIL",
+                  "FAIL"
+                ]
+              },
+              {
+                "name": "fix-on-line",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-allow-marker",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-other-edit",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-other-write",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 0.42857142857142855,
+            "passed": false,
+            "turns": 24,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "audit-clean-after",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "finding-read",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "fix-is-real",
+                "type": "llm",
+                "passed": false,
+                "scored": true,
+                "votes": [
+                  "FAIL",
+                  "FAIL",
+                  "FAIL"
+                ]
+              },
+              {
+                "name": "fix-on-line",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "no-allow-marker",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-other-edit",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-other-write",
+                "type": "tool_used",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 0.7142857142857143,
+            "passed": false,
+            "turns": 22,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "audit-clean-after",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "finding-read",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "fix-is-real",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "fix-on-line",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "no-allow-marker",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-other-edit",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-other-write",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.8571428571428571,
+            "passed": false,
+            "turns": 12,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "audit-clean-after",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "finding-read",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "fix-is-real",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "fix-on-line",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-allow-marker",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-other-edit",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-other-write",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.8571428571428571,
+            "passed": false,
+            "turns": 14,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "audit-clean-after",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "finding-read",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "fix-is-real",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "fix-on-line",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-allow-marker",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-other-edit",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-other-write",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.8571428571428571,
+            "passed": false,
+            "turns": 13,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "audit-clean-after",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "finding-read",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "fix-is-real",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "fix-on-line",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-allow-marker",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-other-edit",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-other-write",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
