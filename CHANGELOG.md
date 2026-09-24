@@ -2,9 +2,13 @@
 
 Kind: Living. One entry per signed release, from its manifest under `releases/`, plus what is on `main` since. Plugin versions are what a machine sees; the release number is what it trusts.
 
-## Unreleased (main since 1.3.0)
+## Unreleased (main since 1.4.0)
 
-Source: the owner's word on 2026-09-23 to finish everything a session can, the second field report from a client repository (usage and savings), and an outside review's order of work (claims beside their limits first, then an independent newcomer and continuity trial, then security verification).
+Nothing yet.
+
+## 1.4.0, 2026-09-24
+
+Plugins: workflow 0.25.0, guardrails 0.11.0, context-hygiene 0.3.1, code-quality 0.2.1. Manifest `releases/1.4.0.json`; every entry below shipped on `main` between 1.3.0 and this tag. The number is 1.4.0 by the release skill's rule: new commands, a new guard rule and new gate behavior. Source: the owner's word on 2026-09-23 to finish everything a session can, the second field report from a client repository (usage and savings), and an outside review's order of work (claims beside their limits first, then an independent newcomer and continuity trial, then security verification).
 
 - **README claims, each beside its limit.** "What it saves" now says what each comparison task measured and what it did not: one model and one fixture per task; the plain setup had no instructions file, so the orientation result measures the hook against nothing; continuity is enforced at the reading end and only instructed at the writing end, where the two-session task finished 1 of 2 times in both setups. A short "The idea" section states the design rule (instructions are advice, hooks are guarantees). "Still to measure" names the end-to-end handoff first.
 - **Pinning a machine to a release tag (B18), measured.** On Claude Code 2.1.278 a marketplace source takes `#<branch or tag>`, the clone lands exactly on the tag, an update keeps it there, and the plugins installed are that release's versions; a commit cannot be named. A decision records the tag pin as the download boundary and `skilliton verify` as the trust boundary (evidence/live/2026-09-23-marketplace-pinned-at-a-release-tag.md). Found while measuring: the client's marketplace remove, run inside a repository, also empties that repository's plugin settings; recorded as a lesson.
