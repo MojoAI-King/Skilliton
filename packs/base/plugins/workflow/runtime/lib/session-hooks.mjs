@@ -24,9 +24,17 @@ import { gitLine } from "./tasks.mjs";
 const findLast = (list, test) => { for (let i = list.length - 1; i >= 0; i--) if (test(list[i])) return list[i]; return null; };
 
 // The rule, exactly: block only when checkpoints.stopReminder is on; stop_hook_active is not true; the working tree
-// fingerprint differs from the last checkpoint event's (or, with no checkpoint, from this session's start); at least
-// checkpoints.minMinutes passed since that checkpoint (or since this session started when there is none); and no
-// stop-reminded event exists for this fingerprint. Returns { block, why, ... }.
+// fingerprint differs from the baseline's, where the baseline is the later of the last checkpoint event and this
+// session's first start (either one alone when the other is missing); the working tree is not clean; the time rule
+// below is met; and no stop-reminded event exists for this fingerprint. Returns { block, why, ... }.
+//
+// The time rule: when the baseline is a checkpoint (one was recorded since this session began), at least
+// checkpoints.minMinutes must have passed since it. When the baseline is this session's own start (no checkpoint since
+// the session began) and checkpoints.holdFirstStop is on (the default), there is no time rule: the first stop of a
+// session that changed files and recorded nothing is held, however short the session, because a short session that
+// never checkpoints leaves the next one nothing to resume from (the minutes rule never fired in one, measured in the
+// continuity comparison of 2026-09-22). holdFirstStop false restores the minutes rule for that case too. Either way
+// the stop-reminded rule keeps it to once per fingerprint.
 //
 // A clean working tree (no porcelain lines) never gets the reminder, even when HEAD moved: the fingerprint is HEAD
 // plus porcelain, so committing a checkpoint's own records changed it, and the next stop was held on a tree `git status`
@@ -48,9 +56,10 @@ export function evaluateStop({ stopHookActive, checkpoints, state, events, sessi
   if (baseline.fingerprint === state.fingerprint) return { block: false, why: fromCheckpoint ? "nothing changed since the last checkpoint" : "nothing changed since this session started" };
   if (state.dirty === 0) return { block: false, why: `the working tree is clean, so nothing is waiting to be recorded; the commits since the ${fromCheckpoint ? "last checkpoint" : "session started"} carry their own messages` };
   const elapsedMs = now.getTime() - Date.parse(baseline.at);
-  if (elapsedMs < checkpoints.minMinutes * 60000) return { block: false, why: `less than ${checkpoints.minMinutes} minutes since the ${fromCheckpoint ? "last checkpoint" : "session started"}` };
+  const firstStop = !fromCheckpoint && checkpoints.holdFirstStop !== false;
+  if (!firstStop && elapsedMs < checkpoints.minMinutes * 60000) return { block: false, why: `less than ${checkpoints.minMinutes} minutes since the ${fromCheckpoint ? "last checkpoint" : "session started"}` };
   if (events.some((e) => e.event === "stop-reminded" && e.fingerprint === state.fingerprint)) return { block: false, why: "a reminder was already given for this working tree state" };
-  return { block: true, why: "reminder due", baseline: fromCheckpoint ? "checkpoint" : "session-start", baselineAt: baseline.at, baselineHead: baseline.head ?? null, elapsedMinutes: Math.floor(elapsedMs / 60000) };
+  return { block: true, why: firstStop ? "first stop of this session with changes and no checkpoint" : "reminder due", baseline: fromCheckpoint ? "checkpoint" : "session-start", baselineAt: baseline.at, baselineHead: baseline.head ?? null, elapsedMinutes: Math.floor(elapsedMs / 60000) };
 }
 
 // The Stop hook's reason: what changed, and the exact command to run next.

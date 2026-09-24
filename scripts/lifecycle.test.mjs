@@ -1070,8 +1070,8 @@ test("stop allows when nothing changed, and before minMinutes", async () => with
   writeFileSync(join(unchanged, "now-changed.txt"), "x\n");
   assert.equal(JSON.parse(hook(unchanged, "stop", { session_id: "s1" }, env).out).decision, "block", "control: a change makes the same session block");
 
-  const early = stopFixture(join(dir, "b"), env, { minutesAgo: 5 });
-  assert.equal(hook(early, "stop", { session_id: "s1" }, env).out, "", "5 of 20 minutes is too early");
+  const early = stopFixture(join(dir, "b"), env, { minutesAgo: 5, config: { checkpoints: { minMinutes: 20, holdFirstStop: false } } });
+  assert.equal(hook(early, "stop", { session_id: "s1" }, env).out, "", "5 of 20 minutes is too early once holdFirstStop is off (N33)");
 
   const unknown = stopFixture(join(dir, "c"), env);
   assert.equal(hook(unknown, "stop", { session_id: "another-session" }, env).out, "", "with no checkpoint and no recorded start for this session there is nothing to measure from");
@@ -1252,7 +1252,7 @@ test("the stop hook asks once more when this session's prompt named dispatch and
   // A second list in the same session is a new prompt: asked again; a plan written after it clears it.
   prompt("d2", SIX_BULLETED);
   writeFileSync(join(p, "LANES.md"), "Base commit: 0000000\n");
-  assert.equal(stop("d2").out, "", "a lane plan written after the prompt means dispatch ran");
+  assert.doesNotMatch(stop("d2").out, /dispatch was named/, "a lane plan written after the prompt means dispatch ran (N33: its new file is held once)");
   prompt("d2", SIX_NUMBERED);
   utimesSync(join(p, "LANES.md"), new Date(Date.now() - 60000), new Date(Date.now() - 60000));
   const older = JSON.parse(stop("d2").out);

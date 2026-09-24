@@ -45,7 +45,7 @@ export const DEFAULTS = {
   handoffMaxBytes: 6000,
   handoffKeepEarlier: 5,
   integrationBranches: ["main", "master"],
-  checkpoints: { stopReminder: true, minMinutes: 20 },
+  checkpoints: { stopReminder: true, minMinutes: 20, holdFirstStop: true },
   security: { maxAgeDays: null },
   recordHeader: "Kind: {kind}",
 };
@@ -185,6 +185,9 @@ export function configProblems(config) {
   const checkpoints = isObject(config.checkpoints) ? config.checkpoints : {};
   if (checkpoints.stopReminder !== undefined && typeof checkpoints.stopReminder !== "boolean") problems.push("checkpoints.stopReminder must be true or false");
   if (checkpoints.minMinutes !== undefined && !(Number.isInteger(checkpoints.minMinutes) && checkpoints.minMinutes >= 0 && checkpoints.minMinutes <= 1440)) problems.push("checkpoints.minMinutes must be a whole number from 0 to 1440");
+  if (checkpoints.holdFirstStop !== undefined && typeof checkpoints.holdFirstStop !== "boolean") {
+    problems.push("checkpoints.holdFirstStop must be true or false");
+  }
   const security = isObject(config.security) ? config.security : {};
   if (security.maxAgeDays !== undefined && security.maxAgeDays !== null && !(Number.isInteger(security.maxAgeDays) && security.maxAgeDays >= 1 && security.maxAgeDays <= 3650)) problems.push("security.maxAgeDays must be null or a whole number from 1 to 3650");
   const dispatch = isObject(config.dispatch) ? config.dispatch : {};
