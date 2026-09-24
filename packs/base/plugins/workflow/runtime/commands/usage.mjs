@@ -4,13 +4,11 @@
 
 import { parseArgs, refuse, resolveExistingDir, say, selfCommand, tilde } from "../lib/core.mjs";
 import {
-  DEFAULT_LIMIT, MAX_LIMIT, RECONSTRUCTION_NOTE, batchBoundaries, batchRows, describeUsage, findMeter, foldScopes, meterTz, meterWindow,
-  parseMerges, proveMeter, usageScope,
+  DEFAULT_LIMIT, MAX_LIMIT, RECONSTRUCTION_NOTE, batchRows, collectBoundaries, describeUsage, findMeter, foldScopes, meterTz, meterWindow,
+  proveMeter, usageScope,
 } from "../lib/usage.mjs";
-import { gitFor } from "../lib/audit-run.mjs";
-import { readJournal } from "../lib/journal.mjs";
-import { listTasks } from "../lib/tasks.mjs";
 import { OperationFailed, loadProject, resolveGitRoot } from "../lib/prepare.mjs";
+import { ledgerDisplayRows } from "../lib/usage-ledger.mjs";
 
 export const help = `usage: what this machine's own transcripts say the work cost, one row per batch.
 
@@ -20,6 +18,7 @@ export const help = `usage: what this machine's own transcripts say the work cos
   usage --project <key>[,<key>]        project folders whose name holds one of these (a substring, for a person)
   usage --all-projects                 every project on this machine
   usage --meter <path>                 the meter to use instead of the default (see below)
+  usage --ledger-only                  the committed ledger rows only; reads no transcript, so another machine can run it
   usage --json                         the same rows as one JSON object
 
 It reads nothing itself. The meter does the reading and the pricing, and its own test is run first, in this run: a
@@ -37,13 +36,18 @@ the last boundary it names, and the meter is asked for exactly that span, so the
 twice and nothing is left out. Boundaries inside the same minute are one row naming all of them. A repository that
 only fast-forwards still gets rows, from its closed tasks and its maintenance.
 
+The rows the ledger holds (.skilliton/usage/ledger.jsonl, one batch row appended by each maintain --apply, committed
+with the maintenance) come first, marked committed or not yet committed; after them the live tail, the batches since
+the ledger's last row, read from the transcripts now. A ledger row stores token counts only: its cost is worked out
+when it is shown, from the meter's price table, whose retrieval date the scorecard names.
+
 ${RECONSTRUCTION_NOTE}
 
 Exit codes: 0 every row complete; 1 a row the meter could not price in full; 2 refused, nothing written; 3 it could
 not run.`;
 
 function parseUsageArgs(argv) {
-  const o = parseArgs(argv, { flags: ["json", "all-projects"], options: ["dir", "meter", "project", "since", "limit"] }, "usage");
+  const o = parseArgs(argv, { flags: ["json", "all-projects", "ledger-only"], options: ["dir", "meter", "project", "since", "limit"] }, "usage");
   if (o.help) return o;
   if (o._.length) refuse(`usage takes no plain arguments (got "${o._[0]}"). See: ${selfCommand()} usage --help`);
   o.limitValue = o.limit === undefined ? DEFAULT_LIMIT : Number(o.limit);
@@ -63,37 +67,49 @@ function parseUsageArgs(argv) {
   return o;
 }
 
-// The three sources of a boundary. The journal and the task folder may be missing, and each says so rather than
-// reading as "nothing happened".
-function gatherBoundaries(root, project, since) {
-  const git = gitFor(root);
-  // %x00 between the fields, so a merge subject carrying anything at all cannot be read as a field boundary.
-  const range = since ? [`${since}..HEAD`] : [];
-  const merges = parseMerges(git(["log", "--merges", "--format=%H%x00%cI%x00%s", ...range]).stdout.toString("utf8"));
-  const sinceAt = since ? git(["log", "-1", "--format=%cI", since]).stdout.toString("utf8").trim() : null;
-  const journal = readJournal(root);
-  const listed = listTasks(project, { all: true });
-  const notes = [];
-  if (!journal.exists) notes.push("no journal on this machine, so no maintain event bounds a batch here");
-  if (journal.corrupt) notes.push(`${journal.corrupt} line(s) of the journal could not be read and bound nothing`);
-  for (const u of listed.unreadable) notes.push(`task record ${u.file} could not be read (${u.reason}) and bounds nothing`);
-  const boundaries = batchBoundaries({ maintains: journal.events, tasks: listed.tasks, merges });
-  const count = (kind) => boundaries.filter((b) => b.kind === kind && (!sinceAt || b.ms > Date.parse(sinceAt))).length;
-  return { boundaries, sinceAt, notes, counts: { merges: count("merge"), tasks: count("task"), maintains: count("maintain") } };
-}
-
 function printJson(meter, proof, tz, scope, rows) {
   const strip = (list) => list.map(({ ms, ...rest }) => rest);
   say(JSON.stringify({
-    meter: { path: meter.path, test: meter.test, proved: proof.summary },
+    meter: meter ? { path: meter.path, test: meter.test, proved: proof.summary } : null,
     tz,
     scope: { kind: scope.kind, describe: scope.describe },
     reconstruction: RECONSTRUCTION_NOTE,
     rows: rows.map((r) => ({
-      from: r.from, to: r.to, tasks: strip(r.tasks), merges: strip(r.merges).map(({ sha, at, subject }) => ({ sha, at, subject })),
-      maintains: strip(r.maintains), ...r.folded,
+      from: r.from, to: r.to, source: r.source, tasks: strip(r.tasks),
+      merges: strip(r.merges).map(({ sha, at, subject }) => ({ sha, at, subject })), maintains: strip(r.maintains), ...r.folded,
     })),
   }, null, 2));
+}
+
+const newest = (rows, limit) => (rows.length > limit ? rows.slice(rows.length - limit) : rows);
+
+// The rows to print: the ledger's first (they hold the default scope, so a narrower or wider reading, or --since, reads
+// the transcripts alone), then the live tail after the ledger's last row, read from the transcripts now.
+function readRows(o, root, project, scope) {
+  const useLedger = scope.kind === "repository" && !o.since;
+  if (o["ledger-only"] && !useLedger) {
+    refuse("--ledger-only reads the committed ledger, which holds this repository's default scope, so it does not combine with --project, "
+      + "--all-projects or --since. Nothing was written.");
+  }
+  const ledger = useLedger ? ledgerDisplayRows(root).rows : [];
+  if (o["ledger-only"]) return { rows: newest(ledger.filter((r) => r.source === "ledger-committed"), o.limitValue), found: null, meter: null, proof: null };
+  const meter = findMeter(root, o.meter ?? null);
+  if (meter.notice && !o.json) say(`note: ${meter.notice}`);
+  const found = collectBoundaries(root, project, { since: o.since ?? null });
+  const live = batchRows(found.boundaries, { since: ledger.at(-1)?.to ?? found.sinceAt }).map((r) => ({ ...r, source: "live" }));
+  const rows = newest([...ledger, ...live], o.limitValue);
+  const proof = proveMeter(meter);
+  for (const row of rows) if (row.source === "live") row.folded = foldScopes(meterWindow(meter, { since: row.from, until: row.to, scope }));
+  return { rows, found, meter, proof };
+}
+
+function printScorecard(o, root, tz, scope, { rows, found, meter, proof }) {
+  const c = found?.counts;
+  const what = c ? ` from ${c.merges} merge(s), ${c.tasks} closed task(s) and ${c.maintains} maintain event(s)` : " (committed ledger rows only)";
+  say(`skilliton usage in ${tilde(root)}: ${rows.length} batch row(s)${what}${o.since ? ` after ${o.since}` : ""}`);
+  const shown = meter ? { path: tilde(meter.path), test: tilde(meter.test) } : null;
+  for (const l of describeUsage({ rows, tz, meter: shown, proof, scope })) say(l);
+  for (const n of found?.notes ?? []) say(`note: ${n}`);
 }
 
 export async function run(argv) {
@@ -101,25 +117,14 @@ export async function run(argv) {
     const o = parseUsageArgs(argv);
     if (o.help) { say(help); return 0; }
     const repo = resolveGitRoot(resolveExistingDir(o.dir, "--dir"));
-    const meter = findMeter(repo.root, o.meter ?? null);
-    if (meter.notice && !o.json) say(`note: ${meter.notice}`);
     const tz = meterTz();
     const project = loadProject(repo.root);
     const scope = usageScope(repo.root, project, { projects: o.projects, all: o["all-projects"] === true });
-    const found = gatherBoundaries(repo.root, project, o.since);
-    const rows = batchRows(found.boundaries, { limit: o.limitValue, since: found.sinceAt });
-
-    const proof = proveMeter(meter);
-    for (const row of rows) row.folded = foldScopes(meterWindow(meter, { since: row.from, until: row.to, scope }));
-
-    const incomplete = rows.filter((r) => r.folded.incomplete).length;
-    if (o.json) printJson(meter, proof, tz, scope, rows);
+    const read = readRows(o, repo.root, project, scope);
+    const incomplete = read.rows.filter((r) => r.folded.incomplete).length;
+    if (o.json) printJson(read.meter, read.proof, tz, scope, read.rows);
     else {
-      const c = found.counts;
-      say(`skilliton usage in ${tilde(repo.root)}: ${rows.length} batch row(s) from ${c.merges} merge(s), ${c.tasks} closed task(s) and `
-        + `${c.maintains} maintain event(s)${o.since ? ` after ${o.since}` : ""}`);
-      for (const l of describeUsage({ rows, tz, meter: { path: tilde(meter.path), test: tilde(meter.test) }, proof, scope })) say(l);
-      for (const n of found.notes) say(`note: ${n}`);
+      printScorecard(o, repo.root, tz, scope, read);
       if (incomplete) say(`${incomplete} row(s) marked INCOMPLETE above: the meter could not price part of that window, so those rows are not quotable.`);
     }
     return incomplete ? 1 : 0;

@@ -14,7 +14,9 @@ It regenerates the decision, lesson and task indexes from their entry files (as 
 collector-backed security records that are missing or stale for the controls maintenance covers (secrets, and the
 delivery policy when .skilliton/delivery.json exists; never the tests collector, which belongs to the gate), refreshes
 the security findings section of the backlog record when the project keeps a security register (as security findings
---apply does), and records a maintain event in the journal, which is what the stop hook measures the next
+--apply does), appends a batch row to the usage ledger (.skilliton/usage/ledger.jsonl: token counts from the meter
+for the window since the last row, ending at this maintenance, once the meter's own test has passed in the same run;
+never a dollar figure), and records a maintain event in the journal, which is what the stop hook measures the next
 maintenance from: on an integration branch, a merge commit since the last maintenance, or a day and at least one
 commit since it, makes the next stop hold the session until this command has run and the assistant has done the
 judgment half (/workflow:maintain: decisions and lessons from the conversation, status and backlog reconciled, the

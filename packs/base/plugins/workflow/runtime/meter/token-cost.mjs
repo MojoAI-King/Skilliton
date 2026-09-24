@@ -99,6 +99,8 @@ function newState(opts) {
     // count can correct the bucket it went into (trap 7 above). bucket is null when the copy was not summed.
     chosen: new Map(),
     buckets: {}, // `${day}|${scope}` or `${project}|${scope}`
+    // `${scope}|${model}`: token counts only (a row in the committed ledger stores these and prices them when shown).
+    models: {},
   };
 }
 
@@ -120,6 +122,7 @@ function correctDuplicate(earlier, msg, counters) {
   if (!earlier.bucket || output <= earlier.output) return;
   const delta = output - earlier.output;
   earlier.bucket.output += delta;
+  if (earlier.modelBucket) earlier.modelBucket.output += delta;
   if (earlier.price) {
     earlier.bucket.cost_usd += (delta * earlier.price.output) / 1e6;
     earlier.bucket.cost_all_5m_usd += (delta * earlier.price.output) / 1e6;
@@ -162,7 +165,7 @@ function addRecord(s, rec, file) {
   const key = `${reqId}|${msgId}`;
   const earlier = s.chosen.get(key);
   if (earlier) { correctDuplicate(earlier, msg, c); return; }
-  const mine = { output: msg.usage.output_tokens ?? 0, bucket: null, price: null };
+  const mine = { output: msg.usage.output_tokens ?? 0, bucket: null, price: null, modelBucket: null };
   s.chosen.set(key, mine);
   c.distinct++;
 
@@ -187,6 +190,16 @@ function addRecord(s, rec, file) {
   b.cost_usd += priced?.cost ?? 0;
   b.cost_all_5m_usd += priced?.cost5m ?? 0;
   if (!t.hasTtl) b.ttl_unknown_tokens += t.cache_write_5m;
+  addToModel(s, mine, file.scope, model, t);
+}
+
+// The same request counted once more, per scope and model, with token counts only.
+function addToModel(s, mine, scope, model, t) {
+  const m = (s.models[`${scope}|${model}`] ??= { requests: 0, input: 0, output: 0, cache_read: 0, cache_write_5m: 0, cache_write_1h: 0, peak_context: 0 });
+  mine.modelBucket = m;
+  m.requests++;
+  m.peak_context = Math.max(m.peak_context, t.input + t.cache_read + t.cache_write_5m + t.cache_write_1h);
+  for (const f of FIELDS.slice(1)) m[f] += t[f];
 }
 
 // Which folders to walk. --project-dir alone reads only its folders, by exact name; anything else walks everything
@@ -238,11 +251,16 @@ function jsonReport(s) {
     sc.peak_context = Math.max(sc.peak_context, b.peak_context);
   }
   for (const sc of Object.values(byScope)) { sc.cost_usd = round(sc.cost_usd); sc.cost_all_5m_usd = round(sc.cost_all_5m_usd); }
+  const byScopeModel = {};
+  for (const [k, m] of Object.entries(s.models)) {
+    const [scope, model] = k.split("|");
+    (byScopeModel[scope] ??= {})[model] = m;
+  }
   const { from, to, since, until, projects, folders } = s.opts;
   // project_dirs is a count and never the names: a folder name spells out a path on this machine.
   return {
     ...s.counters, tz: s.tz, window: { from: from ?? null, to: to ?? null, since: since ?? null, until: until ?? null }, projects,
-    project_dirs: folders.length,
+    project_dirs: folders.length, byScopeModel,
     unpriced_models: s.unpriced, incomplete: isIncomplete(s), byScope,
   };
 }

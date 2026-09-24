@@ -27,7 +27,9 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from "node:pat
 import { fileURLToPath } from "node:url";
 import { refuse, runProgram, tilde } from "./core.mjs";
 import { OperationFailed } from "./prepare.mjs";
-import { runGit } from "./journal.mjs";
+import { readJournal, runGit } from "./journal.mjs";
+import { listTasks } from "./tasks.mjs";
+import { PRICING_RETRIEVED, priceTokens } from "../meter/pricing.mjs";
 
 const DEFAULT_METER = join("scripts", "token-cost.mjs");
 const METER_TEST = "token-cost.test.mjs";
@@ -171,6 +173,32 @@ export function batchBoundaries({ maintains = [], tasks = [], merges = [] }) {
   return out.sort((a, b) => a.ms - b.ms);
 }
 
+function gitText(root, args, what) {
+  const r = runGit(root, args);
+  if (r.status !== 0) throw new OperationFailed(`${what} could not be read (git ${args[0]} exit ${r.status}): ${(r.stderr || "").trim().split("\n")[0]}`);
+  return r.stdout;
+}
+
+// The three sources of a boundary, read from the repository and this machine's journal: { boundaries, sinceAt, notes,
+// counts, journal }. The journal and the task folder may be missing, and each says so in `notes` rather than reading as
+// "nothing happened". `since` is a revision: only what came after its commit time is counted.
+export function collectBoundaries(root, project, { since = null } = {}) {
+  // %x00 between the fields, so a merge subject carrying anything at all cannot be read as a field boundary.
+  const range = since ? [`${since}..HEAD`] : [];
+  const merges = parseMerges(gitText(root, ["log", "--merges", "--format=%H%x00%cI%x00%s", ...range], "the merge commits"));
+  const sinceAt = since ? gitText(root, ["log", "-1", "--format=%cI", since], `the commit ${since}`).trim() : null;
+  const journal = readJournal(root);
+  const listed = listTasks(project, { all: true });
+  const notes = [];
+  if (!journal.exists) notes.push("no journal on this machine, so no maintain event bounds a batch here");
+  if (journal.corrupt) notes.push(`${journal.corrupt} line(s) of the journal could not be read and bound nothing`);
+  for (const u of listed.unreadable) notes.push(`task record ${u.file} could not be read (${u.reason}) and bounds nothing`);
+  const boundaries = batchBoundaries({ maintains: journal.events, tasks: listed.tasks, merges });
+  const after = (b) => !sinceAt || b.ms > Date.parse(sinceAt);
+  const count = (kind) => boundaries.filter((b) => b.kind === kind && after(b)).length;
+  return { boundaries, sinceAt, notes, journal, counts: { merges: count("merge"), tasks: count("task"), maintains: count("maintain") } };
+}
+
 // One row per clock minute that holds a boundary, oldest first: { from, to, tasks, merges, maintains }. from is the
 // previous row's to (or `since`, or null for the oldest row), to is the latest boundary in the row. `since` drops every
 // boundary at or before it. `limit` keeps the newest rows, and the row that then becomes the oldest keeps its real
@@ -260,11 +288,36 @@ export function meterWindow(meter, { since = null, until = null, scope = { args:
   return parsed;
 }
 
+const TOKEN_KEYS = ["requests", "input", "output", "cache_read", "cache_write_5m", "cache_write_1h"];
 const zero = () => ({ requests: 0, input: 0, output: 0, cache_read: 0, cache_write_5m: 0, cache_write_1h: 0, cost_usd: 0 });
 
+// Token counts per scope and model, priced now from the meter's table (runtime/meter/pricing.mjs, retrieved
+// PRICING_RETRIEVED). This is how a committed ledger row gets a cost, since it stores none, and how a live row gets its
+// cost too, so both come from the same table. A model the table does not price leaves the row incomplete, by name.
+export function foldModels(byScopeModel, { incomplete = false, unpriced = [] } = {}) {
+  const total = zero();
+  const byScope = {};
+  const missing = new Set(unpriced);
+  for (const [scope, models] of Object.entries(byScopeModel ?? {})) {
+    const row = zero();
+    for (const [model, counts] of Object.entries(models ?? {})) {
+      const t = Object.fromEntries(TOKEN_KEYS.map((k) => [k, Number(counts?.[k] ?? 0)]));
+      for (const k of TOKEN_KEYS) row[k] += t[k];
+      const priced = priceTokens(model, t);
+      if (priced) row.cost_usd += priced.cost; else missing.add(model);
+    }
+    byScope[scope] = row;
+    for (const k of Object.keys(total)) total[k] += row[k];
+  }
+  return { total, byScope, incomplete: incomplete || missing.size > 0, unpriced: [...missing].sort() };
+}
+
 // The meter reports per scope (the session itself, and its subagents). A row keeps them apart and gives their total,
-// because "the session cost this" and "its subagents cost this" are two facts and one of them hides the other.
+// because "the session cost this" and "its subagents cost this" are two facts and one of them hides the other. A meter
+// that reports token counts per model is priced from the table here; one that does not is taken at its own figures.
 export function foldScopes(parsed) {
+  const unpriced = Object.keys(parsed.unpriced_models ?? {});
+  if (parsed.byScopeModel) return foldModels(parsed.byScopeModel, { incomplete: Boolean(parsed.incomplete), unpriced });
   const total = zero();
   const byScope = {};
   for (const [name, s] of Object.entries(parsed.byScope ?? {})) {
@@ -273,7 +326,7 @@ export function foldScopes(parsed) {
     byScope[name] = row;
     for (const k of Object.keys(total)) total[k] += row[k];
   }
-  return { total, byScope, incomplete: Boolean(parsed.incomplete), unpriced: Object.keys(parsed.unpriced_models ?? {}) };
+  return { total, byScope, incomplete: Boolean(parsed.incomplete), unpriced };
 }
 
 // An instant as "YYYY-MM-DD HH:MM" in the meter's timezone, which the scorecard names on its second line.
@@ -305,6 +358,12 @@ function boundaryLines(row, tz) {
   });
 }
 
+const SOURCE_LABEL = {
+  "ledger-committed": "committed ledger row",
+  "ledger-uncommitted": "ledger row, not yet committed",
+  live: "live, read from the transcripts now",
+};
+
 function rowLines(row, tz) {
   const out = [];
   const window = `${row.from ? localTime(row.from, tz) : "(earliest)"}..${localTime(row.to, tz)}`;
@@ -316,6 +375,7 @@ function rowLines(row, tz) {
     const figures = [num(v.requests), num(v.input), num(v.output), num(v.cache_read), num(v.cache_write_5m + v.cache_write_1h), v.cost_usd.toFixed(2)];
     out.push(line([i === 0 ? window : "", i === 0 ? ends : "", scope, ...figures]));
   }
+  if (row.source) out.push(`${indent} ${SOURCE_LABEL[row.source]}`);
   for (const l of boundaryLines(row, tz)) out.push(`${indent} ${l}`);
   const unpriced = row.folded.unpriced.length ? `; unpriced model(s): ${row.folded.unpriced.join(", ")}` : "";
   if (row.folded.incomplete) out.push(`${indent} INCOMPLETE: the meter could not price part of this window${unpriced}. Do not quote this row.`);
@@ -325,7 +385,9 @@ function rowLines(row, tz) {
 // The scorecard, as lines. It never says a number went down: a sentence about savings needs the usage screen and a
 // cross-check, and it has no business being produced by something that only reads transcripts.
 export function describeUsage({ rows, tz, meter, proof, scope }) {
-  const out = [`meter: ${meter.path}, proved in this run by ${meter.test} (${proof.summary})`];
+  const priced = `est usd priced from the meter's table retrieved ${PRICING_RETRIEVED}`;
+  const out = [proof ? `meter: ${meter.path}, proved in this run by ${meter.test} (${proof.summary}); ${priced}`
+    : `meter: not run (committed ledger rows only); ${priced}`];
   out.push(`scope: ${scope.describe}; times in ${tz}`);
   if (!rows.length) return [...out, "no batch boundary (a maintain event, a closed task or a merge commit) was found, so there is no batch to report."];
   out.push("", line(HEAD.map(([name]) => name)));

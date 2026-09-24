@@ -29,7 +29,7 @@ const PRICING = {
 
 // The newest retrieval date named in the notes above. A display that prices a row names it, so a reader can see how old
 // the table behind an estimate is.
-const PRICING_RETRIEVED = "2026-09-22";
+export const PRICING_RETRIEVED = "2026-09-22";
 
 // The estimated cost of one set of token counts at one model's rates: { cost, cost5m, rates }, or null for a model the table
 // does not price. cost5m prices every cache write at the 5m rate, which is how the reference figures were established.

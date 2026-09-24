@@ -81,6 +81,16 @@ scope("all 5m", all, "subagent", { cost_all_5m_usd: 0.001895 });
 // subagent output 1, so the two output checks above fail without the rule (checked by reverting it).
 check("negative control: first-copy-wins would differ", 2026 !== all.byScope.top.output && 1 !== all.byScope.subagent.output, true);
 
+// byScopeModel: the same requests per scope and model, token counts only (the ledger stores these). Top: fable-5-1 is
+// r1, r2, r3 with output 50 + 20 + 5 = 75 (r1's largest copy), opus-5 is r5, the unknown model is r7; subagent: r4,
+// whose output is corrected from 1 to 9 there as well as in its day bucket.
+const bm = all.byScopeModel;
+check("by model: top fable requests and corrected output", [bm.top?.["claude-fable-5-1"]?.requests, bm.top?.["claude-fable-5-1"]?.output], [3, 75]);
+check("by model: top opus-5 and the unpriced model", [bm.top?.["claude-opus-5"]?.requests, bm.top?.["claude-unknown-9"]?.input], [1, 10]);
+check("by model: subagent output corrected", bm.subagent?.["claude-fable-5-1"]?.output, 9);
+check("by model: peak context per model", [bm.top?.["claude-fable-5-1"]?.peak_context, bm.top?.["claude-opus-5"]?.peak_context], [3010, 12000]);
+check("by model: no money in it", JSON.stringify(bm).includes("cost"), false);
+
 // --project filter: proj-a only. Complete (no unpriced model in scope).
 const a = run("--project", "PROJ-A");
 check("project filter incomplete", a.incomplete, false);

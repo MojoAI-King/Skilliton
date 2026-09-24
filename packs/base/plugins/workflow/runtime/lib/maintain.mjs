@@ -22,6 +22,7 @@ import { join } from "node:path";
 import { GitError, appendEvent, mergesSince, runGit } from "./journal.mjs";
 import { regenerateIndexes } from "./records.mjs";
 import { Refused, selfCommand } from "./core.mjs";
+import { ledgerStep } from "./usage-ledger.mjs";
 
 const DUE_AFTER_HOURS = 24;
 export const DUE_AFTER_COMMITS = 15;
@@ -113,6 +114,12 @@ export async function runMaintain(project, { root, gitDir, apply = false, sessio
   });
   for (const p of indexes.problems) steps.push({ name: "indexes", status: "not run", detail: p });
 
+  // The usage ledger's batch row ends at this maintenance's own time, which the journal event below records, so the
+  // next row starts exactly there. It is written before the collectors run, so the secrets record they write has
+  // already seen it.
+  const at = new Date().toISOString();
+  steps.push(ledgerStep(project, { root, apply, at }));
+
   const wroteSince = (from, name) => steps.slice(from).some((st) => st.status === "wrote" && st.name.startsWith(name));
   let mark = steps.length;
   await refreshCollectors(root, { apply, steps });
@@ -128,7 +135,7 @@ export async function runMaintain(project, { root, gitDir, apply = false, sessio
 
   let wrote = false;
   if (apply) {
-    appendEvent(root, { event: "maintain", session, at: new Date().toISOString() });
+    appendEvent(root, { event: "maintain", session, at });
     steps.push({ name: "journal", status: "wrote", detail: "maintain event recorded; the stop hook measures the next one from here" });
     wrote = true;
   } else {
