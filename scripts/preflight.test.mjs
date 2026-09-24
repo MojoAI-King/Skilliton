@@ -9,6 +9,7 @@
 // none of them shows (docs/BACKLOG.md B29). No endpoint-security product was available to test under.
 //
 // Every case ends with what a person would do next, so a message that stops naming the way out fails the test.
+// A case that needs the runtime probe to answer gets a limit that follows the machine's load (B83, fixtures/preflight-load.mjs).
 //
 //   node --test scripts/preflight.test.mjs
 
@@ -20,17 +21,16 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { PROGRAMS, redact } from "../packs/base/plugins/workflow/runtime/lib/preflight.mjs";
+import { probeSkip } from "./fixtures/preflight-load.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const GIT_ENV = { GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@example.invalid", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@example.invalid" };
 const PLUGINS = join(ROOT, "packs", "base", "plugins");
 const asRoot = typeof process.getuid === "function" && process.getuid() === 0;
 
-const toolPath = (name) => {
-  const r = spawnSync("sh", ["-c", `command -v ${name}`], { encoding: "utf8" });
-  if (r.status !== 0) throw new Error(`${name} is needed by this test and was not found on PATH`);
-  return r.stdout.trim();
-};
+const toolPath = (name) => toolPathOrNull(name) ?? assert.fail(`${name} is needed by this test and was not found on PATH`);
+// Read once, before the first case: NOT RUN with the reason, or false (B83).
+const PROBE = { skip: probeSkip() };
 
 // Every program the check looks for, except the coding tools, which the fixture stands in for.
 const ALL_TOOLS = PROGRAMS.filter((p) => p.need !== "client").map((p) => p.name);
@@ -98,7 +98,7 @@ function item(out, pattern) {
   return `${lines[index]}\n${lines[index + 1] ?? ""}`;
 }
 
-test("a machine with everything in place passes, and leaves no file behind", (t) => {
+test("a machine with everything in place passes, and leaves no file behind", PROBE, (t) => {
   const ctx = fixture(t);
   const r = preflight(ctx, ["--client", "claude-code", "--bin-dir", ctx.bin]);
   assert.equal(r.code, 0, r.out);
@@ -139,7 +139,7 @@ test("a program whose exec fails is named as blocked, with the shell's own messa
   assert.match(item(r.out, "git"), /Ask IT to allow/);
 });
 
-test("a program a hook needs, blocked, stops sessions but not setup", (t) => {
+test("a program a hook needs, blocked, stops sessions but not setup", PROBE, (t) => {
   if (asRoot) return t.skip("running as root: a file this user may not run cannot be made");
   const ctx = fixture(t);
   standIn(ctx, "grep", "#!/bin/sh\nexit 0\n", 0o000);
