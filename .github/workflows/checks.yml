@@ -208,6 +208,12 @@ jobs:
       - name: Project security evidence and collectors
         run: node --test scripts/security-evidence.test.mjs scripts/collectors.test.mjs scripts/security-record-refusals.test.mjs scripts/security-propose.test.mjs scripts/security-freshness.test.mjs
 
+      - name: security status --require-collected fails on a missing collector-backed record (B71)
+        run: node scripts/security-require.test.mjs
+
+      - name: Security findings in their own file, and migration 0004 (B78)
+        run: node scripts/security-findings.test.mjs
+
       - name: Maintain refreshes the collector-backed security records that are missing or stale
         run: node --test scripts/maintain-security-collectors.test.mjs
 
@@ -252,6 +258,9 @@ jobs:
 
       - name: The audit over every file this repository has ever changed
         run: node scripts/skilliton.mjs audit --range "$(git rev-list --max-parents=0 HEAD)"..HEAD
+
+      - name: Every collector-backed control has a record (security status --require-collected, B71)
+        run: node scripts/skilliton.mjs security status --require-collected
 
       # 05-03 item 2. The register's evidence is produced by a machine on every push rather than by a person once.
       # The records land in this throwaway workspace and are never committed, so the run's log is the evidence.
