@@ -938,9 +938,9 @@ test("an interrupted previous session is detected", async () => withTemp("interr
 
   assert.equal(hook(p, "session-end", { session_id: "s3", reason: "prompt_input_exit" }, env).code, 0);
   const fourth = hook(p, "session-start", { session_id: "s4", source: "startup" }, env);
-  assert.match(fourth.out, /^- Previous session: session s3 \(started [^)]+\) ended normally$/m);
+  assert.match(fourth.out, /^- Previous session: the previous session ended with 1 uncommitted change\(s\) and no checkpoint: .+ \(session s3 \(/m);
   const compacted = hook(p, "session-start", { session_id: "s4", source: "compact" }, env);
-  assert.match(compacted.out, /^- Previous session: session s3 \(started [^)]+\) ended normally$/m, "a compaction restart of the same session is not a previous session");
+  assert.match(compacted.out, /^- Previous session: the previous session ended with 1 .+\(session s3 \(/m, "a compaction restart is not a previous session");
 
   const running = statusJson(p, env);
   assert.equal(running.json.details.sessions.latest.session, "s4");

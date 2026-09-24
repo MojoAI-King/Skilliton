@@ -23,6 +23,7 @@ import { deletedTracked, restoreAdvice } from "./records-restore.mjs";
 import { LEGACY_NAME, LEGACY_PROJECT_DIR } from "./legacy-names.mjs";
 import { HANDOFF_PLACEHOLDER } from "./project-files.mjs";
 import { OperationFailed } from "./prepare.mjs";
+import { endedFor, sessionWho as who } from "./previous-session.mjs";
 
 const RESULT_SCHEMA = "skilliton.result/1";
 const RESULTS = { 0: "complete", 1: "attention", 2: "invalid", 3: "operation-failed" };
@@ -462,13 +463,13 @@ function sessionsCheck(root, git, currentSession) {
     journal: { path: journal.path, exists: journal.exists, events: journal.events.length, corrupt: journal.corrupt, truncated: journal.truncated },
     mode: history.mode, latest: history.latest, previous: history.previous, interrupted: history.interrupted, live: history.live, lastSeen: history.lastSeen, uncommitted: git.dirty,
   };
-  const who = (s) => `session ${s.session ?? "(no id)"} (started ${s.startedAt})`;
   const parts = [];
+  const ended = endedFor(history, journal.events); // null unless hook mode and the previous session ended
   if (history.mode === "hook") {
     if (!history.previous) parts.push("none recorded in this worktree's journal");
     else if (history.live) parts.push(`another session looks active in this checkout (last seen ${history.lastSeen}), or it was interrupted: if it is open in another window, work in a worktree lane or check before committing shared records`);
     else if (history.interrupted) parts.push(`interrupted: ${who(history.previous)} has no session-end`);
-    else parts.push(`${who(history.previous)} ended normally`);
+    else parts.push(ended.words);
   } else if (!history.latest) {
     parts.push("no session recorded in this worktree's journal (the lifecycle hooks have not run here)");
   } else {
