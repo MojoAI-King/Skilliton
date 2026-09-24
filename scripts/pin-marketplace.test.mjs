@@ -76,7 +76,10 @@ if (cmd === "plugin marketplace list" && args[3] === "--json") {
   if (!known[args[3]]) fail("marketplace " + args[3] + " is not added");
   delete known[args[3]];
   write(knownPath, known);
-  if (env.STUB_REMOVE_UNINSTALLS) { for (const id of Object.keys(installed.plugins)) if (id.endsWith("@" + args[3])) delete installed.plugins[id]; write(installedPath, installed); }
+  if (env.STUB_REMOVE_UNINSTALLS) {
+    for (const id of Object.keys(installed.plugins)) if (id.endsWith("@" + args[3])) delete installed.plugins[id];
+    write(installedPath, installed);
+  }
   const project = join(process.cwd(), ".claude", "settings.json");
   if (existsSync(project)) { const s = read(project, {}); s.enabledPlugins = {}; s.extraKnownMarketplaces = {}; write(project, s); }
 } else if (cmd === "plugin marketplace add") {
@@ -106,8 +109,8 @@ function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-function cli(ctx, args, { env = {}, path } = {}) {
-  const r = spawnSync(process.execPath, [CLI, ...args], { cwd: ctx.project, env: { ...ctx.env, ...(path ? { PATH: path } : {}), ...env }, encoding: "utf8" });
+function cli(ctx, args, { env = {} } = {}) {
+  const r = spawnSync(process.execPath, [CLI, ...args], { cwd: ctx.project, env: { ...ctx.env, ...env }, encoding: "utf8" });
   return { code: r.status, out: r.stdout ?? "", all: `${r.stdout ?? ""}${r.stderr ?? ""}` };
 }
 
@@ -128,7 +131,8 @@ function fixture(t) {
   for (const d of [ctx.tools, ctx.keys, ctx.project, join(base, "home"), dirname(ctx.stub)]) mkdirSync(d, { recursive: true });
   for (const [name, target] of Object.entries(TOOLS)) symlinkSync(target, join(ctx.tools, name));
   // git, except for the one question join's machine check asks of the network.
-  writeFileSync(join(ctx.tools, "git"), `#!/bin/sh\nfor a in "$@"; do [ "$a" = ls-remote ] && { printf '%s\\trefs/heads/main\\n' ${"0".repeat(40)}; exit 0; }; done\nexec ${JSON.stringify(REAL_GIT)} "$@"\n`);
+  const answer = `{ printf '%s\\trefs/heads/main\\n' ${"0".repeat(40)}; exit 0; }`;
+  writeFileSync(join(ctx.tools, "git"), `#!/bin/sh\nfor a in "$@"; do [ "$a" = ls-remote ] && ${answer}; done\nexec ${JSON.stringify(REAL_GIT)} "$@"\n`);
   chmodSync(join(ctx.tools, "git"), 0o755);
   writeFileSync(join(dirname(ctx.stub), "stub.mjs"), STUB);
   writeFileSync(ctx.stub, `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(join(dirname(ctx.stub), "stub.mjs"))} "$@"\n`);
@@ -162,7 +166,8 @@ function buildRelease(ctx) {
     enabledPlugins: Object.fromEntries(PLUGINS.map((p) => [`${p}@${MARKET}`, true])),
   });
   git(ctx, ctx.base, "init", "-q", "-b", "main", ctx.repo);
-  for (const [k, v] of [["user.name", "pin-test"], ["user.email", "pin-test@example.invalid"], ["commit.gpgsign", "false"], ["tag.gpgsign", "false"]]) git(ctx, ctx.repo, "config", k, v);
+  const config = [["user.name", "pin-test"], ["user.email", "pin-test@example.invalid"], ["commit.gpgsign", "false"], ["tag.gpgsign", "false"]];
+  for (const [k, v] of config) git(ctx, ctx.repo, "config", k, v);
   git(ctx, ctx.repo, "add", "-A");
   git(ctx, ctx.repo, "commit", "-q", "-m", "fixture");
   const key = join(ctx.keys, "maintainer");
@@ -183,7 +188,8 @@ function buildRelease(ctx) {
 // Claude Code's records as the stub keeps them: a marketplace from source, and every plugin installed at user scope.
 function machineWith(ctx, source, { installs = PLUGINS } = {}) {
   writeJson(join(ctx.claudeHome, "plugins", "known_marketplaces.json"), { [MARKET]: { source, installLocation: ctx.repo, lastUpdated: "t" } });
-  const plugins = Object.fromEntries(installs.map((p) => [`${p}@${MARKET}`, [{ scope: "user", installPath: join(ctx.claudeHome, "plugins", "cache", MARKET, p, "0.0.1"), version: "0.0.1" }]]));
+  const record = (p) => [{ scope: "user", installPath: join(ctx.claudeHome, "plugins", "cache", MARKET, p, "0.0.1"), version: "0.0.1" }];
+  const plugins = Object.fromEntries(installs.map((p) => [`${p}@${MARKET}`, record(p)]));
   writeJson(join(ctx.claudeHome, "plugins", "installed_plugins.json"), { version: 2, plugins });
 }
 
@@ -193,6 +199,7 @@ const known = (ctx) => JSON.parse(readFileSync(join(ctx.claudeHome, "plugins", "
 const pinRecord = (ctx) => join(ctx.repo, ".git", "skilliton-pin.json");
 const inside = (child, parent) => { const r = relative(parent, child); return r === "" || (!r.startsWith("..") && !r.startsWith("/")); };
 const updates = PLUGINS.map((p) => `plugin update ${p}@${MARKET}`);
+const pinApply = (ctx) => ["pin", "--release", "1.0.0", "--repo", ctx.repo, "--claude", ctx.stub, "--apply"];
 
 // Every stub call ran from a folder of its own: not the project, not inside it or the clone, and gone afterwards.
 function assertNeutral(ctx) {
@@ -246,7 +253,9 @@ test("pin --apply moves a git marketplace to <url>#<tag>", (t) => {
   const url = "https://example.invalid/acme/skills.git";
   machineWith(ctx, { source: "git", url });
   expectCode(cli(ctx, ["pin", "--latest", "--repo", ctx.repo, "--claude", ctx.stub, "--apply"]), 0, "apply");
-  assert.deepEqual(commands(ctx).slice(0, 3), ["plugin marketplace list --json", `plugin marketplace remove ${MARKET}`, `plugin marketplace add ${url}#${TAG}`]);
+  assert.deepEqual(commands(ctx).slice(0, 3), [
+    "plugin marketplace list --json", `plugin marketplace remove ${MARKET}`, `plugin marketplace add ${url}#${TAG}`,
+  ]);
   assertNeutral(ctx);
   assert.deepEqual([known(ctx).source.url, known(ctx).source.ref], [url, TAG]);
 });
@@ -254,7 +263,7 @@ test("pin --apply moves a git marketplace to <url>#<tag>", (t) => {
 test("pin --apply fails loudly when the client reports another ref after the add", (t) => {
   const ctx = fixture(t);
   machineWith(ctx, { source: "github", repo: "acme/skills" });
-  const r = expectCode(cli(ctx, ["pin", "--release", "1.0.0", "--repo", ctx.repo, "--claude", ctx.stub, "--apply"], { env: { STUB_REPORT_REF: "main" } }), 3, "ref check");
+  const r = expectCode(cli(ctx, pinApply(ctx), { env: { STUB_REPORT_REF: "main" } }), 3, "ref check");
   assert.match(r.out, new RegExp(`FAILED: after .*plugin marketplace add acme/skills#${TAG}, the client reports the ref main, not ${TAG}`));
   assert.equal(commands(ctx).filter((c) => c.startsWith("plugin update")).length, 0, "nothing is updated from a marketplace that did not land on the tag");
   assert.doesNotMatch(r.out, /Done: Claude Code/);
@@ -264,8 +273,10 @@ test("pin --apply fails loudly when the client reports another ref after the add
 test("pin --apply adds the marketplace back without the ref when the client refuses the tag form", (t) => {
   const ctx = fixture(t);
   machineWith(ctx, { source: "github", repo: "acme/skills" });
-  const r = expectCode(cli(ctx, ["pin", "--release", "1.0.0", "--repo", ctx.repo, "--claude", ctx.stub, "--apply"], { env: { STUB_REFUSE_REF: "1" } }), 3, "refused ref");
-  assert.deepEqual(commands(ctx).slice(1), [`plugin marketplace remove ${MARKET}`, `plugin marketplace add acme/skills#${TAG}`, "plugin marketplace add acme/skills"]);
+  const r = expectCode(cli(ctx, pinApply(ctx), { env: { STUB_REFUSE_REF: "1" } }), 3, "refused ref");
+  assert.deepEqual(commands(ctx).slice(1), [
+    `plugin marketplace remove ${MARKET}`, `plugin marketplace add acme/skills#${TAG}`, "plugin marketplace add acme/skills",
+  ]);
   assert.match(r.out, /NOT PINNED: .*plugin marketplace add acme\/skills#skilliton-release\/1\.0\.0 failed/);
   assert.match(r.out, /added back without the ref/);
   assert.equal(known(ctx).source.ref, undefined);
@@ -275,7 +286,7 @@ test("pin --apply adds the marketplace back without the ref when the client refu
 test("pin --apply installs again a plugin the remove took away, and updates the rest", (t) => {
   const ctx = fixture(t);
   machineWith(ctx, { source: "github", repo: "acme/skills" });
-  expectCode(cli(ctx, ["pin", "--release", "1.0.0", "--repo", ctx.repo, "--claude", ctx.stub, "--apply"], { env: { STUB_REMOVE_UNINSTALLS: "1" } }), 0, "apply");
+  expectCode(cli(ctx, pinApply(ctx), { env: { STUB_REMOVE_UNINSTALLS: "1" } }), 0, "apply");
   assert.deepEqual(commands(ctx).slice(4), PLUGINS.map((p) => `plugin install ${p}@${MARKET}`));
   assertNeutral(ctx);
 });
@@ -311,4 +322,43 @@ test("pin: a marketplace already at the tag, with the clone pinned, has nothing 
   assert.match(r.out, new RegExp(`already at ${TAG}`));
   assert.match(r.out, /Already pinned there; nothing to do/);
   assert.deepEqual(calls(ctx), []);
+});
+
+// ---------------------------------------------------------------- join
+
+const joinArgs = (ctx, ...extra) => [
+  "join", "--company", "acme", "--signers", ctx.signers, "--client", "claude-code", "--claude", ctx.stub, "--no-launcher", "--repo", ctx.repo, ...extra,
+];
+
+test("join with a release adds the marketplace at that release's tag, from a neutral folder", (t) => {
+  const ctx = fixture(t);
+  const preview = expectCode(cli(ctx, joinArgs(ctx)), 0, "join preview");
+  assert.match(preview.out, new RegExp(`marketplace: ${MARKET} from GitHub acme/skills, added to Claude Code at the release tag ${TAG}`));
+  assert.deepEqual(calls(ctx), [], "a join preview runs no client");
+  const r = cli(ctx, joinArgs(ctx, "--apply"));
+  assert.equal(commands(ctx)[0], `plugin marketplace add acme/skills#${TAG}`, r.all);
+  assert.deepEqual(commands(ctx).slice(1), PLUGINS.map((p) => `plugin install ${p}@${MARKET}`));
+  assertNeutral(ctx);
+  assert.equal(known(ctx).source.ref, TAG);
+  assert.match(r.out, new RegExp(`added marketplace ${MARKET} \\(GitHub acme/skills at ${TAG}\\)`));
+  assert.doesNotMatch(r.out, /NOT PINNED/);
+  assert.equal(r.code, 0, `a pinned join with every plugin VERIFIED exits 0: ${r.all}`);
+});
+
+test("join without a release adds the marketplace with no ref", (t) => {
+  const ctx = fixture(t);
+  cli(ctx, joinArgs(ctx, "--no-pin", "--apply"));
+  assert.equal(commands(ctx)[0], "plugin marketplace add acme/skills");
+  assertNeutral(ctx);
+  assert.equal(known(ctx).source.ref, undefined);
+});
+
+test("join reports NOT PINNED with the exact command when the client refuses the tag form, carries on, and exits 1", (t) => {
+  const ctx = fixture(t);
+  const r = expectCode(cli(ctx, joinArgs(ctx, "--apply"), { env: { STUB_REFUSE_REF: "1" } }), 1, "refused ref");
+  assert.deepEqual(commands(ctx).slice(0, 2), [`plugin marketplace add acme/skills#${TAG}`, "plugin marketplace add acme/skills"]);
+  assert.deepEqual(commands(ctx).slice(2), PLUGINS.map((p) => `plugin install ${p}@${MARKET}`), "join carries on");
+  assert.match(r.out, new RegExp(`NOT PINNED: Claude Code refused .*plugin marketplace add acme/skills#${TAG}`));
+  assert.match(r.out, /skilliton pin --release 1\.0\.0 --apply/);
+  assertNeutral(ctx);
 });

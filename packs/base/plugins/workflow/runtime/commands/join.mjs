@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join as joinPath } from "node:path";
 import { Refused, backupFile, newStamp, parseArgs, refuse, resolveSkillsRepo, say, selfCommand, tilde } from "../lib/core.mjs";
 import { applyJoin, applyUndo, joinDir, planJoin, planUndo, refuseLegacySetup } from "../lib/join.mjs";
+import { joinTag, recordedRef, releaseTag } from "../lib/marketplace-pin.mjs";
 import { applyPin, pinLine, planPin, readPinState } from "../lib/pin.mjs";
 import { reportLines, runPreflight } from "../lib/preflight.mjs";
 import { parseAllowedSigners, planTrustAdd, validateCompany, writeTrustFile } from "../lib/trust.mjs";
@@ -34,9 +35,13 @@ approved when its tag skilliton-release/<x.y.z> carries an SSH signature that ve
 at. An unsigned tag, a withdrawn one, a tag whose signature does not verify, and a release tag that has moved since
 this clone was last pinned are each refused before anything is written; so is a newest release that is not approved,
 rather than quietly installing an older one. A clone with no release tags at all is joined unpinned, with a note.
---no-pin joins from the clone as it stands and says so. What is pinned is the clone: the runtime the skilliton
-command runs, and the catalog and manifest verify checks against; a client downloads a plugin from the marketplace
-itself and takes no tag when it does, which is why join ends with verify. skilliton pin moves it later.
+--no-pin joins from the clone as it stands and says so. What is pinned is the clone (the runtime the skilliton
+command runs, and the catalog and manifest verify checks against) and, with a release and a GitHub marketplace, the
+client's own download: Claude Code adds the marketplace at <owner>/<repo>#skilliton-release/<x.y.z>. A tag is a name,
+not a commit, which is why join ends with verify. A client that refuses the tag form, or records another ref, is
+reported NOT PINNED with the exact command; join adds the marketplace without the ref, carries on, and exits 1.
+Codex is added without a ref (whether it takes one is not verified). Every client command runs from a new empty
+folder, never from the folder join was started in. skilliton pin moves the clone and the marketplace later.
 
 For each coding client found (Claude Code, Codex; --client picks one) join adds the company marketplace and installs
 the plugins the team settings template enables (--plugins overrides; workflow is required; verify expects every
@@ -59,7 +64,8 @@ a Codex home folder join created is kept, because Codex writes its own files the
 
 Preview by default; --apply makes the changes.
 Exit codes: 0 complete and every plugin VERIFIED (undo: everything join added is gone); 1 attention (verify found a
-plugin not VERIFIED, the launcher was not written, or undo kept something that changed); 2 refused, nothing changed;
+plugin not VERIFIED, a client NOT PINNED at the release tag, the launcher was not written, or undo kept something
+that changed); 2 refused, nothing changed;
 3 a client command failed part way (the output and the receipt say what completed).`;
 
 export async function run(argv) {
@@ -157,6 +163,7 @@ function buildJoinPlan(o) {
   const planArgs = () => planJoin({
     repo, company: o.company, client: o.client, marketplace: o.marketplace, plugins: o.plugins,
     binDir: o["bin-dir"], noLauncher: o["no-launcher"], claude: o.claude, codex: o.codex, trustPlan, prepare: o.prepare,
+    tag: pinPlan ? releaseTag(pinPlan.version) : undefined,
     platform: process.env.SKILLITON_PLATFORM || process.platform,
   });
   return { pinState, pinPlan, planArgs, plan: planArgs() };
@@ -170,9 +177,17 @@ function printJoinSummary(o, plan, pinState, pinPlan) {
   say(pinPlan ? pinLine(pinState, pinPlan)
     : o["no-pin"] ? "release: not pinned (--no-pin); the clone is joined as it stands, so what the skilliton command runs is whatever this clone holds"
     : "release: not pinned; this clone has no release tags yet");
-  say(`marketplace: ${plan.market.name} from ${plan.market.source.kind === "github" ? `GitHub ${plan.market.source.location}` : `folder ${tilde(plan.market.source.location)}`}`);
+  say(`marketplace: ${plan.market.name} from ${plan.market.source.kind === "github" ? `GitHub ${plan.market.source.location}` : `folder ${tilde(plan.market.source.location)}`}${tagNote(plan)}`);
   say(`plugins: ${plan.plugins.join(", ")}`);
   say("");
+}
+
+// What the summary says about the release tag: Claude Code adds a GitHub marketplace at it; nothing else takes one.
+function tagNote(plan) {
+  const tag = plan.market.source.kind === "github" ? plan.market.tag : null;
+  if (!tag) return "";
+  const codex = plan.clients.some((c) => c.id === "codex") ? "; Codex is added without a ref" : "";
+  return `, added to Claude Code at the release tag ${tag} (a tag, not a commit)${codex}`;
 }
 
 // The machine checks come before anything is written, so a laptop that cannot run or write what setup needs says so
@@ -209,7 +224,10 @@ function printJoinSteps(plan) {
   for (const c of plan.clients) {
     say(`${c.driver.label} (${tilde(c.binary.path)}, home ${tilde(c.home)}):`);
     if (c.createHome) step(false, `the home folder ${tilde(c.home)}, which ${c.driver.label} needs to exist`);
-    step(!c.addMarketplace, `marketplace ${plan.market.name}`);
+    const tag = joinTag(c.id, plan.market.source, plan.market.tag);
+    step(!c.addMarketplace, `marketplace ${plan.market.name}${tag ? ` at ${tag}` : ""}`);
+    const had = tag && !c.addMarketplace ? recordedRef(c.home, plan.market.name) : null;
+    if (had && !had.problem && had.ref !== tag) say(`  note: it is there ${had.ref ? `at ${had.ref}` : "with no ref"}, not ${tag}: join reports it NOT PINNED`);
     for (const i of c.installs) step(i.present, `plugin ${i.plugin}@${plan.market.name}`);
   }
   const l = plan.launcher;
@@ -290,13 +308,36 @@ function verifyJoinedClients(plan) {
   return allVerified;
 }
 
-function finishJoin(plan, l, allVerified) {
+// Every client join was to add at the release tag that is not there: it refused the tag form, or its records name
+// another ref (or none) afterwards, or it had the marketplace from another ref before this join. Returns the lines.
+function notPinnedLines(plan, version) {
+  const out = [];
+  for (const c of plan.clients) {
+    const tag = joinTag(c.id, plan.market.source, plan.market.tag);
+    if (!tag) continue;
+    const pin = `${selfCommand()} pin --release ${version} --apply`;
+    if (c.refused) {
+      out.push(`NOT PINNED: ${c.driver.label} refused ${c.refused.command} (${c.refused.detail}).`);
+      out.push(`  The marketplace was added without the ref, so it follows its branch. Update ${c.driver.label}, then run: ${pin}`);
+      continue;
+    }
+    const had = recordedRef(c.home, plan.market.name);
+    if (had.ref === tag) continue;
+    const what = had.problem ? `cannot be read back (${had.problem})` : had.ref ? `is at ${had.ref}` : "has no ref";
+    out.push(`NOT PINNED: ${c.driver.label}'s marketplace ${plan.market.name} ${what}, not ${tag}. Run: ${pin}`);
+  }
+  return out;
+}
+
+function finishJoin(plan, l, allVerified, notPinned) {
   const launcherOk = l.action !== "skip" && l.cmd?.action !== "skip";
+  const ok = allVerified && launcherOk && !notPinned.length;
   say("");
-  say(allVerified && launcherOk
+  for (const line of notPinned) say(line);
+  say(ok
     ? `Done: this machine is set up for ${plan.company}. Start a new session in any project; to prepare one, run skilliton prepare --dir <project>.`
     : `Set up, with attention needed above${launcherOk ? "" : " (the terminal command was not written)"}. To take it back out: ${selfCommand()} join --undo --company ${plan.company} --apply`);
-  return allVerified && launcherOk ? 0 : 1;
+  return ok ? 0 : 1;
 }
 
 async function join(o) {
@@ -321,7 +362,7 @@ async function join(o) {
   if (written.failedExit) return written.failedExit;
 
   const allVerified = verifyJoinedClients(plan);
-  return finishJoin(plan, l, allVerified);
+  return finishJoin(plan, l, allVerified, pinPlan ? notPinnedLines(plan, pinPlan.version) : []);
 }
 
 // Whether a plan still has anything to write. work[] counts the same things while the preview prints them, but a

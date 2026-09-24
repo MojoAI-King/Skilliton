@@ -11,7 +11,7 @@
 // Install state is read from each client's own files, as verify reads them (formats not documented), and a client
 // binary runs only to make a change: every Codex invocation, even --version, writes scratch files into its home, so a
 // preview, a repeat with nothing to do, and a refusal run no client at all. Clients are changed only through their
-// plugin commands, with argument arrays and no shell.
+// plugin commands, with argument arrays and no shell, each from a new empty folder (lib/marketplace-pin.mjs says why).
 //
 // The receipt is treated as untrusted input: undo removes only the signers file at this company's trust path and a
 // launcher whose text is exactly the one join writes, and it refuses a receipt that does not have the recorded shape.
@@ -28,14 +28,13 @@ import { runGit, trustFilePath, validateCompany } from "./trust.mjs";
 import { claudeConfigDir, codexHome, readClaudeInstalls, readCodexInstalls } from "./verify.mjs";
 import { LEGACY_COMMAND, legacyJoinDir } from "./legacy-names.mjs";
 import { redact } from "./preflight.mjs";
+import { CLIENT_TIMEOUT_MS, inNeutralFolder, joinSources, joinTag, sameSource, sourceLabel } from "./marketplace-pin.mjs";
 
 const RECEIPT_SCHEMA = "skilliton.join/1";
 const LAUNCHER_NAME = "skilliton";
 const LAUNCHER_CMD_NAME = "skilliton.cmd";
-const CLIENT_TIMEOUT_MS = 300000;
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const sha256 = (text) => createHash("sha256").update(text).digest("hex");
-const sameRepo = (a, b) => a.toLowerCase().replace(/\.git$/, "") === b.toLowerCase().replace(/\.git$/, "");
 
 function lstatOrNull(path) {
   try { return lstatSync(path); } catch (e) { if (e.code === "ENOENT" || e.code === "ENOTDIR") return null; throw e; }
@@ -226,7 +225,8 @@ function findBinary(driver, explicit) {
 }
 
 function runClient(binary, args) {
-  const r = spawnSync(binary.path, args, { encoding: "utf8", timeout: CLIENT_TIMEOUT_MS, maxBuffer: 16 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+  const r = inNeutralFolder((cwd) => spawnSync(binary.path, args, {
+    cwd, encoding: "utf8", timeout: CLIENT_TIMEOUT_MS, maxBuffer: 16 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] }));
   const failure = r.error ? (r.error.code === "ETIMEDOUT" ? `timed out after ${CLIENT_TIMEOUT_MS / 1000}s` : r.error.message) : r.status !== 0 ? `exit ${r.status ?? `by signal ${r.signal}`}` : null;
   return { ok: failure === null, failure, output: `${r.stdout ?? ""}${r.stderr ?? ""}`.trim() };
 }
@@ -288,14 +288,6 @@ function planPlugins(market, requested) {
   if (unknown.length) refuse(`the catalog does not list ${unknown.join(", ")}, so it cannot be installed. Nothing was changed.`);
   if (!plugins.includes("workflow")) refuse("the plugins to install do not include workflow, which carries the skilliton runtime and verify; add it. Nothing was changed.");
   return plugins;
-}
-
-const sourceLabel = (source) => (source.kind === "github" ? `GitHub ${source.location}` : `folder ${tilde(source.location)}`);
-
-function sameSource(present, wanted) {
-  if (!present || present.kind !== wanted.kind || typeof present.location !== "string") return false;
-  if (wanted.kind === "github") return sameRepo(present.location, wanted.location);
-  return realpathOrNull(present.location) === wanted.location;
 }
 
 // ---------- the terminal launcher ----------
@@ -372,12 +364,12 @@ export function refuseLegacySetup(company) {
   refuse(`company ${company} was set up on this machine before the rename to Skilliton (its receipt is ${tilde(path)}). Remove that setup first with the release that wrote it: in a clone of the company skills repository checked out at a commit from before the rename, run node scripts/${LEGACY_COMMAND}.mjs join --undo --company ${company} --apply, then run join here again. Nothing was changed.`);
 }
 
-export function planJoin({ repo, company, client = "all", marketplace, plugins, binDir, noLauncher, claude, codex, trustPlan, prepare, platform = process.platform }) {
+export function planJoin({ repo, company, client = "all", marketplace, plugins, binDir, noLauncher, claude, codex, trustPlan, prepare, tag, platform = process.platform }) {
   validateCompany(company);
   refuseLegacySetup(company);
   if (!["all", ...Object.keys(DRIVERS)].includes(client)) refuse(`--client must be all, claude-code or codex (got "${client}")`);
   const clone = inspectClone(repo);
-  const market = planMarketplace(repo, marketplace);
+  const market = { ...planMarketplace(repo, marketplace), tag: tag ?? null };
   const pluginList = planPlugins(market, plugins);
   const launcher = planLauncher(company, repo, binDir, noLauncher, platform);
   const previous = readReceipt(company);
@@ -478,11 +470,19 @@ export function applyJoin(plan, { say, writeTrust }) {
 }
 
 // Adds the marketplace, then checks the client now has it under the company's name and from the planned source, so
-// the receipt never records a marketplace that is not there. Returns a failure or null.
+// the receipt never records a marketplace that is not there. With a release tag, Claude Code is asked for the tag
+// first; a refusal is kept on the client for join's NOT PINNED report and the source is added as it is. Returns a
+// failure or null.
 function addMarketplace(plan, c, entry, receipt, say) {
   const { name, source } = plan.market;
-  const args = c.driver.addMarketplace(source.location);
-  const r = runClient(c.binary, args);
+  const tag = joinTag(c.id, source, plan.market.tag);
+  let args, r;
+  for (const location of joinSources(source, tag)) {
+    args = c.driver.addMarketplace(location);
+    r = runClient(c.binary, args);
+    if (r.ok || location === source.location) break;
+    c.refused = { command: describeCommand(c.binary, c.driver, args), detail: `${r.failure}: ${r.output.slice(-300) || "no output"}` };
+  }
   if (!r.ok) return clientFailure(c.binary, c.driver, args, r);
   let after;
   try { after = c.driver.state(c.home, name); } catch (e) {
@@ -495,7 +495,7 @@ function addMarketplace(plan, c, entry, receipt, say) {
   }
   entry.marketplaceAdded = true;
   writeReceipt(receipt);
-  say(`${c.driver.label}: added marketplace ${name} (${sourceLabel(source)})`);
+  say(`${c.driver.label}: added marketplace ${name} (${sourceLabel(source)}${tag && !c.refused ? ` at ${tag}` : ""})`);
   return null;
 }
 

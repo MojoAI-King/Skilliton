@@ -27,7 +27,7 @@ import { isPlainObject, refuse, tilde, which } from "./core.mjs";
 import { RELEASE_TAG, readClaudeCatalog } from "./release.mjs";
 import { claudeConfigDir, readClaudeInstalls } from "./verify.mjs";
 
-const CLIENT_TIMEOUT_MS = 300000;
+export const CLIENT_TIMEOUT_MS = 300000;
 const GIT_KINDS = ["github", "git"];
 
 export const releaseTag = (version) => `${RELEASE_TAG}${version}`;
@@ -50,7 +50,7 @@ function realOrSelf(path) {
 }
 
 // Runs fn(folder) with a new empty folder made for it, and removes the folder afterwards, whatever fn did.
-function inNeutralFolder(fn) {
+export function inNeutralFolder(fn) {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "skilliton-client-")));
   try {
     const around = projectAround(dir);
@@ -118,6 +118,15 @@ const describeSource = (s) => (s.kind === "github" ? `GitHub ${s.repo}` : s.kind
   : s.kind === "directory" ? `the folder ${s.path ? tilde(s.path) : "(unknown)"}` : `a ${s.kind} source`);
 const refText = (s) => (s.ref ? `at ${s.ref}` : "following its default branch (no ref)");
 
+// The ref Claude Code's files record for a marketplace: { ref } (null for none), or { problem } when the marketplace is
+// not there or the record cannot be read.
+export function recordedRef(home, name) {
+  const known = readKnown(home);
+  if (known.problem) return { problem: known.problem };
+  const source = known.map.get(name);
+  return source ? { ref: source.ref } : { problem: `no marketplace named ${name} is recorded` };
+}
+
 // Claude Code's own record of its marketplaces, read without running it: { map } or { problem }.
 function readKnown(home) {
   const path = join(home, "plugins", "known_marketplaces.json");
@@ -137,6 +146,32 @@ function parseList(stdout) {
   if (!list) return { problem: "its output is not a list of marketplaces" };
   return { map: new Map(list.filter((m) => isPlainObject(m) && typeof m.name === "string").map((m) => [m.name, flatSource(m)])) };
 }
+
+// ---------- join's sources ----------
+
+const sameRepo = (a, b) => a.toLowerCase().replace(/\.git$/, "") === b.toLowerCase().replace(/\.git$/, "");
+
+function realpathOrNull(path) {
+  try { return realpathSync(path); } catch (e) { if (e.code === "ENOENT" || e.code === "ENOTDIR") return null; throw e; }
+}
+
+// How join names a source it plans, { kind: "github" | "directory", location }, in its messages.
+export const sourceLabel = (source) => (source.kind === "github" ? `GitHub ${source.location}` : `folder ${tilde(source.location)}`);
+
+// Whether a marketplace a client has ({ kind, location }) is the one join plans: the same GitHub repository, whatever
+// ref it was added at, or the same folder.
+export function sameSource(present, wanted) {
+  if (!present || present.kind !== wanted.kind || typeof present.location !== "string") return false;
+  if (wanted.kind === "github") return sameRepo(present.location, wanted.location);
+  return realpathOrNull(present.location) === wanted.location;
+}
+
+// The release tag join adds the marketplace at for one client, or null: Claude Code, a GitHub source and a release
+// only. Whether Codex takes a ref in its source was not measured, so Codex is added as before.
+export const joinTag = (clientId, source, tag) => (clientId === "claude-code" && source.kind === "github" && tag ? tag : null);
+
+// The sources join tries, in order: at the tag, then as it is, so a client that refuses the tag form is still set up.
+export const joinSources = (source, tag) => (tag ? [sourceAtTag({ kind: "github", repo: source.location }, tag), source.location] : [source.location]);
 
 // ---------- the plan ----------
 
