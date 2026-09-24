@@ -5,8 +5,8 @@ Kind: Living. Written for two readers: a person installing Skilliton, and an AI 
 ## What you need
 
 - **Claude Code**, signed in. The path 2 commands use its command line (`claude`). With only the VS Code extension, see rule 1 of [the agent section](#if-you-are-an-ai-agent-installing-this-for-someone).
-- **git**, and **Node.js 22 or later** (`node --version`). Node.js 22 is tested; Node.js 20 ran in one review and is not a supported floor.
-- **OpenSSH's `ssh-keygen`** (`ssh-keygen -V`). The demo and `skilliton verify` use it to check signatures; on Debian and Ubuntu it is the `openssh-client` package, usually already installed.
+- **git**, and **Node.js 22 or later** (`node --version`). CI runs Node.js 22, and the full check list also passes on Node.js 25 on the maintainer's machine; Node.js 20 ran in one review and is not a supported floor.
+- **OpenSSH's `ssh-keygen`** (`command -v ssh-keygen` prints its path; there is no version flag on macOS). The demo and `skilliton verify` use it to check signatures; on Debian and Ubuntu it is the `openssh-client` package, usually already installed.
 - macOS or Linux. Windows is not supported yet: after the port, preparation, every session hook and the guard's decisions work on a hosted Windows machine, but a command of several hundred KB takes the guard longer than its timeout (backlog B80), and no signed-in Claude Code session has run there ([evidence](evidence/live/windows/2026-09-23-hosted-runner-port.md)).
 
 ## Pick a path
@@ -25,9 +25,9 @@ cd Skilliton
 node scripts/autopilot-demo.mjs
 ```
 
-It prepares a throwaway project, turns a request into a task with a checkpoint, records real test evidence and shows it going stale when the code changes, then runs a shared repository whose merge check accepts a passing change and rejects a breaking one. No model, no network, and nothing is written outside a temporary folder.
+It prepares a throwaway project, turns a request into a task with a checkpoint, records real test evidence and shows it going stale when the code changes, then runs a shared repository whose merge check accepts a passing change and rejects a breaking one. No model, no network, and nothing is written outside a temporary folder (under `$TMPDIR` when it is set, which the demo honors).
 
-To run the checks CI runs (`node scripts/checks.mjs --list` prints them and their count and runs nothing; the two that run only in CI are named when they are skipped):
+The full check list takes about 7 minutes on an idle laptop and longer under load. To run the checks CI runs (`node scripts/checks.mjs --list` prints them and their count and runs nothing; the two that run only in CI are named when they are skipped):
 
 ```bash
 node scripts/checks.mjs
@@ -71,7 +71,7 @@ Type `/` to see the skills: `workflow:task`, `workflow:review`, `workflow:handof
 
 **This path follows the repository's main branch.** Nothing checks the installed files against a signed release; path 3 does. Whoever controls main controls the hooks on a trial machine; a machine that holds client work joins signed.
 
-**To take it out again:** in each prepared repository, run `skilliton remove` to see what it would take out (the assistant may run this preview for you), then run `skilliton remove --apply` yourself: the project's instructions and the guardrails reserve that step for a person. It takes out the managed block from CLAUDE.md and AGENTS.md (delete either file if nothing else was in it) and the generated `.skilliton/security/REPORT.md`, and keeps every record and `.skilliton/config.json` (add `--config` to delete that too). On this path `skilliton` is on PATH only inside a Claude Code session; in your own terminal, run it by its full path, `~/.claude/plugins/cache/skilliton/workflow/<version>/bin/skilliton`. Then remove the plugins and the marketplace:
+**To take it out again:** in each prepared repository, run `skilliton remove` to see what it would take out (the assistant may run this preview for you), then run `skilliton remove --apply` yourself: the project's instructions and the guardrails reserve that step for a person. It takes out the managed block from CLAUDE.md and AGENTS.md (delete either file if nothing else was in it) and the generated `.skilliton/security/REPORT.md`, and keeps every record and `.skilliton/config.json` (add `--config` to delete that too). On this path `skilliton` is on PATH only inside a Claude Code session; in your own terminal, run it by its full path, `$CLAUDE_CONFIG_DIR` when that is set and `~/.claude` otherwise, then `/plugins/cache/skilliton/workflow/<version>/bin/skilliton`. Then remove the plugins and the marketplace:
 
 ```bash
 claude plugin uninstall workflow@skilliton
@@ -94,6 +94,21 @@ node ~/company-skills/scripts/skilliton.mjs join --from <join file> --apply   # 
 ```
 
 The join file carries the company name, the skills repository's address and the approvers' public signing keys, and no secret. It comes from the company, never from the repository, so that whoever can change the repository cannot also change who is trusted. After a join, every repository a session opens on that machine is prepared at its first session start, and `skilliton verify` checks the installed files against the signed release. An empty `.skilliton-off` file at a repository's root (or a `skilliton-off` file inside its `.git` folder, which is never committed) keeps that one repository from being prepared automatically, and keeps Skilliton's workflow hooks out of it altogether: the session start says so in one line, and nothing else runs or is recorded there. The guardrails and the read guard still run. The company side of this path, including `skilliton company join-file`, which writes the join file, is in [docs/RELEASING.md](docs/RELEASING.md).
+
+**From the try path to the team path.** Take the try install out first (the uninstall commands above), then join, so the machine follows one marketplace, the signed one.
+
+**To try the team path against this repository itself,** with no company of your own, make a signers file from the key GitHub publishes for its owner and the address the release tag was signed with, then trust it:
+
+```bash
+git clone https://github.com/MojoAI-King/Skilliton.git ~/skilliton-upstream && cd ~/skilliton-upstream
+key=$(gh api users/MojoAI-King/ssh_signing_keys --jq '.[0].key')
+who=$(git cat-file -p skilliton-release/1.3.0 | sed -n 's/^tagger .*<\(.*\)>.*/\1/p')
+printf '%s namespaces="git" %s\n' "$who" "$key" > ~/skilliton.allowed_signers
+node scripts/skilliton.mjs trust add --company skilliton --signers ~/skilliton.allowed_signers --apply
+node scripts/skilliton.mjs verify --company skilliton --source .
+```
+
+`company join-file` writes a join file from the same signers file when you want to rehearse `join --from` end to end. `join` and `preflight` both take `--bin-dir <folder>`, which moves where the launcher is written and probed (default `~/.local/bin`).
 
 ## If you are an AI agent installing this for someone
 

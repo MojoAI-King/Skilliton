@@ -29,6 +29,8 @@ By hand instead: `claude plugin marketplace add <company>/<skills-repo>`, `claud
 - **A project the team already prepared:** clone it and start a session in its folder. The session start shows the latest handoff and a "Project state" block. Ask: "Where do things stand?"
 - **A new or existing project that is not prepared yet:** on a machine that has joined, the first session start prepares it and says what it wrote; commit those files with your next commit. Elsewhere, ask the assistant to prepare it, or run `skilliton prepare --dir <project>` to preview and `skilliton prepare --dir <project> --apply` to apply. It adopts records the project already has, adds only what is missing (marked "not yet assessed"), writes the instruction block, and changes nothing else. Running it again changes nothing.
 
+Preparing does not write `.claude/settings.json`; `skilliton project-settings --apply` writes the team's plugin settings there when the project should enable the plugins for everyone who opens it, and `doctor` warns until one exists.
+
 ## 3. Everyday work
 
 1. **Say what you want in your own words.** The assistant turns it into a task record with acceptance criteria and, for anything bigger than a small fix, a branch of its own.
@@ -36,6 +38,7 @@ By hand instead: `claude plugin marketplace add <company>/<skills-repo>`, `claud
 3. **Review.** Before committing, the assistant runs a plain-language review: what changed, what could break, what was tested, and the security evidence state, with a verdict of READY TO COMMIT, NEEDS ATTENTION or STOP.
 4. **Share.** Push your branch and follow your team's merge process. Where the delivery gate is installed, the shared branch accepts only a combined result that passes the team's checks.
 5. **Hand off.** When you stop, ask for a handoff. The next session, yours or a teammate's, starts from it.
+6. **Close the task.** The assistant ticks each criterion as it is met; when the work is done, it (or you) closes the record with `skilliton task close <id> --state done-local --apply`, or `merged` once it lands, and the open-tasks index follows.
 
 ## 4. When something goes wrong
 
