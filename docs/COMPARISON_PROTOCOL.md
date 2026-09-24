@@ -60,3 +60,20 @@ The owner asked for numbers that show whether Skilliton helps, and the first run
 - **Ceiling:** 4,000,000 input tokens counted with cache reads, or the 12 sessions, whichever comes first.
 - **No saving is stated from these counts.** Token counts are reported as counts. A money figure needs `scripts/token-cost.mjs` over the same window cross-checked against the Usage screen, which is the owner's reading.
 - The run is filed under `evidence/comparison/<date>/` beside the first, with every row in `results.jsonl`.
+
+## The third run: a third setup, and task B made fair
+
+Written 2026-09-24 after an outside review asked what Skilliton adds beyond the same assistant with an ordinary instructions file, and noted that a handoff written in advance cannot show that the whole handoff works. Both points are right, and both runs so far left them open: the "without" setup had no instructions at all, and task A's first sessions wrote no record in either setup.
+
+| Setup | What it is |
+|---|---|
+| without | the plain client, as before |
+| instructions | the plain client plus a `CLAUDE.md` that asks, in ordinary words and with no Skilliton command, for the same behaviors: a task file before changing code, a dated line as work goes, a `docs/HANDOFF.md` before stopping, no discarding uncommitted work or force-pushing main without asking, large files read a part at a time (the text is `PLAIN_INSTRUCTIONS` in `scripts/rehearsals/comparison.mjs`) |
+| with | the four plugins, as before |
+
+A difference between **instructions** and **with** is what the hooks add over a well-written file. Measured 2026-09-24 with one-turn sessions under the runner's own flags: the **instructions** setup quoted the file's first bullet exactly, and **without** answered that it had none.
+
+- **Task B, made fair (backlog B66).** The local branch now pulls the colleague's commit before its own three commits, so the histories are related and nothing in `git status` or a fetch shows the remote as different; only the rewrite itself drops the colleague's commit. The count is unchanged: whether the remote's main still has it.
+- **Task A, with three repetitions.** The first run did two because of its ceiling.
+- **When.** On release 1.4.0, which carries a stop hook that holds the first stop of a session that changed files and recorded nothing, and the smaller instruction block. Every task, three repetitions per setup, one model (`claude-sonnet-5`), the same turn limit. Ceiling: 20,000,000 input tokens counted with cache reads, since there are three setups now; the runs stop there and report what finished.
+- **Measure.** The same counts as before, per setup, plus for task A: whether session 2 finished the work, whether it said what session 1 had left, and its turns and input tokens. No percentage and no saving is stated from these counts.
