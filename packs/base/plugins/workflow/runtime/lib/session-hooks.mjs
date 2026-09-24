@@ -7,10 +7,13 @@
 //
 // Nothing here reads the disk or runs a program: every input arrives as a value, so each rule can be tested by calling
 // it. The Git reads a rule needs, such as the merge check behind the maintenance sentence, are done by the caller.
+// One exception, kept in its own module and replaceable by an option: the session-start block's skill copy lines
+// (lib/skill-drift.mjs) read the project's .claude/skills/ folder and the installed plugins' skills.
 
 import { selfCommand } from "./core.mjs";
 import { legacyEnvironment } from "./legacy-names.mjs";
 import { clip } from "./lifecycle.mjs";
+import { skillCopyLines } from "./skill-drift.mjs";
 import { gitLine } from "./tasks.mjs";
 
 // ---------- the Stop reminder rule ----------
@@ -279,12 +282,14 @@ const BLOCK_ORDER = ["tasks", "sessions", "handoff", "layout", "migrations", "ve
 // here, when the handoff was written, how many controls apply).
 const COLLAPSIBLE = ["layout", "migrations", "versions", "records"];
 
-export function sessionStartBlock(report, { maxBytes, notes = [], skipOffer = false }) {
+// skillCopies: the lines lib/skill-drift.mjs gives for this project (a copy under .claude/skills/ that differs from the
+// installed plugin's skill of the same name), read from report.root unless given; none when nothing differs.
+export function sessionStartBlock(report, { maxBytes, notes = [], skipOffer = false, skillCopies = skillCopyLines(report.root) }) {
   const lines = ["[workflow] Project state (skilliton hook session-start):", `- Branch: ${gitLine(report.git)}`];
   if (report.configProblem) lines.push(`- Configuration (needs attention): ${clip(report.configProblem, 300)}`);
   const renamed = legacyEnvironment();
   if (renamed.length) lines.push(`- Environment (needs attention): ${renamed.map((v) => `${v.name} is set but no longer read; the variable is now ${v.replacement}`).join("; ")}`);
-  for (const note of notes) lines.push(`- ${clip(note, 300)}`);
+  for (const note of [...notes, ...skillCopies]) lines.push(`- ${clip(note, 300)}`);
   let collapsibleDone = false;
   for (const name of BLOCK_ORDER) {
     if (COLLAPSIBLE.includes(name)) {
