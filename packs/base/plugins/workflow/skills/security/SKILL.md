@@ -1,11 +1,21 @@
 ---
 name: security
-description: Keep a project's security evidence current and honest - explain what has and has not been assessed, decide which controls apply with a named person, gather real evidence with the built-in collectors or from actual test and scan results, record observations that go stale when their sources change, and turn gaps into backlog items. Use when the user asks about security, before a release or review, when the session start shows missing or stale evidence, or when asked "is this secure" or "are we compliant".
+description: Keep a project's security evidence current and honest - explain what has and has not been assessed, decide which controls apply with a named person, gather real evidence with the built-in collectors or from actual test and scan results, record observations that go stale when their sources change, and turn gaps into backlog items. Use when the user asks to audit changed code or fix what an audit finds (run skilliton audit first), when the user asks about security, before a release or review, when the session start shows missing or stale evidence, or when asked "is this secure" or "are we compliant".
 ---
 
 # security: evidence, not assurances
 
 This skill records what was actually assessed in this project and keeps that record honest over time. It never declares the project secure or compliant: evidence counts describe what was checked, when, and against which sources, nothing more.
+
+## 0. Asked to audit code, or to fix what an audit finds
+
+This is a different job from the evidence below, and it comes first when that is what was asked.
+
+1. Run `skilliton audit` (the files changed since HEAD; `--range <base>..<head>` for a branch). It names each finding by file, line, rule and control, never the text that matched.
+2. Read each finding at its line and fix the code the way the rule's reason says (an argument list instead of a built command string, no `shell: true`, verification left on). An allow comment (`skilliton-audit: allow <rule> <why>`) is only for a line that is safe as written, with the reason in it; never to make a finding go away.
+3. Run `skilliton audit` again, and repeat until it prints `nothing found`. Say what you changed, and that the second run was clean.
+
+Do not open security records or applicability decisions for this unless the user asks for evidence; the audit and the fix are the work.
 
 ## 1. Show where things stand
 

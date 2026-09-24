@@ -22,6 +22,7 @@ import { OperationFailed } from "./lifecycle.mjs";
 import { closeTask, listTasks, renderTask, taskRel } from "./tasks.mjs";
 
 import { BRIEF_FILE, LANE_FILE, REPORT_FILE, briefText } from "./dispatch-brief.mjs";
+import { linkedLanePaths } from "./dispatch-paths.mjs";
 export { LANE_FILE, BRIEF_FILE, REPORT_FILE };
 const MAX_PLAN_BYTES = 200000;
 // A worktree add checks out the tree, which on a large repository is slower than a query; the journal's default
@@ -297,6 +298,7 @@ export function planDispatch(root, project, { file, now = new Date() } = {}) {
   const planned = planLaneWorktrees(root, project, lanes, laneRoot, head, problems);
   const ctx = buildDispatchContext(root, project, path, rel, now);
   attachTaskAndBrief(planned, project, ctx, problems, now);
+  for (const lane of planned) problems.push(...linkedLanePaths(root, lane));
 
   return {
     planPath: path,
@@ -313,6 +315,7 @@ export function planDispatch(root, project, { file, now = new Date() } = {}) {
 
 // ---------- writing ----------
 
+
 export function applyDispatch(root, plan) {
   if (plan.problems.length) throw new OperationFailed("applyDispatch was called with a plan that has problems; nothing was created");
   const created = [];
@@ -321,11 +324,19 @@ export function applyDispatch(root, plan) {
     mkdirSync(plan.laneRoot, { recursive: true });
     laneRootCreated = true;
   }
-  const soFar = () => (created.length ? `${created.length} lane(s) were created first: ${created.map((c) => `${c.name} (${tilde(c.dir)}, branch ${c.branch})`).join("; ")}. Remove one with: git worktree remove <folder> and git branch -D <branch>` : "No lane was created");
+  // Every worktree that exists now, the failing lane's included once git made it: "No lane was created" was printed
+  // while the failing lane's worktree and branch were still there.
+  const made = [];
+  const soFar = () => (made.length ? `${made.length} worktree(s) exist from this run: ${made.map((c) => `${c.name} (${tilde(c.dir)}, branch ${c.branch})`).join("; ")}. Remove one with: git worktree remove <folder> and git branch -D <branch>` : "No worktree was made");
   for (const lane of plan.lanes) {
     const r = runGit(root, ["worktree", "add", lane.dir, "-b", lane.branch, lane.base], { timeoutMs: WORKTREE_TIMEOUT_MS });
     if (r.status !== 0) {
       throw new OperationFailed(`git worktree add failed for lane ${lane.name}: ${(r.stderr || r.stdout).trim().split("\n").pop() || `exit ${r.status}`}. ${soFar()}`);
+    }
+    made.push(lane);
+    for (const rel of [BRIEF_FILE, lane.taskRel]) {
+      const linked = linkedWriteProblem(lane.dir, rel);
+      if (linked) throw new OperationFailed(`lane ${lane.name}: ${linked}, so nothing was written in it. ${soFar()}`);
     }
     try {
       writeFileSync(lane.briefPath, lane.brief, "utf8");

@@ -57,6 +57,10 @@ Each was reproduced in a scratch repository before it was fixed, and each fix sh
 - **The usage ledger**, new in workflow 0.25.0, appended its row through a committed link in its first version: fixed before any release (`scripts/usage-ledger-links.test.mjs`).
 - **A failing `skilliton gate` verdict**, whose competing-processes line is new in workflow 0.25.0, printed other node processes' command lines, which can carry a token: it names each by program and script file only, fixed before any release (`scripts/gate-process-label.test.mjs`).
 
+### Limits found by the security retest after 1.4.0, 2026-09-24
+
+- **`skilliton dispatch --apply` wrote a lane's brief through a committed symbolic link at `LANE_BRIEF.md`** into the file it pointed at, outside the repository, and exited 0; its task record and the lane report were written the same unchecked way, and `company init`, `new-plugin`, `release create` and the delivery policy's confirm step had no link check either. Reproduced on 1.4.0: fixed in workflow 0.25.1, to ship in the next release (`scripts/dispatch-links.test.mjs`, `scripts/write-sites.test.mjs`).
+
 ## What it is not
 
 The security evidence register keeps observations tied to file fingerprints and marks them stale when their sources change. It is evidence-keeping for a team's own review; it is not a certification, an attestation, or a compliance pass, and nothing here claims one.

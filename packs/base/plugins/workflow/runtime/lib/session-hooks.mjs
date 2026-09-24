@@ -104,6 +104,9 @@ export function stopReason({
   }
   const drifted = driftSentence(drift, command);
   if (drifted) parts.push(drifted);
+  // A held stop makes the checkpoint the session's last message, and the answer the user was about to read scrolls
+  // away above it (measured in the audit-finding eval, 2026-09-24).
+  parts.push("Once it is recorded, end with your answer to the user in a line or two, because the last message is the one they read.");
   parts.push("This reminder is given once for this working tree state; if this work should not be recorded, tell the user why and stop.");
   // The command comes last, so no punctuation follows it.
   if (current.task) {

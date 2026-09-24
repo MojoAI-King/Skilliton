@@ -58,6 +58,12 @@ Every line below was reproduced on `main` at 029f159 before it was written here.
 | The usage ledger's first version appended through a committed link | Refused before any release: the ledger is never read or written through a link |
 | A failing gate verdict printed other node processes' full command lines | Each is named by its program and script file only |
 
+## Limits the security retest after 1.4.0 found, 2026-09-24
+
+| Limit | Fix |
+|---|---|
+| `dispatch --apply` wrote a lane's brief, and could write its task record and report, through a committed symbolic link in the base commit, outside the repository (reproduced on 1.4.0); `company init`, `new-plugin`, `release create` and the policy confirm had no link check | Workflow 0.25.1: a base commit with a link where dispatch writes is refused before any worktree is made; the four other writers check with linkedWriteProblem; a test lists every file write with its reason |
+
 ## What this page does not claim
 
 No number here is a measurement of risk. Nothing here is a compliance certification. A team that needs one measures its own controls under its own policy; this page tells that team what Skilliton's controls are and where they stop, so the measurement starts from the truth.

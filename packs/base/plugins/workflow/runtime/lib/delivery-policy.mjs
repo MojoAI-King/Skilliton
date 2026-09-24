@@ -9,7 +9,7 @@
 
 import { existsSync, readFileSync, renameSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { isPlainObject, refuse } from "./core.mjs";
+import { isPlainObject, linkedWriteProblem, refuse } from "./core.mjs";
 import { LEGACY_POLICY_FILE, LEGACY_POLICY_SCHEMA } from "./legacy-names.mjs";
 
 export const POLICY_FILE = ".skilliton/delivery.json";
@@ -182,6 +182,9 @@ export function describePolicy(policy) {
 // meanwhile is never replaced.
 export function applyConfirm(plan) {
   if (existsSync(plan.policyPath)) refuse(`${POLICY_FILE} appeared before the draft was confirmed; nothing was written`);
+  const root = plan.policyPath.slice(0, plan.policyPath.length - POLICY_FILE.length) || ".";
+  const linked = linkedWriteProblem(root, POLICY_FILE) ?? linkedWriteProblem(root, DRAFT_FILE);
+  if (linked) refuse(`${linked}; nothing was written`);
   renameSync(plan.draftPath, plan.policyPath);
   return { policyPath: plan.policyPath };
 }

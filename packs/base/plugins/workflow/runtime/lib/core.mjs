@@ -71,6 +71,9 @@ const isDir = (p) => statOrNull(p)?.isDirectory() === true;
 // linked to CLAUDE.md is a common setup); one that leaves root, or whose target does not exist, would carry the write
 // wherever it points and is refused. A file with a second hard link is refused, because writing it would change another
 // file's bytes. root itself is not checked: it is the folder the person named.
+// The same check for a planned file that carries its absolute path and its repository-relative path.
+const linkedFileProblem = (f) => linkedWriteProblem(f.path.slice(0, f.path.length - f.rel.length) || ".", f.rel);
+
 function linkedWriteProblem(root, rel) {
   const parts = rel.split(/[\\/]+/).filter(Boolean);
   const realRoot = realpathSync(root);
@@ -395,7 +398,7 @@ function readPluginVersion(pluginDir) {
 
 export {
   PLUGIN_ROOT, SKILLS_REPO, HOME, BACKUPS,
-  Refused, refuse, say, isPlainObject, clone, sameJson, sha12, statOrNull, isDir, isFile, linkedWriteProblem, tilde, selfCommand,
+  Refused, refuse, say, isPlainObject, clone, sameJson, sha12, statOrNull, isDir, isFile, linkedFileProblem, linkedWriteProblem, tilde, selfCommand,
   resolveExistingDir, NAME_RE, validateName, parseArgs, which, resolveProgram, runProgram, windowsCmdLine, newStamp, backupFile, unifiedDiff,
   readBytes, writeBytes, forDisplay, argPath,
   buildTeamSettings, readJsonObject,

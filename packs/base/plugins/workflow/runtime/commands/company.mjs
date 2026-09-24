@@ -3,7 +3,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { backupFile, newStamp, parseArgs, refuse, resolveSkillsRepo, say, selfCommand, tilde, unifiedDiff } from "../lib/core.mjs";
+import { backupFile, linkedFileProblem, newStamp, parseArgs, refuse, resolveSkillsRepo, say, selfCommand, tilde, unifiedDiff } from "../lib/core.mjs";
 import { insideGitWorkTree, parseAllowedSigners, validateCompany } from "../lib/trust.mjs";
 import { CATALOG, TEAM_TEMPLATE, planCompanyInit } from "../lib/fork.mjs";
 
@@ -65,6 +65,10 @@ export function run(argv) {
   if (!o.apply) {
     say(`Next: run the same command with --apply.`);
     return 0;
+  }
+  for (const f of changed) {
+    const linked = linkedFileProblem(f);
+    if (linked) refuse(`${linked}. Nothing was written.`);
   }
   const stamp = newStamp();
   for (const f of changed) {

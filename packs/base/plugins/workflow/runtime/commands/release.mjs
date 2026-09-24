@@ -3,7 +3,7 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { Refused, parseArgs, refuse, requireSkillsRepo, say, selfCommand, tilde } from "../lib/core.mjs";
+import { Refused, linkedWriteProblem, parseArgs, refuse, requireSkillsRepo, say, selfCommand, tilde } from "../lib/core.mjs";
 import {
   RELEASE_TAG, manifestRel, openRepository, parseTagObject, planRelease, planSign, planWithdraw, readReleaseState,
   shellLine, short, tagExists,
@@ -82,6 +82,8 @@ async function create(argv) {
     say(`Next: run the same command with --apply, commit ${plan.rel}, then run release sign ${m.release}.`);
     return 0;
   }
+  const linked = linkedWriteProblem(plan.repo, plan.rel);
+  if (linked) refuse(`${linked}. Nothing was written.`);
   mkdirSync(join(plan.repo, "releases"), { recursive: true });
   writeFileSync(join(plan.repo, plan.rel), plan.text, { flag: "wx" });
   say(`wrote ${plan.rel} (manifest-sha256 ${sha256Hex(Buffer.from(plan.text, "utf8"))})`);

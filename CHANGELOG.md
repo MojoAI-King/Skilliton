@@ -4,7 +4,13 @@ Kind: Living. One entry per signed release, from its manifest under `releases/`,
 
 ## Unreleased (main since 1.4.0)
 
-Nothing yet.
+Source: the security retest and the first eval run after 1.4.0, the same evening.
+
+- **Workflow 0.25.1: dispatch never writes through a link.** `skilliton dispatch --apply` wrote a lane's brief into the file a committed symbolic link at `LANE_BRIEF.md` pointed at, outside the repository, and exited 0; the task record and the lane report were written the same unchecked way. A base commit holding a link at `LANE_BRIEF.md`, `LANE_REPORT.md` or a folder of a lane's task record path is now refused before any worktree is made, and each write is checked again in the new worktree. When a write fails after a worktree exists, the message names every worktree the run made; before, it said "No lane was created" while the failing lane's worktree and branch were still there.
+- **Workflow 0.25.1: the last writers inside a repository check for links.** `company init`, `new-plugin`, `release create` and the delivery policy's confirm step now refuse a path through a link that leaves the repository, with nothing written. `scripts/write-sites.test.mjs` lists every file write in the shipped plugins with the reason it cannot land outside (B88), so a new one fails until someone says why it is safe.
+- **Workflow 0.25.1: the security skill runs the audit when asked to audit code.** Its new first section sends a request to audit changed code, or to fix what an audit finds, to `skilliton audit`, the fix, and a second audit run until it prints nothing found, without opening evidence records. The first eval run of the `audit-finding-acted-on` case on 1.4.0 showed the skill sending the model to the evidence register instead, with about ten extra turns and the same fix (evidence/4bc1c2c/audit-finding-acted-on/SUMMARY.md).
+- **Workflow 0.25.1: a held stop asks for the answer last.** When the stop hook holds a session for a checkpoint, the reminder asks the model to end with its answer to the user in a line or two, because the checkpoint had become the session's last message and the answer scrolled away above it.
+- **The eval case's graders measure what they say.** `audit-clean-after` counts only with the plugin, since without it there is no `skilliton` command to run; `fix-on-line` accepts comment lines above the fixed call, which two correct fixes had; its offline check reads the grader's own pattern instead of keeping a copy.
 
 ## 1.4.0, 2026-09-24
 

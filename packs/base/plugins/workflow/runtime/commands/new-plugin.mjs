@@ -3,7 +3,7 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { backupFile, newStamp, parseArgs, refuse, resolveSkillsRepo, say, selfCommand, tilde, unifiedDiff } from "../lib/core.mjs";
+import { backupFile, linkedFileProblem, newStamp, parseArgs, refuse, resolveSkillsRepo, say, selfCommand, tilde, unifiedDiff } from "../lib/core.mjs";
 import { CATALOG, CODEX_CATALOG, TEAM_TEMPLATE, planNewPlugin } from "../lib/fork.mjs";
 
 export const help = `new-plugin: create a plugin for the company's own skills.
@@ -43,6 +43,10 @@ export function run(argv) {
   if (!o.apply) {
     say("Next: run the same command with --apply.");
     return 0;
+  }
+  for (const f of [plan.manifest, ...plan.files]) {
+    const linked = linkedFileProblem(f);
+    if (linked) refuse(`${linked}. Nothing was written.`);
   }
   // Back up the shared files before creating anything, so a failed backup leaves no plugin folder behind.
   const stamp = newStamp();

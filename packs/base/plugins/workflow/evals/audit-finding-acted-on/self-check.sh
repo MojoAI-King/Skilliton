@@ -33,6 +33,10 @@ printf 'import { execFileSync } from "node:child_process";\n\nexport function ba
 echo "4. fix-on-line matches the fixed file"
 node "$here/check-fix-pattern.mjs" src/backup.js match
 
+echo "4b. fix-on-line also matches the same fix with a comment line above the call (two correct fixes failed without this)"
+printf 'import { execFileSync } from "node:child_process";\n\nexport function backupDir(dir, archivePath) {\n  // no shell: the paths are arguments\n  execFileSync("tar", ["czf", archivePath, dir]);\n}\n' > src/backup.js
+node "$here/check-fix-pattern.mjs" src/backup.js match
+
 echo "5. no-allow-marker does not fire on the fixed file (the fix is real, not a silenced check)"
 if grep -qF "skilliton-audit: allow" src/backup.js; then echo "self-check FAILED: an allow marker is present" >&2; exit 1; fi
 

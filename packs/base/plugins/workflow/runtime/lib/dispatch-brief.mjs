@@ -4,7 +4,7 @@
 // constants below so nothing importing them from there needs to change. Nothing here imports from outside the
 // plugin folder.
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, writeFileSync } from "node:fs";
 import { formatRecordHeader } from "./config.mjs";
 import { tilde } from "./core.mjs";
 
@@ -192,6 +192,8 @@ export function briefText(lane, ctx) {
 // or already holds exactly these lines. The report is never committed (it is in info/exclude).
 export function appendCostSection(reportPath, lines) {
   if (!existsSync(reportPath)) return false;
+  const st = lstatSync(reportPath); // a linked or hard-linked report is never written (the caller says why)
+  if (st.isSymbolicLink() || !st.isFile() || st.nlink > 1) return false;
   const text = readFileSync(reportPath, "utf8");
   const block = lines.join("\n");
   if (text.includes(block)) return false;

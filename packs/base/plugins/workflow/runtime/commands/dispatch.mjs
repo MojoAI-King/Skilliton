@@ -1,7 +1,7 @@
 // dispatch: create one Git worktree per lane from a lane plan, each with its brief. docs/CONTRACTS.md section 17;
 // the engine is lib/dispatch.mjs.
 
-import { parseArgs, refuse, say, selfCommand, tilde } from "../lib/core.mjs";
+import { linkedWriteProblem, parseArgs, refuse, say, selfCommand, tilde } from "../lib/core.mjs";
 import { BRIEF_FILE, LANE_FILE, REPORT_FILE, applyClose, applyDispatch, applyMerge, planClose, planDispatch, planMerge } from "../lib/dispatch.mjs";
 import { guardCommand, openProject } from "../lib/lifecycle.mjs";
 import { COST_HEADING, appendCostSection } from "../lib/dispatch-brief.mjs";
@@ -262,7 +262,9 @@ function printCosts(costs, plan, apply) {
     if (!c) continue;
     const lines = [`Measured by skilliton dispatch close on ${date}, from this folder's own transcripts (a reconstruction, not a bill):`, `- ${c.line}`];
     if (c.over) lines.push(`- ran past the context bound of ${num(costs.bound)}`);
-    if (appendCostSection(join(lane.dir, REPORT_FILE), lines)) say(`  appended under "${COST_HEADING}" in ${tilde(join(lane.dir, REPORT_FILE))}`);
+    const reportLinked = linkedWriteProblem(lane.dir, REPORT_FILE);
+    if (reportLinked) say(`  not appended in ${tilde(join(lane.dir, REPORT_FILE))}: ${reportLinked}`);
+    else if (appendCostSection(join(lane.dir, REPORT_FILE), lines)) say(`  appended under "${COST_HEADING}" in ${tilde(join(lane.dir, REPORT_FILE))}`);
   }
 }
 

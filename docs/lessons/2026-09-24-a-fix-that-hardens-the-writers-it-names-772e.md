@@ -24,4 +24,4 @@ When a review finds a class of flaw, fix the class: put the rule in one shared f
 
 ## What now enforces it
 
-`scripts/write-links.test.mjs` and `scripts/usage-ledger-links.test.mjs`, both in CI, each failing against the code before the fix. Nothing yet stops a new runtime writer from using a plain `writeFileSync` or `appendFileSync` on a repository path: backlog row B88 asks for a lint that does.
+`scripts/write-links.test.mjs` and `scripts/usage-ledger-links.test.mjs`, both in CI, each failing against the code before the fix. `scripts/write-sites.test.mjs` (B88, the same evening) lists every file write in the shipped plugins with the reason it cannot land outside, and fails on a new one; writing that list found five more writers without the check (dispatch's brief and task record, company init, new-plugin, release create, the delivery policy confirm), fixed in workflow 0.25.1 with `scripts/dispatch-links.test.mjs`.

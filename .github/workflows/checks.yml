@@ -268,6 +268,18 @@ jobs:
       - name: A security record can cite a decision, lesson or task entry file
         run: node scripts/security-entry-paths.test.mjs
 
+      - name: Dispatch never writes a lane's brief, task record or report through a link
+        run: node scripts/dispatch-links.test.mjs
+
+      - name: Every file write in the shipped plugins has a stated reason (B88)
+        run: node scripts/write-sites.test.mjs
+
+      - name: The write-sites check can fail
+        run: node scripts/write-sites.test.mjs --self-test
+
+      - name: A held stop asks the model to end with its answer to the user
+        run: node scripts/stop-reason-answer.test.mjs
+
       - name: The audit-finding eval case's fixture and graders, proved offline
         run: bash packs/base/plugins/workflow/evals/audit-finding-acted-on/self-check.sh
 
