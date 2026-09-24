@@ -16,7 +16,7 @@ import { selfCommand } from "../lib/core.mjs";
 import { autoPrepare, optOutFile } from "../lib/auto-prepare.mjs";
 import { evaluateMaintain, maintainReason } from "../lib/maintain.mjs";
 import { LANE_FILE } from "../lib/dispatch.mjs";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 export const help = `hook: run a Skilliton lifecycle hook. The workflow plugin's hooks.json calls these. Each reads the client's hook JSON
@@ -195,10 +195,11 @@ async function stop(input) {
   const maintDue = maint.due && !journal.events.some((e) => e.event === "maintain-reminded" && e.head === state.head);
   // Dispatch: this session's prompt was read as a list of tasks and dispatch was named (the prompt hook), and no lane
   // plan has been written since. Asked once per such prompt, on any branch.
-  const laneFileMtimeMs = mtimeOf(join(root, LANE_FILE));
+  const plan = newestLanePlan(root);
+  const laneFileMtimeMs = plan.mtimeMs;
   const hold = evaluateDispatchHold({ events: journal.events, session: input.session, laneFileMtimeMs });
   const leads = [];
-  if (hold.due) leads.push(dispatchHoldReason(hold, { laneFile: LANE_FILE, laneFileExists: laneFileMtimeMs !== null }));
+  if (hold.due) leads.push(dispatchHoldReason(hold, { laneFile: plan.file, laneFileExists: laneFileMtimeMs !== null }));
   if (maintDue) leads.push(maintainReason(maint));
   const recordLeads = () => {
     if (hold.due) appendEvent(root, { event: "dispatch-reminded", session: input.session, at: now.toISOString(), suggestedAt: hold.suggestion.at }, { state });
@@ -244,6 +245,20 @@ async function stop(input) {
 // A file's modification time in milliseconds, or null when it does not exist or cannot be read.
 function mtimeOf(path) {
   try { return statSync(path).mtimeMs; } catch { return null; }
+}
+
+// The newest lane plan at the root: LANES.md, or a numbered plan such as LANES-8.md that `dispatch --file` reads
+// (B86). { file, mtimeMs }, with LANES.md and null when there is none.
+export const LANE_PLAN_RE = /^LANES(?:[-_.][A-Za-z0-9._-]*)?\.md$/;
+export function newestLanePlan(root) {
+  let names = [];
+  try { names = readdirSync(root).filter((name) => LANE_PLAN_RE.test(name)); } catch { names = []; }
+  let best = { file: LANE_FILE, mtimeMs: null };
+  for (const file of names) {
+    const mtimeMs = mtimeOf(join(root, file));
+    if (mtimeMs !== null && (best.mtimeMs === null || mtimeMs > best.mtimeMs)) best = { file, mtimeMs };
+  }
+  return best;
 }
 
 function recorder(event) {

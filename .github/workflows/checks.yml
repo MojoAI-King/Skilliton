@@ -253,6 +253,9 @@ jobs:
       - name: dispatch.contextCeiling is a known key with its range checked
         run: node scripts/config-dispatch-ceiling.test.mjs
 
+      - name: The dispatch reminder reads a numbered lane plan such as LANES-8.md
+        run: node scripts/lane-plan-file.test.mjs
+
       - name: Maintain refreshes the collector-backed security records that are missing or stale
         run: node --test scripts/maintain-security-collectors.test.mjs
 
