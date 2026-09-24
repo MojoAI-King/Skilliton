@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "f12a5c94-686f-48c7-bf27-f283469790cd",
+  "controlId": "SG-ACCESS-CONTROL",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "62808c672f72b21287f7016d618a6c88be600612cdef012595d71c2ac2f90d7e",
+  "recordedAt": "2026-09-24T19:44:09.056Z",
+  "assessment": "observed",
+  "note": "Reassessed before 1.4.0: delivery.mjs changed only in how a failing check's output tail is kept, and the guardrails skill gained the sourced-file sentence; neither changes who may change policy, protected branches or record removal. The earlier claim stands. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "docs/DELIVERY.md",
+      "sha256": "f00ff3eb2666e5486dca2b6ab7b946dca574337177cf0ff6c32be64b1c033094"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/delivery.mjs",
+      "sha256": "e1023c5df5a61dc11ff9fa282608cba3d010ad9939b9a8f6c3f6f9a5bf2446fc"
+    },
+    {
+      "path": "scripts/delivery.test.mjs",
+      "sha256": "d0c508d731373b9f18c9324a42c0560e3a9db6da9700eb5124c9714dfd7d5efc"
+    },
+    {
+      "path": "scripts/guardrails.test.sh",
+      "sha256": "f23363223a2a1e1b734b7f1a7a59cc0ddf08659ac1304a485edde4cec4b558a6"
+    },
+    {
+      "path": "packs/base/plugins/guardrails/skills/guardrails/SKILL.md",
+      "sha256": "fa2dd772b57dbce677507e503405453cb7956922c7c20669d282fd6c714342aa"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassessment-SG-ACCESS-CONTROL.md",
+      "sha256": "146d2f8bac31c1e7320332a1f32a18806ded7c078ceca5fbf377bf8ee28577c6"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "33a1e7c6-05e1-45d3-82b6-ada51ba7fdfd",
+  "controlId": "SG-WORKFLOW-IMPROVEMENT",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "2b5e83492282f70a4927f631714fe0e26c4e688f6d01b9bce27c3fcbf575899b",
+  "recordedAt": "2026-09-24T19:46:54.845Z",
+  "assessment": "observed",
+  "note": "Reassessed before 1.4.0: today's lessons each became a tested change (the writer-link lesson with two suites and backlog row B88, the lane time bound, the demo in every merge check). The release that ships each is named in CHANGELOG.md, not in the lesson. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "releases/1.3.0.json",
+      "sha256": "62dec18badc94462aa614e9d0df6b8620098b1ab891eebe56befae3256191bf8"
+    },
+    {
+      "path": "evidence/live/2026-09-23-release-1.3.0.md",
+      "sha256": "a4f1127b25c4a52bb30408fe03c9a3a3988a8a8a566191076f9223a1811f8d4b"
+    },
+    {
+      "path": "scripts/guardrails-review2.test.sh",
+      "sha256": "c234f6bab1397f915be16102d48e496d303ee7dc5936306831e3b5cae8c8ab30"
+    },
+    {
+      "path": "docs/lessons/2026-09-24-a-fix-that-hardens-the-writers-it-names-772e.md",
+      "sha256": "bce80085d2577c37c2da587a654f9f184a0a0898cd0d9bb63fba78b9772e2dbf"
+    },
+    {
+      "path": "scripts/write-links.test.mjs",
+      "sha256": "3201383bdd9bb3d7f1fd3a2e00db4dd17b1ac8f9ea8964b560cbefe6f52632c8"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassessment-SG-WORKFLOW-IMPROVEMENT.md",
+      "sha256": "c33e8ed4857a7373b4da71c6e762ac1579694f1c50fc07b8fab3886c5d303d5e"
+    }
+  ]
+}

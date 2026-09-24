@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "4e1e37dd-1d53-47f9-a3c3-7a9dfc101c59",
+  "controlId": "SG-RECURRING-PATTERNS",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "d1aa4227c54b2e8234a489358db9fe1f4e4c587d7b3b08c793c1f0aca5615dbb",
+  "recordedAt": "2026-09-24T19:48:00.729Z",
+  "assessment": "gap",
+  "note": "Gap, reassessed before 1.4.0: one review grouped its findings by cause (a runtime write that follows a link, traced to the 1.2.0 fix that hardened only the sites it named) with a prevention item, B88; there is still no periodic cross-finding review. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "docs/THREAT_MODEL.md",
+      "sha256": "2f83bbafce79e990ddfcc2722328d965fa176ec26a428003744a50c333c9e1dd"
+    },
+    {
+      "path": "SECURITY.md",
+      "sha256": "025a3908da72dad143a4b941d39992c8ab675b87fdb2455a95474cb62dd0c9e2"
+    },
+    {
+      "path": "scripts/skill-writers.test.mjs",
+      "sha256": "4c2a3ddf49fee41338a9f61c7da2c4908cead1664b5a22d60f2d84f9298d93b6"
+    },
+    {
+      "path": "docs/lessons/2026-09-24-a-fix-that-hardens-the-writers-it-names-772e.md",
+      "sha256": "bce80085d2577c37c2da587a654f9f184a0a0898cd0d9bb63fba78b9772e2dbf"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassessment-SG-RECURRING-PATTERNS.md",
+      "sha256": "6c14cee514acdf01d5718111601fb19bb732bb9b70cfece128dc221dd12bc5c4"
+    }
+  ]
+}

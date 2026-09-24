@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "2483dc91-b093-4afb-b5a4-16b78c8bb94b",
+  "controlId": "SG-DEPENDENCY-RISK",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "063767d5c35e0c0e48a7ccaf5ced093af982899c1a0570e4858d0f6b470883da",
+  "recordedAt": "2026-09-24T19:44:09.470Z",
+  "assessment": "gap",
+  "note": "Gap, reassessed before 1.4.0: still no package dependencies, and still no inventory of Node, git and the pinned CI actions with their origin, no dated vulnerability check and no agreed update time frames. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "scripts/lint.test.mjs",
+      "sha256": "28e1d12b0ea2a178c8fe0b4e481e0c5fde0fbc07d11c4ac1b6e1360ba993a9ec"
+    },
+    {
+      "path": "INSTALL.md",
+      "sha256": "65caae2a088aa18c9c3495bc9b67bb5f6015c5b3fbd829023f99e31ec4ef98f0"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassessment-SG-DEPENDENCY-RISK.md",
+      "sha256": "acdc84ea99bbf567deb7053b9b9372126c8203f20d5cbc8852ccfebc0d55acec"
+    }
+  ]
+}

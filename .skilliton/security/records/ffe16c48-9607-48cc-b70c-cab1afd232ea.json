@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "ffe16c48-9607-48cc-b70c-cab1afd232ea",
+  "controlId": "SG-POLICY-CHANGE-REVIEW",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "236d5de1eb91810f6fa05bcda739c518f73b634b9b541419c71397b84244f20e",
+  "recordedAt": "2026-09-24T19:44:10.006Z",
+  "assessment": "gap",
+  "note": "Gap, reassessed before 1.4.0: policy changes still need an approver signature, but nothing requires the signer to differ from the author, they are the same person here, and there is no CODEOWNERS file. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": ".skilliton/delivery.json",
+      "sha256": "3e26e504de6ff40faf368548f862026285337bfd8b9c09ec78150dba2d2f00bc"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/delivery.mjs",
+      "sha256": "e1023c5df5a61dc11ff9fa282608cba3d010ad9939b9a8f6c3f6f9a5bf2446fc"
+    },
+    {
+      "path": "scripts/delivery.test.mjs",
+      "sha256": "d0c508d731373b9f18c9324a42c0560e3a9db6da9700eb5124c9714dfd7d5efc"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassessment-SG-POLICY-CHANGE-REVIEW.md",
+      "sha256": "b900ca91de2a8ed0184d81a03b73530f93db1d942d5e4f6d1522ef18b29cffef"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "372205b5-7b01-499c-b0cb-2f381f4a2bf1",
+  "controlId": "SG-INPUT-INJECTION",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "71c6c731d80ad20e8ca0504db8f39bf1fb47c984b6d46603749a98d77f3e0cc7",
+  "recordedAt": "2026-09-24T19:44:09.780Z",
+  "assessment": "gap",
+  "note": "Gap, reassessed before 1.4.0: the usage command's new inputs are validated (the --since shape, 0 to 100 readings, dates, a bounded limit) and a linked ledger is refused, but the committed ledger is a new surface printed as it is, and no test puts escape text through any rendering. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/core.mjs",
+      "sha256": "f7de16b28e196a55bb55b7d06d8411858e4a85564e257b1ddc74c7fcee579c67"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/commands/usage.mjs",
+      "sha256": "da5b2d76c55260e9094b430d7f2ffa941d802ae18421a8af51cfb7e8ef7c5b92"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/security-io.mjs",
+      "sha256": "d0fc8e30797635cd8d455f6bf086392e7e577bb0b1da0e942c61e881f67a0fa4"
+    },
+    {
+      "path": "scripts/security-evidence.test.mjs",
+      "sha256": "8704e34baaa3be5213a9cc85b7ea615d510403d884fde7b0c628d643a086bbe7"
+    },
+    {
+      "path": "scripts/security-record-refusals.test.mjs",
+      "sha256": "d16f6d7a225271001b6f8899f537d72287bc843a67aea462f0ba56d4b7a1b912"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/usage-ledger.mjs",
+      "sha256": "b887e5e24f39e2c7fa969af87bcf4541e8167997717bee6d0f003b72d1204298"
+    },
+    {
+      "path": "scripts/usage-ledger-links.test.mjs",
+      "sha256": "1200671c74959bfd065f5bb2664c4989ce53cb6a3e934b2a20afa1d18e88864b"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassessment-SG-INPUT-INJECTION.md",
+      "sha256": "f1b7b1e339b5ee5b5125c32b0f183ece0d7666f7fad7c154611a9f26c328f4dc"
+    }
+  ]
+}

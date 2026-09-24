@@ -9,6 +9,7 @@ import { closeSync, constants, fchmodSync, fstatSync, fsyncSync, linkSync, lstat
 import { join, resolve } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { EVIDENCE_SHAPES } from './secret-rules.mjs';
+import { isId } from './ids.mjs';
 
 export const LIMIT = { catalog: 1024 * 1024, record: 64 * 1024, applicability: 1024 * 1024, backlog: 4 * 1024 * 1024, file: 32 * 1024 * 1024, total: 256 * 1024 * 1024, scanTotal: 1024 * 1024 * 1024, records: 5000, controls: 500, attachments: 32, decisions: 5000, manifestEntries: 200000 };
 export const SECURITY_DIR = '.skilliton/security';
@@ -93,8 +94,14 @@ export const SECRET_SHAPES = EVIDENCE_SHAPES;
 export const secretShaped = (s) => SECRET_SHAPES.some(({ re }) => re.test(s));
 // Attached file paths: every shape applies to the whole path, except the long encoded run, which applies to each
 // path part. Across parts it refused ordinary deep paths (packs/base/plugins/workflow/runtime/lib/security is a
-// 48-character run), while a run inside one part is still refused.
-const secretShapedPath = (p) => SECRET_SHAPES.some(({ rule, re }) => (rule === 'long-encoded-run' ? p.split('/').some((part) => re.test(part)) : re.test(p)));
+// 48-character run), while a run inside one part is still refused. A decision, lesson or task entry's own file name
+// (<date>-<lowercase words>-<4 hex>.md, lib/ids.mjs) is a run of words and hyphens, not an encoding, and is exempt
+// from that rule and from the credential-word rule in relativePath, so a record can cite an entry; every other shape
+// still applies to the whole path.
+const entryFileName = (part) => part.endsWith('.md') && isId(part.slice(0, -3));
+const secretShapedPath = (p) => SECRET_SHAPES.some(({ rule, re }) => (rule === 'long-encoded-run'
+  ? p.split('/').some((part) => !entryFileName(part) && re.test(part))
+  : re.test(p)));
 
 // null when s is a usable text field; otherwise the one rule it broke, in the order this function checks them (a
 // value can break more than one; the first is what is named). textField below is textFieldProblem(s, max) === null,
@@ -116,9 +123,10 @@ export function relativePath(p, attachment = false) {
   const parts = p.split('/');
   if (parts.some((v) => !v || v === '.' || v === '..')) fail('UNSAFE_PATH');
   if (attachment && secretShapedPath(p)) fail('SENSITIVE_PATH');
-  if (attachment && parts.some((v) => /^(?:\.git|\.env(?:[.-].*)?|\.ssh|\.aws|\.azure|\.kube|\.npmrc|\.pypirc|\.netrc|id_(?:rsa|dsa|ecdsa|ed25519)(?:\..*)?)$/i.test(v)
+  // An entry's file name comes from its title, so a word such as tokenizer in it names no credential (entryFileName).
+  if (attachment && parts.some((v) => !entryFileName(v) && (/^(?:\.git|\.env(?:[.-].*)?|\.ssh|\.aws|\.azure|\.kube|\.npmrc|\.pypirc|\.netrc|id_(?:rsa|dsa|ecdsa|ed25519)(?:\..*)?)$/i.test(v)
     || /(?:credential|password|passwd|secret|token|private[-_.]?key)/i.test(v)
-    || /\.(?:pem|key|p12|pfx|keystore)$/i.test(v))) fail('SENSITIVE_PATH');
+    || /\.(?:pem|key|p12|pfx|keystore)$/i.test(v)))) fail('SENSITIVE_PATH');
   return parts;
 }
 

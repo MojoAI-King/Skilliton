@@ -265,6 +265,9 @@ jobs:
       - name: Harness, project-settings and dispatch merge never write through a link that leaves the repository
         run: node scripts/write-links.test.mjs
 
+      - name: A security record can cite a decision, lesson or task entry file
+        run: node scripts/security-entry-paths.test.mjs
+
       - name: The audit-finding eval case's fixture and graders, proved offline
         run: bash packs/base/plugins/workflow/evals/audit-finding-acted-on/self-check.sh
 

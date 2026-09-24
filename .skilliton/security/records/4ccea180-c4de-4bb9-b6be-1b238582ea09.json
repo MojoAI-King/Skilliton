@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "id": "4ccea180-c4de-4bb9-b6be-1b238582ea09",
+  "controlId": "SG-INPUT-INJECTION",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "71c6c731d80ad20e8ca0504db8f39bf1fb47c984b6d46603749a98d77f3e0cc7",
+  "recordedAt": "2026-09-24T19:48:00.913Z",
+  "assessment": "gap",
+  "note": "Gap, reassessed a second time before 1.4.0: security-io.mjs now lets a record cite an entry file, other path shapes unchanged; the new usage inputs are validated, and still no test puts escape text through any rendering. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/core.mjs",
+      "sha256": "f7de16b28e196a55bb55b7d06d8411858e4a85564e257b1ddc74c7fcee579c67"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/commands/usage.mjs",
+      "sha256": "da5b2d76c55260e9094b430d7f2ffa941d802ae18421a8af51cfb7e8ef7c5b92"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/security-io.mjs",
+      "sha256": "9a3a2192911f0cd7f4454f75e7326750bbac3921b8dfa57c8464123889ca77a6"
+    },
+    {
+      "path": "scripts/security-evidence.test.mjs",
+      "sha256": "8704e34baaa3be5213a9cc85b7ea615d510403d884fde7b0c628d643a086bbe7"
+    },
+    {
+      "path": "scripts/security-record-refusals.test.mjs",
+      "sha256": "d16f6d7a225271001b6f8899f537d72287bc843a67aea462f0ba56d4b7a1b912"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/usage-ledger.mjs",
+      "sha256": "b887e5e24f39e2c7fa969af87bcf4541e8167997717bee6d0f003b72d1204298"
+    },
+    {
+      "path": "scripts/usage-ledger-links.test.mjs",
+      "sha256": "1200671c74959bfd065f5bb2664c4989ce53cb6a3e934b2a20afa1d18e88864b"
+    },
+    {
+      "path": "scripts/security-entry-paths.test.mjs",
+      "sha256": "9890dd93a9854ac50daa2554a1678d173492c4e90475ca430f1f8c984d34ead7"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassessment-2-SG-INPUT-INJECTION.md",
+      "sha256": "81f9bd16d8ec8f8220bcf664f8d0f131e7c355ccc89f5674e7071dbceb8962c7"
+    }
+  ]
+}

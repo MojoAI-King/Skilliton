@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "id": "438d4f89-186e-459a-8db1-4a2a9237783d",
+  "controlId": "SG-COMMAND-INJECTION",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "db18be1e8be9a6db00eeb1b3b7c770100981f83f9f93f622b9c247b3ca74a88a",
+  "recordedAt": "2026-09-24T19:44:09.263Z",
+  "assessment": "observed",
+  "note": "Reassessed before 1.4.0: gate.mjs now starts ps and three git commands, each with an argument list and literal pathspecs after --, and no new shell. The review also cut other processes' command lines out of the gate verdict (a token exposure). The earlier claim stands. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/core.mjs",
+      "sha256": "f7de16b28e196a55bb55b7d06d8411858e4a85564e257b1ddc74c7fcee579c67"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/audit.mjs",
+      "sha256": "aa149ffdf74c874e7d9f9873bed21a66d7f9e6e98d470c1527f7bfd7ee9788e6"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/gate.mjs",
+      "sha256": "6081191642590e84c2b6e35d9511c002ce003670e62add23d80f6151a2370132"
+    },
+    {
+      "path": "scripts/audit.test.mjs",
+      "sha256": "547703d77e901d36ff7d5793fb101041c1b9c99a9a88725c33878f0218c04711"
+    },
+    {
+      "path": "scripts/windows-cmd.test.mjs",
+      "sha256": "f71aaa100a930c78d3a1a8f9b874fb63c520527a6166f44e61b9cb9902c02148"
+    },
+    {
+      "path": "scripts/git-config.test.mjs",
+      "sha256": "d379edaa11f1e56d2744b05903a9d7019551931b8ca1e22c419ec9798dfeb3bb"
+    },
+    {
+      "path": "scripts/gate-process-label.test.mjs",
+      "sha256": "80cabae4803c9e656849a80602322bddee301eeb27c6a88c34fa318c35c17f4e"
+    },
+    {
+      "path": "scripts/gate-context.test.mjs",
+      "sha256": "76388059b6f8ca783eabf37f3da4b3f3a38a0b6d5596cc3f055cd889f0d2b893"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassessment-SG-COMMAND-INJECTION.md",
+      "sha256": "05311ffa4b6cb4123032ef443575d80c4b1fbb5ee91d284c110194891ac0ebdc"
+    }
+  ]
+}

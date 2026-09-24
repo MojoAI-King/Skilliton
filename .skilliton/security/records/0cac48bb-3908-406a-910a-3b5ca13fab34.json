@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "0cac48bb-3908-406a-910a-3b5ca13fab34",
+  "controlId": "SG-SECURITY-LOGGING",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "c9e16ce03711bb01577bc867a20448f068ee738c9d4077ab4d20e0995c11bca0",
+  "recordedAt": "2026-09-24T19:44:10.209Z",
+  "assessment": "gap",
+  "note": "Gap, reassessed before 1.4.0: the journal still records lifecycle events only (the new fingerprint digest logs nothing), and guard denials and gate rejections are shown and not kept. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/journal.mjs",
+      "sha256": "2a8fc99c71c06e50d64bb29f9b8a204f379278a65dd300248f563acbb1b0e508"
+    },
+    {
+      "path": "packs/base/plugins/guardrails/hooks/guard-bash.sh",
+      "sha256": "d40d827c7aa22e2ab42d96d9a032c415dc60a1c61a7b38460764376bbffba7ab"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassessment-SG-SECURITY-LOGGING.md",
+      "sha256": "ed85ed940fa36bb38089f83beddb52e43c76f4dd805e39fa4f7af91df2218052"
+    }
+  ]
+}
