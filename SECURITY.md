@@ -59,7 +59,7 @@ Each was reproduced in a scratch repository before it was fixed, and each fix sh
 
 ### Limits found by the security retest after 1.4.0, 2026-09-24
 
-- **`skilliton dispatch --apply` wrote a lane's brief through a committed symbolic link at `LANE_BRIEF.md`** into the file it pointed at, outside the repository, and exited 0; its task record and the lane report were written the same unchecked way, and `company init`, `new-plugin`, `release create` and the delivery policy's confirm step had no link check either. Reproduced on 1.4.0: fixed in workflow 0.25.1, to ship in the next release (`scripts/dispatch-links.test.mjs`, `scripts/write-sites.test.mjs`).
+- **`skilliton dispatch --apply` wrote a lane's brief through a committed symbolic link at `LANE_BRIEF.md`** into the file it pointed at, outside the repository, and exited 0; its task record and the lane report were written the same unchecked way, and `company init`, `new-plugin`, `release create` and the delivery policy's confirm step had no link check either. Reproduced on 1.4.0: fixed in workflow 0.25.1, released in 1.4.1 (`scripts/dispatch-links.test.mjs`, `scripts/write-sites.test.mjs`).
 
 ## What it is not
 

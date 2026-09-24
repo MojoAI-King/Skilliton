@@ -62,7 +62,7 @@ Every line below was reproduced on `main` at 029f159 before it was written here.
 
 | Limit | Fix |
 |---|---|
-| `dispatch --apply` wrote a lane's brief, and could write its task record and report, through a committed symbolic link in the base commit, outside the repository (reproduced on 1.4.0); `company init`, `new-plugin`, `release create` and the policy confirm had no link check | Workflow 0.25.1: a base commit with a link where dispatch writes is refused before any worktree is made; the four other writers check with linkedWriteProblem; a test lists every file write with its reason |
+| `dispatch --apply` wrote a lane's brief, and could write its task record and report, through a committed symbolic link in the base commit, outside the repository (reproduced on 1.4.0); `company init`, `new-plugin`, `release create` and the policy confirm had no link check | Workflow 0.25.1, released in 1.4.1: a base commit with a link where dispatch writes is refused before any worktree is made; the four other writers check with linkedWriteProblem; a test lists every file write with its reason |
 
 ## What this page does not claim
 

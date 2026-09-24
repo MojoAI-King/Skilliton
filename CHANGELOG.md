@@ -2,9 +2,9 @@
 
 Kind: Living. One entry per signed release, from its manifest under `releases/`, plus what is on `main` since. Plugin versions are what a machine sees; the release number is what it trusts.
 
-## Unreleased (main since 1.4.0)
+## 1.4.1, 2026-09-24
 
-Source: the security retest and the first eval run after 1.4.0, the same evening.
+Plugins: workflow 0.25.1, guardrails 0.11.0, context-hygiene 0.3.1, code-quality 0.2.1. Manifest `releases/1.4.1.json`; every entry below shipped on `main` between 1.4.0 and this tag. The number is a patch by the release skill's rule: a security fix and corrections, no new command. Only workflow changed. Source: the security retest and the first eval run after 1.4.0, the same evening.
 
 - **Workflow 0.25.1: dispatch never writes through a link.** `skilliton dispatch --apply` wrote a lane's brief into the file a committed symbolic link at `LANE_BRIEF.md` pointed at, outside the repository, and exited 0; the task record and the lane report were written the same unchecked way. A base commit holding a link at `LANE_BRIEF.md`, `LANE_REPORT.md` or a folder of a lane's task record path is now refused before any worktree is made, and each write is checked again in the new worktree. When a write fails after a worktree exists, the message names every worktree the run made; before, it said "No lane was created" while the failing lane's worktree and branch were still there.
 - **Workflow 0.25.1: the last writers inside a repository check for links.** `company init`, `new-plugin`, `release create` and the delivery policy's confirm step now refuse a path through a link that leaves the repository, with nothing written. `scripts/write-sites.test.mjs` lists every file write in the shipped plugins with the reason it cannot land outside (B88), so a new one fails until someone says why it is safe.
