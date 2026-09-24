@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-// migrate.test.mjs: `skilliton migrate` (migrations 0002-integrated-layout and 0003-skilliton-names, receipts,
-// rollback) and `skilliton remove`.
+// migrate.test.mjs: `skilliton migrate` (the 0100-instructions refresh, receipts, rollback, and the refusal a project
+// still below layout 3 gets), `node scripts/legacy-migrate.mjs` (migrations 0002-integrated-layout and
+// 0003-skilliton-names, which moved out of the runtime so a pre-1.0 project runs them once by hand), and
+// `skilliton remove`.
 //
 // A real layout-1 project is built in each test by running the prototype's own prepare.mjs (the byte-for-byte fixture
 // copies in scripts/fixtures/prototype-v1/) with --apply in a temporary Git repository. Commands run the way a person
@@ -74,6 +76,8 @@ function sg(ctx, args, { preload = null, cli = CLI, env = {} } = {}) {
   return { code: r.status, out: r.stdout, err: r.stderr, all: `${r.stdout}${r.stderr}` };
 }
 const migrate = (ctx, ...args) => sg(ctx, ["migrate", "--dir", ctx.dir, ...args]);
+const LEGACY_CLI = join(here, "legacy-migrate.mjs");
+const legacyMigrate = (ctx, ...args) => sg(ctx, ["--dir", ctx.dir, ...args], { cli: LEGACY_CLI });
 
 // Every entry under dir except .git; with modes: true, each file's and folder's permission bits too.
 function snapshot(dir, { modes = false } = {}) {
@@ -159,17 +163,17 @@ test("a real layout-1 project migrates to layout 3: runtime and prototype blocks
   for (const rel of ["CLAUDE.md", "AGENTS.md", "docs/MAINTAIN.md"]) assert.match(read(ctx, rel), /^<!-- skillgate:project:start v1 -->$/m, `fixture: ${rel} has a prototype block`);
   const layout1 = snapshot(ctx.dir);
 
-  const preview = migrate(ctx);
+  const preview = legacyMigrate(ctx);
   assert.equal(preview.code, 1, preview.all);
   assert.match(preview.out, /0002-integrated-layout \(layout 1 to 2\)/);
   assert.match(preview.out, /delete\s+\.skillgate\/bin\/security-evidence\.mjs\s+the copied prototype runtime; its sha256 matches the release at 0bc2a05/);
   assert.match(preview.out, /update\s+docs\/MAINTAIN\.md\s+remove the prototype skillgate:project block/);
   assert.match(preview.out, /\+<!-- skilliton:harness:start v1 -->/, "the preview shows the change as a diff");
   assert.match(preview.out, /Then, planned from the result of the one before: 0003-skilliton-names\./);
-  assert.match(preview.out, /\nSummary: 2 migration\(s\) pending \(0002-integrated-layout, 0003-skilliton-names\); nothing written\. To apply: skilliton migrate --apply/);
+  assert.match(preview.out, /\nSummary: 2 migration\(s\) pending \(0002-integrated-layout, 0003-skilliton-names\); nothing written\. To apply: node scripts\/legacy-migrate\.mjs --dir .* --apply/);
   assert.deepEqual(snapshot(ctx.dir), layout1, "preview wrote nothing");
 
-  const applied = migrate(ctx, "--apply");
+  const applied = legacyMigrate(ctx, "--apply");
   assert.equal(applied.code, 0, applied.all);
   assert.match(applied.out, /\nSummary: layout 3; 2 migration\(s\) applied \(0002-integrated-layout, 0003-skilliton-names\)/);
   assert.match(applied.out, /Note: docs\/security\/README\.md still tells people to run \.skillgate\/bin\/security-evidence\.mjs/);
@@ -195,7 +199,7 @@ test("a real layout-1 project migrates to layout 3: runtime and prototype blocks
   assert.equal(JSON.parse(read(ctx, ".skilliton/migrations/0003-skilliton-names.json")).to, 3, "0003 left its receipt beside the moved 0002 receipt");
   assert.equal(receipt.runtime, VERSION);
   assert.equal(new Date(receipt.appliedAt).toISOString(), receipt.appliedAt);
-  assert.match(receipt.backup, /^\d{8}T\d{6}Z-migrate-[0-9a-f]{8}$/);
+  assert.match(receipt.backup, /^\d{8}T\d{6}Z-migrate-[0-9a-f]{8}$/, "applyMigration is the runtime's own, imported unchanged, so the backup id looks the same as skilliton migrate's");
   assert.deepEqual(receipt.files.map((f) => f.path).sort(), [RUNTIME, ".skillgate/config.json", "AGENTS.md", "CLAUDE.md", "docs/MAINTAIN.md"].sort());
   for (const f of receipt.files) {
     const before = Buffer.from(layout1[f.path], "base64");
@@ -223,7 +227,7 @@ test("a modified copied runtime refuses the migration and changes nothing", (t) 
   prototypePrepare(ctx);
   appendFileSync(join(ctx.dir, RUNTIME), "// a local change\n");
   const before = snapshot(ctx.dir);
-  const r = migrate(ctx, "--apply");
+  const r = legacyMigrate(ctx, "--apply");
   assert.equal(r.code, 2, r.all);
   assert.match(r.err, /\.skillgate\/bin\/security-evidence\.mjs does not match the prototype runtime released at 0bc2a05/);
   assert.match(r.err, /Nothing was changed\. To reconcile: keep any change you need outside \.skillgate\/bin\/security-evidence\.mjs, delete it/);
@@ -243,14 +247,14 @@ test("a hand-edited prototype block refuses the migration and changes nothing", 
     const original = readFileSync(join(ctx.dir, rel));
     replaceIn(ctx, rel, from, to);
     const before = snapshot(ctx.dir);
-    const r = migrate(ctx, "--apply");
+    const r = legacyMigrate(ctx, "--apply");
     assert.equal(r.code, 2, `${rel}: ${r.all}`);
     assert.match(r.err, message);
     assert.match(r.err, /Nothing was changed\. To reconcile: /);
     assert.deepEqual(snapshot(ctx.dir), before, `${rel}: nothing changed`);
     writeFileSync(join(ctx.dir, rel), original);
   }
-  assert.equal(migrate(ctx, "--apply").code, 0, "with every block restored, the same project migrates");
+  assert.equal(legacyMigrate(ctx, "--apply").code, 0, "with every block restored, the same project migrates");
 });
 
 test("a destination that changes during the migration is refused, and everything written is rolled back", (t) => {
@@ -262,7 +266,7 @@ test("a destination that changes during the migration is refused, and everything
 const write = fs.writeFileSync; let fired = false;
 fs.writeFileSync = (p, ...a) => { const out = write(p, ...a); if (!fired && String(p).includes('/skilliton-backups/') && String(p).endsWith('/CLAUDE.md')) { fired = true; write(process.env.SKILLITON_TEST_TARGET + '/AGENTS.md', '# Changed during the migration\\n'); } return out; };
 syncBuiltinESMExports();`);
-  const r = sg(ctx, ["migrate", "--dir", ctx.dir, "--apply"], { preload: inject, env: { SKILLITON_TEST_TARGET: ctx.dir } });
+  const r = sg(ctx, ["--dir", ctx.dir, "--apply"], { cli: LEGACY_CLI, preload: inject, env: { SKILLITON_TEST_TARGET: ctx.dir } });
   assert.equal(r.code, 2, r.all);
   assert.match(r.err, /AGENTS\.md changed after the plan was made, so it was not replaced and the external edit was preserved/);
   assert.match(r.err, /Every file this run wrote was rolled back/);
@@ -279,43 +283,50 @@ test("rollback restores exactly, in order, and refuses after a later edit", (t) 
   write(ctx, "CLAUDE.md", "# Team rules\nKeep this line.\n");
   prototypePrepare(ctx);
   const layout1 = snapshot(ctx.dir, { modes: true });
-  assert.equal(migrate(ctx, "--apply").code, 0);
+  assert.equal(legacyMigrate(ctx, "--apply").code, 0);
   const migrated = snapshot(ctx.dir, { modes: true });
 
-  const first = migrate(ctx, "--rollback", "0002-integrated-layout", "--apply");
+  const first = legacyMigrate(ctx, "--rollback", "0002-integrated-layout", "--apply");
   assert.equal(first.code, 2, first.all);
   assert.match(first.err, /roll back the later migration\(s\) first: 0003-skilliton-names\. Nothing was changed/);
   assert.deepEqual(snapshot(ctx.dir, { modes: true }), migrated);
 
-  const preview = migrate(ctx, "--rollback", "0003-skilliton-names");
+  const preview = legacyMigrate(ctx, "--rollback", "0003-skilliton-names");
   assert.equal(preview.code, 0, preview.all);
   assert.match(preview.out, /create\s+\.skillgate\/config\.json\s+deleted by 0003-skilliton-names; recreated from the backup/);
   assert.match(preview.out, /delete\s+\.skilliton\/migrations\/0003-skilliton-names\.json/);
   assert.deepEqual(snapshot(ctx.dir, { modes: true }), migrated, "the rollback preview wrote nothing");
 
-  const names = migrate(ctx, "--rollback", "0003-skilliton-names", "--apply");
+  const names = legacyMigrate(ctx, "--rollback", "0003-skilliton-names", "--apply");
   assert.equal(names.code, 0, names.all);
   assert.match(names.out, /Summary: rolled back 0003-skilliton-names; the project is at layout 2 again/);
   assert.equal(existsSync(join(ctx.dir, ".skilliton")), false, "the Skilliton folder is removed again");
-  assert.match(migrate(ctx).out, /Pending: 0003-skilliton-names\./);
+  // skilliton migrate itself no longer plans 0003 (it moved to legacy-migrate.mjs): it now refuses a layout-2
+  // project outright, naming the exact command; legacy-migrate.mjs still shows 0003 pending.
+  const stuck = migrate(ctx);
+  assert.equal(stuck.code, 2, stuck.all);
+  assert.match(stuck.out, /Project: layout 2;.*Pending: none\./);
+  assert.match(stuck.out, /Summary: this project is at layout 2.*node scripts\/legacy-migrate\.mjs --dir .* to preview it, then the same with --apply/);
+  assert.match(legacyMigrate(ctx).out, /0003-skilliton-names \(layout 2 to 3\)/);
 
-  const preview2 = migrate(ctx, "--rollback", "0002-integrated-layout");
+  const preview2 = legacyMigrate(ctx, "--rollback", "0002-integrated-layout");
   assert.equal(preview2.code, 0, preview2.all);
   assert.match(preview2.out, /restore\s+CLAUDE\.md/);
   assert.match(preview2.out, /create\s+\.skillgate\/bin\/security-evidence\.mjs\s+deleted by 0002-integrated-layout; recreated from the backup/);
   assert.match(preview2.out, /delete\s+\.skillgate\/migrations\/0002-integrated-layout\.json/);
-  const rolled = migrate(ctx, "--rollback", "0002-integrated-layout", "--apply");
+  const rolled = legacyMigrate(ctx, "--rollback", "0002-integrated-layout", "--apply");
   assert.equal(rolled.code, 0, rolled.all);
   assert.match(rolled.out, /Summary: rolled back 0002-integrated-layout; the project is at layout 1 again and the receipt was removed/);
   assert.deepEqual(snapshot(ctx.dir, { modes: true }), layout1, "every file, folder and permission is as it was before the migrations");
-  assert.equal(migrate(ctx).code, 1, "the migrations are pending again");
+  assert.equal(migrate(ctx).code, 2, "skilliton migrate refuses a layout-1 project outright now");
+  assert.equal(legacyMigrate(ctx).code, 1, "the migrations are pending again, for legacy-migrate.mjs");
 
-  assert.equal(migrate(ctx, "--apply").code, 0);
+  assert.equal(legacyMigrate(ctx, "--apply").code, 0);
   appendFileSync(join(ctx.dir, ".skilliton/config.json"), " ");
   rmSync(join(ctx.dir, "docs/tasks/README.md"), { force: true });
   write(ctx, ".skilliton/security/catalog.json", "{}\n");
   const edited = snapshot(ctx.dir);
-  const refused = migrate(ctx, "--rollback", "0003-skilliton-names", "--apply");
+  const refused = legacyMigrate(ctx, "--rollback", "0003-skilliton-names", "--apply");
   assert.equal(refused.code, 2, refused.all);
   assert.match(refused.err, /rollback of 0003-skilliton-names refused: 2 file\(s\) changed since the migration was applied: \.skilliton\/config\.json \(edited\); \.skilliton\/security\/catalog\.json \(edited\)\. Nothing was changed/);
   assert.deepEqual(snapshot(ctx.dir), edited);
@@ -331,16 +342,17 @@ test("rollback restores exactly, in order, and refuses after a later edit", (t) 
   receipt.files.push({ path: "src/app.js", action: "create", beforeSha256: null, afterSha256: sha256(readFileSync(join(ctx.dir, "src/app.js"))) });
   write(ctx, receiptRel, `${JSON.stringify(receipt, null, 2)}\n`);
   const tampered = snapshot(ctx.dir);
-  const foreign = migrate(ctx, "--rollback", "0003-skilliton-names", "--apply");
+  const foreign = legacyMigrate(ctx, "--rollback", "0003-skilliton-names", "--apply");
   assert.equal(foreign.code, 2, foreign.all);
   assert.match(foreign.err, /lists src\/app\.js, which 0003-skilliton-names never changes, so the receipt was edited/);
   assert.deepEqual(snapshot(ctx.dir), tampered, "an edited receipt cannot make rollback delete a file the migration never touched");
 });
 
-test("migrationState reports the layout, pending migrations and applied receipts", async (t) => {
+test("migrationState reports the layout and applied receipts; a layout-1 or layout-2 project has nothing pending here (legacy-migrate.mjs plans that now)", async (t) => {
   const ctx = fixture(t);
-  const { migrationState } = await lib("migrations.mjs");
+  const { migrationState, MIGRATIONS } = await lib("migrations.mjs");
   const { resolveProject } = await lib("config.mjs");
+  assert.deepEqual(MIGRATIONS, [], "the runtime plans no layout migration of its own; scripts/legacy-migrate.mjs plans 0002 and 0003");
   assert.deepEqual(migrationState(resolveProject(ctx.dir)), { layoutVersion: null, target: 3, pending: [], applied: [], instructions: null });
   prototypePrepare(ctx);
   assert.throws(() => resolveProject(ctx.dir), /still uses the earlier Skillgate names/, "only callers that allow it open a project under the earlier names");
@@ -348,11 +360,8 @@ test("migrationState reports the layout, pending migrations and applied receipts
   assert.equal(one.layoutVersion, 1);
   assert.equal(one.target, 3);
   assert.deepEqual(one.applied, []);
-  assert.deepEqual(one.pending.map((p) => ({ ...p, summary: typeof p.summary })), [
-    { id: "0002-integrated-layout", from: 1, to: 2, summary: "string" },
-    { id: "0003-skilliton-names", from: 2, to: 3, summary: "string" },
-  ]);
-  assert.equal(migrate(ctx, "--apply").code, 0);
+  assert.deepEqual(one.pending, [], "the layout migrations are not in MIGRATIONS any more; commands/migrate.mjs refuses this case itself");
+  assert.equal(legacyMigrate(ctx, "--apply").code, 0);
   const after = migrationState(resolveProject(ctx.dir));
   assert.deepEqual({ ...after, instructions: { ...after.instructions, id: typeof after.instructions.id } }, { layoutVersion: 3, target: 3, pending: [], applied: ["0002-integrated-layout", "0003-skilliton-names"], instructions: { id: "string", templateSha12: sha256(Buffer.from(TEMPLATE, "latin1")).slice(0, 12), outdated: [], applied: false } });
   assert.equal(after.instructions.id, `0100-instructions-${sha256(Buffer.from(TEMPLATE, "latin1")).slice(0, 12)}`);
@@ -426,24 +435,26 @@ test("a block edited inside the markers after Skilliton wrote it refuses the nex
   assert.deepEqual(snapshot(ctx.dir), before, "nothing changed");
 });
 
-test("migrate --json prints one result object for a pending migration and for a refusal", (t) => {
+test("migrate --json prints one result object refusing a project still below layout 3, and for an ordinary refusal", (t) => {
   const ctx = fixture(t);
   prototypePrepare(ctx);
-  const pending = migrate(ctx, "--json");
-  assert.equal(pending.code, 1, pending.all);
-  assert.equal(pending.out.trim().split("\n").length, 1);
-  const p = JSON.parse(pending.out);
+  // skilliton migrate no longer plans 0002/0003 (scripts/legacy-migrate.mjs does, run by hand, without --json); it
+  // refuses a layout-1 project outright and names the exact command.
+  const stuck = migrate(ctx, "--json");
+  assert.equal(stuck.code, 2, stuck.all);
+  assert.equal(stuck.out.trim().split("\n").length, 1);
+  const p = JSON.parse(stuck.out);
   assert.equal(p.schema, "skilliton.result/1");
   assert.equal(p.command, "migrate");
-  assert.equal(p.result, "attention");
-  assert.deepEqual(p.details.state.pending.map((m) => m.id), ["0002-integrated-layout", "0003-skilliton-names"]);
-  assert.deepEqual(p.details.migrations[0].files.find((f) => f.path === RUNTIME), { path: RUNTIME, action: "delete", description: "the copied prototype runtime; its sha256 matches the release at 0bc2a05", beforeSha256: proto.PROTOTYPE_RUNTIME_SHA256, afterSha256: null });
-  appendFileSync(join(ctx.dir, RUNTIME), "// changed\n");
-  const refused = migrate(ctx, "--apply", "--json");
+  assert.equal(p.result, "invalid");
+  assert.match(p.summary, /this project is at layout 1.*node scripts\/legacy-migrate\.mjs --dir .* to preview it, then the same with --apply/);
+
+  assert.equal(legacyMigrate(ctx, "--apply").code, 0);
+  const refused = migrate(ctx, "--rollback", "0009-not-applied", "--apply", "--json");
   assert.equal(refused.code, 2, refused.all);
   const r = JSON.parse(refused.out);
   assert.equal(r.result, "invalid");
-  assert.match(r.summary, /does not match the prototype runtime/);
+  assert.match(r.summary, /there is no receipt/);
 });
 
 // ---------------------------------------------------------------- remove
@@ -452,7 +463,7 @@ test("remove keeps every record, entry, observation and receipt", (t) => {
   const ctx = fixture(t);
   write(ctx, "CLAUDE.md", "# Team rules\nKeep this line.\n");
   prototypePrepare(ctx);
-  assert.equal(migrate(ctx, "--apply").code, 0);
+  assert.equal(legacyMigrate(ctx, "--apply").code, 0);
   assert.equal(sg(ctx, ["prepare", "--dir", ctx.dir, "--apply"]).code, 0);
   assert.equal(sg(ctx, ["record", "decision", "Keep orders in PostgreSQL", "--dir", ctx.dir, "--apply"]).code, 0);
   assert.equal(sg(ctx, ["record", "lesson", "A piped gate hid a failure", "--dir", ctx.dir, "--apply"]).code, 0);
@@ -502,17 +513,23 @@ test("remove refuses a layout-1 project", (t) => {
 
 test("mutation: without the prototype block comparison, a hand-edited block would be migrated away", (t) => {
   const ctx = fixture(t);
-  const copy = join(ctx.base, "plugin-copy", "workflow");
-  cpSync(PLUGIN, copy, { recursive: true });
-  const engine = join(copy, "runtime", "lib", "migrations.mjs");
-  const source = readFileSync(engine, "utf8");
+  // scripts/legacy-migrate.mjs and scripts/legacy-migrate-plans.mjs import the plugin's lib/ by a relative path
+  // (../packs/base/plugins/workflow/runtime/lib/...), so the mutant needs that same shape around it: a copy of the
+  // plugin at that relative depth under a "scripts" sibling, not just a copy of the script files by themselves.
+  const copyRoot = join(ctx.base, "legacy-migrate-mutant");
+  cpSync(PLUGIN, join(copyRoot, "packs", "base", "plugins", "workflow"), { recursive: true });
+  mkdirSync(join(copyRoot, "scripts"), { recursive: true });
+  cpSync(LEGACY_CLI, join(copyRoot, "scripts", "legacy-migrate.mjs"));
+  const plansPath = join(here, "legacy-migrate-plans.mjs");
+  const source = readFileSync(plansPath, "utf8");
   const target = "    if (proto) checkPrototypeBlock(text, proto, projectBlock, name);\n";
-  assert.ok(source.includes(target), "the mutation target is no longer in lib/migrations.mjs; update this mutation check");
-  writeFileSync(engine, source.replace(target, ""));
+  assert.ok(source.includes(target), "the mutation target is no longer in scripts/legacy-migrate-plans.mjs; update this mutation check");
+  const mutant = join(copyRoot, "scripts", "legacy-migrate-plans.mjs");
+  writeFileSync(mutant, source.replace(target, ""));
 
   prototypePrepare(ctx);
   replaceIn(ctx, "CLAUDE.md", "Preserve unrelated changes.", "Preserve unrelated changes. A hand-written rule the team relies on.");
-  const r = sg(ctx, ["migrate", "--dir", ctx.dir, "--apply"], { cli: join(copy, "runtime", "skilliton.mjs") });
-  assert.equal(r.code, 0, `the mutated runtime migrates the edited block: ${r.all}`);
+  const r = sg(ctx, ["--dir", ctx.dir, "--apply"], { cli: join(copyRoot, "scripts", "legacy-migrate.mjs") });
+  assert.equal(r.code, 0, `the mutated script migrates the edited block: ${r.all}`);
   assert.doesNotMatch(read(ctx, "CLAUDE.md"), /A hand-written rule the team relies on/, "the mutant deleted the hand edit, so the unmutated refusal test's assertion can fail");
 });

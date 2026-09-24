@@ -6,7 +6,7 @@ import {
   tilde, unifiedDiff,
 } from "../lib/core.mjs";
 import { LAYOUT_VERSION } from "../lib/config.mjs";
-import { LEGACY_MARKETPLACE, LEGACY_NAME, LEGACY_PROJECT_DIR } from "../lib/legacy-names.mjs";
+import { LEGACY_NAME, LEGACY_PROJECT_DIR } from "../lib/legacy-names.mjs";
 import { MIGRATIONS, applyMigration, applyRollback, migrationById, migrationState, planMigration, planRollback } from "../lib/migrations.mjs";
 import { OperationFailed, TransactionFailed, describeFailure, loadProject, resolveGitRoot, resultJson, sha256 } from "../lib/prepare.mjs";
 
@@ -20,20 +20,15 @@ export const help = `migrate: show or apply this project's pending layout migrat
 
 Migrations have IDs NNNN-slug and run in order. 0100-instructions-<template hash> refreshes the managed instruction
 blocks in CLAUDE.md and AGENTS.md after the harness template changed; it keeps every byte outside the markers and
-refuses a block someone edited inside the markers since Skilliton last wrote it. 0002-integrated-layout moves a project prepared by the standalone
-prototype (layout 1) to layout 2: it removes .skillgate/bin/security-evidence.mjs only when its bytes match the
-prototype runtime released at 0bc2a05, removes the skillgate:project blocks from CLAUDE.md, AGENTS.md and the maintain
-record only when they are exactly what the prototype wrote, adds the harness blocks, and sets prepare.version 2 and
-prepare.requires.workflow. 0003-skilliton-names moves a layout-2 project from the earlier ${LEGACY_NAME} names to the
-Skilliton names (layout 3): every file under ${LEGACY_PROJECT_DIR}/ to .skilliton/ (private evidence stays owner-only),
-the managed markers in CLAUDE.md, AGENTS.md, the records and the security report, the "${LEGACY_MARKETPLACE}" marketplace keys
-in .claude/settings.json, and the READMEs prepare generated when they are exactly what it wrote; it adds the current
-.gitignore lines and keeps the earlier ones for clones not yet migrated. It refuses an instruction block that is not
-exactly what the earlier release wrote, a link, a file over 1 MB, file names that differ only in letter case, team
-settings it would have to merge or reformat, and a .skilliton folder that already holds files. Until it is applied, every command except
-migrate, status and doctor refuses the project. Anything else (a changed runtime, a hand-edited block, a file that
-changes while the migration is being written) is refused, and the refusal names the step that reconciles it. A receipt
-written before the rename is rolled back only with the release that wrote it.
+refuses a block someone edited inside the markers since Skilliton last wrote it. Until it is applied, every command
+except migrate, status and doctor refuses the project. Anything else (a changed runtime, a hand-edited block, a file
+that changes while the migration is being written) is refused, and the refusal names the step that reconciles it.
+
+A project prepared before workflow 1.0.0 (still at layout 1, the standalone prototype, or layout 2, the earlier
+${LEGACY_NAME} names, its files still under ${LEGACY_PROJECT_DIR}/) is not something this command plans any more: run
+the one-shot migrator scripts/legacy-migrate.mjs by hand once, first (this command names the exact command when it
+sees that layout). It writes the same kind of receipt this command does, so migrate sees layout 3 as current
+afterward. A receipt written before the rename to Skilliton is rolled back only with the release that wrote it.
 
 Applying writes under .skilliton/prepare.lock, backs up every file it changes into <git folder>/skilliton-backups/<id>/
 (local to this clone, never committed), and leaves a receipt in .skilliton/migrations/<id>.json listing each file's
@@ -42,7 +37,8 @@ exactly what the migration wrote; otherwise it lists the files that changed and 
 back the plugin never reverses a project migration by itself.
 
 Exit codes: 0 complete (nothing pending, applied, rolled back, or a rollback preview); 1 a migration is pending
-(preview); 2 refused, nothing changed; 3 operation failed (the output says what was rolled back).`;
+(preview); 2 refused, nothing changed (also a project still below layout ${LAYOUT_VERSION} that scripts/legacy-migrate.mjs
+must bring forward first); 3 operation failed (the output says what was rolled back).`;
 
 const VERBS = { create: ["create", "created"], update: ["update", "updated"], delete: ["delete", "deleted"], restore: ["restore", "restored"] };
 
@@ -133,9 +129,19 @@ function runRollback(ctx, project, repo, rollbackId, state) {
   return 0;
 }
 
-// Nothing is pending: says why (never prepared, or already current) and stops.
+// Nothing is pending: says why (never prepared, stuck below LAYOUT_VERSION with no migration path here, or already
+// current) and stops. A project at layout 1 (the standalone prototype) or layout 2 (the earlier ${LEGACY_NAME}
+// names) has nothing in state.pending because MIGRATIONS no longer plans 0002-integrated-layout or
+// 0003-skilliton-names here; scripts/legacy-migrate.mjs plans those, run by hand once, first.
 function reportNothingPending(ctx, project, state) {
   const { out, json, emit, mode, root, dirArg } = ctx;
+  if (project.layoutVersion !== null && project.layoutVersion < LAYOUT_VERSION) {
+    const summary = `this project is at layout ${project.layoutVersion}, from before workflow 1.0.0 (its files are still under ${LEGACY_PROJECT_DIR}/, the earlier ${LEGACY_NAME} names); this runtime no longer plans that move. Run the one-shot migrator first: node scripts/legacy-migrate.mjs --dir ${argPath(root)} to preview it, then the same with --apply. Afterward, run this again: ${selfCommand()} migrate${dirArg}`;
+    if (json) emit("invalid", summary, { root, mode, state });
+    out("");
+    out(`Summary: ${summary}`);
+    return 2;
+  }
   const summary = project.layoutVersion === null
     ? `this project has not been prepared, so there is nothing to migrate. To prepare it: ${selfCommand()} prepare${dirArg}`
     : `layout ${project.layoutVersion} is current; no migration is pending.`;

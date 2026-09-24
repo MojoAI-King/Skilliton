@@ -49,7 +49,8 @@ export const RUNTIME_MAX_LINES = 600;
 // count it had that day: it may shrink, and the row is deleted once it is under the ceiling, but it may not grow.
 // Do not raise a number here. Raising one is how a ceiling stops being one.
 export const PINNED_LINES = [
-  ["packs/base/plugins/workflow/runtime/lib/migrations.mjs", 698],
+  // migrations.mjs's row was deleted here (N19, 2026-09-23): the legacy layout migrations moved to
+  // scripts/legacy-migrate.mjs, and the file dropped from 698 lines to well under the ceiling.
   // scripts/, pinned 2026-09-22 when the ceiling was extended to them (B59). The real fix for the longest is a split by
   // subject, following the split-a-file skill.
   ["scripts/lifecycle.test.mjs", 2098],
