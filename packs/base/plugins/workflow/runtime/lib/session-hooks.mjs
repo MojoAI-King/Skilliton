@@ -7,13 +7,16 @@
 //
 // Nothing here reads the disk or runs a program: every input arrives as a value, so each rule can be tested by calling
 // it. The Git reads a rule needs, such as the merge check behind the maintenance sentence, are done by the caller.
-// One exception, kept in its own module and replaceable by an option: the session-start block's skill copy lines
-// (lib/skill-drift.mjs) read the project's .claude/skills/ folder and the installed plugins' skills.
+// Two exceptions, each kept in its own module and replaceable by an option: the session-start block's skill copy lines
+// (lib/skill-drift.mjs) read the project's .claude/skills/ folder and the installed plugins' skills, and the stop
+// reason's drift sentence (lib/task-drift.mjs) reads the current task's record and the commits since its first
+// checkpoint, only when that task is past the drift thresholds.
 
 import { selfCommand } from "./core.mjs";
 import { legacyEnvironment } from "./legacy-names.mjs";
 import { clip } from "./lifecycle.mjs";
 import { skillCopyLines } from "./skill-drift.mjs";
+import { driftSentence, taskDrift } from "./task-drift.mjs";
 import { gitLine } from "./tasks.mjs";
 
 // ---------- the Stop reminder rule ----------
@@ -62,7 +65,13 @@ export function evaluateStop({ stopHookActive, checkpoints, state, events, sessi
 // nothing: a reminder that announced "no findings" every time would train everyone to skip the whole reminder, and the
 // sentence would stop being read on the day it mattered. A run that failed does get a sentence, because silence there
 // is indistinguishable from a clean tree.
-export function stopReason({ decision, state, current, merges = null, audit = null, command = selfCommand() }) {
+//
+// `drift` is what taskDrift gave for the current task (lib/task-drift.mjs): one sentence when at least two of its open
+// criteria have no trace in its checkpoints or the files it touched, or when the check could not run; nothing
+// otherwise. It rides on this reminder, so it is said once per working tree state and never blocks by itself.
+export function stopReason({
+  decision, state, current, merges = null, audit = null, command = selfCommand(), drift = taskDrift(current.task, state),
+}) {
   const since = decision.baseline === "checkpoint"
     ? `the last checkpoint (${decision.elapsedMinutes} minutes ago)`
     : `this session started (${decision.elapsedMinutes} minutes ago), and no checkpoint has been recorded`;
@@ -84,6 +93,8 @@ export function stopReason({ decision, state, current, merges = null, audit = nu
   } else if (audit?.problem) {
     parts.push(`Whether those files carry anything worth attention is unknown: the audit did not run (${audit.problem}).`);
   }
+  const drifted = driftSentence(drift, command);
+  if (drifted) parts.push(drifted);
   parts.push("This reminder is given once for this working tree state; if this work should not be recorded, tell the user why and stop.");
   // The command comes last, so no punctuation follows it.
   if (current.task) {

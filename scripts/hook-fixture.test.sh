@@ -7,6 +7,8 @@
 # Part 3 runs the shipped workflow handoff hook (N86): a handoff path that is, or passes through, a
 # symbolic link is refused in one line and nothing from the linked file is printed. --hook does not
 # change which handoff hook Part 3 runs.
+# Part 4 runs the shipped stop hook (N14, backlog B74) on a task whose five checkpoints and touched files trace none
+# of its criteria: the checkpoint reminder carries the drift sentence, and a second stop on the same tree says nothing.
 #
 #   bash scripts/hook-fixture.test.sh                    run all checks, no side effects
 #   bash scripts/hook-fixture.test.sh --write-evidence   also write the output to evidence/day-1/hook-fixture.txt
@@ -170,6 +172,33 @@ run_all() {
   check_handoff "(h2) the docs folder is a link to a folder outside the repository" "$repo_dir" \
     "[workflow] The handoff was not read: docs is a symbolic link, and this hook never follows a link to read docs/HANDOFF.md." ""
   check_handoff "(h3) control: a real docs/HANDOFF.md is shown" "$repo_ok" "" "Inside text is shown."
+  echo
+
+  echo "== Part 4: the stop hook notices a task drifting from its criteria (skilliton hook stop)"
+  local drift="$tmp/drift" dhome="$tmp/drift-home" dout
+  mkdir -p "$drift" "$dhome"
+  sk() { (cd "$drift" && env -u SKILLITON_SELF -u CLAUDE_PROJECT_DIR HOME="$dhome" GIT_CONFIG_NOSYSTEM=1 GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid \
+    GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid node "$root/scripts/skilliton.mjs" "$@"); }
+  if ! command -v node >/dev/null 2>&1; then
+    echo "NOT RUN (p4) node is not on PATH here"; fails=$((fails+1))
+  elif git -C "$drift" init -q -b main && sk prepare --apply >/dev/null 2>&1 \
+    && node -e 'const f=process.argv[1],fs=require("fs"),c=JSON.parse(fs.readFileSync(f,"utf8"));c.checkpoints={...c.checkpoints,minMinutes:0};fs.writeFileSync(f,JSON.stringify(c,null,2)+"\n")' "$drift/.skilliton/config.json" \
+    && git -C "$drift" add -A && git -C "$drift" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false commit -q -m prepared \
+    && git -C "$drift" checkout -q -b work \
+    && sk task start "Parser work" --criteria "Add a frobnicator widget to the parser" --criteria "Rewrite the zanzibar exporter" --apply >/dev/null 2>&1; then
+    mkdir -p "$drift/web"
+    for i in 1 2 3 4 5; do echo "$i" > "$drift/web/login-$i.css"; sk checkpoint --state "styled the login page, pass $i" --next "keep going" --apply >/dev/null 2>&1 || fails=$((fails+1)); done
+    echo 6 > "$drift/web/login-6.css"
+    dout=$(printf '{"cwd":"%s","session_id":"s1"}' "$drift" | sk hook stop 2>&1)
+    if printf "%s" "$dout" | grep -q '"decision":"block"' && printf "%s" "$dout" | grep -qF "Drift check: 2 of this task's 2 criteria have no trace in its 5 checkpoints"; then
+      echo "ok   (p4) the stop reason names the two untraced criteria"
+    else echo "FAIL (p4) no drift sentence in the stop reason: $dout"; fails=$((fails+1)); fi
+    dout=$(printf '{"cwd":"%s","session_id":"s1"}' "$drift" | sk hook stop 2>&1)
+    if [ -z "$dout" ]; then echo "ok   (p4) a second stop on the same tree says nothing"
+    else echo "FAIL (p4) the second stop said: $dout"; fails=$((fails+1)); fi
+  else
+    echo "FAIL (p4) the drift fixture could not be set up"; fails=$((fails+1))
+  fi
   echo
 
   echo "== Informational (not a check): the originating lessons file (private, not in this repo)"
