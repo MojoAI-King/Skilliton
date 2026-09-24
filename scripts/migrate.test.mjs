@@ -352,7 +352,8 @@ test("migrationState reports the layout and applied receipts; a layout-1 or layo
   const ctx = fixture(t);
   const { migrationState, MIGRATIONS } = await lib("migrations.mjs");
   const { resolveProject } = await lib("config.mjs");
-  assert.deepEqual(MIGRATIONS, [], "the runtime plans no layout migration of its own; scripts/legacy-migrate.mjs plans 0002 and 0003");
+  assert.ok(MIGRATIONS.every((m) => m.from === m.to), "the runtime plans no layout migration of its own; scripts/legacy-migrate.mjs plans 0002 and 0003");
+  assert.deepEqual(MIGRATIONS.map((m) => m.id), ["0004-security-findings-file"], "the one entry MIGRATIONS holds is the same-layout security findings migration (B78)");
   assert.deepEqual(migrationState(resolveProject(ctx.dir)), { layoutVersion: null, target: 3, pending: [], applied: [], instructions: null });
   prototypePrepare(ctx);
   assert.throws(() => resolveProject(ctx.dir), /still uses the earlier Skillgate names/, "only callers that allow it open a project under the earlier names");
