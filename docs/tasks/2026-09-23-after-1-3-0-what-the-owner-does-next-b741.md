@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-after-1-3-0-what-the-owner-does-next-b741
-- **State:** in-progress
+- **State:** done-local
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-23T22:07:50.200Z
+- **Updated:** 2026-09-24T03:25:24.923Z
 
 ## Request
 
