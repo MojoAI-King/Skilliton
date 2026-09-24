@@ -248,6 +248,18 @@ test("pin --apply moves a GitHub marketplace: remove, add at the tag, read back,
   assert.match(r.out, /verify reads the installed plugins against the signed manifest/);
 });
 
+test("pin on its own, once the clone and the marketplace are on the newest approved release, says so and gives no Next", (t) => {
+  const ctx = fixture(t);
+  machineWith(ctx, { source: "github", repo: "acme/skills" });
+  const status = ["pin", "--repo", ctx.repo, "--claude", ctx.stub];
+  const before = expectCode(cli(ctx, status), 0, "status before");
+  assert.match(before.out, /^Next: skilliton pin --release 1\.0\.0 --apply$/m);
+  expectCode(cli(ctx, pinApply(ctx)), 0, "apply");
+  const after = expectCode(cli(ctx, status), 0, "status after");
+  assert.match(after.out, /^already on the newest approved release \(1\.0\.0\)$/m);
+  assert.doesNotMatch(after.out, /^Next:/m, "no Next line suggests the pin it is already on");
+});
+
 test("pin --apply moves a git marketplace to <url>#<tag>", (t) => {
   const ctx = fixture(t);
   const url = "https://example.invalid/acme/skills.git";

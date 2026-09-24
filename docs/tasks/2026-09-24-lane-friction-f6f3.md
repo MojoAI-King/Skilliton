@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/friction-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T16:24:50.083Z
+- **Updated:** 2026-09-24T16:27:31.630Z
 
 ## Request
 
@@ -18,7 +18,7 @@ LANES.md, dispatched 2026-09-24: the items below are this lane's whole scope, an
 - [x] N35. [TOUCH] A session that ended with changes and no checkpoint is said so at the next start: lib/lifecycle.mjs, where the previous session is described as "ended normally" (line 471 at the base): when that session's last journal events show a dirty tree at its end (its session-end or last stop event carries dirty greater than 0) and it recorded no checkpoint, say "the previous session ended with <n> uncommitted change(s) and no checkpoint: read git status and the open task before carrying on" instead; a session that ended clean or with a checkpoint still reads "ended normally"; cases in a new scripts/previous-session.test.mjs.
 - [x] N36. [TOUCH] A checkpoint written by hand is not silently lost: lib/tasks.mjs and commands/task.mjs: when a task record's Checkpoints section holds text the parser does not read as a checkpoint (a hand-edited entry), task show and the session-start task line say "<n> line(s) under Checkpoints could not be read as checkpoints; record them with skilliton checkpoint" rather than reporting 0 checkpoints with no word; new cases in a new test file.
 - [x] N37. [TOUCH] Closing a task refreshes the tasks index: commands/task.mjs task close --apply regenerates the tasks index (the same writer index --apply uses for tasks) after it writes, and says so on one line; a case in the new test file.
-- [ ] N38. [TOUCH] pin on the newest release says so: commands/pin.mjs line 65 at the base suggests pin --release <the release it is already on>; when the clone is already pinned to the newest approved release, print "already on the newest approved release (<version>)" and no Next line; a case in scripts/pin-marketplace.test.mjs or a new file.
+- [x] N38. [TOUCH] pin on the newest release says so: commands/pin.mjs line 65 at the base suggests pin --release <the release it is already on>; when the clone is already pinned to the newest approved release, print "already on the newest approved release (<version>)" and no Next line; a case in scripts/pin-marketplace.test.mjs or a new file.
 - [ ] N39. [TOUCH] verify names a clone and install that disagree: when the skills clone is pinned (the pin record under its git folder) to a release other than the one the installed plugins verify against, verify adds one line "the clone is pinned to <a>, the installed plugins match <b>: run skilliton pin --release <a> --apply to move the install, or pin --latest" and keeps its exit status; a case in a new test file.
 - [ ] N40. [TOUCH] doctor outside a git repository says so: commands/doctor.mjs line 229 at the base tells a folder that is not a git repository to prepare the project; say "this folder is not a git repository, so there is nothing to prepare: run doctor inside a repository" there, and print hint commands with absolute paths rather than paths relative to the current folder; cases in the doctor tests or a new file.
 - [ ] N41. [TOUCH] The gate's rejection keeps the failing test names: where the delivery gate's rejection prints the tail of a check's output (lib/delivery.mjs), a node --test summary whose "failing tests:" header is followed by the failing test lines keeps those lines (the header alone, with nothing after it, is what a newcomer saw in the demo); if the tail is cut, cut before the header, not after it; a case in scripts/delivery.test.mjs if it may grow, else a new file.
@@ -58,9 +58,16 @@ not yet written
 - **Next:** N38 pin on the newest release
 - **Git:** lane/friction-0924 @ 1dd305b, 4 uncommitted
 
+### 2026-09-24T16:27:31.630Z
+
+- **State:** N38 done: pin on its own says already on the newest approved release and gives no Next line
+- **Evidence:** node --test scripts/pin-marketplace.test.mjs 13 of 13; release.test 27 of 27
+- **Next:** N39 verify names a clone and install that disagree
+- **Git:** lane/friction-0924 @ 5159248, 3 uncommitted
+
 ## Handoff
 
-- **State:** N37 done: task close --apply refreshes the tasks index and says so on one line. Evidence: node --test scripts/task-records.test.mjs 6 of 6; lifecycle, records, index-churn pass.
-- **Next:** N38 pin on the newest release
+- **State:** N38 done: pin on its own says already on the newest approved release and gives no Next line. Evidence: node --test scripts/pin-marketplace.test.mjs 13 of 13; release.test 27 of 27.
+- **Next:** N39 verify names a clone and install that disagree
 - **Blocked:** nothing
 - **Watch out:** nothing known

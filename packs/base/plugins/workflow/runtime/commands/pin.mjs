@@ -61,9 +61,13 @@ export function run(argv) {
 
   if (o.release === undefined && !o.latest) {
     const approved = state.versions.find((v) => v.state === "approved");
-    say(approved
-      ? `Next: ${selfCommand()} pin --release ${approved.version} --apply`
-      : `Nothing to pin to: no release in this clone is approved.`);
+    // Already there: the clone is pinned to the newest approved release and the marketplace has nothing to move, so
+    // a Next line would only suggest the command that changes nothing.
+    const onNewest = approved && state.pin?.version === approved.version && state.head === approved.approval?.commit
+      && planMarketplacePin(mp, releaseTag(approved.version)).state !== "move";
+    say(!approved ? `Nothing to pin to: no release in this clone is approved.`
+      : onNewest ? `already on the newest approved release (${approved.version})`
+      : `Next: ${selfCommand()} pin --release ${approved.version} --apply`);
     return state.problems.length ? 1 : 0;
   }
 
