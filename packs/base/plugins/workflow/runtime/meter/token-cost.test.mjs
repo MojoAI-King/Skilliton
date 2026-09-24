@@ -11,7 +11,7 @@
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { claudeConfigDir } from "../lib/verify.mjs";
+import { folderNameFor, projectsRoot } from "./projects.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const METER = join(here, "token-cost.mjs");
@@ -20,9 +20,10 @@ const METER = join(here, "token-cost.mjs");
 const FIXTURES = join(here, "..", "..", "fixtures", "meter");
 const out = (line = "") => process.stdout.write(`${line}\n`);
 const lastJson = (buffer) => JSON.parse(buffer.toString().trim().split("\n").pop());
-const run = (...args) => lastJson(execFileSync("node", [METER, "--json", ...args], {
-  env: { ...process.env, SKILLITON_PROJECTS: join(FIXTURES, "transcripts"), SKILLITON_TZ: "America/New_York" },
+const runIn = (folder) => (...args) => lastJson(execFileSync("node", [METER, "--json", ...args], {
+  env: { ...process.env, SKILLITON_PROJECTS: join(FIXTURES, folder), SKILLITON_TZ: "America/New_York" },
 }));
+const run = runIn("transcripts");
 
 let fail = 0;
 const check = (name, got, want) => {
@@ -115,11 +116,29 @@ scope("day window", d, "top", { requests: 2, input: 1010, peak_context: 12000, c
 const naiveTopInput = 3 * 100 + 10 + 5 + 2 * 1000 + 10;
 check("negative control: naive sum differs from dedup", naiveTopInput !== all.byScope.top.input, true);
 
+// --project-dir turns a path into the folder name Claude Code files it under and matches it exactly. transcripts-dirs
+// holds two folders named for invented paths: -work-demo (r20, claude-sonnet-5: 100*2 + 10*10 + 1000*0.2 = 500
+// micro-usd) and -work-demo-lane (r21: 1000*2 + 100*10 = 3000). A substring match for the first would count both.
+check("folder name: every character that is not a letter or digit is one hyphen", folderNameFor("/work/demo.app/lane_1"), "-work-demo-app-lane-1");
+check("folder name: a run of them is not collapsed", folderNameFor("/work/-x"), "-work--x");
+const dirs = runIn("transcripts-dirs");
+const exact = dirs("--project-dir", "/work/demo");
+scope("project-dir exact", exact, "top", { requests: 1, input: 100, cost_usd: 0.0005 });
+check("project-dir is reported as a count, never a name", exact.project_dirs, 1);
+check("project-dir: no absent folder", exact.absent_project_dirs, 0);
+scope("project-dir union", dirs("--project-dir", "/work/demo", "--project-dir", "/work/demo/lane"), "top", { requests: 2, cost_usd: 0.0035 });
+// The negative control: the substring form counts the lane folder too, which is exactly what --project-dir must not do.
+scope("project substring counts both", dirs("--project", "work-demo"), "top", { requests: 2 });
+const absent = dirs("--project-dir", "/work/nowhere");
+check("project-dir absent folder is counted", absent.absent_project_dirs, 1);
+check("project-dir absent folder is not a failure", absent.incomplete, false);
+check("project-dir absent folder reads nothing", absent.byScope, {});
+
 // --reference: the meter must also reproduce the real-window figures two independent reviews established on
 // 2026-09-15 (DECISIONS.md O2): UTC days 2026-09-14 and 2026-09-15, every project, every cache write priced at
 // the 5m rate. Those transcripts exist on one machine, so elsewhere this reports NOT RUN and passes nothing.
 if (process.argv.includes("--reference")) {
-  const projects = process.env.SKILLITON_PROJECTS ?? join(claudeConfigDir(), "projects");
+  const projects = projectsRoot();
   const ref = lastJson(execFileSync("node", [METER, "--json", "2026-09-14", "2026-09-15"], {
     env: { ...process.env, SKILLITON_PROJECTS: projects, SKILLITON_TZ: "UTC" }, maxBuffer: 64 * 1024 * 1024,
   }));

@@ -20,6 +20,9 @@ The lines of a `.jsonl` file are longer than the runtime's 160 character line ru
 - r8: a truncated JSON line: counted as `unparseable_lines`.
 - r9: a message whose model is `<synthetic>`. Claude Code writes these locally (a cancelled turn, a client-side notice); no request was made, so it is counted as `synthetic` and never summed or priced.
 
+## `transcripts-dirs` (exact folder matching, `--project-dir`)
+Two folders named for invented paths, never for a real one: `-work-demo` (r20, one `claude-sonnet-5` request, 500 micro-usd) and `-work-demo-lane` (r21, 3000 micro-usd). `--project-dir /work/demo` must count r20 alone, where the substring form `--project work-demo` counts both; that pair is the test's negative control. A path that has no folder (`/work/nowhere`) is counted as `absent_project_dirs` and is not a failure.
+
 ## Proving the test can fail
 Removing the dedup line, pricing every record at one model, or keeping the first copy instead of the largest-output copy turns the test red (checked 2026-09-16 and 2026-09-18 on scratch copies). A test that cannot fail on the bug it names is not a test.
 

@@ -31,20 +31,24 @@
 // Tier 1 (real quota, logged by the status line) is the number that matters.
 //
 // Usage:
-//   node token-cost.mjs [FROM_DAY TO_DAY] [--project <substring>]... [--since <ISO time>] [--until <ISO time>] [--by-project] [--json]
+//   node token-cost.mjs [FROM_DAY TO_DAY] [--project <substring>]... [--project-dir <path>]... [--since <ISO time>]
+//                       [--until <ISO time>] [--by-project] [--json]
 //   FROM_DAY/TO_DAY are YYYY-MM-DD in SKILLITON_TZ, inclusive. --since is exclusive and --until inclusive, so two
-//   windows that share an end count no record twice; the day form and the instant form compose. --project matches the project
-//   directory name, case-insensitive; repeat it for a union. Project names are passed on the
-//   command line only and never committed.
+//   windows that share an end count no record twice; the day form and the instant form compose. --project matches the
+//   project directory name, case-insensitive, as a substring; repeat it for a union. --project-dir takes a project's
+//   path, turns it into the folder name Claude Code files it under (projects.mjs says how, and what was verified), and
+//   matches that name exactly, never as a substring; repeat it for a union. With --project-dir alone only those folders
+//   are read, and one that does not exist is counted (absent_project_dirs), which is not a failure: a project nobody has
+//   opened a session in has no transcripts. Project names are passed on the command line only and never committed.
 //
 // The transcripts are read from SKILLITON_PROJECTS, else the projects folder inside Claude Code's own folder
 // (lib/verify.mjs's claudeConfigDir: CLAUDE_CONFIG_DIR, else ~/.claude).
 
-import { readdirSync, statSync, createReadStream } from "node:fs";
+import { existsSync, readdirSync, statSync, createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 import { join } from "node:path";
-import { claudeConfigDir } from "../lib/verify.mjs";
 import { priceTokens } from "./pricing.mjs";
+import { folderNameFor, projectsRoot } from "./projects.mjs";
 
 const FIELDS = ["requests", "input", "output", "cache_read", "cache_write_5m", "cache_write_1h"];
 const out = (line = "") => process.stdout.write(`${line}\n`);
@@ -62,10 +66,11 @@ function parseMeterArgs(argv) {
   const values = (k) => argv.flatMap((a, i) => (a === k && argv[i + 1] ? [argv[i + 1]] : []));
   const since = values("--since")[0];
   const until = values("--until")[0];
-  const valueArgs = new Set(argv.flatMap((a, i) => (["--project", "--since", "--until"].includes(a) ? [i + 1] : [])));
+  const valueArgs = new Set(argv.flatMap((a, i) => (["--project", "--project-dir", "--since", "--until"].includes(a) ? [i + 1] : [])));
   const [from, to] = argv.filter((a, i) => !a.startsWith("--") && !valueArgs.has(i));
   return {
     json: flag("--json"), byProject: flag("--by-project"), projects: values("--project").map((p) => p.toLowerCase()),
+    folders: [...new Set(values("--project-dir").map(folderNameFor))],
     since, sinceMs: timeArg("--since", since), until, untilMs: timeArg("--until", until), from, to,
   };
 }
@@ -83,11 +88,11 @@ const blank = () => ({
 function newState(opts) {
   return {
     opts,
-    root: process.env.SKILLITON_PROJECTS ?? join(claudeConfigDir(), "projects"),
+    root: projectsRoot(),
     tz: process.env.SKILLITON_TZ ?? "America/New_York",
     counters: {
       files: 0, unreadable_files: 0, unreadable_dirs: 0, unparseable_lines: 0, records: 0, distinct: 0, duplicates: 0, no_ids: 0,
-      no_timestamp: 0, out_of_window: 0, filtered_project: 0, synthetic: 0,
+      no_timestamp: 0, out_of_window: 0, filtered_project: 0, synthetic: 0, absent_project_dirs: 0,
     },
     unpriced: {}, // model -> requests
     // key -> { output, bucket, cost }: the copy of each request that is counted, so a later copy with a larger output
@@ -184,14 +189,27 @@ function addRecord(s, rec, file) {
   if (!t.hasTtl) b.ttl_unknown_tokens += t.cache_write_5m;
 }
 
+// Which folders to walk. --project-dir alone reads only its folders, by exact name; anything else walks everything
+// and filters record by record, so filtered_project keeps counting what a --project filter left out.
+function* transcriptFiles(s) {
+  const { projects, folders } = s.opts;
+  if (!folders.length || projects.length) { yield* walk(s.root, s.counters); return; }
+  for (const name of folders) {
+    const dir = join(s.root, name);
+    if (!existsSync(dir)) { s.counters.absent_project_dirs++; continue; }
+    yield* walk(dir, s.counters);
+  }
+}
+
+function matchesProject(s, project) {
+  const { projects, folders } = s.opts;
+  if (!projects.length && !folders.length) return true;
+  return folders.includes(project) || projects.some((p) => project.toLowerCase().includes(p));
+}
+
 async function scanFile(s, path) {
   const project = path.slice(s.root.length + 1).split("/")[0];
-  const { projects } = s.opts;
-  const file = {
-    project,
-    scope: path.includes("/subagents/") ? "subagent" : "top",
-    projectMatch: !projects.length || projects.some((p) => project.toLowerCase().includes(p)),
-  };
+  const file = { project, scope: path.includes("/subagents/") ? "subagent" : "top", projectMatch: matchesProject(s, project) };
   s.counters.files++;
   let rl;
   try {
@@ -220,19 +238,22 @@ function jsonReport(s) {
     sc.peak_context = Math.max(sc.peak_context, b.peak_context);
   }
   for (const sc of Object.values(byScope)) { sc.cost_usd = round(sc.cost_usd); sc.cost_all_5m_usd = round(sc.cost_all_5m_usd); }
-  const { from, to, since, until, projects } = s.opts;
+  const { from, to, since, until, projects, folders } = s.opts;
+  // project_dirs is a count and never the names: a folder name spells out a path on this machine.
   return {
     ...s.counters, tz: s.tz, window: { from: from ?? null, to: to ?? null, since: since ?? null, until: until ?? null }, projects,
+    project_dirs: folders.length,
     unpriced_models: s.unpriced, incomplete: isIncomplete(s), byScope,
   };
 }
 
 function tableReport(s) {
   const c = s.counters;
-  const { byProject, since, until, projects } = s.opts;
+  const { byProject, since, until, projects, folders } = s.opts;
   const ratio = (c.records / Math.max(c.distinct, 1)).toFixed(2);
   out(`files=${c.files} records=${c.records} distinct=${c.distinct} duplicates=${c.duplicates} dedup_ratio=${ratio}x tz=${s.tz}`
-    + `${since ? ` since=${since}` : ""}${until ? ` until=${until}` : ""}${projects.length ? ` projects=${projects.length} filter(s)` : ""}`);
+    + `${since ? ` since=${since}` : ""}${until ? ` until=${until}` : ""}${projects.length ? ` projects=${projects.length} filter(s)` : ""}`
+    + `${folders.length ? ` project_dirs=${folders.length} (${c.absent_project_dirs} absent)` : ""}`);
   out(`not summed: no_ids=${c.no_ids} no_timestamp=${c.no_timestamp} unparseable_lines=${c.unparseable_lines} unreadable_files=${c.unreadable_files}`
     + ` out_of_window=${c.out_of_window} filtered_project=${c.filtered_project} synthetic=${c.synthetic}`);
   const width = byProject ? 40 : 10;
@@ -253,7 +274,7 @@ function tableReport(s) {
 
 async function main() {
   const s = newState(parseMeterArgs(process.argv.slice(2)));
-  for (const path of walk(s.root, s.counters)) await scanFile(s, path);
+  for (const path of transcriptFiles(s)) await scanFile(s, path);
   if (s.opts.json) out(JSON.stringify(jsonReport(s)));
   else tableReport(s);
 }

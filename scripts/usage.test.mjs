@@ -16,13 +16,14 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
   PLUGIN_METER, batchBoundaries, batchRows, describeUsage, foldScopes, parseMerges, RECONSTRUCTION_NOTE,
 } from "../packs/base/plugins/workflow/runtime/lib/usage.mjs";
 import { renderTask } from "../packs/base/plugins/workflow/runtime/lib/tasks.mjs";
+import { folderNameFor } from "../packs/base/plugins/workflow/runtime/meter/projects.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
@@ -117,7 +118,7 @@ import { appendFileSync } from "node:fs";
 const argv = process.argv.slice(2);
 appendFileSync(process.env.STUB_METER_LOG, JSON.stringify(argv) + "\\n");
 const tz = process.env.STUB_METER_TZ ?? process.env.SKILLITON_TZ ?? "America/New_York";
-console.log(JSON.stringify({ files: 1, records: 2, tz, window: { from: argv[0], to: argv[1], until: null }, projects: [],
+console.log(JSON.stringify({ files: 1, records: 2, tz, window: { from: argv[0], to: argv[1], since: null, until: null }, projects: [], project_dirs: 0,
   unpriced_models: {}, incomplete: false,
   byScope: { main: { requests: 7, input: 1234, output: 56, cache_read: 78, cache_write_5m: 9, cache_write_1h: 0, cost_usd: 0.42 } } }));
 `;
@@ -201,6 +202,9 @@ function withTranscripts(f) {
 // The contract probe asks for 1970-01-01..1970-01-01; it is logged by the stub like any call and is dropped here, so a
 // count of calls is a count of the windows the command asked for.
 const isProbe = (call) => call[0] === "1970-01-01" && call[1] === "1970-01-01";
+// The default scope passes every folder as --project-dir; the windows are checked without them, and the folders apart.
+const withoutDirs = (call) => call.filter((a, i) => a !== "--project-dir" && call[i - 1] !== "--project-dir");
+const dirsOf = (call) => call.flatMap((a, i) => (call[i - 1] === "--project-dir" ? [a] : []));
 
 function usage(f, args = [], extraEnv = {}) {
   const r = spawnSync(process.execPath, [SKILLITON, "usage", "--dir", f.dir, ...args], {
@@ -208,14 +212,17 @@ function usage(f, args = [], extraEnv = {}) {
     env: { ...process.env, SKILLITON_TZ: TZ, STUB_METER_LOG: f.log, SKILLITON_PROJECTS: f.projects, ...extraEnv },
   });
   const logged = existsSync(f.log) ? readFileSync(f.log, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
-  const calls = logged.filter((c) => !isProbe(c));
-  const probes = logged.length - calls.length;
-  return { code: r.status, out: r.stdout ?? "", err: r.stderr ?? "", all: `${r.stdout ?? ""}${r.stderr ?? ""}`, calls, probes };
+  const real = logged.filter((c) => !isProbe(c));
+  const probes = logged.length - real.length;
+  const calls = real.map(withoutDirs);
+  const dirs = real.map(dirsOf);
+  return { code: r.status, out: r.stdout ?? "", err: r.stderr ?? "", all: `${r.stdout ?? ""}${r.stderr ?? ""}`, calls, dirs, probes };
 }
 
 const REPO_CHECKS = [
   ["the meter is asked for instant windows that tile time, one per batch", () => {
-    const r = usage(fixture());
+    const f = fixture();
+    const r = usage(f);
     eq(r.code, 0, `exit status (output was:\n${r.all})`);
     eq(r.calls.length, 3, `meter runs, one per batch row (calls: ${JSON.stringify(r.calls)})`);
     eq(r.calls[0].join(" "), "--until 2026-09-16T14:00:00.000Z --json", "the oldest window reaches back as far as the meter can see");
@@ -225,6 +232,29 @@ const REPO_CHECKS = [
     has(r.out, /\(earliest\)\.\.2026-09-16 10:00/, "the oldest row says it is open ended rather than inventing a start");
     has(r.out, /merge \S+ Merge batch one/, "each merge on a row is named");
     has(r.out, /note: no journal on this machine/, "and a missing journal is said, not read as no maintenance");
+    eq(r.dirs[0].join(" "), f.dir, "the default scope is the repository's own folder, passed as --project-dir");
+    has(r.out, /^scope: this repository's own transcript folder and 0 lane folder\(s\) under .*, matched exactly;/m, "and the second line says so");
+  }],
+  ["the default scope counts this repository and its lane worktrees exactly, and nothing whose name only starts the same", () => {
+    const f = fixture({ meter: null });
+    const lane = join(`${f.dir}-lanes`, "one");
+    TEMPS.push(`${f.dir}-lanes`);
+    gitIn(f.dir)(["worktree", "add", "-q", lane, "-b", "lane/one"]);
+    // Three folders under SKILLITON_PROJECTS: the repository's, its lane's, and one for a sibling folder whose name
+    // begins with the repository's, which a substring match would count. One request each, inside the oldest row.
+    for (const [path, id] of [[f.dir, "r1"], [lane, "r2"], [`${f.dir}-other`, "r3"]]) {
+      const folder = join(f.projects, folderNameFor(path));
+      mkdirSync(folder, { recursive: true });
+      writeFileSync(join(folder, "s.jsonl"), `${JSON.stringify({ requestId: id, timestamp: "2026-09-16T12:00:00Z",
+        message: { id: `m-${id}`, model: "claude-sonnet-5", usage: { input_tokens: 10, output_tokens: 1 } } })}\n`);
+    }
+    const requests = (args) => JSON.parse(usage(f, ["--json", ...args]).out).rows[0].total.requests;
+    eq(requests([]), 2, "the repository and its lane, and not the sibling");
+    eq(requests(["--all-projects"]), 3, "--all-projects widens to every folder");
+    eq(requests(["--project", basename(f.dir)]), 3, "--project is a substring, which is why it is not the default");
+    has(usage(f).out, /^scope: this repository's own transcript folder and 1 lane folder\(s\)/m, "the second line names the lane");
+    const both = usage(f, ["--project", "x", "--all-projects"]);
+    eq(both.code, 2, `asking for both is refused (output was:\n${both.all})`);
   }],
   ["a repository that only fast-forwards gets its rows from task closes and the maintain event", () => {
     const r = usage(fastForwardFixture());
@@ -299,7 +329,8 @@ const REPO_CHECKS = [
   ["a project meter that does not speak the contract is named with what it lacks, and the plugin's meter is used", () => {
     const r = usage(fixture({ meter: STUB_METER.replace(/console\.log\(JSON\.stringify\(\{[\s\S]*\}\)\);\n$/, 'console.log("{}");\n') }));
     eq(r.code, 0, `exit status (output was:\n${r.all})`);
-    has(r.out, /does not speak the meter's contract \(its --json answer lacks byScope, tz, incomplete, unpriced_models\)/, "every missing key is named");
+    has(r.out, /does not speak the meter's contract \(its --json answer lacks byScope, tz, incomplete, unpriced_models, project_dirs, window\.since\)/,
+      "every missing key is named");
     has(r.out, /meter: \S*runtime\/meter\/token-cost\.mjs/, "and the plugin's meter did the reading");
     eq(r.probes, 1, "the project's meter was asked once, for the empty window, and not for a real one");
     eq(r.calls.length, 0, "and never for a batch window");
@@ -311,7 +342,8 @@ const REPO_CHECKS = [
     writeFileSync(join(f.dir, "other", "token-cost.test.mjs"), PASSING_TEST);
     const r = usage(f, ["--meter", "other"]);
     eq(r.code, 2, `exit status (output was:\n${r.all})`);
-    has(r.all, /does not speak the meter's contract: its --json answer lacks byScope, tz, incomplete, unpriced_models\. Nothing was written/, "the refusal names it");
+    has(r.all, /does not speak the meter's contract: its --json answer lacks byScope, tz, incomplete, unpriced_models, project_dirs, window\.since\. Nothing/,
+      "the refusal names it");
   }],
   ["a meter bucketing in another timezone is a failure, not a quietly wrong window", () => {
     const f = fixture();
@@ -352,14 +384,14 @@ check("an incomplete row is marked, and the mark tells the reader not to quote i
   const rows = [{ from: null, to: "2026-09-16T14:00:00.000Z", tasks: [], maintains: [],
     merges: [{ kind: "merge", ms: 0, shortSha: "abcdefabcdef", subject: "Merge a batch" }],
     folded: foldScopes({ incomplete: true, unpriced_models: { "a-model": 1 }, byScope: { main: { requests: 1, input: 2, output: 3, cache_read: 4, cache_write_5m: 5, cache_write_1h: 6, cost_usd: 7 } } }) }];
-  const text = describeUsage({ rows, tz: TZ, meter: { path: "scripts/token-cost.mjs", test: "scripts/token-cost.test.mjs" }, proof: { summary: "passed" }, projects: [] }).join("\n");
+  const text = describeUsage({ rows, tz: TZ, meter: { path: "scripts/token-cost.mjs", test: "scripts/token-cost.test.mjs" }, proof: { summary: "passed" }, scope: { describe: "every project on this machine" } }).join("\n");
   has(text, /INCOMPLETE/, "the row is marked");
   has(text, /Do not quote this row/, "and says what to do about it");
   has(text, /unpriced model\(s\): a-model/, "and names the model behind the mark");
 });
 
 check("the scorecard names the meter and the test that proved it in this run", () => {
-  const text = describeUsage({ rows: [], tz: TZ, meter: { path: "scripts/token-cost.mjs", test: "scripts/token-cost.test.mjs" }, proof: { summary: "9 checks" }, projects: [] }).join("\n");
+  const text = describeUsage({ rows: [], tz: TZ, meter: { path: "scripts/token-cost.mjs", test: "scripts/token-cost.test.mjs" }, proof: { summary: "9 checks" }, scope: { describe: "every project on this machine" } }).join("\n");
   has(text, /proved in this run by scripts\/token-cost\.test\.mjs \(9 checks\)/, "the proof is named with the meter");
   has(text, /in America\/New_York/, "and the windows say what they are measured in");
 });

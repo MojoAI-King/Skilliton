@@ -23,18 +23,21 @@
 // that leaves this repository, and nothing here may be turned into a sentence about savings.
 
 import { existsSync, statSync } from "node:fs";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { refuse, runProgram, tilde } from "./core.mjs";
 import { OperationFailed } from "./prepare.mjs";
+import { runGit } from "./journal.mjs";
 
 const DEFAULT_METER = join("scripts", "token-cost.mjs");
 const METER_TEST = "token-cost.test.mjs";
 // The meter this plugin ships, found from this file's own folder, so it is the one beside the running runtime and never
 // one a project put somewhere on a path.
 export const PLUGIN_METER = join(dirname(fileURLToPath(import.meta.url)), "..", "meter", "token-cost.mjs");
-// What a meter's --json output must carry to be believed as this contract: the four keys every row is built from.
-const CONTRACT_KEYS = ["byScope", "tz", "incomplete", "unpriced_models"];
+// What a meter's --json output must carry to be believed as this contract: the four keys every row is built from, and
+// the two that show it reads --project-dir and --since. A meter from before those flags would take their values for
+// FROM_DAY and TO_DAY and answer a different window without a word, so it is not believed either.
+const CONTRACT_KEYS = ["byScope", "tz", "incomplete", "unpriced_models", "project_dirs"];
 const METER_TIMEOUT_MS = 300000;
 const TEST_TIMEOUT_MS = 120000;
 export const DEFAULT_LIMIT = 12;
@@ -81,7 +84,9 @@ function probeContract(path, root, env = process.env) {
   let parsed;
   try { parsed = JSON.parse(r.stdout.trim().split("\n").pop()); } catch { return ["a JSON object on its last line of output"]; }
   if (!parsed || typeof parsed !== "object") return ["a JSON object on its last line of output"];
-  return CONTRACT_KEYS.filter((k) => !(k in parsed));
+  const missing = CONTRACT_KEYS.filter((k) => !(k in parsed));
+  if (!parsed.window || typeof parsed.window !== "object" || !("since" in parsed.window)) missing.push("window.since");
+  return missing;
 }
 
 const testBeside = (path) => join(dirname(path), METER_TEST);
@@ -191,15 +196,56 @@ export function batchRows(boundaries, { limit = null, since = null } = {}) {
   return limit !== null && rows.length > limit ? rows.slice(rows.length - limit) : rows;
 }
 
+// The worktrees git has for this repository, the main one first: [{ path, branch }].
+function worktreesOf(root) {
+  const r = runGit(root, ["worktree", "list", "--porcelain"]);
+  if (r.status !== 0) throw new OperationFailed(`git worktree list failed (exit ${r.status}), so the lane folders cannot be named`);
+  const list = [];
+  for (const block of r.stdout.split(/\r?\n\r?\n/)) {
+    const path = /^worktree (.+)$/m.exec(block)?.[1]?.trim();
+    if (path) list.push({ path, branch: /^branch refs\/heads\/(.+)$/m.exec(block)?.[1]?.trim() ?? null });
+  }
+  return list;
+}
+
+const inside = (parent, child) => {
+  const rel = relative(parent, resolve(child));
+  return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
+};
+
+// The lane folder root, resolved the way dispatch resolves it: dispatch.laneRoot from the main checkout, else a folder
+// beside the main checkout named after it.
+const laneRootFor = (mainRoot, project) => resolve(mainRoot, project?.dispatch?.laneRoot ?? `../${basename(mainRoot)}-lanes`);
+
+// Which transcripts a reading covers: { kind, args, describe }. By default this repository's own folder and each lane
+// worktree's, passed as --project-dir so the meter matches them exactly, never as a substring (a substring of one
+// project's folder name is often the start of another's). --project keeps the substring form for a person, and
+// --all-projects widens to every project on this machine.
+export function usageScope(root, project, { projects = [], all = false } = {}) {
+  if (all) return { kind: "all", args: [], describe: "every project on this machine (--all-projects)" };
+  if (projects.length) {
+    const describe = `project folders whose name holds ${projects.join(", ")} (--project)`;
+    return { kind: "project", args: projects.flatMap((p) => ["--project", p]), describe };
+  }
+  const trees = worktreesOf(root);
+  const main = trees[0]?.path ?? root;
+  const laneRoot = laneRootFor(main, project);
+  const lanes = trees.filter((w) => inside(laneRoot, w.path)).map((w) => w.path);
+  const dirs = [...new Set([main, root, ...lanes])];
+  return {
+    kind: "repository", args: dirs.flatMap((d) => ["--project-dir", d]),
+    describe: `this repository's own transcript folder and ${lanes.length} lane folder(s) under ${tilde(laneRoot)}, matched exactly`,
+  };
+}
+
 // The meter, over one span. `since` is exclusive and `until` inclusive, the way the meter reads them; either may be
-// null. `projects` is passed straight through: a project folder name is particular to one machine and is never written
-// into this repository, so it arrives on the command line and goes no further.
-export function meterWindow(meter, { since = null, until = null, projects = [], env = process.env }) {
+// null. `scope` is usageScope's answer, passed straight through: a project folder name is particular to one machine and
+// is never written into this repository, so it is worked out by the meter at run time and goes no further.
+export function meterWindow(meter, { since = null, until = null, scope = { args: [] }, env = process.env }) {
   const args = [];
   if (since) args.push("--since", since);
   if (until) args.push("--until", until);
-  for (const p of projects) args.push("--project", p);
-  args.push("--json");
+  args.push(...scope.args, "--json");
   const where = `${since ?? "the earliest record the meter can see"}..${until ?? "now"}`;
   const r = runMeter(meter.path, args, env);
   if (!r.ok) {
@@ -278,10 +324,9 @@ function rowLines(row, tz) {
 
 // The scorecard, as lines. It never says a number went down: a sentence about savings needs the usage screen and a
 // cross-check, and it has no business being produced by something that only reads transcripts.
-export function describeUsage({ rows, tz, meter, proof, projects }) {
+export function describeUsage({ rows, tz, meter, proof, scope }) {
   const out = [`meter: ${meter.path}, proved in this run by ${meter.test} (${proof.summary})`];
-  const which = projects.length ? `; projects: ${projects.join(", ")}` : "; every project on this machine";
-  out.push(`windows run from the end of the previous row to the last boundary in this one, in ${tz}${which}`);
+  out.push(`scope: ${scope.describe}; times in ${tz}`);
   if (!rows.length) return [...out, "no batch boundary (a maintain event, a closed task or a merge commit) was found, so there is no batch to report."];
   out.push("", line(HEAD.map(([name]) => name)));
   for (const row of rows) out.push(...rowLines(row, tz));
