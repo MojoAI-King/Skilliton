@@ -40,6 +40,7 @@ export const CHECKPOINT_AGE_LIMIT_MS = 24 * 60 * 60 * 1000;
 const HEADER_FIELDS = ["ID", "State", "Branch", "Owner", "Updated"];
 const HEADER_RE = /^[-*] \*\*(ID|State|Branch|Owner|Updated):\*\*(?:[ \t]+(.*?))?[ \t]*$/;
 const ITEM_RE = /^[-*] \*\*(State|Evidence|Next|Git|Blocked|Watch out):\*\*(?:[ \t]+(.*?))?[ \t]*$/;
+const CHECKPOINT_ITEMS = ["State", "Evidence", "Next", "Git"];
 const CRITERION_RE = /^[-*] \[([ xX])\](?:[ \t]+(.*?))?[ \t]*$/;
 const MAX_TITLE = 200, MAX_TEXT = 2000, MAX_LABEL = 100;
 
@@ -194,6 +195,30 @@ export function itemsBetween(lines, from, to) {
   return items;
 }
 
+// The lines under "## Checkpoints" that are not part of any checkpoint as the parser reads one: non-blank text before
+// the first "### " heading, and under a heading any non-blank line that is not a State, Evidence, Next or Git bullet
+// or an indented continuation of one. A checkpoint written by hand in another shape lands here, and is counted so it
+// is named rather than read as no checkpoint at all.
+function unreadLines(lines, section, headings) {
+  const at = new Set(headings.map((h) => h.line));
+  let count = 0, inCheckpoint = false, continuing = false;
+  for (let i = section.start + 1; i < section.end; i++) {
+    const line = stripCr(lines[i]);
+    if (at.has(i)) { inCheckpoint = true; continuing = false; continue; }
+    if (!line.trim()) { continuing = false; continue; }
+    const item = ITEM_RE.exec(line);
+    if (inCheckpoint && item && CHECKPOINT_ITEMS.includes(item[1])) { continuing = true; continue; }
+    if (inCheckpoint && continuing && /^(?: {2,}|\t)\S/.test(line) && !/^\s*[-*] /.test(line)) continue;
+    continuing = false;
+    count++;
+  }
+  return count;
+}
+
+// The words task show and the session-start task line use for unreadCheckpointLines (none when it is 0).
+export const unreadCheckpointsNote = (count, cmd) =>
+  (count ? `${count} line(s) under Checkpoints could not be read as checkpoints; record them with ${cmd} checkpoint` : null);
+
 // Parses task record text. label names the file in messages. Throws TaskRecordError for a missing field.
 export function parseTask(text, label) {
   const fail = (reason) => { throw new TaskRecordError(label, reason); };
@@ -227,6 +252,7 @@ export function parseTask(text, label) {
     const items = itemsBetween(lines, lastHeading.line + 1, checkpointsSection.end);
     lastCheckpoint = { at: lastHeading.text, state: items.State ?? null, evidence: items.Evidence ?? null, next: items.Next ?? null, git: items.Git ?? null };
   }
+  const unreadCheckpointLines = checkpointsSection ? unreadLines(lines, checkpointsSection, headings) : 0;
   // The heading text is whatever was written after "### "; only a value that parses as a date is used by
   // checkpointGrowth below, the same tolerance readTask already gives a hand-edited record.
   const firstCheckpointAt = headings.length ? headings[0].text : null;
@@ -252,12 +278,12 @@ export function parseTask(text, label) {
   return {
     id: values.ID, title: titleMatch[1], state: values.State, branch: values.Branch, owner: values.Owner, updated: values.Updated,
     checkpoints: headings.length, handoff,
-    criteria, lastCheckpoint, firstCheckpointAt, sections: a.sections.map((s) => s.name),
+    criteria, lastCheckpoint, firstCheckpointAt, unreadCheckpointLines, sections: a.sections.map((s) => s.name),
   };
 }
 
 // Reads one task record. The contract shape is { id, title, state, branch, owner, updated, checkpoints, handoff };
-// file, criteria, lastCheckpoint, firstCheckpointAt and sections are extra. label names the file in messages
+// file, criteria, lastCheckpoint, firstCheckpointAt, unreadCheckpointLines and sections are extra. label names the file in messages
 // (default: the path).
 export function readTask(file, { label = file } = {}) {
   let st;

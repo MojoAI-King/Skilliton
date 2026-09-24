@@ -3,7 +3,9 @@
 import { forDisplay, parseArgs, refuse, say, selfCommand, tilde, unifiedDiff } from "../lib/core.mjs";
 import { backupRoot, readBranch } from "../lib/journal.mjs";
 import { clip, guardCommand, openProject } from "../lib/lifecycle.mjs";
-import { CLOSED_STATES, checkBranch, closeTask, createTask, currentTask, findTask, listTasks, pickCurrent, taskRel } from "../lib/tasks.mjs";
+import {
+  CLOSED_STATES, checkBranch, closeTask, createTask, currentTask, findTask, listTasks, pickCurrent, taskRel, unreadCheckpointsNote,
+} from "../lib/tasks.mjs";
 
 export const help = `task: start, list, show, or close a task record. Each task is one file in the project's tasks folder (default
 docs/tasks), named by a collision-free ID (YYYY-MM-DD-<slug>-<four hex digits>), so contributors on different
@@ -137,6 +139,8 @@ function printTask(project, task) {
     say("Acceptance criteria: none written as checkboxes");
   }
   say(`Checkpoints: ${task.checkpoints}`);
+  const unread = unreadCheckpointsNote(task.unreadCheckpointLines, selfCommand());
+  if (unread) say(`  attention: ${unread}`);
   if (task.lastCheckpoint) {
     const c = task.lastCheckpoint;
     say(`  latest: ${c.at}`);

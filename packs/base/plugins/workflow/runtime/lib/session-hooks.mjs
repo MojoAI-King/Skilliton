@@ -17,7 +17,7 @@ import { legacyEnvironment } from "./legacy-names.mjs";
 import { clip } from "./lifecycle.mjs";
 import { skillCopyLines } from "./skill-drift.mjs";
 import { driftSentence, taskDrift } from "./task-drift.mjs";
-import { gitLine } from "./tasks.mjs";
+import { gitLine, unreadCheckpointsNote } from "./tasks.mjs";
 
 // ---------- the Stop reminder rule ----------
 
@@ -279,6 +279,8 @@ function taskLines(report, check) {
     const t = current.task, c = t.lastCheckpoint;
     const last = c ? `last checkpoint ${clip(c.at, 40)}: State: ${clip(c.state, 160)}; Evidence: ${clip(c.evidence, 160)}; Next: ${clip(c.next, 160)}` : "no checkpoint recorded yet";
     lines.push(`- Current task: ${t.id} "${clip(t.title, 100)}" (${t.state}, ${t.checkpoints} checkpoint(s)); ${last}`);
+    const unread = unreadCheckpointsNote(t.unreadCheckpointLines, selfCommand());
+    if (unread) lines.push(`- Task checkpoints (needs attention): ${unread}`);
     const h = t.handoff;
     lines.push(`- Task handoff: ${h ? `State: ${clip(h.state, 160)}; Next: ${clip(h.next, 160)}; Blocked: ${clip(h.blocked, 120)}; Watch out: ${clip(h.watchOut, 120)}` : "not yet written"}`);
   } else if (current.ambiguous.length) {
