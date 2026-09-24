@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-lane-pin-at-tag-3bf0
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/pin-at-tag-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T15:35:27.330Z
+- **Updated:** 2026-09-24T20:07:15.130Z
 
 ## Request
 

@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-lane-security-records-43cb
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/security-records-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T04:12:45.893Z
+- **Updated:** 2026-09-24T20:07:15.184Z
 
 ## Request
 

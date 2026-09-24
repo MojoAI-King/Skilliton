@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-24-lane-friction-f6f3
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/friction-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T16:51:26.372Z
+- **Updated:** 2026-09-24T20:07:14.913Z
 
 ## Request
 

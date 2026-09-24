@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-lane-hooks-and-tasks-a9e1
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/hooks-and-tasks-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T15:32:34.978Z
+- **Updated:** 2026-09-24T20:07:15.049Z
 
 ## Request
 

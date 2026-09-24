@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-23-lane-legacy-and-template-2c0e
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/legacy-and-template-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T16:21:00.885Z
+- **Updated:** 2026-09-24T20:07:15.100Z
 
 ## Request
 
