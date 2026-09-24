@@ -22,6 +22,7 @@
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { runGit } from "./journal.mjs";
+import { isId } from "./ids.mjs";
 import {
   RECONSTRUCTION_NOTE, collectBoundaries, findMeter, foldModels, laneFigures, laneFolderOf, localTime, meterWindow, proveMeter, usageScope,
 } from "./usage.mjs";
@@ -37,7 +38,6 @@ const COUNTER_KEYS = [
 // A key naming money as one of its words: cost_usd, est_usd, price, dollars. unpriced_models is a list of names and
 // does not match.
 const MONEY_KEY = /(^|_)(cost|usd|price|dollars?)(_|$)/i;
-const TASK_FILE_RE = /(^|\/)\d{4}-\d{2}-\d{2}-[a-z0-9-]+-[0-9a-f]{4}\.md$/;
 
 const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
@@ -196,7 +196,8 @@ export function taskStarts(root, project) {
   for (const raw of r.status === 0 ? r.stdout.split("\n") : []) {
     const line = raw.trim();
     if (line.startsWith("@")) { when = Date.parse(line.slice(1)); continue; }
-    if (!TASK_FILE_RE.test(line) || Number.isNaN(when) || starts.has(line)) continue;
+    const file = line.split("/").pop();
+    if (!file.endsWith(".md") || !isId(file.slice(0, -3)) || Number.isNaN(when) || starts.has(line)) continue;
     starts.set(line, new Date(when).toISOString());
   }
   return starts;
