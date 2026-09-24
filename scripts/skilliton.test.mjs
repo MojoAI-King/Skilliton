@@ -210,7 +210,7 @@ section("harness: the block names this project's own record files");
   writeFileSync(join(q, "HANDOFF.md"), "# Handoff\n");
   const r2 = cli(["harness", "--apply", "--file", "AGENTS.md", "--dir", q], { SKILLITON_BACKUPS: backups });
   const got2 = existsSync(join(q, "AGENTS.md")) ? readFileSync(join(q, "AGENTS.md"), "utf8") : "";
-  check("an existing root HANDOFF.md is adopted by the rendering", r2.code === 0 && got2.includes("handoff `HANDOFF.md`"), r2.all);
+  check("an existing root HANDOFF.md is adopted by the rendering", r2.code === 0 && got2.includes("`HANDOFF.md`") && !got2.includes("`docs/HANDOFF.md`"), r2.all);
 
   const bad = folder("h-vars-badconfig");
   mkdirSync(join(bad, ".skilliton"));

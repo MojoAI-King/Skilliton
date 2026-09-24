@@ -101,7 +101,7 @@ export const LONG_LINE_PINS = [
   ["packs/base/plugins/workflow/runtime/lib/legacy-template.mjs", 1],
   ["packs/base/plugins/workflow/runtime/lib/lifecycle.mjs", 36],
   ["packs/base/plugins/workflow/runtime/lib/maintain.mjs", 12],
-  ["packs/base/plugins/workflow/runtime/lib/migrations.mjs", 67],
+  ["packs/base/plugins/workflow/runtime/lib/migrations.mjs", 20],
   ["packs/base/plugins/workflow/runtime/lib/pin.mjs", 11],
   ["packs/base/plugins/workflow/runtime/lib/preflight.mjs", 39],
   ["packs/base/plugins/workflow/runtime/lib/prepare.mjs", 40],
@@ -133,7 +133,6 @@ export const LONG_FUNCTION_PINS = [
   ["packs/base/plugins/workflow/runtime/commands/remove.mjs", "run", 82],
   ["packs/base/plugins/workflow/runtime/lib/collectors.mjs", "collectSecrets", 135],
   ["packs/base/plugins/workflow/runtime/lib/delivery.mjs", "evaluateUpdate", 107],
-  ["packs/base/plugins/workflow/runtime/lib/migrations.mjs", "plan0003", 137],
   ["packs/base/plugins/workflow/runtime/lib/preflight.mjs", "checkRepository", 82],
   ["packs/base/plugins/workflow/runtime/lib/release.mjs", "planRelease", 83],
 ];

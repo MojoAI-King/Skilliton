@@ -34,6 +34,8 @@ export const DYNAMIC_CALLS = [
 // ("expansion") or a program written into the script itself ("inline"). `target`, when given, is a file this test must
 // already read; `count` is how many such places the file has, so a new one has to be looked at.
 export const INTERPRETER_TARGETS = [
+  { file: `${WORKFLOW}/evals/audit-finding-acted-on/self-check.sh`, command: "bash", kind: "expansion", count: 1, target: `${WORKFLOW}/evals/audit-finding-acted-on/fixture.sh`, why: "the fixture beside it, building the scenario before the self-check inspects it" },
+  { file: `${WORKFLOW}/evals/audit-finding-acted-on/self-check.sh`, command: "node", kind: "expansion", count: 2, target: `${WORKFLOW}/evals/audit-finding-acted-on/check-fix-pattern.mjs`, why: "the fix-on-line grader's own regex, run as a file twice (against the flawed and the fixed content) to prove it discriminates" },
   { file: `${PLUGIN}/guardrails/hooks/session-start-guardrails.sh`, command: "bash", kind: "expansion", count: 1, target: `${PLUGIN}/guardrails/hooks/guard-bash.sh`, why: "the guardrails hook beside it, asked for the one status line it prints" },
   { file: `${WORKFLOW}/bin/skilliton`, command: "node", kind: "expansion", count: 1, target: `${WORKFLOW}/runtime/skilliton.mjs`, why: "the runtime this launcher exists to start" },
   { file: `${PLUGIN}/guardrails/hooks/guard-bash.sh`, command: "node", kind: "inline", count: 2, target: null, why: "two short programs written into this file, reading the hook's JSON input and a project's settings" },
@@ -48,6 +50,8 @@ export const INTERPRETER_TARGETS = [
 // Commands in a shell script whose program is an expansion: what they run, how many such commands the file has, and
 // the arguments they are given, so the command can neither multiply nor change into something else unnoticed.
 export const SHELL_DYNAMIC = [
+  { file: `${WORKFLOW}/evals/audit-finding-acted-on/fixture.sh`, text: '"$skilliton"', count: 1, args: null, why: "this plugin's own bin/skilliton, setting up an evaluation case; eval fixtures run only in a company's evaluation runs" },
+  { file: `${WORKFLOW}/evals/audit-finding-acted-on/self-check.sh`, text: '"$skilliton"', count: 2, args: null, why: "the same, run twice by this case's own offline self-check (before and after the fix)" },
   { file: `${WORKFLOW}/runtime/preflight/probe.sh`, text: '"$path"', count: 1, args: ["--version"], why: "the program the preflight check asked about, found with command -v; the names come from the PROGRAMS table in runtime/lib/preflight.mjs" },
   { file: `${WORKFLOW}/evals/security-status-honest/fixture.sh`, text: '"$skilliton"', count: 1, args: null, why: "this plugin's own bin/skilliton, setting up an evaluation case; eval fixtures run only in a company's evaluation runs" },
   { file: `${WORKFLOW}/evals/task-start-records-work/fixture.sh`, text: '"$skilliton"', count: 1, args: null, why: "the same" },

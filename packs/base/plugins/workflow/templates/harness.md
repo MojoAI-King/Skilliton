@@ -2,10 +2,10 @@
 
 Skilliton's block; other text is the project's.
 
-**Enforced (E)**: a plugin hook fires. **Instructed (I)**: asked of the assistant. **Checked at merge (M)**: shared checks decide. Proved on Claude Code; else E=I unverified.
+**Enforced (E)**: a plugin hook fires. **Instructed (I)**: asked of the assistant. **Checked at merge (M)**: shared checks decide. Proved on Claude Code; elsewhere treat E as I unless verified.
 
 ### Project records
-`{{status}}`, `{{backlog}}` (done: `{{backlogArchive}}`), `{{roadmap}}`, `{{decisions}}`/`{{decisionsDir}}`, `{{lessons}}`/`{{lessonsDir}}`, `{{handoff}}`, `{{maintain}}`, `{{tasksDir}}/`. Shared only on `{{integrationBranches}}`, else the task record; propose decisions/lessons. Run: `skilliton <command>`.
+`{{status}}`, `{{backlog}}` (done: `{{backlogArchive}}`), `{{roadmap}}`, `{{decisions}}`/`{{decisionsDir}}`, `{{lessons}}`/`{{lessonsDir}}`, `{{handoff}}`, `{{maintain}}`, `{{tasksDir}}/`. Shared only on `{{integrationBranches}}`, else the task record; propose decisions/lessons. Run `skilliton <command>`; not on PATH: say so, use `bin/skilliton` or `node scripts/skilliton.mjs`.
 
 ### Start of a session
 E: `{{handoff}}`'s RESUME HERE, project state (layout, migrations, versions, records, security). I: check files/git status, brief on what's stale; absent, run status; no task, ask.
