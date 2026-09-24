@@ -37,8 +37,9 @@ The plan is ${LANE_FILE} at the repository root, written by the dispatch skill (
       first), and detaches its folder to the integration branch, so the lane branch is no longer checked out anywhere.
       A merged lane whose folder holds uncommitted work refuses the whole close, naming the folder, before anything is
       written. Nothing is deleted: not a branch, not a folder. One line per lane; without --apply it writes nothing.
-      For each merged lane it also prints what the meter reads from that lane folder's own transcripts (tokens,
-      estimated cost, and peak context against the context bound: dispatch.contextCeiling when set, else 200000),
+      For each merged lane it also prints what the meter reads from that lane's own transcripts, the sessions opened
+      in its folder and a lane agent whose brief names the folder with the agents it started (tokens, estimated
+      cost, and peak context against the context bound: dispatch.contextCeiling when set, else 200000),
       names every lane that ran past it, and with --apply appends the same lines under "${COST_HEADING}" in the
       lane's ${REPORT_FILE} when there is one (that file is never committed).
 
@@ -217,20 +218,33 @@ function closeLine(lane, apply) {
 const DEFAULT_CONTEXT_BOUND = 200000;
 const num = (v) => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
+// Where the figures came from: the folder's own sessions, lane agents filed under the integrating window, or neither.
+function laneSource(f) {
+  if (f.laneAgents === null) {
+    return f.requests ? "" : " (no transcript is filed under this folder, and this meter does not look for lane agents: a lane run as an agent from"
+      + " the main window is recorded in that window's)";
+  }
+  const agents = f.laneAgents ? `; ${f.laneAgents} of them lane agent transcript(s) filed under the integrating window` : "";
+  const left = f.laneAgentsLeftOut ? `; ${f.laneAgentsLeftOut} lane agent transcript(s) left out (a brief naming another folder too, or a first`
+    + " message that could not be read)" : "";
+  const none = f.requests ? "" : " (no session was opened in this folder and no lane agent's brief names it)";
+  return `${agents}${left}${none}`;
+}
+
 function laneCostLine(meter, lane, bound) {
   const name = basename(lane.dir);
   try {
     const f = laneFigures(meter, lane.dir);
     const over = f.peak_context > bound;
-    const none = f.requests ? "" : " (no transcript is filed under this folder: a lane run as an agent from the main window is recorded in that window's)";
     return { name, over, line: `lane ${name}: ${f.requests} request(s), ${num(f.tokens)} tokens, est usd ${f.cost_usd.toFixed(2)}, peak context `
-      + `${num(f.peak_context)} against a bound of ${num(bound)}${over ? ", PAST THE BOUND" : ""}${f.incomplete ? "; INCOMPLETE, do not quote" : ""}${none}` };
+      + `${num(f.peak_context)} against a bound of ${num(bound)}${over ? ", PAST THE BOUND" : ""}`
+      + `${f.incomplete ? "; INCOMPLETE, do not quote" : ""}${laneSource(f)}` };
   } catch (e) {
     return { name, over: false, line: `lane ${name}: not measured (${String(e?.message ?? e).split("\n")[0]})` };
   }
 }
 
-// Cost and peak context per merged lane folder, from the meter over that folder's own transcripts only.
+// Cost and peak context per merged lane, from the meter over that lane's own transcripts only: the folder's sessions and its lane agents.
 function laneCosts(root, project, plan) {
   const lanes = plan.lanes.filter((l) => l.merged && l.dir);
   if (!lanes.length) return null;
@@ -252,7 +266,8 @@ function laneCosts(root, project, plan) {
 function printCosts(costs, plan, apply) {
   if (!costs) return;
   say("");
-  say(`cost and peak context, from each merged lane folder's own transcripts (est usd priced from the meter's table retrieved ${PRICING_RETRIEVED}):`);
+  say("cost and peak context, from each merged lane's own transcripts, its folder's sessions and its lane agents "
+    + `(est usd priced from the meter's table retrieved ${PRICING_RETRIEVED}):`);
   for (const c of costs.perLane.values()) say(`  ${c.line}`);
   say(`  ${costs.summary}`);
   if (!apply) return;
@@ -260,7 +275,7 @@ function printCosts(costs, plan, apply) {
   for (const lane of plan.lanes) {
     const c = costs.perLane.get(lane.branch);
     if (!c) continue;
-    const lines = [`Measured by skilliton dispatch close on ${date}, from this folder's own transcripts (a reconstruction, not a bill):`, `- ${c.line}`];
+    const lines = [`Measured by skilliton dispatch close on ${date}, from this lane's own transcripts (a reconstruction, not a bill):`, `- ${c.line}`];
     if (c.over) lines.push(`- ran past the context bound of ${num(costs.bound)}`);
     const reportLinked = linkedWriteProblem(lane.dir, REPORT_FILE);
     if (reportLinked) say(`  not appended in ${tilde(join(lane.dir, REPORT_FILE))}: ${reportLinked}`);

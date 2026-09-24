@@ -31,8 +31,8 @@
 // Tier 1 (real quota, logged by the status line) is the number that matters.
 //
 // Usage:
-//   node token-cost.mjs [FROM_DAY TO_DAY] [--project <substring>]... [--project-dir <path>]... [--since <ISO time>]
-//                       [--until <ISO time>] [--by-project] [--json]
+//   node token-cost.mjs [FROM_DAY TO_DAY] [--project <substring>]... [--project-dir <path>]... [--lane-dir <path>]...
+//                       [--since <ISO time>] [--until <ISO time>] [--by-project] [--json]
 //   FROM_DAY/TO_DAY are YYYY-MM-DD in SKILLITON_TZ, inclusive. --since is exclusive and --until inclusive, so two
 //   windows that share an end count no record twice; the day form and the instant form compose. --project matches the
 //   project directory name, case-insensitive, as a substring; repeat it for a union. --project-dir takes a project's
@@ -40,6 +40,9 @@
 //   matches that name exactly, never as a substring; repeat it for a union. With --project-dir alone only those folders
 //   are read, and one that does not exist is counted (absent_project_dirs), which is not a failure: a project nobody has
 //   opened a session in has no transcripts. Project names are passed on the command line only and never committed.
+//   --lane-dir takes a dispatch lane's folder: that folder's own transcripts, as --project-dir reads them, plus every
+//   subagent transcript lanes.mjs attributes to it (a lane agent whose brief names the folder, and the agents it
+//   started), wherever they are filed, each counted once. It does not combine with --project.
 //
 // The transcripts are read from SKILLITON_PROJECTS, else the projects folder inside Claude Code's own folder
 // (lib/verify.mjs's claudeConfigDir: CLAUDE_CONFIG_DIR, else ~/.claude).
@@ -49,6 +52,7 @@ import { createInterface } from "node:readline";
 import { join } from "node:path";
 import { priceTokens } from "./pricing.mjs";
 import { folderNameFor, projectsRoot } from "./projects.mjs";
+import { laneAgentFiles, laneTarget } from "./lanes.mjs";
 
 const FIELDS = ["requests", "input", "output", "cache_read", "cache_write_5m", "cache_write_1h"];
 const out = (line = "") => process.stdout.write(`${line}\n`);
@@ -66,11 +70,12 @@ function parseMeterArgs(argv) {
   const values = (k) => argv.flatMap((a, i) => (a === k && argv[i + 1] ? [argv[i + 1]] : []));
   const since = values("--since")[0];
   const until = values("--until")[0];
-  const valueArgs = new Set(argv.flatMap((a, i) => (["--project", "--project-dir", "--since", "--until"].includes(a) ? [i + 1] : [])));
+  const valueArgs = new Set(argv.flatMap((a, i) => (["--project", "--project-dir", "--lane-dir", "--since", "--until"].includes(a) ? [i + 1] : [])));
   const [from, to] = argv.filter((a, i) => !a.startsWith("--") && !valueArgs.has(i));
   return {
     json: flag("--json"), byProject: flag("--by-project"), projects: values("--project").map((p) => p.toLowerCase()),
     folders: [...new Set(values("--project-dir").map(folderNameFor))],
+    lanes: [...new Map(values("--lane-dir").map(laneTarget).map((l) => [l.folder, l])).values()],
     since, sinceMs: timeArg("--since", since), until, untilMs: timeArg("--until", until), from, to,
   };
 }
@@ -93,6 +98,7 @@ function newState(opts) {
     counters: {
       files: 0, unreadable_files: 0, unreadable_dirs: 0, unparseable_lines: 0, records: 0, distinct: 0, duplicates: 0, no_ids: 0,
       no_timestamp: 0, out_of_window: 0, filtered_project: 0, synthetic: 0, absent_project_dirs: 0,
+      lane_agent_files: 0, lane_agent_children: 0, lane_agent_ambiguous: 0, lane_agent_no_meta: 0, lane_prompt_unread: 0,
     },
     unpriced: {}, // model -> requests
     // key -> { output, bucket, cost }: the copy of each request that is counted, so a later copy with a larger output
@@ -202,27 +208,36 @@ function addToModel(s, mine, scope, model, t) {
   for (const f of FIELDS.slice(1)) m[f] += t[f];
 }
 
-// Which folders to walk. --project-dir alone reads only its folders, by exact name; anything else walks everything
-// and filters record by record, so filtered_project keeps counting what a --project filter left out.
+// Which files to read, as { path, project }. The subagent transcripts attributed to a --lane-dir come first, under the
+// lane's folder name, and are skipped wherever else they are filed. Then --project-dir and --lane-dir folders alone,
+// by exact name; anything else walks everything and filters record by record, so filtered_project keeps counting what
+// a --project filter left out.
 function* transcriptFiles(s) {
-  const { projects, folders } = s.opts;
-  if (!folders.length || projects.length) { yield* walk(s.root, s.counters); return; }
-  for (const name of folders) {
-    const dir = join(s.root, name);
-    if (!existsSync(dir)) { s.counters.absent_project_dirs++; continue; }
-    yield* walk(dir, s.counters);
-  }
+  const { projects, folders, lanes } = s.opts;
+  const attributed = laneAgentFiles(s.root, lanes, s.counters);
+  for (const [path, project] of attributed) yield { path, project };
+  const own = [...new Set([...folders, ...lanes.map((l) => l.folder)])];
+  const rest = function* () {
+    if (!own.length || projects.length) { yield* walk(s.root, s.counters); return; }
+    for (const name of own) {
+      const dir = join(s.root, name);
+      if (!existsSync(dir)) { s.counters.absent_project_dirs++; continue; }
+      yield* walk(dir, s.counters);
+    }
+  };
+  for (const path of rest()) if (!attributed.has(path)) yield { path, project: null };
 }
 
 function matchesProject(s, project) {
-  const { projects, folders } = s.opts;
-  if (!projects.length && !folders.length) return true;
-  return folders.includes(project) || projects.some((p) => project.toLowerCase().includes(p));
+  const { projects, folders, lanes } = s.opts;
+  if (!projects.length && !folders.length && !lanes.length) return true;
+  return folders.includes(project) || lanes.some((l) => l.folder === project) || projects.some((p) => project.toLowerCase().includes(p));
 }
 
-async function scanFile(s, path) {
-  const project = path.slice(s.root.length + 1).split("/")[0];
-  const file = { project, scope: path.includes("/subagents/") ? "subagent" : "top", projectMatch: matchesProject(s, project) };
+// project is the lane's folder name for a transcript attributed to a lane, else null for the folder it is filed in.
+async function scanFile(s, path, lane = null) {
+  const project = lane ?? path.slice(s.root.length + 1).split("/")[0];
+  const file = { project, scope: path.includes("/subagents/") ? "subagent" : "top", projectMatch: lane !== null || matchesProject(s, project) };
   s.counters.files++;
   let rl;
   try {
@@ -256,24 +271,28 @@ function jsonReport(s) {
     const [scope, model] = k.split("|");
     (byScopeModel[scope] ??= {})[model] = m;
   }
-  const { from, to, since, until, projects, folders } = s.opts;
-  // project_dirs is a count and never the names: a folder name spells out a path on this machine.
+  const { from, to, since, until, projects, folders, lanes } = s.opts;
+  // project_dirs and lane_dirs are counts and never the names: a folder name spells out a path on this machine.
   return {
     ...s.counters, tz: s.tz, window: { from: from ?? null, to: to ?? null, since: since ?? null, until: until ?? null }, projects,
-    project_dirs: folders.length, byScopeModel,
+    project_dirs: folders.length, lane_dirs: lanes.length, byScopeModel,
     unpriced_models: s.unpriced, incomplete: isIncomplete(s), byScope,
   };
 }
 
 function tableReport(s) {
   const c = s.counters;
-  const { byProject, since, until, projects, folders } = s.opts;
+  const { byProject, since, until, projects, folders, lanes } = s.opts;
   const ratio = (c.records / Math.max(c.distinct, 1)).toFixed(2);
   out(`files=${c.files} records=${c.records} distinct=${c.distinct} duplicates=${c.duplicates} dedup_ratio=${ratio}x tz=${s.tz}`
     + `${since ? ` since=${since}` : ""}${until ? ` until=${until}` : ""}${projects.length ? ` projects=${projects.length} filter(s)` : ""}`
     + `${folders.length ? ` project_dirs=${folders.length} (${c.absent_project_dirs} absent)` : ""}`);
   out(`not summed: no_ids=${c.no_ids} no_timestamp=${c.no_timestamp} unparseable_lines=${c.unparseable_lines} unreadable_files=${c.unreadable_files}`
     + ` out_of_window=${c.out_of_window} filtered_project=${c.filtered_project} synthetic=${c.synthetic}`);
+  if (lanes.length) {
+    out(`lanes=${lanes.length}: lane agent transcripts=${c.lane_agent_files} (children ${c.lane_agent_children}); not attributed:`
+      + ` naming more than one folder=${c.lane_agent_ambiguous} no meta=${c.lane_agent_no_meta} first message unread=${c.lane_prompt_unread}`);
+  }
   const width = byProject ? 40 : 10;
   out(`${(byProject ? "project" : "day").padEnd(width)} scope     requests     input    output  cache_read     cw_5m     cw_1h   peak_ctx   est_usd`);
   let grand = 0, ttlUnknown = 0;
@@ -291,8 +310,13 @@ function tableReport(s) {
 }
 
 async function main() {
-  const s = newState(parseMeterArgs(process.argv.slice(2)));
-  for (const path of transcriptFiles(s)) await scanFile(s, path);
+  const opts = parseMeterArgs(process.argv.slice(2));
+  if (opts.lanes.length && opts.projects.length) {
+    process.stderr.write("--lane-dir does not combine with --project: a lane is read by exact folder, and --project walks every folder\n");
+    process.exit(2);
+  }
+  const s = newState(opts);
+  for (const f of transcriptFiles(s)) await scanFile(s, f.path, f.project);
   if (s.opts.json) out(JSON.stringify(jsonReport(s)));
   else tableReport(s);
 }

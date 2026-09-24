@@ -76,6 +76,7 @@ export const OUTSIDE_A_REPOSITORY = [
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, "process.env.HOME !== pinned.home", "nothing: it compares this session's home folder with the one the system records, to say which the reachability check read"],
   [`${WORKFLOW}/runtime/lib/preflight.mjs`, "the home folder the system records for this user", "nothing: the same comparison, printed"],
   [`${WORKFLOW}/runtime/lib/legacy-names.mjs`, 'join(homedir(), ".config", OLD)', "the folder used before the rename, named in messages and never written"],
+  [`${WORKFLOW}/runtime/meter/lanes.mjs`, "const home = homedir();", "nothing: the home folder is read only to spell a lane folder with ~, the way a brief may name it"],
   [`${WORKFLOW}/runtime/lib/delivery.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-delivery-"))', "$TMPDIR/skilliton-delivery-*, removed when the gate finishes"],
   [`${WORKFLOW}/runtime/commands/propose.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-propose-"))', "$TMPDIR/skilliton-propose-*, removed when propose finishes"],
   [`${WORKFLOW}/runtime/commands/join.mjs`, 'mkdtempSync(joinPath(tmpdir(), "skilliton-join-"))', "$TMPDIR/skilliton-join-*, the signers text from a join file held for the trust step and removed when join finishes"],

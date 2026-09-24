@@ -340,16 +340,23 @@ export function foldScopes(parsed) {
   return { total, byScope, incomplete: Boolean(parsed.incomplete), unpriced };
 }
 
-// One lane folder's own transcripts, all of them: { requests, input, output, cache_read, cache_write_5m, cache_write_1h,
-// tokens, cost_usd, peak_context, incomplete }. The folder is passed as --project-dir and matched exactly, so a lane's
-// figures never include the main checkout's or another lane's.
+// One lane's transcripts, all of them: { requests, input, output, cache_read, cache_write_5m, cache_write_1h, tokens,
+// cost_usd, peak_context, incomplete, laneAgents, laneAgentsLeftOut }. The folder is passed as --lane-dir, so the meter
+// reads the folder's own transcripts, matched exactly, and the subagent transcripts of a lane agent whose brief names the
+// folder (runtime/meter/lanes.mjs), wherever the integrating window filed them; a lane's figures never include the main
+// checkout's own work or another lane's. A meter that does not know --lane-dir answers without lane_agent_files; it is
+// asked again with --project-dir alone, and laneAgents is null to say that lane agents were not looked for.
 export function laneFigures(meter, dir, env = process.env) {
-  const parsed = meterWindow(meter, { scope: { args: ["--by-project", "--project-dir", dir] }, env });
+  let parsed = meterWindow(meter, { scope: { args: ["--by-project", "--lane-dir", dir] }, env });
+  const knowsLanes = Number.isInteger(parsed.lane_agent_files);
+  if (!knowsLanes) parsed = meterWindow(meter, { scope: { args: ["--by-project", "--project-dir", dir] }, env });
   const folded = foldScopes(parsed);
   const peak = Math.max(0, ...Object.values(parsed.byScope ?? {}).map((s) => Number(s?.peak_context ?? 0)));
   const t = folded.total;
   const tokens = t.input + t.output + t.cache_read + t.cache_write_5m + t.cache_write_1h;
-  return { ...t, tokens, peak_context: peak, incomplete: folded.incomplete };
+  const leftOut = knowsLanes ? Number(parsed.lane_agent_ambiguous ?? 0) + Number(parsed.lane_prompt_unread ?? 0) : 0;
+  const laneAgents = knowsLanes ? parsed.lane_agent_files : null;
+  return { ...t, tokens, peak_context: peak, incomplete: folded.incomplete, laneAgents, laneAgentsLeftOut: leftOut };
 }
 
 // An instant as "YYYY-MM-DD HH:MM" in the meter's timezone, which the scorecard names on its second line.

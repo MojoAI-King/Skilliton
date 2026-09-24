@@ -2,6 +2,10 @@
 
 Kind: Living. One entry per signed release, from its manifest under `releases/`, plus what is on `main` since. Plugin versions are what a machine sees; the release number is what it trusts.
 
+## Unreleased (main since 1.4.1)
+
+- **Workflow 0.25.2: `dispatch close` counts a lane that ran as an agent (B89).** Claude Code files a lane agent under the integrating window's session, so the lane folder has no transcripts of its own and close read 0 requests for all seven lanes of the 2026-09-24 batch. The meter's new `--lane-dir <folder>` reads the folder's own sessions and every subagent transcript whose `.meta.json` names a lane agent and whose first message names that folder and no other beside it, then the agents it started, linked by their `toolUseId`; each transcript is read once. Measured on the machine that ran the batch: three of its lanes read 197, 97 and 164 requests, with peak contexts of 493,049, 202,727 and 287,464 tokens against the 200,000 bound, all three past it, which the old reading hid. Close says how many lane agent transcripts it counted and how many it left out, and a meter that does not know `--lane-dir` is asked again the old way and says so.
+
 ## 1.4.1, 2026-09-24
 
 Plugins: workflow 0.25.1, guardrails 0.11.0, context-hygiene 0.3.1, code-quality 0.2.1. Manifest `releases/1.4.1.json`; every entry below shipped on `main` between 1.4.0 and this tag. The number is a patch by the release skill's rule: a security fix and corrections, no new command. Only workflow changed. Source: the security retest and the first eval run after 1.4.0, the same evening.

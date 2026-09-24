@@ -280,6 +280,9 @@ jobs:
       - name: A held stop asks the model to end with its answer to the user
         run: node scripts/stop-reason-answer.test.mjs
 
+      - name: A lane run as an agent is counted as that lane's cost (B89)
+        run: node --test scripts/lane-agent-cost.test.mjs
+
       - name: The audit-finding eval case's fixture and graders, proved offline
         run: bash packs/base/plugins/workflow/evals/audit-finding-acted-on/self-check.sh
 
