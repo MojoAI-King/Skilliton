@@ -40,34 +40,14 @@ import {
   networkUses, scopeFiles, section, shellCommands,
 } from "./inventory.mjs";
 import { PROGRAMS } from "../packs/base/plugins/workflow/runtime/lib/preflight.mjs";
+import { DYNAMIC_CALLS, INTERPRETER_TARGETS, SHELL_DYNAMIC, STARTED_BY_OTHERS, OUTSIDE_A_REPOSITORY, ALLOWED_NETWORK } from "./allowlist-tables.mjs";
+export { DYNAMIC_CALLS, INTERPRETER_TARGETS, SHELL_DYNAMIC, STARTED_BY_OTHERS, OUTSIDE_A_REPOSITORY, ALLOWED_NETWORK };
 
 const PLUGIN = "packs/base/plugins";
 const WORKFLOW = `${PLUGIN}/workflow`;
 
 // Functions that run the program their caller names, so their call sites are read the same way.
 const WRAPPERS = ["runProgram", "runClient", "startOnce"];
-
-// Every call whose program is not a string literal: what it starts, and how that is known. `count` is how many such
-// call sites the file has, so a new one fails this test instead of passing under an existing entry.
-export const DYNAMIC_CALLS = [
-  { file: `${WORKFLOW}/runtime/lib/core.mjs`, callee: "spawnSync", arg: "resolved", count: 1, programs: [], why: "inside runProgram, the wrapper; every caller of it is read below (resolveProgram resolves it on Windows first, B79)" },
-  { file: `${WORKFLOW}/runtime/lib/core.mjs`, callee: "spawnSync", arg: "viaCmd[0]", count: 1, programs: ["cmd.exe"], why: "inside runProgram on Windows only, to start a .cmd or .bat file Node cannot start itself (docs/IT-ALLOWLIST.md section 8)" },
-  { file: `${WORKFLOW}/runtime/lib/join.mjs`, callee: "spawnSync", arg: "binary.path", count: 1, programs: [], why: "inside runClient, the wrapper; every caller of it is read below" },
-  { file: `${WORKFLOW}/runtime/lib/doctor.mjs`, callee: "runProgram", arg: "bin", count: 1, programs: ["claude"], why: "doctor asks a Claude Code copy bundled in an editor extension for its version" },
-  { file: `${WORKFLOW}/runtime/lib/doctor.mjs`, callee: "runProgram", arg: "cli.path", count: 2, programs: ["claude"], why: "doctor runs claude plugin list and marketplace list" },
-  { file: `${WORKFLOW}/runtime/commands/doctor.mjs`, callee: "runProgram", arg: "path", count: 1, programs: ["claude"], why: "doctor asks the claude on PATH for its version" },
-  { file: `${WORKFLOW}/runtime/lib/join.mjs`, callee: "runClient", arg: "c.binary", count: 4, programs: ["claude", "codex"], why: "join and join --undo run each client's own marketplace and plugin commands" },
-  { file: `${WORKFLOW}/runtime/lib/collectors.mjs`, callee: "spawn", arg: "resolveProgram(check.command[0])", count: 1, programs: [], policy: true, why: "a command from the project's own delivery policy, collecting test evidence (resolveProgram resolves it on Windows first, B79)" },
-  { file: `${WORKFLOW}/runtime/lib/delivery.mjs`, callee: "spawn", arg: "resolveProgram(check.command[0])", count: 1, programs: [], policy: true, why: "a command from the shared repository's delivery policy, run by the gate (resolveProgram resolves it on Windows first, B79)" },
-  { file: `${WORKFLOW}/runtime/lib/gate.mjs`, callee: "spawn", arg: "resolveProgram(run.argv[0])", count: 1, programs: [], policy: true, why: "a command from the project's own delivery policy, run locally by skilliton gate (resolveProgram resolves it on Windows first, B79)" },
-  { file: `${WORKFLOW}/runtime/lib/gate.mjs`, callee: "spawn", arg: "run.shell", count: 1, programs: ["sh", "npm"], why: "skilliton gate runs npm run verify (package.json's verify script), or the command a person gave after --cmd, through the shell" },
-  { file: `${WORKFLOW}/runtime/lib/delivery-install.mjs`, callee: "runProgram", arg: "runtimePath", count: 1, programs: ["bash", "node"], why: "delivery install probes the workflow plugin's bin/skilliton launcher, a bash script that runs node" },
-  { file: `${WORKFLOW}/runtime/lib/usage.mjs`, callee: "runProgram", arg: "process.execPath", count: 2, programs: ["node"], why: "skilliton usage runs the project's own meter (scripts/token-cost.mjs) and, before believing a number from it, the test beside it" },
-  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "spawn", arg: "file", count: 1, programs: [], why: "inside startOnce, the wrapper that waits for one program in its own process group and kills the group when it will not stop; every caller of it is read below" },
-  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "startOnce", arg: "bash.path", count: 1, programs: ["bash"], why: "on Windows the probe script is run by Git Bash, which is how Claude Code runs a hook there" },
-  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "startOnce", arg: "probe", count: 1, programs: ["env", "bash"], why: "preflight runs the plugin's own probe script by its path, so its first line starts env and bash, the way Claude Code runs a hook" },
-  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, callee: "startOnce", arg: "path", count: 1, programs: [], table: "PROGRAMS", why: "preflight starts each program from the PROGRAMS table in the same file once, with --version; the table is checked against section 1 below" },
-];
 
 // Programs that run whatever file or text they are given, so what they are given has to be read too. awk is one of
 // them: its first argument is a program, and that program can start commands (system(), a pipe into getline).
@@ -134,89 +114,9 @@ const embeddedPatterns = (base) => [...EMBEDDED_COMMANDS, ...(EMBEDDED_BY_LANGUA
 const startsACommand = (base, program) => embeddedPatterns(base).some((re) => re.test(program))
   || (AWK.includes(base) && AWK_PIPE.test(withoutStrings(program)));
 
-// Every place a script hands an interpreter something this reader cannot follow: a path built from a variable
-// ("expansion") or a program written into the script itself ("inline"). `target`, when given, is a file this test must
-// already read; `count` is how many such places the file has, so a new one has to be looked at.
-export const INTERPRETER_TARGETS = [
-  { file: `${PLUGIN}/guardrails/hooks/session-start-guardrails.sh`, command: "bash", kind: "expansion", count: 1, target: `${PLUGIN}/guardrails/hooks/guard-bash.sh`, why: "the guardrails hook beside it, asked for the one status line it prints" },
-  { file: `${WORKFLOW}/bin/skilliton`, command: "node", kind: "expansion", count: 1, target: `${WORKFLOW}/runtime/skilliton.mjs`, why: "the runtime this launcher exists to start" },
-  { file: `${PLUGIN}/guardrails/hooks/guard-bash.sh`, command: "node", kind: "inline", count: 2, target: null, why: "two short programs written into this file, reading the hook's JSON input and a project's settings" },
-  { file: `${PLUGIN}/guardrails/hooks/guard-bash.sh`, command: "python3", kind: "inline", count: 2, target: null, why: "the same two programs in Python, for a machine with no jq and no node" },
-  { file: `${WORKFLOW}/hooks/session-start-handoff.sh`, command: "node", kind: "inline", count: 2, target: null, why: "two short programs written into this file, reading the hook's input and the project's settings" },
-  { file: `${WORKFLOW}/hooks/session-start-handoff.sh`, command: "python3", kind: "inline", count: 2, target: null, why: "the same two programs in Python" },
-  { file: "scripts/scrub-check.sh", command: "bash", kind: "expansion", count: 2, target: "scripts/scrub-check.sh", why: "its own self-test runs this same script twice, to prove each scan can fail" },
-  { file: `${PLUGIN}/context-hygiene/hooks/session-start-checklist.sh`, command: "awk", kind: "inline", count: 1, target: null, why: "the program that takes one bounded section out of the lessons file; it starts nothing" },
-  { file: `${PLUGIN}/guardrails/hooks/guard-bash.sh`, command: "awk", kind: "inline", count: 1, target: null, why: "the program that splits a shell command into words for the guardrails check; it starts nothing" },
-];
-
-// Commands in a shell script whose program is an expansion: what they run, how many such commands the file has, and
-// the arguments they are given, so the command can neither multiply nor change into something else unnoticed.
-export const SHELL_DYNAMIC = [
-  { file: `${WORKFLOW}/runtime/preflight/probe.sh`, text: '"$path"', count: 1, args: ["--version"], why: "the program the preflight check asked about, found with command -v; the names come from the PROGRAMS table in runtime/lib/preflight.mjs" },
-  { file: `${WORKFLOW}/evals/security-status-honest/fixture.sh`, text: '"$skilliton"', count: 1, args: null, why: "this plugin's own bin/skilliton, setting up an evaluation case; eval fixtures run only in a company's evaluation runs" },
-  { file: `${WORKFLOW}/evals/task-start-records-work/fixture.sh`, text: '"$skilliton"', count: 1, args: null, why: "the same" },
-];
-
-// Programs the allow list names that Skilliton does not start itself, with what does.
-export const STARTED_BY_OTHERS = [
-  ["ssh-keygen", "git starts it to make and check SSH signatures (gpg.format=ssh), in verify, join and release"],
-  ["/bin/sh", "Claude Code runs each hook command through a shell (sh -c on macOS and Linux), and the launcher join writes begins with #!/bin/sh"],
-  ["sh", "the same shell, named without its path"],
-];
-
-// Where the code reaches outside a repository and its section 2 location; matched against the file, so an edit brings someone back here.
-export const OUTSIDE_A_REPOSITORY = [
-  [`${WORKFLOW}/runtime/lib/core.mjs`, "const HOME = homedir();", "the backups folder ~/.claude/backups/skilliton/ and short paths in messages"],
-  [`${WORKFLOW}/runtime/lib/join.mjs`, 'process.env.SKILLITON_JOIN_DIR || join(homedir(), ".config", "skilliton", "joined")', "~/.config/skilliton/joined/<company>.json"],
-  [`${WORKFLOW}/runtime/lib/join.mjs`, 'binDir ?? join(homedir(), ".local", "bin")', "~/.local/bin/skilliton"],
-  [`${WORKFLOW}/runtime/lib/trust.mjs`, 'process.env.SKILLITON_TRUST_DIR || join(homedir(), ".config", "skilliton", "trust")', "~/.config/skilliton/trust/<company>.allowed_signers"],
-  [`${WORKFLOW}/runtime/lib/verify.mjs`, 'process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude")', "Claude Code's own folder, read, and written by its own commands"],
-  [`${WORKFLOW}/runtime/lib/verify.mjs`, 'process.env.CODEX_HOME || join(homedir(), ".codex")', "Codex's own folder, read, and created by join when it is missing"],
-  [`${WORKFLOW}/runtime/lib/skill-drift.mjs`, 'process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude")', "Claude Code's own folder, read only by the session start to compare a project's skill copies"],
-  [`${WORKFLOW}/runtime/lib/preflight.mjs`, "process.env.HOME !== pinned.home", "nothing: it compares this session's home folder with the one the system records, to say which the reachability check read"],
-  [`${WORKFLOW}/runtime/lib/preflight.mjs`, "the home folder the system records for this user", "nothing: the same comparison, printed"],
-  [`${WORKFLOW}/runtime/lib/legacy-names.mjs`, 'join(homedir(), ".config", OLD)', "the folder used before the rename, named in messages and never written"],
-  [`${WORKFLOW}/runtime/lib/delivery.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-delivery-"))', "$TMPDIR/skilliton-delivery-*, removed when the gate finishes"],
-  [`${WORKFLOW}/runtime/commands/propose.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-propose-"))', "$TMPDIR/skilliton-propose-*, removed when propose finishes"],
-  [`${WORKFLOW}/runtime/commands/join.mjs`, 'mkdtempSync(joinPath(tmpdir(), "skilliton-join-"))', "$TMPDIR/skilliton-join-*, the signers text from a join file held for the trust step and removed when join finishes"],
-  [`${WORKFLOW}/runtime/lib/preflight.mjs`, 'resolve(binDir ?? join(homedir(), ".local", "bin"))', "~/.local/bin, tested with a file the check removes again"],
-  [`${WORKFLOW}/runtime/lib/preflight.mjs`, "{ path: tmpdir(), what:", "the temporary folder, tested the same way"],
-  [`${WORKFLOW}/runtime/lib/preflight.mjs`, 'mkdtempSync(join(tmpdir(), "skilliton-preflight-git-"))', "an empty folder in the temporary folder, so the reachability check reads no repository's configuration; removed again straight away"],
-  [`${WORKFLOW}/runtime/lib/preflight.mjs`, "madeTemp = makeFolderChain(tmpdir())", "the temporary folder, made again for the reachability check after the folder test removed it, and taken away again with every folder that had to be made for it"],
-  [`${WORKFLOW}/runtime/lib/preflight.mjs`, "the temporary folder ${tilde(tmpdir())} could not be used", "the message that names the temporary folder when it cannot be used"],
-  [`${PLUGIN}/context-hygiene/hooks/statusline-quota.sh`, 'LOG="${SKILLITON_USAGE_LOG:-$HOME/.claude/skilliton/usage-log.jsonl}"', "~/.claude/skilliton/usage-log.jsonl"],
-  [`${PLUGIN}/context-hygiene/hooks/read-guard.mjs`, ': join(homedir(), ".claude", "skilliton", "read-guard.log");', "~/.claude/skilliton/read-guard.log, one line per refused read"],
-  [`${PLUGIN}/context-hygiene/hooks/statusline-quota.sh`, 'KEYS_LOG="${SKILLITON_KEYS_LOG:-$HOME/.claude/skilliton/statusline-keys-seen.log}"', "~/.claude/skilliton/statusline-keys-seen.log"],
-  [`${PLUGIN}/context-hygiene/hooks/config-drift-check.sh`, 'SETTINGS="${SKILLITON_SETTINGS:-$HOME/.claude/settings.json}"', "Claude Code's settings, read only"],
-  [`${PLUGIN}/context-hygiene/hooks/config-drift-check.sh`, 'PROJECTS="${SKILLITON_PROJECTS:-$HOME/.claude/projects}"', "Claude Code's transcripts, read only"],
-  [`${PLUGIN}/guardrails/hooks/guard-bash.sh`, "'~') RESOLVED=${HOME:-} ;;", "reads HOME to work out which folder a command would run in"],
-  [`${PLUGIN}/guardrails/hooks/guard-bash.sh`, `'~/'*) if [ -n "\${HOME:-}" ]; then RESOLVED="$HOME/\${a#'~/'}"; else RESOLVED=""; fi ;;`, "the same"],
-  [`${PLUGIN}/guardrails/hooks/guard-bash.sh`, 'if [ "$k" -ge "$n" ]; then EFF_DIR=${HOME:-}; return 0; fi', "the same, for a bare cd"],
-  ["scripts/setup.mjs", "const HOME = homedir();", "~/.claude/settings.json and ~/.claude/backups/skilliton/, for the optional status line"],
-  [`${WORKFLOW}/runtime/lib/core.mjs`, 'const BACKUPS = process.env.SKILLITON_BACKUPS || join(HOME, ".claude", "backups", "skilliton")', "~/.claude/backups/skilliton/, the copy taken before a file outside a repository is changed"],
-  [`${WORKFLOW}/runtime/lib/core.mjs`, "const dir = join(BACKUPS, command,", "a folder per command and time under that backups folder"],
-  [`${WORKFLOW}/runtime/lib/doctor.mjs`, 'const ext = join(HOME, editor, "extensions")', "editor extension folders, read by doctor to find a bundled Claude Code"],
-  [`${WORKFLOW}/runtime/lib/lifecycle.mjs`, 'const installsPath = join(HOME, ".claude", "plugins", "installed_plugins.json")', "Claude Code's install records, read by the session start so it can say whether the plugins this project enables are installed for this user"],
-  [`${WORKFLOW}/runtime/lib/doctor.mjs`, ': join(HOME, ".claude.json"), stateLabel:', "whether Claude Code has ever run under this home folder, read by doctor; its settings, marketplace and install records are read from lib/verify.mjs's folder above"],
-  ["scripts/setup.mjs", 'const SETTINGS = process.env.SKILLITON_SETTINGS ?? join(HOME, ".claude", "settings.json")', "~/.claude/settings.json, where the optional status line is set"],
-  ["scripts/setup.mjs", 'const BACKUPS = process.env.SKILLITON_BACKUPS ?? join(HOME, ".claude", "backups", "skilliton")', "~/.claude/backups/skilliton/, the copy taken before the settings are changed"],
-  ["scripts/setup.mjs", 'const earlier = join(HOME, ".claude", "backups", ', "the backups folder used before the rename, named in a message and never read"],
-  ["scripts/setup.mjs", "const bdir = join(BACKUPS, dirs[dirs.length - 1])", "the newest backup, read by --undo"],
-  ["scripts/setup.mjs", "const bdir = join(BACKUPS, stamp)", "the backup this run writes"],
-  ["scripts/scrub-check.sh", 'DENY="${SKILLITON_DENYLIST:-$HOME/.config/skilliton/denylist}"', "the private denylist, read only"],
-  ["scripts/scrub-check.sh", 'LEGACY_DENY="$HOME/.config/', "the denylist location used before the rename, named and never read"],
-  ["scripts/scrub-check.sh", 'hits=$(printf \'%s\\n\' "$files" | tr \'\\n\' \'\\0\' | xargs -0 grep -H -I -n -E "$HOMEPATH" 2>/dev/null)', "a pattern for home paths in files, not a folder"],
-  ["scripts/scrub-check.sh", 'n=$(printf \'%s\\n\' "$log" | grep -c -E "$HOMEPATH")', "the same pattern"],
-];
 // Also the module-level constants a file may reuse (core.mjs's HOME and BACKUPS), so a new path built from one of
 // them is a new place the code reaches, not an invisible line.
 const OUTSIDE_RE = /homedir\(\)|process\.env\.HOME|tmpdir\(\)|\$\{?HOME\}?|\$\{?TMPDIR|(?:join|resolve)\(\s*(?:HOME|BACKUPS)\b/;
-
-// Network use the allow list permits. Each entry must also be named in section 4; with none, section 4 says the code
-// makes no requests of its own, and this test holds it to that.
-export const ALLOWED_NETWORK = [
-  { file: `${WORKFLOW}/runtime/lib/preflight.mjs`, text: '"ls-remote"', docPhrase: "git ls-remote --heads https://github.com/<owner>/<repo>", why: "the preflight check asks whether this machine can reach the company's plugin repository" },
-];
 
 const GIT_WRAPPERS = { [`${PLUGIN}/guardrails/hooks/guard-bash.sh`]: ["g"] };
 
@@ -278,11 +178,11 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
     for (const p of shellProblems) problems.push(`${path}:${p.line}: ${p.text}`);
     for (const d of dynamic) {
       const entry = shellDynamic.find((e) => e.file === path && e.text === d.text);
-      if (!entry) { problems.push(`${path}:${d.line}: the command ${d.text} is an expansion, so the program it starts cannot be read; add it to SHELL_DYNAMIC in scripts/allowlist.test.mjs with what it runs`); continue; }
+      if (!entry) { problems.push(`${path}:${d.line}: the command ${d.text} is an expansion, so the program it starts cannot be read; add it to SHELL_DYNAMIC in scripts/allowlist-tables.mjs with what it runs`); continue; }
       entry.seen = (entry.seen ?? 0) + 1;
       const given = d.args.map((a) => a ?? "<a variable>");
       if (entry.args && JSON.stringify(given) !== JSON.stringify(entry.args)) {
-        problems.push(`${path}:${d.line}: ${d.text} is now given ${given.join(" ") || "no arguments"}, and SHELL_DYNAMIC in scripts/allowlist.test.mjs says ${entry.args.join(" ")}; what this starts has changed`);
+        problems.push(`${path}:${d.line}: ${d.text} is now given ${given.join(" ") || "no arguments"}, and SHELL_DYNAMIC in scripts/allowlist-tables.mjs says ${entry.args.join(" ")}; what this starts has changed`);
       }
     }
     // An interpreter runs whatever it is given, so the file or program it is given is read too, or said out loud.
@@ -318,7 +218,7 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
       if (typeof c.heredoc === "string") {
         if (startsACommand(base, c.heredoc)) problems.push(`${path}:${c.line}: the ${base} program in the here-document here starts a command of its own (${c.heredoc.trim().slice(0, 60)}), which this reader cannot follow`);
         const entry = interpreterTargets.find((e) => e.file === path && e.command === base && e.kind === "here-document");
-        if (!entry) { problems.push(`${path}:${c.line}: it runs ${base} with a program in a here-document, which this reader follows only far enough to see whether it starts a command; add it to INTERPRETER_TARGETS in scripts/allowlist.test.mjs with what it runs`); continue; }
+        if (!entry) { problems.push(`${path}:${c.line}: it runs ${base} with a program in a here-document, which this reader follows only far enough to see whether it starts a command; add it to INTERPRETER_TARGETS in scripts/allowlist-tables.mjs with what it runs`); continue; }
         entry.seen = (entry.seen ?? 0) + 1;
         continue;
       }
@@ -353,7 +253,7 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
         continue;
       }
       const entry = interpreterTargets.find((e) => e.file === path && e.command === base && e.kind === kind);
-      if (!entry) { problems.push(`${path}:${c.line}: it runs ${base} with ${kind === "inline" ? "a program written into the script" : "a file named by an expansion"}, which this reader cannot follow; add it to INTERPRETER_TARGETS in scripts/allowlist.test.mjs with what it runs`); continue; }
+      if (!entry) { problems.push(`${path}:${c.line}: it runs ${base} with ${kind === "inline" ? "a program written into the script" : "a file named by an expansion"}, which this reader cannot follow; add it to INTERPRETER_TARGETS in scripts/allowlist-tables.mjs with what it runs`); continue; }
       entry.seen = (entry.seen ?? 0) + 1;
       if (entry.target && !files.shell.includes(entry.target) && !files.js.includes(entry.target)) {
         problems.push(`${path}:${c.line}: INTERPRETER_TARGETS says it runs ${entry.target}, which this test does not read`);
@@ -392,7 +292,7 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
       const key = `${path} ${call.callee}(${call.arg})`;
       const entry = expected.get(key);
       if (!entry) {
-        problems.push(`${path}:${call.line}: ${call.callee}(${call.arg}) does not say which program it starts; add it to DYNAMIC_CALLS in scripts/allowlist.test.mjs with what it runs, and to ${ALLOWLIST_DOC}`);
+        problems.push(`${path}:${call.line}: ${call.callee}(${call.arg}) does not say which program it starts; add it to DYNAMIC_CALLS in scripts/allowlist-tables.mjs with what it runs, and to ${ALLOWLIST_DOC}`);
         continue;
       }
       entry.seen++;
@@ -400,13 +300,13 @@ export function programsFromCode(files = scopeFiles(), readFile = read, shellDyn
     }
   }
   for (const [key, entry] of expected) {
-    if (entry.seen !== entry.count) problems.push(`DYNAMIC_CALLS in scripts/allowlist.test.mjs expects ${entry.count} call(s) of ${key}, but the code has ${entry.seen}; check what changed and update both this list and ${ALLOWLIST_DOC}`);
+    if (entry.seen !== entry.count) problems.push(`DYNAMIC_CALLS in scripts/allowlist-tables.mjs expects ${entry.count} call(s) of ${key}, but the code has ${entry.seen}; check what changed and update both this list and ${ALLOWLIST_DOC}`);
   }
   for (const entry of interpreterTargets) {
-    if ((entry.seen ?? 0) !== entry.count) problems.push(`INTERPRETER_TARGETS in scripts/allowlist.test.mjs expects ${entry.count} place(s) where ${entry.file} runs ${entry.command} with ${entry.kind === "inline" ? "a program written into it" : "a file named by an expansion"}, but it has ${entry.seen ?? 0}; read what changed`);
+    if ((entry.seen ?? 0) !== entry.count) problems.push(`INTERPRETER_TARGETS in scripts/allowlist-tables.mjs expects ${entry.count} place(s) where ${entry.file} runs ${entry.command} with ${entry.kind === "inline" ? "a program written into it" : "a file named by an expansion"}, but it has ${entry.seen ?? 0}; read what changed`);
   }
   for (const entry of shellDynamic) {
-    if ((entry.seen ?? 0) !== entry.count) problems.push(`SHELL_DYNAMIC in scripts/allowlist.test.mjs expects ${entry.count} command(s) written ${entry.text} in ${entry.file}, but the file has ${entry.seen ?? 0}; check what changed`);
+    if ((entry.seen ?? 0) !== entry.count) problems.push(`SHELL_DYNAMIC in scripts/allowlist-tables.mjs expects ${entry.count} command(s) written ${entry.text} in ${entry.file}, but the file has ${entry.seen ?? 0}; check what changed`);
   }
   return { found, problems, policy: DYNAMIC_CALLS.some((d) => d.policy) };
 }
@@ -450,10 +350,10 @@ export function checkPrograms(found, doc) {
   const named = new Set(STARTED_BY_OTHERS.map(([p]) => p));
   for (const [program] of list.programs) {
     if (found.has(program) || named.has(program)) continue;
-    violations.push(`section 1 of ${ALLOWLIST_DOC} names ${program}, but nothing in the code starts it; remove the row, or add it to STARTED_BY_OTHERS in scripts/allowlist.test.mjs with what does`);
+    violations.push(`section 1 of ${ALLOWLIST_DOC} names ${program}, but nothing in the code starts it; remove the row, or add it to STARTED_BY_OTHERS in scripts/allowlist-tables.mjs with what does`);
   }
   for (const [program, why] of STARTED_BY_OTHERS) {
-    if (!list.programs.has(program)) violations.push(`STARTED_BY_OTHERS in scripts/allowlist.test.mjs says ${program} is started by ${why}, but section 1 of ${ALLOWLIST_DOC} does not name it`);
+    if (!list.programs.has(program)) violations.push(`STARTED_BY_OTHERS in scripts/allowlist-tables.mjs says ${program} is started by ${why}, but section 1 of ${ALLOWLIST_DOC} does not name it`);
   }
   return violations;
 }
@@ -486,11 +386,11 @@ export function checkOutsideReach(files = scopeFiles(), readFile = read, listed 
       if (!OUTSIDE_RE.test(line)) return;
       const entry = remaining.find((e) => e.file === path && line.includes(e.text));
       if (entry) { entry.seen++; return; }
-      violations.push(`${path}:${i + 1} reaches outside a repository (${line.trim().slice(0, 120)}), which OUTSIDE_A_REPOSITORY in scripts/allowlist.test.mjs does not list; add it with the section 2 location it writes, and update ${ALLOWLIST_DOC}`);
+      violations.push(`${path}:${i + 1} reaches outside a repository (${line.trim().slice(0, 120)}), which OUTSIDE_A_REPOSITORY in scripts/allowlist-tables.mjs does not list; add it with the section 2 location it writes, and update ${ALLOWLIST_DOC}`);
     });
   }
   for (const e of remaining) {
-    if (!e.seen) violations.push(`OUTSIDE_A_REPOSITORY in scripts/allowlist.test.mjs lists ${e.file} (${e.what}), but that line is no longer there; check what replaced it`);
+    if (!e.seen) violations.push(`OUTSIDE_A_REPOSITORY in scripts/allowlist-tables.mjs lists ${e.file} (${e.what}), but that line is no longer there; check what replaced it`);
   }
   return violations;
 }
@@ -501,8 +401,8 @@ export function checkNetwork(files = scopeFiles(), readFile = read, doc = read(A
   const violations = [];
   for (const hit of networkUses(files, readFile, GIT_WRAPPERS)) {
     const entry = allowed.find((a) => a.file === hit.path && hit.text.includes(a.text));
-    if (!entry) { violations.push(`${hit.path}:${hit.line} uses ${hit.what} (${hit.text}), which section 4 of ${ALLOWLIST_DOC} says the code does not do; either take it out, or add it to ALLOWED_NETWORK in scripts/allowlist.test.mjs and say so in section 4`); continue; }
-    if (!doc.includes(entry.docPhrase)) violations.push(`ALLOWED_NETWORK in scripts/allowlist.test.mjs allows ${entry.text} in ${entry.file}, but ${ALLOWLIST_DOC} does not say "${entry.docPhrase}"`);
+    if (!entry) { violations.push(`${hit.path}:${hit.line} uses ${hit.what} (${hit.text}), which section 4 of ${ALLOWLIST_DOC} says the code does not do; either take it out, or add it to ALLOWED_NETWORK in scripts/allowlist-tables.mjs and say so in section 4`); continue; }
+    if (!doc.includes(entry.docPhrase)) violations.push(`ALLOWED_NETWORK in scripts/allowlist-tables.mjs allows ${entry.text} in ${entry.file}, but ${ALLOWLIST_DOC} does not say "${entry.docPhrase}"`);
   }
   const s4 = section(doc, "## 4. Network") ?? "";
   if (!allowed.length && !/none of its own/.test(s4)) violations.push(`nothing in the code contacts a network, but section 4 of ${ALLOWLIST_DOC} no longer says "none of its own"`);
