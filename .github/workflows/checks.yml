@@ -124,6 +124,9 @@ jobs:
         run: node --test scripts/read-guard.test.mjs
       - name: Gate command (checks as a verdict, output in a log)
         run: node --test scripts/gate.test.mjs
+
+      - name: A failing gate verdict separates the change from the machine (B77)
+        run: node scripts/gate-context.test.mjs
       - name: Stack detection (what prepare reads from a repository)
         run: node --test scripts/stack.test.mjs
 
@@ -186,6 +189,18 @@ jobs:
 
       - name: Tasks, checkpoints, status and lifecycle hooks
         run: node scripts/lifecycle.test.mjs
+
+      - name: The first stop of a session that changed files and recorded nothing is held once (holdFirstStop)
+        run: node scripts/stop-first.test.mjs
+
+      - name: A task drifting from its criteria is noticed at the stop hook (B74)
+        run: node scripts/task-drift.test.mjs
+
+      - name: A task with many checkpoints or an old first one is noted (B74)
+        run: node scripts/checkpoint-growth.test.mjs
+
+      - name: A skill copy that differs from the installed one is named at session start (B76)
+        run: node scripts/skill-drift.test.mjs
 
       - name: The tasks index does not churn on a checkpoint that changes nothing the table shows
         run: node --test scripts/index-churn.test.mjs
