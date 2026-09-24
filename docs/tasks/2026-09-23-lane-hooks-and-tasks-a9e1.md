@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/hooks-and-tasks-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T15:26:53.154Z
+- **Updated:** 2026-09-24T15:32:34.978Z
 
 ## Request
 
@@ -48,9 +48,16 @@ not yet written
 - **Next:** Main window: name ps in docs/IT-ALLOWLIST.md section 1 and in lib/preflight.mjs PROGRAMS, add the CI steps for the four new test files, update docs/CONTRACTS.md for holdFirstStop, the drift sentence, the skill copy line and the two gate lines
 - **Git:** lane/hooks-and-tasks-0924 @ 2391577, 1 uncommitted
 
+### 2026-09-24T15:32:34.978Z
+
+- **State:** Correction to the last checkpoint: N15's verify.mjs import (2391577) failed the lifecycle case that stubs migrations.mjs, so d7f6134 restores skill-drift.mjs's own config folder rule; allowlist.test.mjs is now red on two lines (ps in gate.mjs, and skill-drift.mjs reading Claude Code's folder), both needing docs/IT-ALLOWLIST.md and scripts/allowlist.test.mjs, outside this lane
+- **Evidence:** after d7f6134: lifecycle 59 pass, skill-drift 4, task-drift 4, stop-first 7, gate-context 7, checkpoint-growth 4, hook-fixture PASS; lint, lint-shape, docs, names, scrub-check, deadcode, footprint, skilliton.test exit 0; allowlist exit 1 with those two lines
+- **Next:** Main window: the allow list rows and the preflight PROGRAMS entry for ps, the CI steps, and docs/CONTRACTS.md, as LANE_REPORT.md lists
+- **Git:** lane/hooks-and-tasks-0924 @ d7f6134, 0 uncommitted
+
 ## Handoff
 
-- **State:** All six items committed (N14 e80c78c, N15 8a3050a and 2391577, N16 44e64cc, N17 ee9a122, N18 103aee6, N33 8eb9185); allowlist.test.mjs is red on one line: gate.mjs now starts ps, which docs/IT-ALLOWLIST.md section 1 and the preflight PROGRAMS table do not name (main-only and outside this lane). Evidence: hook-fixture, checkpoint-growth, gate-context, skill-drift, task-drift, stop-first, lifecycle (59 pass), preflight (24 pass, 32 s alone), lint, lint-shape, docs, names, scrub-check, deadcode, footprint, skilliton.test all exit 0; allowlist exit 1 (ps not named).
-- **Next:** Main window: name ps in docs/IT-ALLOWLIST.md section 1 and in lib/preflight.mjs PROGRAMS, add the CI steps for the four new test files, update docs/CONTRACTS.md for holdFirstStop, the drift sentence, the skill copy line and the two gate lines
+- **State:** Correction to the last checkpoint: N15's verify.mjs import (2391577) failed the lifecycle case that stubs migrations.mjs, so d7f6134 restores skill-drift.mjs's own config folder rule; allowlist.test.mjs is now red on two lines (ps in gate.mjs, and skill-drift.mjs reading Claude Code's folder), both needing docs/IT-ALLOWLIST.md and scripts/allowlist.test.mjs, outside this lane. Evidence: after d7f6134: lifecycle 59 pass, skill-drift 4, task-drift 4, stop-first 7, gate-context 7, checkpoint-growth 4, hook-fixture PASS; lint, lint-shape, docs, names, scrub-check, deadcode, footprint, skilliton.test exit 0; allowlist exit 1 with those two lines.
+- **Next:** Main window: the allow list rows and the preflight PROGRAMS entry for ps, the CI steps, and docs/CONTRACTS.md, as LANE_REPORT.md lists
 - **Blocked:** nothing
 - **Watch out:** nothing known
