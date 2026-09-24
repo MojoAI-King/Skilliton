@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/usage-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T15:50:42.099Z
+- **Updated:** 2026-09-24T16:13:29.613Z
 
 ## Request
 
@@ -77,9 +77,16 @@ not yet written
 - **Next:** full suite run, LANE_REPORT.md
 - **Git:** lane/usage-0924 @ cc4a43d, 8 uncommitted
 
+### 2026-09-24T16:13:29.613Z
+
+- **State:** All seven items done and committed (N1 to N7, plus one N4 fix); LANE_REPORT.md written, not committed
+- **Evidence:** every suite the brief names exits 0, each read on its own line, plus lifecycle, maintain-due, records and the remaining 34 scripts suites; token-cost --reference reproduces the known window on this machine
+- **Next:** main: merge this lane, add CI steps for scripts/usage-ledger.test.mjs and scripts/dispatch-close.test.mjs, update docs/CONTRACTS.md sections 6 and 17, docs/USAGE_BASELINE.md step 6, the dispatch skill's six headings, and config.mjs for dispatch.contextCeiling
+- **Git:** lane/usage-0924 @ 676fabb, 0 uncommitted
+
 ## Handoff
 
-- **State:** N6 done: dispatch close prints each merged lane folder's own cost and peak context from the meter (--by-project --project-dir <lane folder>) against the context bound (dispatch.contextCeiling when set, else 200000), names each lane past it, and with --apply appends the same lines under Cost and peak context in the lane's LANE_REPORT.md (before LANE DONE, once); lane.md and the brief name the sixth heading; the maintain batch row carries per-lane figures for lanes closed as merged in its window, by lane name only. Evidence: node --test scripts/dispatch-close.test.mjs 4 of 4 (alpha past the bound, beta under it, gamma unmerged and unmeasured, the report section before LANE DONE and not appended twice); usage-ledger.test 8 of 8 incl. the lane figures case with no folder name or path in the file; dispatch, usage, lint, lint-shape, allowlist, deadcode, footprint, docs, names, skilliton, packs exit 0; this lane folder has no transcript folder of its own (the meter reports it absent), so this lane's own figures are not measured.
-- **Next:** full suite run, LANE_REPORT.md
+- **State:** All seven items done and committed (N1 to N7, plus one N4 fix); LANE_REPORT.md written, not committed. Evidence: every suite the brief names exits 0, each read on its own line, plus lifecycle, maintain-due, records and the remaining 34 scripts suites; token-cost --reference reproduces the known window on this machine.
+- **Next:** main: merge this lane, add CI steps for scripts/usage-ledger.test.mjs and scripts/dispatch-close.test.mjs, update docs/CONTRACTS.md sections 6 and 17, docs/USAGE_BASELINE.md step 6, the dispatch skill's six headings, and config.mjs for dispatch.contextCeiling
 - **Blocked:** nothing
 - **Watch out:** nothing known
