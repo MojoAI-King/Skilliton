@@ -22,9 +22,21 @@ The message names the file and the rule, never the secret itself. Removing a sec
 
 ## Asks for confirmation first
 
+What follows is the full list of confirmations; the Modes section below says which of them quiet mode, the default, answers by itself.
+
 These throw away work that was never committed: `git reset --hard` (or a start of it such as `--har`), `git clean -f` (not with `-n`), `git checkout .` or `git checkout -- .`, `git checkout -f` (with or without a branch), `git checkout -- <path>`, `git checkout -B` and `git switch -C` (which move an existing branch), `git switch -f` or `--discard-changes`, `git restore <path>` or `git restore -W <path>` (every restore that touches the working tree asks, even for one path, because one modified path is still a discard; `--staged` alone only unstages), `git rm -f` (not with `--cached`), `git worktree remove --force`, `rm -rf .git`, `git stash drop`, `git stash clear`, `git branch -D`. Before the user confirms, offer the safer step from the message: commit or stash first, preview with `git clean -n`, or use `git branch -d`.
 
 These switch hooks off without touching the rules, so they ask too: a shell command that writes, copies over, moves over or removes the client's settings file (`.claude/settings.json` or `.claude/settings.local.json`, spelled with `./`, `$PWD/`, another folder in front or an absolute path too, by a redirection, a heredoc, `tee`, `cp`, `mv`, `install` or `ln -sf` onto it, `truncate`, `touch`, `sed -i`, `rm`, `mv` away, `git rm`, or `rm -rf .claude`), whatever it holds, while reading it (`cat`, `jq .`, `cp` from it) goes through; a `python3 -c` or `node -e` naming it when the command's text or the file as it is now holds `hooks`, `disableAllHooks` or `enabledPlugins`; and creating the opt-out file `.skilliton-off` (or `skilliton-off` inside the Git folder) by any command, because while it is there every workflow hook stays silent. A hook manager's own switch in front of a git commit or push (`HUSKY=0`, `SKIP=...`, `LEFTHOOK=0`) asks, because it skips the hooks the way `--no-verify` does. So does `remote.<name>.push` set for one push, `push.default` set for a force-push, and an alias set for the command whose body pushes, commits or discards work. A branch or a path guardrails cannot resolve asks too: a variable, `${...}`, `$'...'` or a command substitution in a force-push's remote or branch, or in the path of `rm -rf`; `$PWD` and `$CLAUDE_PROJECT_DIR` are read as the folders they name. A variable is not looked up even when the same command line sets it. Keeping a repository out of Skilliton, or turning hooks off, is a person's decision.
+
+## Modes: quiet, strict, fleet
+
+Since 2026-09-24 the default is **quiet**: the hook answers each confirmation itself instead of stopping a person, because a guard that asks all day is not used, and a machine that builds unattended has nobody to answer. What becomes of a confirmation depends on what it was about:
+
+- **Refused, with the fix**, when the assistant can rewrite the command so it can be checked: edits that would be lost (commit or `git stash` them first, then run it again), a path or branch held in a variable or a command substitution (write it out), a `git add` or `git commit` in a folder that is not a repository yet (run `git init` on its own first), a command too long or with a quote that does not close (split it). Nothing ran and nothing was lost: do what the message says and run it again. Never route around it.
+- **Runs, and is noted**, when guardrails cannot read what will run (a script outside the project, `eval` of text made while the command runs, a shell fed from a pipe, `env -S`) or the check itself could not run. One line per command goes to `<git folder>/skilliton/guardrails.jsonl` with the time, the mode, the answer and the reason, never the command text; the session start says the notes are there.
+- **Still asks**, before a rule could be turned off (the client's settings file, `.skilliton/config.json`, `.skilliton-off`, a hook manager's switch, a git alias set on the command, `BASH_ENV`) and before saved work is dropped for good (`git stash drop` or `clear`, `git branch -D`, `git worktree remove --force`, removing the repository or the project root).
+
+**strict** asks for every one, as before. **fleet** refuses every one, for a machine nobody watches. Blocked commands are blocked in every mode. Set the mode with `"mode"` under `guardrails` in `.skilliton/config.json`, or `SKILLITON_GUARDRAILS_MODE` for one session; when both are set the stricter wins, and a value that is none of the three counts as strict, which the session start says.
 
 **In Codex** these are blocked instead. Codex runs no hooks shipped in a plugin, so this hook runs there only when a team configures its own Codex hook and points it at this script; Codex cannot ask for confirmation from a hook (its documentation says the command would simply run), so then every command above, and every command guardrails cannot check (no JSON reader, a folder it cannot work out, too many files, an internal error), is blocked with a message that says so and keeps the usual warning. If the user meant it, they run the command themselves in their own terminal. The hook recognizes Codex from a `turn_id` or `model` field in its input, or from `PLUGIN_ROOT`; `SKILLITON_GUARDRAILS_CLIENT=claude-code` or `codex` sets the client outright. This has not yet been checked in a live Codex session.
 
@@ -33,12 +45,12 @@ These switch hooks off without touching the rules, so they ask too: a shell comm
 `.skilliton/config.json` at the repository root. Every key is optional; these are the defaults:
 
 ```json
-{ "guardrails": { "protectedBranches": ["main", "master"], "blockForcePush": true, "blockNoVerify": true, "blockSecretFiles": true, "protectRecords": true } }
+{ "guardrails": { "protectedBranches": ["main", "master"], "blockForcePush": true, "blockNoVerify": true, "blockSecretFiles": true, "protectRecords": true, "mode": "quiet" } }
 ```
 
 - A person makes these changes in their own editor or terminal. A `Write` or `Edit` by the assistant that would turn a rule off or take a name out of `protectedBranches` is refused, and a shell command that writes the file (a redirection, `tee`, `cp`, `sed -i`, or a `node -e` or `python3 -c` naming it) asks first.
 - Only `false` turns a rule off. `protectedBranches` takes names or simple patterns such as `release/*`. `protectRecords` covers both the shell rule and the managed block guard.
-- The confirm-first prompts have no switch.
+- The confirm-first prompts have no switch of their own; `mode` (`quiet`, `strict` or `fleet`) decides what becomes of them (Modes, above).
 - `SKILLITON_GUARDRAILS=off` in the environment turns every check off for one session, and the session start message says so.
 - If the file cannot be read, the defaults stay on and the session start message says so.
 

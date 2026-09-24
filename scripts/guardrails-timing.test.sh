@@ -35,6 +35,8 @@ export HOME="$TMP/home" GIT_CONFIG_GLOBAL="$TMP/gitconfig" GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
 mkdir -p "$HOME"; : > "$GIT_CONFIG_GLOBAL"
 unset SKILLITON_GUARDRAILS SKILLITON_GUARDRAILS_CLIENT CLAUDE_PROJECT_DIR CLAUDE_PLUGIN_ROOT CLAUDE_PLUGIN_DATA PLUGIN_ROOT PLUGIN_DATA GIT_DIR GIT_WORK_TREE
+# These cases expect the strict answers (every ask asks); scripts/guardrails-modes.test.sh covers the quiet default.
+export SKILLITON_GUARDRAILS_MODE=strict
 
 fails=0; oks=0; notrun=0
 ok()  { echo "ok   $1"; oks=$((oks + 1)); }

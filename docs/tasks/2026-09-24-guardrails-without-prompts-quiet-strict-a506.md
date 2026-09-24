@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/quiet-guard-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T16:51:22.588Z
+- **Updated:** 2026-09-24T19:31:40.550Z
 
 ## Request
 
@@ -29,9 +29,23 @@ not yet written
 
 ## Checkpoints
 
+### 2026-09-24T19:21:41.051Z
+
+- **State:** Guard, skill, plugin.json 0.12.0, five suite pins and the new modes suite written, all uncommitted; guardrails.mode quiet/strict/fleet works: the shipped suites pass as shipped (main 670, review 224, review2 163, timing 16, bypass exit 0), the modes suite 59 of 60 with one stale expectation in its fleet section; replay of 189 asks: 13 ask, 33 fix, 143 noted
+- **Evidence:** bash scripts/guardrails.test.sh and the four others, logs in the session scratchpad; bash scripts/guardrails-modes.test.sh: 1 FAIL (test line), 59 ok; scrub-check PASS
+- **Next:** Owner runs the scratchpad's finish-lane.py (two edits the client's auto-mode check refused twice), then the modes suite, then commit; the two cp lines put the guard on this machine now; main-only docs at merge
+- **Git:** lane/quiet-guard-0924 @ 38a22ad, 9 uncommitted
+
+### 2026-09-24T19:31:40.550Z
+
+- **State:** Installed on this machine by the owner: both plugin caches hold the lane's guard, quiet mode live (an eval ran with no dialog and was noted). Lane still uncommitted (12 paths): the owner ran finish-lane.py, which fixed the fleet test expectation and the skill's defaults JSON; the proposed decision and lesson entries are written; the modes suite run and the commit are the owner's next two commands
+- **Evidence:** Shipped suites as shipped: guardrails.test.sh 670 ok, bypass 144 (wrapping review 224 and review2 163), timing 16; modes suite 59 of 60 before finish-lane.py, rerun pending; scrub-check PASS; notes file in the main checkout's git dir holds three lines, none with command text
+- **Next:** Owner: bash scripts/guardrails-modes.test.sh (expect PASS 60), then git add -A and commit; then the lane merges like the others and main takes CHANGELOG, CONTRACTS, the decision index and the harness template's confirmation sentence
+- **Git:** lane/quiet-guard-0924 @ 38a22ad, 12 uncommitted
+
 ## Handoff
 
-- **State:** not yet written
-- **Next:** not yet written
-- **Blocked:** not yet written
-- **Watch out:** not yet written
+- **State:** Installed on this machine by the owner: both plugin caches hold the lane's guard, quiet mode live (an eval ran with no dialog and was noted). Lane still uncommitted (12 paths): the owner ran finish-lane.py, which fixed the fleet test expectation and the skill's defaults JSON; the proposed decision and lesson entries are written; the modes suite run and the commit are the owner's next two commands. Evidence: Shipped suites as shipped: guardrails.test.sh 670 ok, bypass 144 (wrapping review 224 and review2 163), timing 16; modes suite 59 of 60 before finish-lane.py, rerun pending; scrub-check PASS; notes file in the main checkout's git dir holds three lines, none with command text.
+- **Next:** Owner: bash scripts/guardrails-modes.test.sh (expect PASS 60), then git add -A and commit; then the lane merges like the others and main takes CHANGELOG, CONTRACTS, the decision index and the harness template's confirmation sentence
+- **Blocked:** nothing
+- **Watch out:** nothing known

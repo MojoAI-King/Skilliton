@@ -35,6 +35,8 @@ SKILLITON_IMPORTED_FUNCTIONS=$(declare -F 2>/dev/null)
 #          settings.local.json), whatever it holds (N91; reading it is allowed), or creates the .skilliton-off opt-out
 #          file (N70)
 #   allow  everything else, by printing nothing
+# Modes: quiet (the default since 2026-09-24), strict and fleet decide what becomes of an ask; they are read by
+# effective_mode and applied in emit_decision, with class_of sorting each ask reason. The guardrails skill says why.
 # Under Codex every "ask" is written as "deny", with a reason that says so, because Codex cannot ask
 # for confirmation from a hook: the command would run anyway. See detect_client.
 # A decision is JSON on stdout. The exit status is always 0. A hook that crashes with another
@@ -187,8 +189,78 @@ detect_client() {
   return 0
 }
 
-emit_decision() { # emit_decision <deny|ask> <reason>. Under Codex an ask is written as a deny.
+# The mode variables. Every one is set here before any function that reads them can run, so an unset name cannot
+# make a rule crash into the internal-error path.
+CFG_MODE=""; GMODE=quiet; GMODE_NOTE=""; ASK_CLASS=0; CLS=0
+QUIET_FIX_LEAD="Refused instead of asking (guardrails quiet mode): nothing ran, nothing was lost, and nobody needs to confirm. Do what the reason says, then run it again: commit or git stash the edits that would be lost; write a folder, path or branch out in full instead of a variable or a command substitution; run git init as its own command first; or split a long or unbalanced command into shorter ones. What guardrails found:"
+FLEET_LEAD="Refused (guardrails fleet mode): a fleet machine has nobody to confirm a command, so it runs only what guardrails can read and check. What would have been asked:"
+
+effective_mode() { # sets GMODE to quiet, strict or fleet from SKILLITON_GUARDRAILS_MODE and guardrails.mode; the stricter wins
+  local v r=0
+  GMODE_NOTE=""
+  for v in "${SKILLITON_GUARDRAILS_MODE:-}" "$CFG_MODE"; do
+    case "$v" in
+      "") ;;
+      quiet) [ "$r" -ge 1 ] || r=1 ;;
+      strict) [ "$r" -ge 2 ] || r=2 ;;
+      fleet) r=3 ;;
+      *) [ "$r" -ge 2 ] || r=2
+         GMODE_NOTE="Note: SKILLITON_GUARDRAILS_MODE or guardrails.mode holds something other than quiet, strict or fleet, so strict was used." ;;
+    esac
+  done
+  case "$r" in 3) GMODE=fleet ;; 2) GMODE=strict ;; *) GMODE=quiet ;; esac
+}
+
+class_of() { # class_of <reason>: sets CLS to 3 (still asks in quiet mode), 2 (refused with the fix) or 1 (runs, noted)
+  case "$1" in
+    *"saved work from the stash"*|*"entry saved in the stash"*|*"deletes a branch"*|*"worktree remove --force"*|\
+    *"the repository itself"*|*"at the project root"*|*"moves the branch"*|*"core.hooksPath"*|*"every workflow hook"*|\
+    *"git alias"*|*"aliases inside aliases"*|*"remote.<name>.push"*|*"push.default"*|*"larger than 10 MB"*|\
+    *"more than guardrails can scan"*|*"BASH_ENV"*|*"exports shell functions"*|*"to skip its hooks"*|\
+    *"names git to a shell or to eval"*|*"guardrails settings file"*|*"tells Claude Code which hooks and plugins run"*) CLS=3 ;;
+    *"throws away"*|*"files that git is not tracking"*|*"git rm -f deletes"*|*"which files this git add would stage"*|\
+    *"could not list the files this command would stage or commit"*|*"guardrails cannot resolve"*|\
+    *"which branch this force-push would overwrite"*|*"the branches this force-push would overwrite"*|\
+    *"too long for guardrails to read"*|*"could not split this command"*|*"could not tell where a quote"*) CLS=2 ;;
+    *"cannot read what the shell will run here"*|*"hands a string to env -S"*|*"stopped with an internal error"*|\
+    *"are all missing"*|*"could not read this command from the hook input"*|*"cannot inspect git commands because"*) CLS=1 ;;
+    *) CLS=3 ;;
+  esac
+}
+
+note_decision() { # note_decision <ran|refused> <reason>: one line in <project git dir>/skilliton/guardrails.jsonl
+  # Never the command text, which can hold a password; the reason names files and programs, not values.
+  local gd="" line="" t
+  if [ -n "$PROJECT_DIR" ] && [ -d "$PROJECT_DIR/.git" ]; then
+    gd="$PROJECT_DIR/.git"
+  elif [ -n "$PROJECT_DIR" ] && [ -f "$PROJECT_DIR/.git" ]; then
+    IFS= read -r line < "$PROJECT_DIR/.git" 2>/dev/null || true
+    case "$line" in "gitdir: "?*) gd=${line#gitdir: }; case "$gd" in /*) ;; *) gd="$PROJECT_DIR/$gd" ;; esac ;; esac
+  fi
+  [ -n "$gd" ] && [ -d "$gd" ] || return 0
+  mkdir -p "$gd/skilliton" 2>/dev/null || return 0
+  t=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null) || t=""
+  json_escape "${2:0:600}"
+  printf '{"time":"%s","mode":"%s","answer":"%s","reason":"%s"}\n' "$t" "$GMODE" "$1" "$ESCAPED" >> "$gd/skilliton/guardrails.jsonl" 2>/dev/null || true
+}
+
+emit_decision() { # emit_decision <deny|ask> <reason>. quiet and fleet answer an ask here (header); under Codex an ask is written as a deny.
   local decision=$1 reason=$2
+  if [ "$decision" = ask ]; then
+    effective_mode
+    [ -z "$GMODE_NOTE" ] || reason="$reason"$'\n'"$GMODE_NOTE"
+    if [ "$GMODE" != strict ]; then
+      class_of "$reason"; [ "$CLS" -ge "$ASK_CLASS" ] || CLS=$ASK_CLASS
+      if [ "$GMODE" = fleet ]; then
+        decision=deny; reason="$FLEET_LEAD"$'\n'"$reason"
+      elif [ "$CLS" = 2 ]; then
+        decision=deny; reason="$QUIET_FIX_LEAD"$'\n'"$reason"
+      elif [ "$CLS" = 1 ]; then
+        note_decision ran "$reason"; GUARD_EMITTED=1; return 0
+      fi
+      [ "$decision" = ask ] || note_decision refused "$reason"
+    fi
+  fi
   if [ "$decision" = ask ]; then
     detect_client
     [ -z "$CLIENT_NOTE" ] || reason="$reason"$'\n'"$CLIENT_NOTE"
@@ -286,12 +358,13 @@ JQ_CONFIG='(if type == "object" then .guardrails else null end) as $g0
   "NV=" + (if ($g | .blockNoVerify) == false then "false" else "true" end),
   "SF=" + (if ($g | .blockSecretFiles) == false then "false" else "true" end),
   "PR=" + (if ($g | .protectRecords) == false then "false" else "true" end),
+  (if ($g | has("mode")) then "MODE=" + (if ($g | .mode) == "quiet" or ($g | .mode) == "strict" or ($g | .mode) == "fleet" then ($g | .mode) else "invalid" end) else empty end),
   (if ($g | .protectedBranches | type) == "array"
    then "PBSET=1", ($g | .protectedBranches[] | strings | "PB=" + .)
    else empty end),
   (if ($p | .artifacts | type) == "object" then ($p | .artifacts[] | strings | "ART=" + .) else empty end),
   (if ($p | .directories | type) == "object" then ($p | .directories[] | strings | "DIR=" + .) else empty end)'
-NODE_CONFIG='const fs=require("fs");let j;try{j=JSON.parse(fs.readFileSync(process.argv[1],"utf8"))}catch(e){process.exit(3)}const g0=(j&&typeof j==="object"&&!Array.isArray(j))?j.guardrails:null;const g=(g0&&typeof g0==="object"&&!Array.isArray(g0))?g0:{};const p0=(j&&typeof j==="object"&&!Array.isArray(j))?j.prepare:null;const p=(p0&&typeof p0==="object"&&!Array.isArray(p0))?p0:{};const o=["FP="+(g.blockForcePush===false?"false":"true"),"NV="+(g.blockNoVerify===false?"false":"true"),"SF="+(g.blockSecretFiles===false?"false":"true"),"PR="+(g.protectRecords===false?"false":"true")];if(Array.isArray(g.protectedBranches)){o.push("PBSET=1");for(const b of g.protectedBranches){if(typeof b==="string")o.push("PB="+b)}}for(const [key,tag] of [["artifacts","ART="],["directories","DIR="]]){const m=p[key];if(m&&typeof m==="object"&&!Array.isArray(m)){for(const v of Object.values(m)){if(typeof v==="string")o.push(tag+v)}}}process.stdout.write(o.join("\n")+"\n")'
+NODE_CONFIG='const fs=require("fs");let j;try{j=JSON.parse(fs.readFileSync(process.argv[1],"utf8"))}catch(e){process.exit(3)}const g0=(j&&typeof j==="object"&&!Array.isArray(j))?j.guardrails:null;const g=(g0&&typeof g0==="object"&&!Array.isArray(g0))?g0:{};const p0=(j&&typeof j==="object"&&!Array.isArray(j))?j.prepare:null;const p=(p0&&typeof p0==="object"&&!Array.isArray(p0))?p0:{};const o=["FP="+(g.blockForcePush===false?"false":"true"),"NV="+(g.blockNoVerify===false?"false":"true"),"SF="+(g.blockSecretFiles===false?"false":"true"),"PR="+(g.protectRecords===false?"false":"true")];if(Object.prototype.hasOwnProperty.call(g,"mode")){o.push("MODE="+(["quiet","strict","fleet"].includes(g.mode)?g.mode:"invalid"))}if(Array.isArray(g.protectedBranches)){o.push("PBSET=1");for(const b of g.protectedBranches){if(typeof b==="string")o.push("PB="+b)}}for(const [key,tag] of [["artifacts","ART="],["directories","DIR="]]){const m=p[key];if(m&&typeof m==="object"&&!Array.isArray(m)){for(const v of Object.values(m)){if(typeof v==="string")o.push(tag+v)}}}process.stdout.write(o.join("\n")+"\n")'
 PY_CONFIG='import sys, json
 try:
     with open(sys.argv[1], "rb") as fh:
@@ -306,6 +379,8 @@ o = ["FP=" + ("false" if g.get("blockForcePush") is False else "true"),
      "NV=" + ("false" if g.get("blockNoVerify") is False else "true"),
      "SF=" + ("false" if g.get("blockSecretFiles") is False else "true"),
      "PR=" + ("false" if g.get("protectRecords") is False else "true")]
+if "mode" in g:
+    o.append("MODE=" + (g["mode"] if g["mode"] in ("quiet", "strict", "fleet") else "invalid"))
 pb = g.get("protectedBranches")
 if isinstance(pb, list):
     o.append("PBSET=1")
@@ -357,6 +432,7 @@ load_config() { # reads $PROJECT_DIR/.skilliton/config.json into CFG_*; defaults
       NV=false) CFG_NV=false ;;
       SF=false) CFG_SF=false ;;
       PR=false) CFG_PR=false ;;
+      MODE=quiet|MODE=strict|MODE=fleet|MODE=invalid) CFG_MODE=${line#MODE=} ;;
       PBSET=1) pbset=1 ;;
       PB=?*) pb="$pb${line#PB=}"$'\n' ;;
       ART=?*) art="$art${line#ART=}"$'\n' ;;
@@ -1290,7 +1366,20 @@ analyze_text() { # analyze_text <command text>: runs the whole check on a comman
 # ---------------------------------------------------------------- helpers for the rules
 
 deny() { [ -n "$DENY_REASON" ] || DENY_REASON=$1; }
-ask()  { [ -n "$ASK_REASON" ] || ASK_REASON=$1; }
+ask()  { # ask <reason>: the first reason is the one shown. In quiet and fleet modes a reason about edits that would be
+  # lost is dropped when the working tree where the segment runs has nothing to lose, so the command runs; a status
+  # that fails (no repository, no git dir yet) keeps the reason.
+  local st
+  class_of "$1"
+  if [ "$GMODE" != strict ] && [ "$CLS" = 2 ]; then
+    case "$1" in
+      *"throws away"*|*"git rm -f deletes"*) st=$(g status --porcelain -uno) && [ -z "$st" ] && return 0 ;;
+      *"files that git is not tracking"*) st=$(g status --porcelain) && [ -z "$st" ] && return 0 ;;
+    esac
+  fi
+  [ -n "$ASK_REASON" ] || ASK_REASON=$1
+  [ "$ASK_CLASS" -ge "$CLS" ] || ASK_CLASS=$CLS
+}
 
 g() { # git, run where this segment runs, with no prompts, no pager, and no stderr
   [ -n "$GDIR" ] || return 97
@@ -2797,6 +2886,7 @@ main_pretooluse() {
   [ -n "$IN_CWD" ] || IN_CWD=${CLAUDE_PROJECT_DIR:-$PWD}
   set_project_dir
   load_config
+  effective_mode
   TOP_CMD=$IN_CMD
   if ! tokenize; then
     emit_decision ask "Check first: guardrails could not split this command into its parts, so nothing was checked. Read the command yourself and confirm it only if it is what you intend."
@@ -2901,6 +2991,12 @@ main_session_start() {
     line="[guardrails] on. Blocked: $on_list. Turned off in $CFG_FILE: $off_list."
   fi
   status_line "$line"
+  effective_mode
+  case "$GMODE" in
+    quiet) status_line "[guardrails] quiet mode: it asks only before a rule could be turned off or saved work dropped. A command it could make readable is refused with the fix; one it cannot read runs and is noted in the git folder's skilliton/guardrails.jsonl. Set guardrails.mode to strict to confirm every one instead." ;;
+    fleet) status_line "[guardrails] fleet mode: nothing asks; every command guardrails would have asked about is refused." ;;
+  esac
+  [ -z "$GMODE_NOTE" ] || status_line "[guardrails] $GMODE_NOTE"
   if [ "$CFG_FILE" = ".skillgate/config.json" ]; then
     status_line "[guardrails] Note: this project still uses the earlier Skillgate folder, so these settings come from .skillgate/config.json until the project is migrated (skilliton migrate)."
   fi
