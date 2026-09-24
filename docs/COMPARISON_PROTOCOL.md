@@ -63,6 +63,8 @@ The owner asked for numbers that show whether Skilliton helps, and the first run
 
 ## The third run: a third setup, and task B made fair
 
+Run 2026-09-24 from 17:28 to 18:11 EDT on release 1.4.0, as designed below; results in [evidence/comparison/2026-09-24/SUMMARY.md](../evidence/comparison/2026-09-24/SUMMARY.md).
+
 Written 2026-09-24 after an outside review asked what Skilliton adds beyond the same assistant with an ordinary instructions file, and noted that a handoff written in advance cannot show that the whole handoff works. Both points are right, and both runs so far left them open: the "without" setup had no instructions at all, and task A's first sessions wrote no record in either setup.
 
 | Setup | What it is |
