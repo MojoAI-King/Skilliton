@@ -200,7 +200,10 @@ async function applyPending(ctx, project, state, repo) {
     out(`Applied ${migration.id}. Receipt: ${done.receiptRel}.${done.result.backupDir ? ` Backups: ${tilde(done.result.backupDir)} (inside the Git folder, never committed).` : ""}`);
     const layoutBefore = project.layoutVersion;
     project = loadProject(root, { allowLegacy: true });
-    if (migration.kind !== "instructions" && project.layoutVersion === layoutBefore) {
+    // Only a migration that says it moves the project between layouts (from !== to) must actually change
+    // prepare.version; a same-layout migration (the instructions refresh, or a content move like
+    // 0004-security-findings-file) never does, by design, so it is exempt here.
+    if (migration.from !== migration.to && project.layoutVersion === layoutBefore) {
       throw new OperationFailed(`${migration.id} was written but prepare.version is still ${layoutBefore}; stopping instead of repeating it`);
     }
   }

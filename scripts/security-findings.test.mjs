@@ -193,3 +193,29 @@ test('the migration keeps a findings file that already holds a generated section
   assert.equal(migrationById(ID, project).needed(project), false);
   assert.deepEqual((await migrationById(ID, project).plan(project, { root: clean.dir })).files, []);
 });
+
+// skilliton migrate itself (not planMigration/applyMigration called directly, as the tests above do): 0004 is a
+// same-layout migration, registered in MIGRATIONS but with nothing to do until a backlog still holds the old
+// section, so migrationState only lists it pending once that is true (N19 follow-up, B78).
+test('skilliton migrate lists 0004 as pending only while the backlog holds the old section, and applies it', (t) => {
+  const withSection = gitProject(t, { backlog: OLD_BACKLOG });
+  const preview = run(withSection.dir, 'migrate');
+  assert.equal(preview.code, 1, preview.out);
+  assert.match(preview.out, /0004-security-findings-file \(layout 3 to 3\)/);
+  assert.match(preview.out, /1 migration\(s\) pending \(0004-security-findings-file\)/);
+  assert.equal(existsSync(join(withSection.dir, 'docs', 'SECURITY_FINDINGS.md')), false, 'the preview wrote nothing');
+
+  const applied = run(withSection.dir, 'migrate', '--apply');
+  assert.equal(applied.code, 0, applied.out);
+  assert.match(applied.out, /1 migration\(s\) applied \(0004-security-findings-file\)/);
+  assert.equal(existsSync(join(withSection.dir, 'docs', 'SECURITY_FINDINGS.md')), true, 'the move ran');
+
+  const again = run(withSection.dir, 'migrate');
+  assert.equal(again.code, 0, again.out);
+  assert.match(again.out, /no migration is pending/, 'nothing pending once applied, even though the receipt does not change prepare.version');
+
+  const clean = gitProject(t);
+  const cleanPreview = run(clean.dir, 'migrate');
+  assert.equal(cleanPreview.code, 0, cleanPreview.out);
+  assert.match(cleanPreview.out, /no migration is pending/, 'a project with no old section was never pending in the first place');
+});

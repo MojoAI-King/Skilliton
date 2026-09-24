@@ -130,20 +130,37 @@ function listReceiptIds(root, dir = MIGRATIONS_DIR) {
 // { layoutVersion, target, pending: [{ id, from, to, summary }], applied: [receiptId] }. An unprepared project
 // (no prepare.version) has nothing pending: it needs prepare, not a migration. Throws Refused when the receipts
 // folder is a link or not a folder.
+//
+// Pending is built in three passes, in order: a layout migration (from !== to, none of MIGRATIONS' entries any
+// more; this runtime plans none of its own) that moves the project toward LAYOUT_VERSION; then, once the project is
+// at LAYOUT_VERSION, a same-layout "content" migration (from === to, like 0004-security-findings-file) that has no
+// receipt yet and whose own needed(project) says there is something to do, in id order; then, only when nothing
+// above is pending, the instructions refresh. Applying one migration at a time (commands/migrate.mjs's applyPending)
+// re-reads this after each apply, so a content migration always plans against the project's current state.
 export function migrationState(project) {
   const pending = [];
   let layout = project.layoutVersion;
+  const layoutMigrations = MIGRATIONS.filter((m) => m.from !== m.to);
   if (layout !== null) {
-    for (const m of MIGRATIONS) {
+    for (const m of layoutMigrations) {
       if (layout >= LAYOUT_VERSION) break;
       if (m.from === layout) { pending.push({ id: m.id, from: m.from, to: m.to, summary: m.summary }); layout = m.to; }
+    }
+  }
+  const applied = listReceiptIds(project.root, receiptsDir(project));
+  if (!pending.length && layout === LAYOUT_VERSION) {
+    const contentMigrations = MIGRATIONS.filter((m) => m.from === m.to).sort((a, b) => a.id.localeCompare(b.id));
+    for (const m of contentMigrations) {
+      if (applied.includes(m.id)) continue;
+      if (m.needed && !m.needed(project)) continue;
+      pending.push({ id: m.id, from: m.from, to: m.to, summary: m.summary });
     }
   }
   const instructions = pending.length ? null : instructionsState(project);
   if (instructions && instructions.outdated.length && !instructions.applied) {
     pending.push({ id: instructions.id, from: project.layoutVersion, to: project.layoutVersion, summary: migrationById(instructions.id, project).summary });
   }
-  return { layoutVersion: project.layoutVersion, target: LAYOUT_VERSION, pending, applied: listReceiptIds(project.root, receiptsDir(project)), instructions };
+  return { layoutVersion: project.layoutVersion, target: LAYOUT_VERSION, pending, applied, instructions };
 }
 
 // ---------- apply ----------
