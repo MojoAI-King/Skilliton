@@ -2,10 +2,11 @@
 // the tree without guessing (field report N57, backlog B77): the untracked files present when the run started, the
 // tracked files already changed against HEAD, and the one-minute load average with the CPU count. A passing
 // verdict is unchanged, and nothing is printed here that the tail-of-a-passing-run test in gate.test.mjs would not
-// also see stay silent on.
+// also see stay silent on. N16: a failing verdict also names the tracked files its output mentions that are outside
+// the change (against the merge base with the integration branch), and the other node processes running at the start.
 //   node --test scripts/gate-context.test.mjs
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -60,6 +61,7 @@ test("a passing run: the verdict is unchanged, no new lines even with an untrack
   assert.doesNotMatch(r.out, /tracked file\(s\) changed against HEAD/);
   assert.doesNotMatch(r.out, /load average/);
   assert.doesNotMatch(r.out, /may come from the machine or another session/);
+  assert.doesNotMatch(r.out, /failing files outside your change|competing processes/);
 });
 
 test("more than five untracked or tracked-changed files: the count is exact, only five paths are shown, and the rest are named as in the log", () => {
@@ -83,4 +85,48 @@ test("a file a check itself creates after the run started is not counted as untr
   const r = gate(dir, ["--cmd", `${process.execPath} -e "require('fs').writeFileSync('made-by-check.txt','x')"; exit 1`]);
   assert.equal(r.status, 1, r.all);
   assert.match(r.out, /untracked when the run started: 0/);
+});
+
+const git = (dir, ...args) => execFileSync("git", ["-C", dir, ...args], { env: ENV, stdio: "ignore" });
+
+test("a failing run names the tracked files its output mentions that are outside the change, and only those", () => {
+  const dir = repo();
+  mkdirSync(join(dir, "lib"));
+  writeFileSync(join(dir, "lib", "other.js"), "1\n");
+  git(dir, "add", "-A");
+  git(dir, "commit", "-q", "-m", "other");
+  git(dir, "checkout", "-q", "-b", "feature");
+  writeFileSync(join(dir, "mine.js"), "2\n");
+  git(dir, "add", "mine.js");
+  git(dir, "commit", "-q", "-m", "mine"); // committed on the branch: in the change through the merge base, not the tree
+  writeFileSync(join(dir, "README.md"), "# changed\n"); // changed in the working tree: in the change too
+  const script = [
+    `echo "Error: at check (${join(dir, "lib", "other.js")}:3:1)"`, 'echo "at mine.js:1:1 and README.md"',
+    'echo "missing/nothing.js is not in the tree"', "exit 1",
+  ].join("; ");
+  const r = gate(dir, ["--cmd", script]);
+  assert.equal(r.status, 1, r.all);
+  assert.match(r.out, /failing files outside your change: 1 \(lib\/other\.js\); the change is what differs from the merge base with main, and the working tree/);
+});
+
+test("a failing run names the other node processes running at the start; the gate's own process is not one of them", async (t) => {
+  if (process.platform === "win32") {
+    const r = gate(repo(), ["--cmd", "exit 1"]);
+    assert.match(r.out, /competing processes: not measured on Windows/);
+    return;
+  }
+  const other = spawn(process.execPath, ["-e", "setTimeout(Date, 60000)"], { stdio: "ignore" });
+  t.after(() => other.kill("SIGKILL"));
+  const r = gate(repo(), ["--cmd", "exit 1"]);
+  assert.equal(r.status, 1, r.all);
+  const m = /competing processes: (\d+) other node process\(es\) running at the start: (.*)$/m.exec(r.out);
+  assert.ok(m, `no competing processes line in:\n${r.out}`);
+  const count = Number(m[1]);
+  const shown = m[2].split("; ");
+  assert.ok(count >= 1, "the node process started for this case is counted");
+  assert.ok(shown.length <= 3 && shown.length === Math.min(3, count), "the first three are shown, never more");
+  for (const line of shown) assert.match(line, /^\d+ [\d:-]+ .{1,80}$/, "each is pid, elapsed time and a command cut at 80 characters");
+  // Newest first, so the process this case started a moment ago is normally shown; another suite starting node in the
+  // same instant can push it past the first three, which the count still reflects.
+  assert.ok(shown.some((line) => line.startsWith(`${other.pid} `)) || count > 3, `process ${other.pid} is not shown:\n${r.out}`);
 });

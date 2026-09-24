@@ -15,15 +15,17 @@
 // timeout, is a failure that says so. The child runs with this process's environment, because it is the
 // developer's own checks on the developer's own machine; the delivery gate is the one that isolates.
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import {
   closeSync, constants as fsConstants, createWriteStream, existsSync, fstatSync, ftruncateSync, lstatSync, mkdirSync, openSync, readFileSync,
+  realpathSync,
 } from "node:fs";
 import { cpus, loadavg } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 import { refuse, resolveProgram, selfCommand } from "./core.mjs";
 import { DRAFT_FILE, POLICY_FILE, parsePolicyText } from "./delivery-policy.mjs";
-import { changedPaths, GitError, readGitState } from "./journal.mjs";
+import { ConfigError, DEFAULTS, resolveProject } from "./config.mjs";
+import { changedPaths, GitError, readGitState, runGit } from "./journal.mjs";
 
 export const DEFAULT_TAIL = 25;
 export const MAX_TAIL = 200;
@@ -33,6 +35,7 @@ export const DEFAULT_LABEL = "gate";
 export const LABEL_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const LOG_DIR = ["skilliton", "gate"];
 const LINE_LIMIT = 400;
+const MAX_NAMED_PATHS = 200;
 
 const logPath = (gitDir, label) => join(gitDir, ...LOG_DIR, `${label}.log`);
 
@@ -78,8 +81,9 @@ export function planGate(root, { cmd = null, policy = false, timeoutSeconds = DE
 function runOne(run, { cwd, log, tailLines = DEFAULT_TAIL, env = process.env, onChild = null }) {
   return new Promise((done) => {
     const began = Date.now();
-    const tail = [];
+    const tail = [], named = new Set();
     const keep = (line) => {
+      if (named.size < MAX_NAMED_PATHS) for (const p of pathWords(line)) named.add(p);
       tail.push(line.length > LINE_LIMIT ? `${line.slice(0, LINE_LIMIT)} ...` : line);
       if (tail.length > tailLines) tail.shift();
     };
@@ -92,7 +96,7 @@ function runOne(run, { cwd, log, tailLines = DEFAULT_TAIL, env = process.env, on
         ? spawn(resolveProgram(run.argv[0]), run.argv.slice(1), { cwd, env, stdio: ["ignore", "pipe", "pipe"], detached: group })
         : spawn(run.shell, { cwd, env, stdio: ["ignore", "pipe", "pipe"], shell: true, detached: group }); // skilliton-audit: allow shell-true the command the person typed at --cmd, on their own machine; the shared delivery gate takes an argument list and never this branch
     } catch (e) {
-      done({ name: run.name, ok: false, code: null, signal: null, timedOut: false, startError: e.message, seconds: 0, tail });
+      done({ name: run.name, ok: false, code: null, signal: null, timedOut: false, startError: e.message, seconds: 0, tail, named: [] });
       return;
     }
     if (onChild) onChild(child, group);
@@ -122,7 +126,7 @@ function runOne(run, { cwd, log, tailLines = DEFAULT_TAIL, env = process.env, on
       for (const key of ["out", "err"]) if (partial[key]) { keep(partial[key]); partial[key] = ""; }
       const seconds = Math.round((Date.now() - began) / 100) / 10;
       const code = exit?.code ?? null, signal = exit?.signal ?? null;
-      done({ name: run.name, ok: !timedOut && !startError && code === 0, code, signal, timedOut, startError, seconds, tail });
+      done({ name: run.name, ok: !timedOut && !startError && code === 0, code, signal, timedOut, startError, seconds, tail, named: [...named] });
     };
     child.on("error", (e) => {
       const program = run.argv ? run.argv[0] : run.shell;
@@ -176,6 +180,79 @@ function treeSnapshot(root) {
 function machineLoad() {
   if (process.platform === "win32") return { measured: false, reason: "Windows" };
   return { measured: true, loadavg1: loadavg()[0], cpuCount: cpus().length };
+}
+
+// Words in a line of output that could be a file path: a run of path characters holding a slash or ending in a
+// file extension, with a file:// prefix, a leading ./ and a trailing :line:column taken off. Most are not paths at all;
+// only those Git tracks survive outsideChange, so a word that merely looks like one costs nothing.
+function pathWords(line) {
+  const out = [];
+  for (const raw of line.match(/[\w@+.\-/\\:]+/g) ?? []) {
+    const word = raw.replace(/^file:\/\//, "/").replace(/^\/+/, "/").replace(/(?::\d+)+:?$/, "").replace(/[.:]+$/, "").replace(/^\.\//, "");
+    if (word.length < 3 || word.length > 300 || word.includes("://")) continue;
+    if (word.includes("/") || /\.[A-Za-z][A-Za-z0-9]{0,7}$/.test(word)) out.push(word);
+  }
+  return out;
+}
+
+// The change a failure is judged against: what differs from the merge base with the first integration branch that
+// resolves (committed and not), plus the untracked and changed files at the start; else only those. { paths, against }.
+function changeSet(root, startTree) {
+  const paths = new Set([...(startTree?.untracked ?? []), ...(startTree?.trackedChanged ?? [])]);
+  let branches = DEFAULTS.integrationBranches;
+  try { branches = resolveProject(root, { allowLegacy: true }).integrationBranches; } catch (e) { if (!(e instanceof ConfigError)) throw e; }
+  for (const name of branches.flatMap((b) => [b, `origin/${b}`])) {
+    const base = runGit(root, ["merge-base", "HEAD", `${name}^{commit}`]);
+    if (base.status !== 0 || !base.stdout.trim()) continue;
+    const diff = runGit(root, ["diff", "--name-only", "-z", base.stdout.trim()]);
+    if (diff.status !== 0) continue;
+    for (const p of diff.stdout.split("\0").filter(Boolean)) paths.add(p);
+    return { paths, against: `the merge base with ${name}, and the working tree` };
+  }
+  return { paths, against: `the working tree (no merge base with ${branches.join(" or ")} was found)` };
+}
+
+// The files a failing check's output names that Git tracks in this tree and that are not in the change: the ones a
+// failure may have come from without the change touching them. { measured: true, files, against } or { measured:
+// false, reason }.
+function outsideChange(root, named, startTree) {
+  try {
+    // Both sides resolved, so a temporary folder reached through a link (macOS /var and /private/var) still matches.
+    const real = realpathSync(root);
+    const inTree = (p) => (isAbsolute(p) ? relative(real, existsSync(p) ? realpathSync(p) : p) : p);
+    const rel = [...new Set(named.map(inTree).filter((p) => p && !p.startsWith("..") && !isAbsolute(p)))];
+    const change = changeSet(root, startTree);
+    const tracked = rel.length ? runGit(root, ["ls-files", "-z", "--", ...rel.map((p) => `:(literal)${p}`)]) : { status: 0, stdout: "" };
+    if (tracked.status !== 0) return { measured: false, reason: `git ls-files failed: ${tracked.stderr.trim().split("\n")[0]}` };
+    const known = new Set(tracked.stdout.split("\0").filter(Boolean));
+    return { measured: true, files: rel.filter((p) => known.has(p) && !change.paths.has(p)), against: change.against };
+  } catch (e) {
+    if (e instanceof GitError) return { measured: false, reason: e.message };
+    throw e;
+  }
+}
+
+// The other node processes running when the gate started, from ps -axo pid,ppid,etime,command: this process and the
+// ones above it are left out. { measured: true, count, first: [three "pid etime command" lines, each command cut at
+// 80 characters, newest first] } or { measured: false, reason }. The parent id is read only to leave out the gate's
+// own ancestors. Newest first, because a suite started a moment ago is likelier to compete than an editor's helper.
+// ps's elapsed time, [[dd-]hh:]mm:ss, in seconds.
+const seconds = (etime) => {
+  const [days, clock] = etime.includes("-") ? etime.split("-") : ["0", etime];
+  return Number(days) * 86400 + clock.split(":").reduce((total, part) => total * 60 + Number(part), 0);
+};
+
+function nodeProcesses() {
+  if (process.platform === "win32") return { measured: false, reason: "not measured on Windows" };
+  const r = spawnSync(resolveProgram("ps"), ["-axo", "pid,ppid,etime,command"], { encoding: "utf8", timeout: 10000, stdio: ["ignore", "pipe", "pipe"] });
+  if (r.error || r.status !== 0) return { measured: false, reason: `ps could not run (${r.error?.code ?? `exit ${r.status}`})` };
+  const rows = r.stdout.split("\n").slice(1).map((l) => /^\s*(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/.exec(l)).filter(Boolean)
+    .map(([, pid, ppid, etime, command]) => ({ pid: Number(pid), ppid: Number(ppid), etime, command }));
+  const mine = new Set([process.pid]);
+  for (let pid = process.ppid; pid > 1 && !mine.has(pid);) { mine.add(pid); pid = rows.find((row) => row.pid === pid)?.ppid ?? 0; }
+  const node = rows.filter((row) => !mine.has(row.pid) && /(^|\/)node(\.exe)?$/.test(row.command.split(/\s+/)[0]));
+  node.sort((a, b) => seconds(a.etime) - seconds(b.etime));
+  return { measured: true, count: node.length, first: node.slice(0, 3).map((row) => `${row.pid} ${row.etime} ${row.command.slice(0, 80)}`) };
 }
 
 // An error the gate command reports as its log not being written (exit 3): a string code, like a system error.
@@ -243,6 +320,7 @@ export async function runGate(plan, { root, gitDir, label, tailLines, env = proc
   // Taken before the first check runs, so it describes the tree the run started from, not what a check's own
   // build output left behind.
   const startTree = treeSnapshot(root);
+  const competing = nodeProcesses();
   const results = [];
   try {
     log.write(`skilliton gate ${label}: ${plan.source}\n`);
@@ -263,11 +341,19 @@ export async function runGate(plan, { root, gitDir, label, tailLines, env = proc
   const machine = machineLoad();
   const names = (list) => list.join(", ") || "none";
   if (startTree) log.write(`at start: untracked ${names(startTree.untracked)}; tracked changed against HEAD ${names(startTree.trackedChanged)}\n`);
+  log.write(`other node processes at start: ${competing.measured ? [competing.count, ...competing.first].join("; ") : competing.reason}\n`);
+  const failed = results.find((r) => !r.ok);
+  const outside = failed ? outsideChange(root, failed.named, startTree) : null;
+  if (outside) {
+    log.write(outside.measured
+      ? `failing files outside the change (${outside.against}): ${names(outside.files)}\n`
+      : `failing files outside the change: not measured (${outside.reason})\n`);
+  }
   log.write(machine.measured
     ? `load average (1m): ${machine.loadavg1.toFixed(2)} across ${machine.cpuCount} CPU(s)\n`
     : `load average (1m): not measured on ${machine.reason}\n`);
   await new Promise((r) => log.end(r)); // the end of the log is where a suite prints its summary; never lose it
-  return { results, log: path, where, startTree, machine };
+  return { results, log: path, where, startTree, machine, competing, outside };
 }
 
 export function describe(result) {

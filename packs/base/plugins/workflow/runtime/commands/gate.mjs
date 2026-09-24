@@ -21,7 +21,10 @@ uncommitted files, because a green on a changed tree is about that tree and not 
 last lines of the failing run. On failure only, the verdict adds what it can measure without guessing about the
 machine: the untracked files present when the run started, the tracked files already changed against HEAD, and the
 one-minute load average with the CPU count (not measured on Windows), because a failure in a file outside those
-lists may come from the machine or another session, not the change. Checks run in the policy's order and stop at the
+lists may come from the machine or another session, not the change. It also names the files the failing check's output
+mentions that Git tracks and that are outside the change (what differs from the merge base with the integration
+branch, and the working tree), and the other node processes running when the gate started (the count and the first
+three, each cut at 80 characters; not measured on Windows). Checks run in the policy's order and stop at the
 first failure. The checks run with this shell's environment; the shared branch's delivery gate is the one that
 isolates.
 
@@ -49,7 +52,7 @@ export async function run(argv) {
       if (e && typeof e.code === "string") throw new OperationFailed(`the gate log could not be written (${e.code}: ${e.message})`);
       throw e;
     }
-    const { results, where, startTree, machine } = outcome;
+    const { results, where, startTree, machine, competing, outside } = outcome;
     const failed = results.find((r) => !r.ok) ?? null;
     const passed = results.filter((r) => r.ok);
     const seconds = results.reduce((a, r) => a + r.seconds, 0);
@@ -79,10 +82,22 @@ export async function run(argv) {
         ? `  load average (1m): ${machine.loadavg1.toFixed(2)} across ${machine.cpuCount} CPU(s)`
         : `  load average (1m): not measured on ${machine.reason}`);
       say("  a failure in a file outside these lists may come from the machine or another session, not the change");
+      for (const line of contextLines(outside, competing, listed)) say(`  ${line}`);
     }
     return failed ? 1 : 0;
   } catch (e) {
     if (e instanceof OperationFailed) { console.error(`skilliton: gate could not run: ${e.message}`); return 3; }
     throw e; // Refused (exit 2) and unexpected errors (exit 3) are reported by skilliton.mjs
   }
+}
+
+// The two lines that separate the change from the machine on a failing verdict.
+function contextLines(outside, competing, listed) {
+  const files = outside.measured
+    ? `failing files outside your change: ${listed(outside.files)}; the change is what differs from ${outside.against}`
+    : `failing files outside your change: not measured (${outside.reason})`;
+  const processes = competing.measured
+    ? `competing processes: ${competing.count} other node process(es) running at the start${competing.first.length ? `: ${competing.first.join("; ")}` : ""}`
+    : `competing processes: ${competing.reason}`;
+  return [files, processes];
 }
