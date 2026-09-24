@@ -39,5 +39,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 
 | ID | Title | State | Branch | Owner |
 |---|---|---|---|---|
-| [2026-09-23-after-1-3-0-what-the-owner-does-next-b741](tasks/2026-09-23-after-1-3-0-what-the-owner-does-next-b741.md) | After 1.3.0: what the owner does next | in-progress | main | unassigned |
+| [2026-09-23-everything-a-session-can-finish-the-usag-b6c7](tasks/2026-09-23-everything-a-session-can-finish-the-usag-b6c7.md) | Everything a session can finish: the usage batch, the open backlog rows and the security records | in-progress | main | unassigned |
 <!-- skilliton:index:tasks:end -->
