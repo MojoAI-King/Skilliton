@@ -251,4 +251,5 @@ Lesson entries in `docs/lessons/`, sorted by ID. `skilliton index` writes this l
 | [2026-09-23-a-whole-tree-content-scan-can-be-invalid-4895](lessons/2026-09-23-a-whole-tree-content-scan-can-be-invalid-4895.md) | A whole-tree content scan can be invalidated by the same run's own write to a tracked file it just scanned | proposed | 2026-09-23 |
 | [2026-09-23-every-test-that-clones-or-inits-a-reposi-ad06](lessons/2026-09-23-every-test-that-clones-or-inits-a-reposi-ad06.md) | Every test that clones or inits a repository turns off git's background maintenance | accepted | 2026-09-23 |
 | [2026-09-23-the-whole-history-audit-reads-committed-455c](lessons/2026-09-23-the-whole-history-audit-reads-committed-455c.md) | The whole-history audit reads committed HEAD, so it runs after the commit and before the push | accepted | 2026-09-23 |
+| [2026-09-24-a-background-agent-whose-single-tool-cal-a4b3](lessons/2026-09-24-a-background-agent-whose-single-tool-cal-a4b3.md) | A background agent whose single tool call runs past ten minutes is stopped as stalled, so a lane runs its suites one file at a time | accepted | 2026-09-24 |
 <!-- skilliton:index:lessons:end -->

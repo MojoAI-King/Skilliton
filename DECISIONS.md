@@ -333,4 +333,5 @@ Decision entries in `docs/decisions/`, sorted by ID. `skilliton index` writes th
 | [2026-09-23-the-history-was-rewritten-once-on-2026-0-82b9](docs/decisions/2026-09-23-the-history-was-rewritten-once-on-2026-0-82b9.md) | The history was rewritten once, on 2026-09-23, to remove the AI co-author trailers | accepted | 2026-09-23 |
 | [2026-09-23-the-night-s-release-is-1-1-0-not-1-0-1-b-46b5](docs/decisions/2026-09-23-the-night-s-release-is-1-1-0-not-1-0-1-b-46b5.md) | The night's release is 1.1.0, not 1.0.1, by the release skill's own rule | accepted | 2026-09-23 |
 | [2026-09-23-the-team-settings-template-does-not-auto-ba3c](docs/decisions/2026-09-23-the-team-settings-template-does-not-auto-ba3c.md) | The team settings template does not auto-update plugins | proposed | 2026-09-23 |
+| [2026-09-24-three-backlog-rows-wait-while-the-batch-1492](docs/decisions/2026-09-24-three-backlog-rows-wait-while-the-batch-1492.md) | Three backlog rows wait while the batch makes existing promises dependable: ingesting CI reports, splitting long functions, one test convention | accepted | 2026-09-24 |
 <!-- skilliton:index:decisions:end -->
