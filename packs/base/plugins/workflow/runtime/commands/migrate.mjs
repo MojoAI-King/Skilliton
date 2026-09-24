@@ -136,7 +136,10 @@ function runRollback(ctx, project, repo, rollbackId, state) {
 function reportNothingPending(ctx, project, state) {
   const { out, json, emit, mode, root, dirArg } = ctx;
   if (project.layoutVersion !== null && project.layoutVersion < LAYOUT_VERSION) {
-    const summary = `this project is at layout ${project.layoutVersion}, from before workflow 1.0.0 (its files are still under ${LEGACY_PROJECT_DIR}/, the earlier ${LEGACY_NAME} names); this runtime no longer plans that move. Run the one-shot migrator first: node scripts/legacy-migrate.mjs --dir ${argPath(root)} to preview it, then the same with --apply. Afterward, run this again: ${selfCommand()} migrate${dirArg}`;
+    const summary = `this project is at layout ${project.layoutVersion}, from before workflow 1.0.0 (its files are still under ${LEGACY_PROJECT_DIR}/, `
+      + `the earlier ${LEGACY_NAME} names); this runtime no longer plans that move. Run the one-shot migrator first: `
+      + `node scripts/legacy-migrate.mjs --dir ${argPath(root)} to preview it, then the same with --apply. `
+      + `Afterward, run this again: ${selfCommand()} migrate${dirArg}`;
     if (json) emit("invalid", summary, { root, mode, state });
     out("");
     out(`Summary: ${summary}`);
