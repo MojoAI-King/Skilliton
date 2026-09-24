@@ -35,6 +35,7 @@ import { LEGACY_POLICY_FILE } from "./legacy-names.mjs";
 import { checkRemovals } from "./delivery-persist.mjs";
 import { gateChanges, gateFingerprint } from "./delivery-integrity.mjs";
 import { checkHeldPaths, lineReader } from "./delivery-protect.mjs";
+import { tailCollector } from "./check-tail.mjs";
 import {
   CURRENT_FORMAT, LEGACY_FORMAT, POLICY_FILE, parsePolicyText, readApproversFile, validBranchName,
 } from "./delivery-policy.mjs";
@@ -274,18 +275,16 @@ function treeDifferences(git, commit, dir) {
 function runCheck(check, { cwd, home }) {
   return new Promise((done) => {
     const began = Date.now();
-    const tail = [];
-    const keep = (line) => {
-      tail.push(line.length > 400 ? `${line.slice(0, 400)} ...` : line);
-      if (tail.length > TAIL_LINES) tail.shift();
-    };
+    // A node --test "failing tests:" section is kept from its header on (lib/check-tail.mjs), not cut after it.
+    const collected = tailCollector(TAIL_LINES);
+    const keep = (line) => collected.keep(line.length > 400 ? `${line.slice(0, 400)} ...` : line);
     const env = { PATH: process.env.PATH || "/usr/bin:/bin", HOME: home, LANG: process.env.LANG || "C" };
     const group = process.platform !== "win32";
     let child;
     try {
       child = spawn(resolveProgram(check.command[0]), check.command.slice(1), { cwd, env, stdio: ["ignore", "pipe", "pipe"], detached: group });
     } catch (e) {
-      done({ ok: false, how: `could not start: ${e.message}`, seconds: 0, tail });
+      done({ ok: false, how: `could not start: ${e.message}`, seconds: 0, tail: collected.lines() });
       return;
     }
     // Each stream's partial line is bounded, so a check that prints megabytes without a newline holds 400 characters.
@@ -311,7 +310,7 @@ function runCheck(check, { cwd, home }) {
       const ok = !timedOut && how === null && exit?.code === 0;
       const reason = timedOut ? `timed out after ${check.timeoutSeconds}s`
         : how ?? (exit.code === null ? `killed by ${exit.signal}` : `exit ${exit.code}`);
-      done({ ok, how: reason, seconds, tail });
+      done({ ok, how: reason, seconds, tail: collected.lines() });
     };
     const program = check.command[0];
     child.on("error", (e) => finish(e.code === "ENOENT" ? `could not start: ${program} was not found${program.includes("/") ? "" : " on PATH"}` : `could not start: ${e.message}`));

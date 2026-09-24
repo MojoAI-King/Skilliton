@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/friction-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T16:41:28.396Z
+- **Updated:** 2026-09-24T16:51:26.372Z
 
 ## Request
 
@@ -21,7 +21,7 @@ LANES.md, dispatched 2026-09-24: the items below are this lane's whole scope, an
 - [x] N38. [TOUCH] pin on the newest release says so: commands/pin.mjs line 65 at the base suggests pin --release <the release it is already on>; when the clone is already pinned to the newest approved release, print "already on the newest approved release (<version>)" and no Next line; a case in scripts/pin-marketplace.test.mjs or a new file.
 - [x] N39. [TOUCH] verify names a clone and install that disagree: when the skills clone is pinned (the pin record under its git folder) to a release other than the one the installed plugins verify against, verify adds one line "the clone is pinned to <a>, the installed plugins match <b>: run skilliton pin --release <a> --apply to move the install, or pin --latest" and keeps its exit status; a case in a new test file.
 - [x] N40. [TOUCH] doctor outside a git repository says so: commands/doctor.mjs line 229 at the base tells a folder that is not a git repository to prepare the project; say "this folder is not a git repository, so there is nothing to prepare: run doctor inside a repository" there, and print hint commands with absolute paths rather than paths relative to the current folder; cases in the doctor tests or a new file.
-- [ ] N41. [TOUCH] The gate's rejection keeps the failing test names: where the delivery gate's rejection prints the tail of a check's output (lib/delivery.mjs), a node --test summary whose "failing tests:" header is followed by the failing test lines keeps those lines (the header alone, with nothing after it, is what a newcomer saw in the demo); if the tail is cut, cut before the header, not after it; a case in scripts/delivery.test.mjs if it may grow, else a new file.
+- [x] N41. [TOUCH] The gate's rejection keeps the failing test names: where the delivery gate's rejection prints the tail of a check's output (lib/delivery.mjs), a node --test summary whose "failing tests:" header is followed by the failing test lines keeps those lines (the header alone, with nothing after it, is what a newcomer saw in the demo); if the tail is cut, cut before the header, not after it; a case in scripts/delivery.test.mjs if it may grow, else a new file.
 - [ ] N42. [TOUCH] The lane brief bounds a tool call's running time (B87): packs/base/plugins/workflow/runtime/lib/dispatch-brief.mjs is not in this lane: skip this item if the usage lane has not merged; the main window will do it. (Listed so the ledger is whole.)
 
 ## Decisions
@@ -79,9 +79,16 @@ not yet written
 - **Next:** N41 gate rejection keeps failing test names
 - **Git:** lane/friction-0924 @ 6ff38c5, 3 uncommitted
 
+### 2026-09-24T16:51:26.372Z
+
+- **State:** N41 done: the gate's rejection tail starts at a node --test failing tests header and keeps the failing test names
+- **Evidence:** node --test scripts/check-tail.test.mjs 5 of 5 (one on a real node --test run); delivery, delivery-protect, delivery-integrity, lint, allowlist pass
+- **Next:** static checks, LANE_REPORT.md
+- **Git:** lane/friction-0924 @ 404cbd0, 4 uncommitted
+
 ## Handoff
 
-- **State:** N40 done: doctor outside a git repository says so instead of prepare, and every hint carries --dir with the absolute folder. Evidence: node --test scripts/doctor-outside-repo.test.mjs 2 of 2; doctor-tools, doctor-installed, skilliton.test, allowlist pass.
-- **Next:** N41 gate rejection keeps failing test names
+- **State:** N41 done: the gate's rejection tail starts at a node --test failing tests header and keeps the failing test names. Evidence: node --test scripts/check-tail.test.mjs 5 of 5 (one on a real node --test run); delivery, delivery-protect, delivery-integrity, lint, allowlist pass.
+- **Next:** static checks, LANE_REPORT.md
 - **Blocked:** nothing
 - **Watch out:** nothing known
