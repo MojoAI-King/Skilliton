@@ -4,7 +4,13 @@ Kind: Living. One entry per signed release, from its manifest under `releases/`,
 
 ## Unreleased (main since 1.3.0)
 
-Nothing yet.
+Source: the owner's word on 2026-09-23 to finish everything a session can, the second field report from a client repository (usage and savings), and an outside review's order of work (claims beside their limits first, then an independent newcomer and continuity trial, then security verification).
+
+- **README claims, each beside its limit.** "What it saves" now says what each comparison task measured and what it did not: one model and one fixture per task; the plain setup had no instructions file, so the orientation result measures the hook against nothing; continuity is enforced at the reading end and only instructed at the writing end, where the two-session task finished 1 of 2 times in both setups. A short "The idea" section states the design rule (instructions are advice, hooks are guarantees). "Still to measure" names the end-to-end handoff first.
+- **Pinning a machine to a release tag (B18), measured.** On Claude Code 2.1.278 a marketplace source takes `#<branch or tag>`, the clone lands exactly on the tag, an update keeps it there, and the plugins installed are that release's versions; a commit cannot be named. A decision records the tag pin as the download boundary and `skilliton verify` as the trust boundary (evidence/live/2026-09-23-marketplace-pinned-at-a-release-tag.md). Found while measuring: the client's marketplace remove, run inside a repository, also empties that repository's plugin settings; recorded as a lesson.
+- **CLAUDE.md is read once per session (B75), documented.** A decision entry quotes the client's documentation: the file is read at session start and held in context on every turn, so a mid-session rewrite does not apply until the next session.
+- **The second field report, filed.** evidence/live/2026-09-23-field-report-client-repository-2.md, sanitized: no client name, no dollar figure.
+- **The comparison runner's third setup.** `scripts/rehearsals/comparison.mjs` gains an `instructions` setup (an ordinary CLAUDE.md asking for the same behaviors, no hooks) beside `without` and `with`, and task B's colleague commit now sits inside the local history, so the histories are related (B66). docs/COMPARISON_PROTOCOL.md records the third run's design.
 
 ## 1.3.0, 2026-09-23
 
