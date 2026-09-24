@@ -4,20 +4,25 @@
 // copy quietly answering instead of the plugin's.
 //
 // Read only: nothing here writes, and a project with no .claude/skills/ folder costs one stat. The installed plugins
-// are resolved the way doctor resolves them (lib/doctor.mjs): Claude Code's configuration folder is lib/verify.mjs's
-// claudeConfigDir (CLAUDE_CONFIG_DIR when it is set, else ~/.claude), the one place that folder is declared in
-// docs/IT-ALLOWLIST.md section 2, and plugins/installed_plugins.json there names each install with its installPath.
+// are resolved the way doctor resolves them (lib/doctor.mjs): Claude Code's configuration folder is CLAUDE_CONFIG_DIR
+// when it is set, else ~/.claude, and plugins/installed_plugins.json there names each install with its installPath.
 // That file's format is not documented; its shape was read on Claude Code 2.1.92 and 2.1.278 (doctor's note).
-// Importing verify.mjs costs a session start about 4 ms (measured 2026-09-24).
+//
+// The folder rule is restated here rather than imported from lib/verify.mjs (claudeConfigDir), deliberately: verify.mjs
+// loads release.mjs, which needs the migrations module's whole export list, and the session hooks treat that module
+// as optional (scripts/lifecycle.test.mjs, "status and session-start use migrationState ..." runs them with a stub of
+// it). Importing it made that case fail, measured 2026-09-24. The line below is this module's one reach outside a
+// repository, read only; docs/IT-ALLOWLIST.md section 2 and OUTSIDE_A_REPOSITORY in scripts/allowlist.test.mjs list it.
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 import { isFile, isPlainObject, listDirNames, tilde } from "./core.mjs";
-import { claudeConfigDir } from "./verify.mjs";
 
 const SKILL_COPY_LINE = "skill copy differs from the installed one";
 
+const claudeConfigDir = () => resolve(process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"));
 const hashOf = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
 
 // Each install's folder: [{ plugin, path }] from installed_plugins.json, or { problem } when the file is there and
