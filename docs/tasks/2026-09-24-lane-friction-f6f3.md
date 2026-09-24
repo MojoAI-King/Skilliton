@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** lane/friction-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T16:21:14.575Z
+- **Updated:** 2026-09-24T16:24:50.083Z
 
 ## Request
 
@@ -17,7 +17,7 @@ LANES.md, dispatched 2026-09-24: the items below are this lane's whole scope, an
 - [x] N34. [TOUCH] An edit to a file that was already changed re-arms the stop reminder: lib/journal.mjs fingerprintOf takes HEAD, the porcelain and a content digest of the changed paths (git hash-object on each changed or untracked path from the porcelain, at most 200 paths and files under 8 MB each, a path over either bound contributing its size and mtime instead, and the bound named in the code comment); every caller keeps working; the one-time effect after upgrade (old events' fingerprints never match, so one reminder may repeat once) is named under Run-time behavior; a new scripts/fingerprint-content.test.mjs: editing an already-modified tracked file changes the fingerprint, editing an untracked file changes it, touching nothing does not, and the bounds hold.
 - [x] N35. [TOUCH] A session that ended with changes and no checkpoint is said so at the next start: lib/lifecycle.mjs, where the previous session is described as "ended normally" (line 471 at the base): when that session's last journal events show a dirty tree at its end (its session-end or last stop event carries dirty greater than 0) and it recorded no checkpoint, say "the previous session ended with <n> uncommitted change(s) and no checkpoint: read git status and the open task before carrying on" instead; a session that ended clean or with a checkpoint still reads "ended normally"; cases in a new scripts/previous-session.test.mjs.
 - [x] N36. [TOUCH] A checkpoint written by hand is not silently lost: lib/tasks.mjs and commands/task.mjs: when a task record's Checkpoints section holds text the parser does not read as a checkpoint (a hand-edited entry), task show and the session-start task line say "<n> line(s) under Checkpoints could not be read as checkpoints; record them with skilliton checkpoint" rather than reporting 0 checkpoints with no word; new cases in a new test file.
-- [ ] N37. [TOUCH] Closing a task refreshes the tasks index: commands/task.mjs task close --apply regenerates the tasks index (the same writer index --apply uses for tasks) after it writes, and says so on one line; a case in the new test file.
+- [x] N37. [TOUCH] Closing a task refreshes the tasks index: commands/task.mjs task close --apply regenerates the tasks index (the same writer index --apply uses for tasks) after it writes, and says so on one line; a case in the new test file.
 - [ ] N38. [TOUCH] pin on the newest release says so: commands/pin.mjs line 65 at the base suggests pin --release <the release it is already on>; when the clone is already pinned to the newest approved release, print "already on the newest approved release (<version>)" and no Next line; a case in scripts/pin-marketplace.test.mjs or a new file.
 - [ ] N39. [TOUCH] verify names a clone and install that disagree: when the skills clone is pinned (the pin record under its git folder) to a release other than the one the installed plugins verify against, verify adds one line "the clone is pinned to <a>, the installed plugins match <b>: run skilliton pin --release <a> --apply to move the install, or pin --latest" and keeps its exit status; a case in a new test file.
 - [ ] N40. [TOUCH] doctor outside a git repository says so: commands/doctor.mjs line 229 at the base tells a folder that is not a git repository to prepare the project; say "this folder is not a git repository, so there is nothing to prepare: run doctor inside a repository" there, and print hint commands with absolute paths rather than paths relative to the current folder; cases in the doctor tests or a new file.
@@ -51,9 +51,16 @@ not yet written
 - **Next:** N37 task close refreshes the tasks index
 - **Git:** lane/friction-0924 @ 01013cf, 6 uncommitted
 
+### 2026-09-24T16:24:50.083Z
+
+- **State:** N37 done: task close --apply refreshes the tasks index and says so on one line
+- **Evidence:** node --test scripts/task-records.test.mjs 6 of 6; lifecycle, records, index-churn pass
+- **Next:** N38 pin on the newest release
+- **Git:** lane/friction-0924 @ 1dd305b, 4 uncommitted
+
 ## Handoff
 
-- **State:** N36 done: lines under Checkpoints that are not checkpoints are counted and named in task show and at session start. Evidence: node --test scripts/task-records.test.mjs 4 of 4; lifecycle, checkpoint-growth, task-drift, session-state-collapse pass.
-- **Next:** N37 task close refreshes the tasks index
+- **State:** N37 done: task close --apply refreshes the tasks index and says so on one line. Evidence: node --test scripts/task-records.test.mjs 6 of 6; lifecycle, records, index-churn pass.
+- **Next:** N38 pin on the newest release
 - **Blocked:** nothing
 - **Watch out:** nothing known

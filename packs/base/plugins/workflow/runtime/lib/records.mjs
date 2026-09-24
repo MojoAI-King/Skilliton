@@ -156,12 +156,13 @@ export function findIndexSection(text, kind, label) {
 
 // Plans the three sections: { branch, integration, sections: [{ kind, record, dir, count, total, hadSection,
 // before, after, changed }], problems, result }. With { apply: true, gitDir } the changed records are written through
-// the transactional writer, which is refused on a branch that is not an integration branch.
-export function regenerateIndexes(project, { apply = false, gitDir = null, branch, overlay = null } = {}) {
+// the transactional writer, which is refused on a branch that is not an integration branch. kinds narrows it to some
+// of INDEX_KINDS (task close refreshes the tasks index alone).
+export function regenerateIndexes(project, { apply = false, gitDir = null, branch, overlay = null, kinds = INDEX_KINDS } = {}) {
   const onBranch = branch === undefined ? currentBranch(project.root) : branch;
   const integration = onBranch !== null && project.integrationBranches.includes(onBranch);
   const sections = [], problems = [], notes = [];
-  for (const kind of INDEX_KINDS) {
+  for (const kind of INDEX_KINDS.filter((k) => kinds.includes(k))) {
     const role = INDEX_RECORD_ROLE[kind];
     const record = project.artifacts[role];
     const { dir, entries, total, problems: found, notes: foundNotes } = readEntries(project, kind, { overlay });

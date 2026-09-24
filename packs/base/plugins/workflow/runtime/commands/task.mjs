@@ -1,7 +1,9 @@
 // task: start, list, show, or close a task record. docs/CONTRACTS.md section 11; the engine is lib/tasks.mjs.
 
-import { forDisplay, parseArgs, refuse, say, selfCommand, tilde, unifiedDiff } from "../lib/core.mjs";
-import { backupRoot, readBranch } from "../lib/journal.mjs";
+import { Refused, forDisplay, parseArgs, refuse, say, selfCommand, tilde, unifiedDiff } from "../lib/core.mjs";
+import { backupRoot, gitDir, readBranch } from "../lib/journal.mjs";
+import { TransactionFailed } from "../lib/prepare.mjs";
+import { regenerateIndexes } from "../lib/records.mjs";
 import { clip, guardCommand, openProject } from "../lib/lifecycle.mjs";
 import {
   CLOSED_STATES, checkBranch, closeTask, createTask, currentTask, findTask, listTasks, pickCurrent, taskRel, unreadCheckpointsNote,
@@ -22,7 +24,8 @@ branches never edit the same file to add a task.
   task show [<id>] [--dir <project>]
       One task. Without an ID: the current task, the open task whose Branch is the checked-out branch.
   task close <id> --state <${CLOSED_STATES.join("|")}> [--dir <project>] [--apply]
-      Shows the change to State and Updated; --apply writes it, after a backup under the Git dir.
+      Shows the change to State and Updated; --apply writes it, after a backup under the Git dir, then refreshes
+      the open-task index in the status record (on an integration branch; elsewhere it says it did not).
 
 Exit codes: 0 complete; 1 attention (unreadable task records, no current task for task show, or more than one);
 2 invalid or refused (nothing was written); 3 operation failed.`;
@@ -202,5 +205,29 @@ async function close(args, o) {
     return 0;
   }
   say(`task close: ${plan.task.id} is now ${o.state}; the previous version was backed up to ${tilde(plan.backup)}`);
-  return 0;
+  return refreshTasksIndex(root, project);
+}
+
+// After a close is written, the open-task index in the status record is regenerated with the writer index --apply
+// uses, narrowed to the tasks index, and the outcome is said on one line. Off an integration branch nothing is
+// written there, and the line says so; the close itself stands either way.
+function refreshTasksIndex(root, project) {
+  let plan;
+  try {
+    plan = regenerateIndexes(project, { apply: false, gitDir: gitDir(root), kinds: ["tasks"] });
+    const s = plan.sections[0];
+    if (!plan.integration) {
+      const where = plan.branch === null ? "HEAD is detached" : `this branch is ${plan.branch}`;
+      say(`task close: tasks index not refreshed; indexes are written on an integration branch (${project.integrationBranches.join(", ")}), and ${where}`);
+      return 0;
+    }
+    if (!s.changed) { say(`task close: tasks index in ${s.record} already current (${s.count} open task(s) of ${s.total})`); return 0; }
+    plan = regenerateIndexes(project, { apply: true, gitDir: gitDir(root), kinds: ["tasks"] });
+    say(`task close: tasks index refreshed in ${s.record} (${plan.sections[0].count} open task(s) of ${plan.sections[0].total})`);
+    return 0;
+  } catch (e) {
+    if (e instanceof Refused) { say(`task close: tasks index not refreshed: ${e.message}`); return 0; }
+    if (e instanceof TransactionFailed) { say(`task close: tasks index not refreshed: ${e.message}; the close itself was written`); return 3; }
+    throw e;
+  }
 }

@@ -4,7 +4,8 @@
 //
 // A task record whose Checkpoints section held a hand-edited entry reported "0 checkpoints" with no word about it.
 // Now the lines under Checkpoints that are not part of a checkpoint as the parser reads one are counted, and task
-// show and the session-start task line say how many and how to record them.
+// show and the session-start task line say how many and how to record them. And task close --apply regenerates the
+// open-task index in the status record (commands/task.mjs, lib/records.mjs regenerateIndexes narrowed to tasks).
 //
 // Commands run the way a person runs them: node scripts/skilliton.mjs, and the shipped bin/skilliton for hooks. Each
 // test works in its own folder under os.tmpdir(), with HOME pointed inside it, and removes it afterwards.
@@ -24,7 +25,8 @@ const CLI = join(here, "skilliton.mjs");
 const PLUGIN = join(here, "..", "packs", "base", "plugins", "workflow");
 const BIN = join(PLUGIN, "bin", "skilliton");
 const INSTALLED = JSON.parse(readFileSync(join(PLUGIN, ".claude-plugin", "plugin.json"), "utf8")).version;
-const { parseTask } = await import(pathToFileURL(join(PLUGIN, "runtime", "lib", "tasks.mjs")).href);
+const lib = (name) => import(pathToFileURL(join(PLUGIN, "runtime", "lib", name)).href);
+const [{ parseTask }, { regenerateIndexes }, { loadProject }] = await Promise.all([lib("tasks.mjs"), lib("records.mjs"), lib("prepare.mjs")]);
 
 const UNREAD = (n) => new RegExp(`${n} line\\(s\\) under Checkpoints could not be read as checkpoints; record them with \\S.* checkpoint`);
 
@@ -132,3 +134,34 @@ test("the count: text before the first heading and stray lines under a heading; 
   assert.equal(parsed.unreadCheckpointLines, 1, "a State bullet before any heading belongs to no checkpoint");
   assert.equal(parsed.checkpoints, 1);
 });
+
+// ---------------------------------------------------------------- N37: closing a task refreshes the tasks index
+
+test("task close --apply on an integration branch refreshes the open-task index, on one line", async () => withTemp("close", async ({ dir, env }) => {
+  const p = preparedRepo(join(dir, "p"), env);
+  const kept = startTask(p, env, "Still open");
+  const closed = startTask(p, env, "Finished");
+  commit(p, env, "tasks");
+  const r = cli(p, ["task", "close", closed.id, "--state", "done-local", "--apply"], env);
+  assert.equal(r.code, 0, r.all);
+  const lines = r.out.split("\n").filter((l) => /tasks index/.test(l));
+  assert.deepEqual(lines, ["task close: tasks index refreshed in docs/STATUS.md (1 open task(s) of 2)"]);
+  const status = readFileSync(join(p, "docs", "STATUS.md"), "utf8");
+  assert.match(status, /<!-- skilliton:index:tasks:start -->/);
+  assert.ok(status.includes(kept.id), "the open task is listed");
+  assert.ok(!status.includes(closed.id), "the closed task is not");
+  const again = regenerateIndexes(loadProject(p), { kinds: ["tasks"] }).sections[0];
+  assert.equal(again.changed, false, "the index writer agrees there is nothing left to change");
+}));
+
+test("task close --apply off an integration branch says the index was not refreshed, and the close stands", async () => withTemp("close-branch", async ({ dir, env }) => {
+  const p = preparedRepo(join(dir, "p"), env);
+  git(p, ["checkout", "-q", "-b", "feature"], env);
+  const t = startTask(p, env, "On a branch");
+  const before = readFileSync(join(p, "docs", "STATUS.md"), "utf8");
+  const r = cli(p, ["task", "close", t.id, "--state", "done-local", "--apply"], env);
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.out, /^task close: tasks index not refreshed; indexes are written on an integration branch \(main, master\), and this branch is feature$/m);
+  assert.equal(readFileSync(join(p, "docs", "STATUS.md"), "utf8"), before);
+  assert.match(readFileSync(t.file, "utf8"), /^- \*\*State:\*\* done-local$/m);
+}));
