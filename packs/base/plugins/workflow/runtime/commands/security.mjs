@@ -23,13 +23,17 @@ export const help = `security: project security evidence. Status, recorded obser
 collectors, and open findings in the backlog record. Commands that write show their change first and write only with
 --apply. --dir names the project folder (default: the current folder).
 
-  security status [--dir <project>] [--apply]
+  security status [--dir <project>] [--require-collected] [--apply]
       Print the evidence report for every control in .skilliton/security/catalog.json: applicability, the latest
       assessment, and freshness (current, stale, expired, missing, invalid). --apply also writes
       .skilliton/security/REPORT.md; only a report carrying the generated marker is replaced. Status never creates or
       re-dates a record. A record is stale when a fingerprinted file changed or disappeared or the control or catalog
       changed, and expired when it is older than maxAgeDays (the control's, else security.maxAgeDays in
       .skilliton/config.json).
+      --require-collected is the check for CI: it exits 1 naming each collector-backed control (SG-SECRETS-IN-SOURCE,
+      and SG-CHECK-CRITERIA when .skilliton/delivery.json exists) that has no record at all, and 0 when each has one.
+      Stale and expired are named on the control's line and do not fail it (maintain refreshes them). Invalid
+      evidence still exits 2.
 
   security record --control <id> --assessment observed|gap|needs-human --note <text> --reviewer <label>
                   [--source <file>]... [--artifact <file>]... [--dir <project>] [--apply]
@@ -80,9 +84,11 @@ collectors, and open findings in the backlog record. Commands that write show th
 Refusals never repeat the values you gave, and evidence file contents are never printed.
 
 Exit 0: complete. For status, every applicable control has a current observed record and an applicability
-        decision. For the other subcommands, the preview, record or write succeeded (recording a gap is exit 0).
+        decision; with --require-collected, every collector-backed control has a record. For the other
+        subcommands, the preview, record or write succeeded (recording a gap is exit 0).
         None of this is compliance, certification, authenticated review, or proof that security checks passed.
-Exit 1: attention. status found a control that is missing, stale, expired, a gap, needs a human, or is undecided.
+Exit 1: attention. status found a control that is missing, stale, expired, a gap, needs a human, or is undecided;
+        with --require-collected, a collector-backed control has no record.
 Exit 2: invalid or refused: bad arguments, an invalid catalog, record or applicability file, an unsafe or linked
         path, or secret-shaped input. Nothing was written.
 Exit 3: operation failed: a file could not be read or written, git is missing, or a collection was interrupted.
@@ -90,7 +96,7 @@ Exit 3: operation failed: a file could not be read or written, git is missing, o
 The standalone prototype used exit 2 for attention and exit 1 for refusals; these are the shared codes instead.`;
 
 const SUBCOMMANDS = {
-  status: { options: ['dir'], repeat: [] },
+  status: { options: ['dir'], repeat: [], flags: ['require-collected'] },
   record: { options: ['dir', 'control', 'assessment', 'note', 'reviewer'], repeat: ['source', 'artifact'] },
   applicability: { options: ['dir', 'control', 'applies', 'rationale', 'decided-by'], repeat: [], flags: ['propose', 'accept-proposal', 'replace'] },
   collect: { options: ['dir', 'control', 'reviewer'], repeat: ['source'] },
@@ -186,7 +192,28 @@ async function status({ o }) {
     say(`Wrote ${security.REPORT_REL}. No record was created or re-dated.`);
   }
   say(`Result: ${ev.result} (exit ${code}). ${c.current} of ${c.applicable} applicable control(s) have a current observed record; missing ${c.missing}, stale ${c.stale}, expired ${c.expired}, invalid ${c.invalid}, gaps ${c.gaps}, needs a human ${c.needsHuman} (undecided ${c.undecided}). Freshness: content checked (every listed file was read and hashed, not judged by its size and time).`);
-  return code;
+  return o['require-collected'] ? requireCollected(root, ev) : code;
+}
+
+// status --require-collected: the exit is whether each collector-backed control has a record, not the report's.
+function requireCollected(root, ev) {
+  const rows = security.requiredCollected(ev, { deliveryPolicyExists: existsSync(join(root, collectors.DELIVERY_REL)) });
+  say('Required collected records (--require-collected): a missing record fails; stale and expired are named and pass.');
+  for (const r of rows) {
+    const label = `  ${r.controlId} (security collect ${r.collector})`;
+    if (!r.required) say(`${label}: not required, ${r.why}`);
+    else if (!r.present) say(`${label}: missing, no record at all. Run: ${selfCommand()} security collect ${r.collector} --apply`);
+    else say(`${label}: record present, ${r.freshness}${r.freshness === 'current' ? '' : ' (maintain refreshes a stale record)'}`);
+  }
+  if (ev.result === 'invalid') {
+    say('Require collected: the security evidence is invalid (see above), so no record can be trusted to be present (exit 2).');
+    return 2;
+  }
+  const missing = rows.filter((r) => r.required && !r.present).map((r) => r.controlId);
+  const required = rows.filter((r) => r.required).length;
+  if (missing.length) say(`Require collected: ${missing.length} of ${required} required control(s) have no record: ${missing.join(', ')} (exit 1).`);
+  else say(`Require collected: each of the ${required} required control(s) has a record (exit 0).`);
+  return missing.length ? 1 : 0;
 }
 
 async function record({ o, repeat }) {

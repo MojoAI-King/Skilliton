@@ -348,6 +348,30 @@ export function evaluateSecurity(root, { now = Date.now(), budget = newBudget() 
 
 export const exitCodeFor = (result) => ({ complete: 0, attention: 1, invalid: 2 })[result] ?? 3;
 
+// ---------- collector-backed records (status --require-collected, B71) ----------
+
+// The controls a built-in collector records by default, which maintain refreshes when missing or stale and CI
+// requires a record for. The delivery-policy collector is required only where a delivery policy exists to read.
+export const COLLECTOR_BACKED = [
+  { controlId: 'SG-SECRETS-IN-SOURCE', collector: 'secrets', needsPolicy: false },
+  { controlId: 'SG-CHECK-CRITERIA', collector: 'delivery-policy', needsPolicy: true },
+];
+
+// One entry per collector-backed control: { controlId, collector, required, why, freshness, present }. required is
+// false when the control is not in the catalog, is decided not to apply, or (the policy collector) has no policy to
+// read, and why says which. present is false only when the control has no record at all: a stale or expired record
+// is present, because maintain refreshes it, and a missing one is what CI must not pass.
+export function requiredCollected(ev, { deliveryPolicyExists }) {
+  return COLLECTOR_BACKED.map((c) => {
+    const row = ev.rows.find((r) => r.control.id === c.controlId) ?? null;
+    const base = { controlId: c.controlId, collector: c.collector, freshness: row?.freshness ?? null, present: Boolean(row?.record) };
+    if (!row) return { ...base, required: false, why: 'not in this project\'s catalog' };
+    if (row.applies === 'no') return { ...base, required: false, why: 'decided not to apply' };
+    if (c.needsPolicy && !deliveryPolicyExists) return { ...base, required: false, why: 'there is no delivery policy for its collector to read' };
+    return { ...base, required: true, why: null };
+  });
+}
+
 // docs/CONTRACTS.md section 9. Never throws: anything that prevents an evaluation is { available: false, reason }.
 // current, missing, stale, expired, invalid and gaps partition the applicable controls by evidence state (needs-human
 // assessments are the rest); undecided counts applicable controls with no applicability decision, and needsHuman
