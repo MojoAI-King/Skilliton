@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "id": "265d7a59-9dd8-4ba3-8183-9c1c29f930a9",
+  "controlId": "SG-SECURITY-TESTS",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "43f3ea8411368596e4041725bfbc81e35406462c22fdf316644aba1915202864",
+  "recordedAt": "2026-09-24T20:05:20.754Z",
+  "assessment": "observed",
+  "note": "Reassessed before 1.4.0: the full offline check list on 4e3c697 read 106 pass, 0 fail, 2 skipped (CI-only) of 108; the guard suites gained the sourced-file cases, and four new suites (writes through links, the usage ledger, the gate verdict, attached paths) each fail against the code before them. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "scripts/guardrails.test.sh",
+      "sha256": "f23363223a2a1e1b734b7f1a7a59cc0ddf08659ac1304a485edde4cec4b558a6"
+    },
+    {
+      "path": "scripts/guardrails-bypass.test.sh",
+      "sha256": "beb175b759187b92452095d162d853f0856ee06070eaef380671b5fecd72860a"
+    },
+    {
+      "path": "scripts/guardrails-review.test.sh",
+      "sha256": "9353071ca14bd5ed93b30f58a981ffdb6f0ba5c6ab8e14c48fe61b675cea1580"
+    },
+    {
+      "path": "scripts/guardrails-review2.test.sh",
+      "sha256": "c234f6bab1397f915be16102d48e496d303ee7dc5936306831e3b5cae8c8ab30"
+    },
+    {
+      "path": "scripts/guardrails-timing.test.sh",
+      "sha256": "fab73020eefb89449f84134c1aa8de966b0349fdcc107c9aaf5d9aa6ef5c9da9"
+    },
+    {
+      "path": "scripts/delivery.test.mjs",
+      "sha256": "d0c508d731373b9f18c9324a42c0560e3a9db6da9700eb5124c9714dfd7d5efc"
+    },
+    {
+      "path": "scripts/delivery-protect.test.mjs",
+      "sha256": "51a1eb8af2f7a274be23bfc1a0768020c3dac1c4066588fd243cd6a28797ac40"
+    },
+    {
+      "path": "scripts/delivery-integrity.test.mjs",
+      "sha256": "2e09c87aa1ff26ad87b5488f46a177afc8c2ff58aeed14b6d85ec4b9425db40a"
+    },
+    {
+      "path": "scripts/release-refusals.test.mjs",
+      "sha256": "2f8521ffd3db5265511123c06f39b2dd239b398ced719dc0dca3325db35d2e99"
+    },
+    {
+      "path": "scripts/read-guard.test.mjs",
+      "sha256": "104617dcd337db4079da43749b88f6ba8c432431b3e6427a63c568d2a46b514f"
+    },
+    {
+      "path": "packs/base/plugins/guardrails/hooks/guard-bash.sh",
+      "sha256": "d40d827c7aa22e2ab42d96d9a032c415dc60a1c61a7b38460764376bbffba7ab"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/delivery.mjs",
+      "sha256": "e1023c5df5a61dc11ff9fa282608cba3d010ad9939b9a8f6c3f6f9a5bf2446fc"
+    },
+    {
+      "path": "scripts/write-links.test.mjs",
+      "sha256": "3201383bdd9bb3d7f1fd3a2e00db4dd17b1ac8f9ea8964b560cbefe6f52632c8"
+    },
+    {
+      "path": "scripts/usage-ledger-links.test.mjs",
+      "sha256": "1200671c74959bfd065f5bb2664c4989ce53cb6a3e934b2a20afa1d18e88864b"
+    },
+    {
+      "path": "scripts/gate-process-label.test.mjs",
+      "sha256": "80cabae4803c9e656849a80602322bddee301eeb27c6a88c34fa318c35c17f4e"
+    },
+    {
+      "path": "scripts/security-entry-paths.test.mjs",
+      "sha256": "9890dd93a9854ac50daa2554a1678d173492c4e90475ca430f1f8c984d34ead7"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassessment-SG-SECURITY-TESTS.md",
+      "sha256": "a0b671b89208398a461617260a092c2fd9eaf1f8f9a56d2e0cd6ac489b26ebbe"
+    }
+  ]
+}
