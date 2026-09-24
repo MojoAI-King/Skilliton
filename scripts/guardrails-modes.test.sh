@@ -158,7 +158,8 @@ run quiet "$W" "$OPAQUE"
 ok_if "a worktree notes into its own git folder" '[ -f "$R/.git/worktrees/wt/skilliton/guardrails.jsonl" ]'
 
 echo "== the session start names the mode"
-ss() { local out; if [ "$1" = default ]; then out=$(cd "$R" && CLAUDE_PROJECT_DIR="$R" bash "$HOOK" --session-start 2>/dev/null); else out=$(cd "$R" && CLAUDE_PROJECT_DIR="$R" SKILLITON_GUARDRAILS_MODE=$1 bash "$HOOK" --session-start 2>/dev/null); fi; SS=$out; }
+# Standard input is closed on purpose: the hook reads its input from stdin, and in a terminal it would wait for a person.
+ss() { local out; if [ "$1" = default ]; then out=$(cd "$R" && CLAUDE_PROJECT_DIR="$R" bash "$HOOK" --session-start 2>/dev/null </dev/null); else out=$(cd "$R" && CLAUDE_PROJECT_DIR="$R" SKILLITON_GUARDRAILS_MODE=$1 bash "$HOOK" --session-start 2>/dev/null </dev/null); fi; SS=$out; }
 ss default; ok_if "default: says quiet mode" 'case "$SS" in *"quiet mode"*) true ;; *) false ;; esac'
 ss strict;  ok_if "strict: says neither quiet nor fleet" 'case "$SS" in *"quiet mode"*|*"fleet mode"*) false ;; *) true ;; esac'
 ss fleet;   ok_if "fleet: says fleet mode" 'case "$SS" in *"fleet mode"*) true ;; *) false ;; esac'
