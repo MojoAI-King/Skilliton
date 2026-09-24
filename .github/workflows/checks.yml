@@ -118,6 +118,9 @@ jobs:
         run: node scripts/token-cost.test.mjs --reference
       - name: Usage meter prices every model the transcripts name
         run: node --test scripts/token-cost-models.test.mjs
+
+      - name: The usage ledger (rows appended at maintain time, token counts only, screen readings, the summary's verdict)
+        run: node scripts/usage-ledger.test.mjs
       - name: Token direction-of-travel counts (gate runs, read-guard refusals, compactions)
         run: node --test scripts/token-direction.test.mjs
       - name: Read guard hook (context-hygiene)
@@ -132,6 +135,9 @@ jobs:
 
       - name: Dispatch (lanes, worktrees, briefs, the lane record, merge-back and the refusals)
         run: node --test scripts/dispatch.test.mjs
+
+      - name: Closing a batch marks merged lanes merged and reports their cost and peak context (B82)
+        run: node --test scripts/dispatch-close.test.mjs
 
       - name: Setup (status line apply and undo)
         run: node scripts/setup.test.mjs
