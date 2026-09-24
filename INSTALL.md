@@ -102,7 +102,7 @@ The join file carries the company name, the skills repository's address and the 
 ```bash
 git clone https://github.com/MojoAI-King/Skilliton.git ~/skilliton-upstream && cd ~/skilliton-upstream
 key=$(gh api users/MojoAI-King/ssh_signing_keys --jq '.[0].key')
-who=$(git cat-file -p skilliton-release/1.3.0 | sed -n 's/^tagger .*<\(.*\)>.*/\1/p')
+who=$(git cat-file -p skilliton-release/1.4.0 | sed -n 's/^tagger .*<\(.*\)>.*/\1/p')
 printf '%s namespaces="git" %s\n' "$who" "$key" > ~/skilliton.allowed_signers
 node scripts/skilliton.mjs trust add --company skilliton --signers ~/skilliton.allowed_signers --apply
 node scripts/skilliton.mjs verify --company skilliton --source .
