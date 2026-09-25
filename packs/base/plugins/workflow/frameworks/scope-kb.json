@@ -1,0 +1,506 @@
+{
+  "meta": {
+    "artifact": "framework-applicability",
+    "version": "1.0.0",
+    "status": "approved",
+    "note": "Scoping knowledge base for framework applicability discovery. Recommends an assessment scope from observable signals and flags frameworks that are not yet in the library. It does not decide which law applies to a client; that determination stays with the client, its counsel, its acquirer, or its regulator.\n",
+    "determination_default": "This is a recommended assessment scope based on signals observed in the client's own material -- it is not a legal opinion and not a determination that this regime applies. The client, with its counsel, must confirm the scope in writing before the engagement letter is signed; MojoComply assesses readiness against the scope it is given.\n"
+  },
+  "signals": [
+    {
+      "id": "payment-card-acceptance",
+      "label": "Payment cards are accepted",
+      "description": "A payment processor or gateway is integrated (Stripe, Braintree, Adyen, Square, Authorize.net, Worldpay, Checkout.com), or the material describes taking card payments. This is the entry signal for the card-brand security standard.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "payment-page-fully-outsourced",
+      "label": "Card entry is fully outsourced to the processor",
+      "description": "Card data is captured on the processor's own page or redirect (e.g. a hosted checkout page), tokenized, and never reaches systems the business controls. Common phrasings the detector looks for include hosted checkout, redirect to the processor, tokenized, and explicit statements that no card data is stored or transmitted.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "payment-page-on-merchant-site",
+      "label": "The payment page is served or controlled by the merchant",
+      "description": "The card entry form is embedded in the merchant's own page (hosted fields, an embedded payment element, an iframe the merchant serves, or a direct-post form). The merchant does not store account data but its site can affect how card data is captured, which changes the validation path.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "card-data-handled-directly",
+      "label": "Account data is stored, processed, or transmitted on the merchant's systems",
+      "description": "The material references handling a primary account number, sensitive authentication data, magnetic-stripe or chip track data, a card verification value, or a defined cardholder data environment. This is the highest-scope card signal.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "card-present-terminal",
+      "label": "Card-present acceptance through terminals or readers",
+      "description": "Physical acceptance -- point-of-interaction terminals, chip or contactless readers, or a point-to-point encryption solution. Changes which validation path fits.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "ephi-handling",
+      "label": "Electronic protected health information is handled",
+      "description": "The system creates, receives, maintains, or transmits health information tied to an individual -- patient records, charts, clinical data, health record interchange formats, or an explicit statement that protected health information is processed.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "business-associate-agreement-present",
+      "label": "A business associate agreement is in place or contemplated",
+      "description": "The material references a business associate agreement or a business associate relationship, which is a strong indicator that health-sector obligations flow through to this system by contract.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "consumer-health-data",
+      "label": "Consumer health or wellness data outside the health-sector regime",
+      "description": "Wellness, fitness, med-spa, mental-wellness, symptom, cycle, diet, or biometric wellness data collected direct-to-consumer, where the business is often not a covered entity but consumer-health privacy rules and unfair-practice enforcement still reach the data.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "substance-use-disorder-program",
+      "label": "Substance use disorder treatment program",
+      "description": "Substance use disorder treatment, opioid treatment, medication-assisted treatment, detox, or recovery-program records -- the trigger for the federal confidentiality overlay that sits on top of the health-sector rules.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "multi-tenant-architecture",
+      "label": "Multi-tenant architecture",
+      "description": "The system is built to hold more than one customer organization's data behind a tenant boundary (tenant identifiers, per-tenant isolation, row-level security by tenant). On its own this is an architecture fact, not a demand signal.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "service-delivered-to-third-party-customers",
+      "label": "The system is or will be delivered to third-party customer organizations",
+      "description": "Licensing out, reselling, white-labelling, onboarding other organizations as tenants, or otherwise operating the software as a service for customers other than its owner. This is what turns a system into a service organization whose customers ask for assurance over it.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "customer-security-assurance-demand",
+      "label": "A customer or prospect is asking for third-party security assurance",
+      "description": "A vendor security questionnaire, a customer security review, or an explicit request for a service-organization examination report or an accredited information-security management standard.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "nonbank-financial-activity",
+      "label": "Non-bank financial activity",
+      "description": "Consumer lending, mortgage or auto finance, loan servicing, debt collection, tax preparation, check cashing, money transmission, investment advice, or acting as a finance company -- the activity family that pulls a non-bank business into the federal financial-privacy safeguards regime.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "customer-financial-account-data",
+      "label": "Customer bank-account or credit-application data",
+      "description": "Bank routing and account numbers, ACH origination, credit applications, or consumer credit reports held about individuals. Supporting evidence for a financial-privacy scope; on its own it is a question to ask, not a scope.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "ny-regulated-financial-entity",
+      "label": "New York-regulated financial services entity",
+      "description": "The material references the New York financial services regulator, its cybersecurity part, a New York insurance producer licence, or a New York banking or virtual currency licence.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "legal-practice-matter-data",
+      "label": "Law-practice matter data",
+      "description": "Attorney-client material, matter or docket management, conflicts checking, trust or client-funds accounting, or a law firm's practice systems.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "consumer-personal-information-at-scale",
+      "label": "Consumer personal information held at scale",
+      "description": "A consumer-facing business holding personal information about individuals, with privacy-rights vocabulary present (data subject requests, deletion rights, sale or sharing opt-outs). Points at the state comprehensive privacy regimes, which are not yet encoded.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "eu-uk-personal-data",
+      "label": "European or UK personal data",
+      "description": "European or UK data protection vocabulary -- a data protection officer, standard contractual clauses, lawful basis, data subject rights under the European regime, or users resident in the European Economic Area or the United Kingdom.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "controlled-unclassified-information",
+      "label": "Defense contracting / controlled unclassified information",
+      "description": "Controlled unclassified information, defense acquisition supplement clauses, a defense contract, or the federal contractor information-protection standard.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "iso-27001-demand",
+      "label": "International information-security management standard demanded",
+      "description": "The international information-security management system standard is named, or an information-security management system is described as an objective -- typically because an enterprise or international customer requires it.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "federally-regulated-depository-institution",
+      "label": "Bank, thrift, or credit union",
+      "description": "A depository institution supervised by a federal banking agency or the credit-union regulator -- the financial-privacy safeguards for these entities come from their prudential regulator, not the trade regulator, and are not yet encoded.\n",
+      "source": "repo_scan"
+    },
+    {
+      "id": "covered-entity-or-business-associate-status",
+      "label": "INTERVIEW: is the organization a covered entity or a business associate?",
+      "description": "No repository can answer this. It is the health-sector applicability question and it must be asked at intake and answered by the client with its counsel.\n",
+      "source": "interview"
+    },
+    {
+      "id": "glba-financial-institution-status",
+      "label": "INTERVIEW: is the organization a financial institution under the federal financial-privacy law?",
+      "description": "The definition is activity-based and famously broad (it has reached tax preparers, auto dealers, and higher-education institutions). Ask it; never infer it.\n",
+      "source": "interview"
+    },
+    {
+      "id": "nydfs-covered-entity-status",
+      "label": "INTERVIEW: is the organization licensed or authorized by the New York financial services regulator?",
+      "description": "Licence status, and any exemption, are facts the entity holds and its counsel confirms. Ask it; never infer it.\n",
+      "source": "interview"
+    }
+  ],
+  "frameworks": [
+    {
+      "framework": "ftc-safeguards",
+      "label": "FTC Safeguards Rule (information security program)",
+      "summary": "Recommended when the business performs non-bank financial activity for consumers. The encoded library assesses the information security program; it does not decide whether the business is a covered financial institution.\n",
+      "triggers": [
+        {
+          "applies_when": "The business lends, finances, services loans, collects debt, prepares taxes, transmits money, or gives investment advice.",
+          "signal": "nonbank-financial-activity",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "The organization confirms at intake that it treats itself as a financial institution under the federal financial-privacy law.",
+          "signal": "glba-financial-institution-status",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "The business holds bank-account, ACH, or credit-application data about individual customers.",
+          "signal": "customer-financial-account-data",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "Whether this business is a financial institution covered by the federal financial-privacy safeguards is a legal determination for the business and its counsel -- the definition is activity-based and MojoComply does not apply it. This is a recommended assessment scope only; confirm it before the engagement letter is signed.\n"
+    },
+    {
+      "framework": "health-wellness",
+      "label": "Consumer health & wellness privacy",
+      "summary": "Recommended for med-spa, wellness, fitness, and consumer-health-app businesses that are generally not covered entities, where consumer-health privacy rules and unfair-practice enforcement still reach the data.\n",
+      "triggers": [
+        {
+          "applies_when": "The business collects wellness, fitness, mental-wellness, or other consumer health data directly from individuals.",
+          "signal": "consumer-health-data",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Health information about individuals is present, and which regime governs it has not been settled.",
+          "signal": "ephi-handling",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "Which regime governs a given data element -- the health-sector rules, the consumer health-breach rule, or a state consumer-health privacy law -- is a legal determination that requires counsel, and it turns on where the client's users live. MojoComply recommends a scope; the client and its counsel confirm it.\n"
+    },
+    {
+      "framework": "hipaa-privacy-breach",
+      "label": "HIPAA Privacy Rule + Breach Notification overlay",
+      "summary": "Recommended alongside (never instead of) the Security Rule library whenever health information about individuals is in scope.\n",
+      "triggers": [
+        {
+          "applies_when": "The system creates, receives, maintains, or transmits electronic protected health information.",
+          "signal": "ephi-handling",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "The organization confirms at intake that it is a covered entity or a business associate.",
+          "signal": "covered-entity-or-business-associate-status",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "A business associate agreement is in place or has been requested.",
+          "signal": "business-associate-agreement-present",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "Covered-entity and business-associate status, and every permitted-use, minimum- necessary, and reportable-breach judgment, are legal determinations that require counsel. This is a recommended scope for a readiness and gap assessment only.\n"
+    },
+    {
+      "framework": "hipaa-security-rule",
+      "label": "HIPAA Security Rule",
+      "summary": "Recommended when electronic protected health information is handled. Assess with the Privacy/Breach overlay, and add the substance use disorder overlay when it applies.\n",
+      "triggers": [
+        {
+          "applies_when": "The system creates, receives, maintains, or transmits electronic protected health information.",
+          "signal": "ephi-handling",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "The organization confirms at intake that it is a covered entity or a business associate.",
+          "signal": "covered-entity-or-business-associate-status",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "A business associate agreement is in place or has been requested.",
+          "signal": "business-associate-agreement-present",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "Whether the organization is a covered entity or a business associate is a legal determination for the organization and its counsel; MojoComply does not make it and does not attest that any entity meets its obligations. This is a recommended scope for a risk analysis and gap assessment.\n"
+    },
+    {
+      "framework": "legal-safeguarding",
+      "label": "Legal-practice information safeguarding (professional responsibility)",
+      "summary": "Recommended for law firms and legal-practice systems. This library is professional- responsibility guidance, not a security regulation, and the model rules are not themselves binding -- each state adopts its own.\n",
+      "triggers": [
+        {
+          "applies_when": "The system holds attorney-client material, matter or docket records, conflicts data, or client-funds accounting.",
+          "signal": "legal-practice-matter-data",
+          "weight": "strong",
+          "posture": "current"
+        }
+      ],
+      "determination": "A firm's professional-responsibility obligations come from its own state's rules of professional conduct, which the firm and its ethics counsel interpret. Nothing here is legal advice; this is a recommended readiness scope only.\n"
+    },
+    {
+      "framework": "ny-dfs-500",
+      "label": "NYDFS Part 500 cybersecurity requirements",
+      "summary": "Recommended for entities licensed or authorized by the New York financial services regulator, including the insurance vertical.\n",
+      "triggers": [
+        {
+          "applies_when": "The organization confirms at intake that it holds a New York banking, insurance, or virtual-currency licence or authorization.",
+          "signal": "nydfs-covered-entity-status",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "The material references the New York financial services regulator or its cybersecurity part.",
+          "signal": "ny-regulated-financial-entity",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "The organization performs non-bank financial activity that may be licensed in New York.",
+          "signal": "nonbank-financial-activity",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "Covered-entity status, and any exemption, are determinations the entity makes with its counsel and its regulator. This is a recommended assessment scope only.\n"
+    },
+    {
+      "framework": "part2-overlay",
+      "label": "Substance use disorder records confidentiality overlay",
+      "summary": "An overlay assessed alongside the Security Rule library -- never instead of it -- for federally assisted substance use disorder treatment programs.\n",
+      "triggers": [
+        {
+          "applies_when": "The organization operates a substance use disorder treatment, opioid treatment, or recovery program.",
+          "signal": "substance-use-disorder-program",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Health information about individuals is handled by a program that may hold treatment records.",
+          "signal": "ephi-handling",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "Whether an organization is a federally assisted program subject to this overlay, and every consent and redisclosure judgment under it, are legal determinations that require counsel. This is a recommended scope only.\n"
+    },
+    {
+      "framework": "pci-dss-v4",
+      "label": "PCI DSS v4 (card-brand security standard)",
+      "summary": "Recommended whenever the business accepts payment cards. The library is readiness-only: MojoComply is not a QSA or ASV, does not validate, and does not perform approved scanning-vendor scans.\n",
+      "variant_dimension": "SAQ type (the merchant's validation path)",
+      "triggers": [
+        {
+          "applies_when": "The business accepts payment cards, or a payment processor or gateway is integrated into the system.",
+          "signal": "payment-card-acceptance",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Account data is stored, processed, or transmitted on systems the business controls.",
+          "signal": "card-data-handled-directly",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Cards are accepted in person through terminals or readers.",
+          "signal": "card-present-terminal",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "variants": [
+        {
+          "id": "saq-d",
+          "label": "SAQ D",
+          "when_signals": [
+            "card-data-handled-directly"
+          ],
+          "unless_signals": [],
+          "note": "Account data appears to be handled on systems the business controls, which is the widest validation path. The merchant's acquirer sets the actual path.\n"
+        },
+        {
+          "id": "saq-a-ep",
+          "label": "SAQ A-EP",
+          "when_signals": [
+            "payment-page-on-merchant-site"
+          ],
+          "unless_signals": [
+            "card-data-handled-directly"
+          ],
+          "note": "The merchant does not appear to store account data, but its own site serves or controls the page that captures card data, so the site remains in scope.\n"
+        },
+        {
+          "id": "saq-a",
+          "label": "SAQ A",
+          "when_signals": [
+            "payment-page-fully-outsourced"
+          ],
+          "unless_signals": [
+            "card-data-handled-directly",
+            "payment-page-on-merchant-site",
+            "card-present-terminal"
+          ],
+          "note": "Card entry appears to be fully outsourced to the processor and tokenized, with no account data on systems the business controls -- the narrowest e-commerce path.\n"
+        },
+        {
+          "id": "card-present",
+          "label": "A card-present path (SAQ B, B-IP, C, or P2PE)",
+          "when_signals": [
+            "card-present-terminal"
+          ],
+          "unless_signals": [
+            "card-data-handled-directly",
+            "payment-page-fully-outsourced",
+            "payment-page-on-merchant-site"
+          ],
+          "note": "In-person acceptance points at one of the card-present paths; which one depends on the terminal type and connectivity, which the acquirer confirms.\n"
+        }
+      ],
+      "variant_note": "The signals seen do not resolve to a single validation path. Treat the SAQ type as open and confirm it with the acquirer before scoping the assessment.\n",
+      "determination": "The merchant's validation path (SAQ type) and its reporting obligations are set by its acquirer and the card brands, not by MojoComply, and a self-assessment questionnaire is completed by the merchant itself. This is a recommended assessment scope based on observable signals; confirm the SAQ type with the acquirer before the engagement letter is signed.\n"
+    },
+    {
+      "framework": "soc2-tsc",
+      "label": "SOC 2 Trust Services Criteria (readiness)",
+      "summary": "Recommended when the system is delivered to customer organizations that want assurance over it. Readiness only -- an independent CPA firm performs and issues the examination; MojoComply prepares and organizes.\n",
+      "triggers": [
+        {
+          "applies_when": "A customer or prospect has asked for a service-organization examination report or a vendor security review.",
+          "signal": "customer-security-assurance-demand",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "The system is licensed, resold, white-labelled, or operated as a service for organizations other than its owner.",
+          "signal": "service-delivered-to-third-party-customers",
+          "weight": "strong",
+          "posture": "prospective"
+        },
+        {
+          "applies_when": "The system is built multi-tenant, so other organizations' data can be onboarded behind a tenant boundary.",
+          "signal": "multi-tenant-architecture",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "There is no such thing as being cleared by MojoComply here: a licensed CPA firm performs the examination and issues the report, and the trust categories in scope are chosen by the service organization with that firm. This is a recommended readiness scope only; the client confirms it.\n"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "state-consumer-privacy",
+      "name": "State comprehensive consumer privacy laws",
+      "summary": "The state-by-state consumer privacy statutes that give residents access, deletion, correction, and opt-out rights and impose duties on businesses over thresholds. Which states reach a given business depends on where its consumers live and on volume and revenue thresholds.\n",
+      "triggers": [
+        {
+          "applies_when": "A consumer-facing business holds personal information about individuals and privacy-rights vocabulary is present.",
+          "signal": "consumer-personal-information-at-scale",
+          "weight": "strong",
+          "posture": "current"
+        }
+      ],
+      "add_note": "Encoding this means a multi-jurisdiction library keyed to the client's actual consumer footprint, like the consumer health & wellness library already is. Scope the state list with the client before encoding.\n",
+      "determination": "Which state privacy statutes reach this business is a legal determination that depends on its consumer footprint and on statutory thresholds; the client and its counsel make it. MojoComply is flagging that no library exists for it yet.\n"
+    },
+    {
+      "id": "eu-uk-data-protection",
+      "name": "European / UK data protection regime",
+      "summary": "The European and UK general data protection regimes, covering lawful basis, data subject rights, transfer mechanisms, processor terms, and breach reporting.\n",
+      "triggers": [
+        {
+          "applies_when": "European or UK personal data, or European data protection vocabulary, is present.",
+          "signal": "eu-uk-personal-data",
+          "weight": "strong",
+          "posture": "current"
+        }
+      ],
+      "add_note": "Encoding this is a substantial build (controller/processor split, transfer mechanisms, records of processing). Confirm the client actually has European or UK data subjects before committing to it.\n",
+      "determination": "Whether the European or UK regime reaches this business, and in which role, is a legal determination for the business and its counsel. MojoComply is flagging that no library exists for it yet.\n"
+    },
+    {
+      "id": "iso-iec-27001",
+      "name": "International information-security management system standard",
+      "summary": "The international management-system standard for information security, audited by an accredited body. Enterprise and international customers often demand it instead of, or alongside, a service-organization examination.\n",
+      "triggers": [
+        {
+          "applies_when": "The international information-security management standard is named, or an information-security management system is an objective.",
+          "signal": "iso-27001-demand",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "A customer or prospect is running a vendor security review that asks for an international standard.",
+          "signal": "customer-security-assurance-demand",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "add_note": "Encoding this means a management-system library (clauses plus the control annex) and a clear split between MojoComply's readiness work and the accredited body's audit, the same split already used for the service-organization library.\n",
+      "determination": "Audits against this standard are performed by an accredited body, not by MojoComply. Whether the client needs it is a commercial and contractual decision for the client. MojoComply is flagging that no library exists for it yet.\n"
+    },
+    {
+      "id": "defense-contractor-cui",
+      "name": "Defense-contractor information protection (CUI safeguarding and its maturity model)",
+      "summary": "The federal requirements for protecting controlled unclassified information in non-federal systems, and the defense department's maturity-model assessment program layered on top of them.\n",
+      "triggers": [
+        {
+          "applies_when": "Controlled unclassified information, defense acquisition clauses, or a defense contract are referenced.",
+          "signal": "controlled-unclassified-information",
+          "weight": "strong",
+          "posture": "current"
+        }
+      ],
+      "add_note": "Encoding this means the federal control catalogue for non-federal systems plus the maturity-level structure and the third-party assessment path, which is performed by an authorized assessor -- MojoComply would be readiness-only, as with the other attestation-tier libraries.\n",
+      "determination": "Contract clauses and assessment level are set by the contracting agency and flowed down by the prime; the client and its contracts counsel confirm them. MojoComply is flagging that no library exists for it yet.\n"
+    },
+    {
+      "id": "glba-safeguards-banking-regulators",
+      "name": "Financial-privacy safeguards for institutions supervised by banking regulators",
+      "summary": "Banks, thrifts, and credit unions get their information-security safeguards from their prudential regulator's own guidelines rather than from the trade regulator's rule that the encoded library models, and their examination programme differs.\n",
+      "triggers": [
+        {
+          "applies_when": "The organization is a bank, thrift, or credit union supervised by a federal banking or credit-union regulator.",
+          "signal": "federally-regulated-depository-institution",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "The organization performs financial activity and its regulator has not been identified.",
+          "signal": "nonbank-financial-activity",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "add_note": "Do not stretch the encoded trade-regulator library over a supervised depository institution; the guidelines and the examination expectations differ. Encode the correct one, or decline the engagement.\n",
+      "determination": "Which supervisory regime applies follows from the institution's charter and primary federal regulator -- facts the institution holds and its counsel confirms. MojoComply is flagging that no library exists for it yet.\n"
+    }
+  ]
+}

@@ -1,0 +1,1293 @@
+{
+  "meta": {
+    "framework": "hipaa-security-rule",
+    "version": "1.1.0",
+    "status": "approved",
+    "authority": "45 CFR Part 164, Subpart C (Security Standards for the Protection of Electronic Protected Health Information)",
+    "note": "There is no HIPAA certification. This library supports risk analysis and gap assessment only.\nSCOPING DECISION -- 45 CFR §164.306(a)-(e) (B34, resolved 2026-07-27; the approver approved the split and delegated which way it fell). SPLIT, not a blanket exclusion.\nENCODED: §164.306(e) Maintenance, as hipaa-sr-security-measure-maintenance. It carries a residual duty no other control does -- \"review and modify the security measures implemented under this subpart as needed to continue provision of reasonable and appropriate protection\". hipaa-sr-evaluation (§164.308(a)(8)) assesses POLICIES AND PROCEDURES against the rule, and hipaa-sr-documentation-updates covers §164.316(b)(2)(iii); neither requires changing the DEPLOYED safeguards. An entity can evaluate diligently, document faithfully, and still fail §164.306(e) by never acting on what it finds. Same reasoning that justified the six standard-level controls: encode where a residual obligation is uncovered.\nNOT ENCODED: §164.306(a)-(d), because encoding them would double-count rather than close a gap. §164.306(c) requires adherence to \"the applicable standards as provided in this section and in §§ 164.308, 164.310, 164.312, 164.314 and 164.316\" -- exactly the sections this library encodes, so an entity failing (a)'s duties is already failing specific standards. §164.306(b) is a rule of construction (flexibility of approach and the four factors), not a separate obligation to assess. §164.306(d) is the Required/Addressable rule, modelled in meta.obligation_levels below. The accepted trade-off is that an assessment produces no finding addressed to §164.306(a)-(d) in its own right. See batches/BATCH_34_REVIEW.md.\n",
+    "categories": [
+      "administrative",
+      "physical",
+      "technical",
+      "organizational",
+      "policies_and_documentation"
+    ],
+    "obligation_levels": [
+      {
+        "id": "standard",
+        "label": "Standard"
+      },
+      {
+        "id": "required",
+        "label": "Required",
+        "tie_break_rank": 1
+      },
+      {
+        "id": "addressable",
+        "label": "Addressable",
+        "tie_break_rank": 2,
+        "note": "Addressable ≠ optional: the entity must implement, implement an equivalent alternative, or document why neither is reasonable. The operative rule is 45 CFR §164.306(d)(3). Note what it does NOT permit: declining every Addressable specification beneath a standard does not discharge the standard itself, which remains mandatory under 45 CFR §164.306(c) -- the six standard-level controls added in B34 are what hold the entity to it.\n"
+      }
+    ],
+    "sources": [
+      {
+        "document": "45 CFR Part 164, Subpart C -- Security Standards for the Protection of Electronic Protected Health Information (HIPAA Security Rule)",
+        "version": "Codified text currently in force. Verified against the eCFR versioner API (versions/title-45.json?part=164) on the retrieved date: of the twelve 164.3xx section records, ten carry amendment_date 2016-12-30 -- the eCFR point-in-time baseline, meaning no amendment since eCFR data begins -- and §164.314 (Organizational requirements) carries amendment_date 2020-11-24. All twelve report removed=false. The last substantive amendment of record for the rule as a whole is the HITECH/GINA Omnibus Final Rule, 78 FR 5566. meta.authority above matches the current authority exactly. NOTE for review: this library encodes four controls against §164.314 -- the one Subpart C section with a post-baseline amendment date. Their text has NOT been re-verified against the 2020-11-24 revision; do that before the next client engagement relying on them.",
+        "published": "2013-01-25",
+        "retrieved": "2026-07-26",
+        "url": "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C",
+        "change_watch": "HIGH RISK -- a rewrite is pending. \"HIPAA Security Rule To Strengthen the Cybersecurity of Electronic Protected Health Information,\" NPRM, 90 FR 898, published 2025-01-06, comments closed 2025-03-07 (Federal Register API, RIN 0945-AA22 -- only ONE document exists under that RIN, a Proposed Rule; NO final rule). The reginfo.gov Unified Agenda 2026 edition places RIN 0945-AA22 under Long-Term Actions with Final Action projected July 2027. If finalized as proposed it would eliminate the Required/Addressable distinction -- a Law 6 STRUCTURAL change, not merely a content change: meta.obligation_levels, tie_break_rank, scoring, and all report language keyed to \"Addressable is not optional\" would need re-modeling, and every one of the 57 controls' obligation field would need review -- including the six standard-level controls added in B34, whose whole reason for existing is that a standard survives the decline of its Addressable specifications. PROBE: poll https://www.federalregister.gov/api/v1/documents.json?conditions[regulation_id_number]=0945-AA22 and alert on any document with type=Rule. Secondary probe: https://www.ecfr.gov/api/versioner/v1/versions/title-45.json?part=164 -- alert if any 164.3xx section's amendment_date moves off its recorded baseline, which is 2016-12-30 for every section EXCEPT §164.314, whose baseline is 2020-11-24. (Alerting on \"anything not 2016-12-30\" would fire a false positive on §164.314 immediately.)"
+      }
+    ]
+  },
+  "attribution": "Public-domain U.S. federal regulatory text (45 CFR Part 164, Subpart C, HIPAA Security Rule). Requirement wording is MojoComply's own plain-English paraphrase, not a verbatim reproduction of the CFR text.",
+  "controls": [
+    {
+      "id": "hipaa-sr-risk-analysis",
+      "citation": "45 CFR §164.308(a)(1)(ii)(A)",
+      "category": "administrative",
+      "standard": "Security Management Process",
+      "obligation": "required",
+      "requirement": "Conduct an accurate and thorough assessment of the potential risks and vulnerabilities to the confidentiality, integrity, and availability of ePHI held by the organization.\n",
+      "question_ids": [
+        "q-ra-001",
+        "q-ra-002",
+        "q-ra-003"
+      ],
+      "evidence_types": [
+        "Most recent written risk analysis document (dated within 12 months)",
+        "Asset inventory of systems that create, receive, maintain, or transmit ePHI",
+        "Methodology description (e.g., NIST SP 800-30 aligned)"
+      ],
+      "remediation": {
+        "quick_win": "Schedule and scope a formal risk analysis; start with an ePHI asset inventory.",
+        "standard": "Perform an organization-wide risk analysis using a NIST 800-30-aligned methodology; document threats, vulnerabilities, likelihood, and impact per asset.",
+        "note": "This is the single most-cited gap in OCR enforcement actions. Weight it accordingly in the roadmap narrative."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-risk-management",
+      "citation": "45 CFR §164.308(a)(1)(ii)(B)",
+      "category": "administrative",
+      "standard": "Security Management Process",
+      "obligation": "required",
+      "requirement": "Implement security measures sufficient to reduce the risks and vulnerabilities identified in the risk analysis to a reasonable and appropriate level.\n",
+      "question_ids": [
+        "q-sm-001",
+        "q-sm-002"
+      ],
+      "evidence_types": [
+        "Risk management / remediation plan with owners, dates, and status",
+        "Meeting notes or tickets showing risk items moving to closure"
+      ],
+      "remediation": {
+        "quick_win": "Turn the risk analysis findings into a short action list with an owner and a target date for each item.",
+        "standard": "Maintain a living risk management plan: prioritize findings by likelihood and impact, assign owners, review progress on a set cadence, and record acceptance decisions for risks not remediated.",
+        "note": "OCR looks for evidence that identified risks were acted on, not just documented; a risk analysis with no follow-through is a recurring enforcement theme."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-sanction-policy",
+      "citation": "45 CFR §164.308(a)(1)(ii)(C)",
+      "category": "administrative",
+      "standard": "Security Management Process",
+      "obligation": "required",
+      "requirement": "Apply appropriate sanctions against workforce members who fail to comply with the organization's security policies and procedures.\n",
+      "question_ids": [
+        "q-wf-004"
+      ],
+      "evidence_types": [
+        "Sanction policy document",
+        "Redacted example of sanction documentation, if any has occurred"
+      ],
+      "remediation": {
+        "quick_win": "Adopt a written sanction policy tiered by violation severity; have workforce acknowledge it.",
+        "standard": "Integrate the sanction policy into HR procedures and training acknowledgments; log all applications."
+      },
+      "weight": 1
+    },
+    {
+      "id": "hipaa-sr-activity-review",
+      "citation": "45 CFR §164.308(a)(1)(ii)(D)",
+      "category": "administrative",
+      "standard": "Security Management Process",
+      "obligation": "required",
+      "requirement": "Regularly review records of activity in systems holding ePHI -- such as audit logs, access reports, and security incident tracking reports -- to spot unusual or inappropriate access.\n",
+      "question_ids": [
+        "q-sm-003",
+        "q-sm-004"
+      ],
+      "evidence_types": [
+        "Written activity review procedure (who reviews what, how often)",
+        "Screenshot showing audit logging enabled in the primary system holding ePHI",
+        "Record of a recent completed review (date, reviewer, findings)"
+      ],
+      "remediation": {
+        "quick_win": "Turn on audit logging in the EHR/practice-management system and assign one person to review access reports monthly.",
+        "standard": "Document a review procedure covering which logs are reviewed, how often, and how anomalies are escalated; keep dated records of each review."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-security-official",
+      "citation": "45 CFR §164.308(a)(2)",
+      "category": "administrative",
+      "standard": "Assigned Security Responsibility",
+      "obligation": "standard",
+      "requirement": "Identify the security official who is responsible for developing and implementing the organization's security policies and procedures -- one named person, not a committee.\n",
+      "question_ids": [
+        "q-sm-005",
+        "q-sm-006"
+      ],
+      "evidence_types": [
+        "Document naming the security official (policy, org chart, or job description)",
+        "Attestation from the security official describing their duties"
+      ],
+      "remediation": {
+        "quick_win": "Name a security official in writing and share the designation with staff.",
+        "standard": "Document the role's duties in a job description; give the official time and authority to run the security program and report to leadership."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-workforce-security",
+      "citation": "45 CFR §164.308(a)(3)(i)",
+      "category": "administrative",
+      "standard": "Workforce Security",
+      "obligation": "standard",
+      "requirement": "Implement policies and procedures to ensure that all workforce members have appropriate access to ePHI as provided under §164.308(a)(4), and to prevent those workforce members who do not have access under §164.308(a)(4) from obtaining access to ePHI. The second duty -- actively keeping the unauthorized out -- belongs to the standard itself; none of its three implementation specifications carries it, and it survives a determination under §164.306(d)(3) that all three are not reasonable and appropriate.\n",
+      "question_ids": [
+        "q-wf-105",
+        "q-wf-106"
+      ],
+      "evidence_types": [
+        "Written policy stating which roles may reach ePHI and how everyone else is kept out",
+        "Screenshot showing default-deny or least-privilege permissions in a system holding ePHI (no patient records on screen)",
+        "Record of the most recent check for accounts holding ePHI access with no approval on file"
+      ],
+      "remediation": {
+        "quick_win": "List every account that can reach patient data and confirm each traces back to an approved role; remove or restrict the ones that do not.",
+        "standard": "Set the systems holding ePHI to deny access by default, grant it only through the documented authorization path, and re-check on a schedule that nobody has picked up access outside that path -- including temps, students, contractors, and vendor logins.",
+        "note": "Scored separately from its three specifications on purpose. All three are Addressable, so an entity may decline each with documented reasoning; the standard stays mandatory and this control is what assesses it."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-workforce-authorization",
+      "citation": "45 CFR §164.308(a)(3)(ii)(A)",
+      "category": "administrative",
+      "standard": "Workforce Security",
+      "obligation": "addressable",
+      "requirement": "Have procedures for authorizing and/or supervising workforce members who work with ePHI or in locations where it could be accessed.\n",
+      "question_ids": [
+        "q-wf-101",
+        "q-wf-102"
+      ],
+      "evidence_types": [
+        "Written authorization procedure or new-hire access approval form",
+        "Redacted example of a completed access approval for a recent hire"
+      ],
+      "remediation": {
+        "quick_win": "Add an access-approval step to new-hire onboarding: a manager signs off on which systems each person may use.",
+        "standard": "Document authorization and supervision procedures by role, including oversight of non-employees (temps, contractors, students) who work near patient information."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-workforce-clearance",
+      "citation": "45 CFR §164.308(a)(3)(ii)(B)",
+      "category": "administrative",
+      "standard": "Workforce Security",
+      "obligation": "addressable",
+      "requirement": "Have a procedure to determine that a workforce member's access to ePHI is appropriate for their role before it is granted.\n",
+      "question_ids": [
+        "q-wf-103",
+        "q-wf-104"
+      ],
+      "evidence_types": [
+        "Written clearance/screening procedure",
+        "Role-to-access matrix or equivalent description of who gets what access"
+      ],
+      "remediation": {
+        "quick_win": "Write down which roles need which level of patient-data access; check new access requests against it.",
+        "standard": "Adopt a documented clearance procedure (reference or background checks where permitted, role-based access review) applied consistently before access is granted."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-workforce-termination",
+      "citation": "45 CFR §164.308(a)(3)(ii)(C)",
+      "category": "administrative",
+      "standard": "Workforce Security",
+      "obligation": "addressable",
+      "requirement": "Implement procedures for terminating access to ePHI when employment ends or when access is no longer appropriate.\n",
+      "question_ids": [
+        "q-ac-003",
+        "q-ac-004"
+      ],
+      "evidence_types": [
+        "Offboarding checklist showing access revocation steps and timing",
+        "Screenshot of most recent access review showing no terminated users retain access"
+      ],
+      "remediation": {
+        "quick_win": "Create a same-day offboarding checklist covering EHR, email, VPN, and SaaS access.",
+        "standard": "Automate deprovisioning via the identity provider; run quarterly access reviews with sign-off."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-information-access-management",
+      "citation": "45 CFR §164.308(a)(4)(i)",
+      "category": "administrative",
+      "standard": "Information Access Management",
+      "obligation": "standard",
+      "requirement": "Implement policies and procedures for authorizing access to ePHI that are consistent with the applicable requirements of Subpart E of 45 CFR Part 164 (Privacy of Individually Identifiable Health Information -- the Privacy Rule). That consistency is the standard's own duty: access is authorized on the terms the Privacy Rule allows, not merely through a tidy internal approval process. No implementation specification beneath the standard carries it, and the standard applies in full where the clearinghouse specification is inapplicable and the other two have been declined under §164.306(d)(3).\n",
+      "question_ids": [
+        "q-ia-006",
+        "q-ia-007"
+      ],
+      "evidence_types": [
+        "Access authorization policy showing the job-need basis for each role's access to ePHI",
+        "Role-to-access matrix aligned with the organization's permitted-use rules",
+        "Attestation describing how security access decisions and privacy use decisions are kept consistent with one another"
+      ],
+      "remediation": {
+        "quick_win": "Take your role-to-access matrix and check each row against what that role is actually permitted to see; write down the basis for any role with broad access.",
+        "standard": "Base every access authorization rule on documented job need and on the uses and disclosures the Privacy Rule permits for that role, and have the same owner review both when a role changes.",
+        "note": "This is the seam where security and privacy meet -- access can be tightly approved internally and still be broader than the Privacy Rule permits. Reports should say which of the two is the gap."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-clearinghouse-isolation",
+      "citation": "45 CFR §164.308(a)(4)(ii)(A)",
+      "category": "administrative",
+      "standard": "Information Access Management",
+      "obligation": "required",
+      "requirement": "If a health care clearinghouse is part of a larger organization, the clearinghouse must have policies and procedures that protect its ePHI from unauthorized access by the larger organization. Applies only where a clearinghouse function exists.\n",
+      "question_ids": [
+        "q-ia-001"
+      ],
+      "evidence_types": [
+        "Attestation of whether any clearinghouse function exists in the organization",
+        "If applicable: policy and access configuration separating clearinghouse systems"
+      ],
+      "remediation": {
+        "quick_win": "Confirm and record whether any part of the organization performs clearinghouse functions (translating claims or billing data between formats for others).",
+        "standard": "If a clearinghouse function exists, separate its systems and accounts from the wider organization and document the isolating policies and procedures."
+      },
+      "weight": 1
+    },
+    {
+      "id": "hipaa-sr-access-authorization",
+      "citation": "45 CFR §164.308(a)(4)(ii)(B)",
+      "category": "administrative",
+      "standard": "Information Access Management",
+      "obligation": "addressable",
+      "requirement": "Have policies and procedures for granting access to ePHI -- for example, access through a workstation, transaction, program, or process.\n",
+      "question_ids": [
+        "q-ia-002",
+        "q-ia-003"
+      ],
+      "evidence_types": [
+        "Access authorization policy describing how access is requested and approved",
+        "Screenshot of role-based permission settings in the primary system holding ePHI"
+      ],
+      "remediation": {
+        "quick_win": "Require a documented approval (email or form) before anyone is given access to systems containing patient information.",
+        "standard": "Define role-based access profiles in each system holding ePHI; grant access only through the documented approval path."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-access-establishment",
+      "citation": "45 CFR §164.308(a)(4)(ii)(C)",
+      "category": "administrative",
+      "standard": "Information Access Management",
+      "obligation": "addressable",
+      "requirement": "Based on the access authorization policies, establish, document, review, and modify each user's access rights to workstations, transactions, programs, and processes.\n",
+      "question_ids": [
+        "q-ia-004",
+        "q-ia-005"
+      ],
+      "evidence_types": [
+        "Procedure for setting up and changing user access",
+        "Record of the most recent user-access review and the changes it produced"
+      ],
+      "remediation": {
+        "quick_win": "Keep a simple log of when each user's access was granted or changed, and by whom.",
+        "standard": "Review all user access rights on a set schedule (at least annually), adjust for role changes, and document the review and resulting changes."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-security-awareness-training",
+      "citation": "45 CFR §164.308(a)(5)(i)",
+      "category": "administrative",
+      "standard": "Security Awareness and Training",
+      "obligation": "standard",
+      "requirement": "Implement a security awareness and training program for all workforce members, including management.\n",
+      "question_ids": [
+        "q-wf-001",
+        "q-wf-002"
+      ],
+      "evidence_types": [
+        "Training completion records for current workforce (past 12 months)",
+        "Training content outline"
+      ],
+      "remediation": {
+        "quick_win": "Deploy an annual HIPAA security training with tracked completion; include phishing awareness.",
+        "standard": "Add periodic security reminders and role-based modules; track completion at hire and annually."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-security-reminders",
+      "citation": "45 CFR §164.308(a)(5)(ii)(A)",
+      "category": "administrative",
+      "standard": "Security Awareness and Training",
+      "obligation": "addressable",
+      "requirement": "Provide periodic security updates and reminders to the workforce between formal trainings.\n",
+      "question_ids": [
+        "q-tr-001"
+      ],
+      "evidence_types": [
+        "Examples of recent reminders (email, newsletter, poster -- content only)",
+        "Schedule or plan for recurring reminders"
+      ],
+      "remediation": {
+        "quick_win": "Start a monthly one-topic security reminder email (phishing, passwords, device handling).",
+        "standard": "Put reminders on a recurring schedule tied to current threats; track that they went out."
+      },
+      "weight": 1
+    },
+    {
+      "id": "hipaa-sr-malware-protection",
+      "citation": "45 CFR §164.308(a)(5)(ii)(B)",
+      "category": "administrative",
+      "standard": "Security Awareness and Training",
+      "obligation": "addressable",
+      "requirement": "Have procedures for guarding against, detecting, and reporting malicious software, and make sure the workforce knows how to recognize and report it.\n",
+      "question_ids": [
+        "q-tr-002",
+        "q-tr-003"
+      ],
+      "evidence_types": [
+        "Screenshot of anti-malware/endpoint protection console showing device coverage",
+        "Training or reminder content telling staff how to report suspected malware"
+      ],
+      "remediation": {
+        "quick_win": "Install reputable anti-malware on every device that touches patient data; tell staff who to contact when something looks wrong.",
+        "standard": "Centrally manage anti-malware/endpoint protection with alerting, keep it updated automatically, and include malware recognition and reporting in training."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-login-monitoring",
+      "citation": "45 CFR §164.308(a)(5)(ii)(C)",
+      "category": "administrative",
+      "standard": "Security Awareness and Training",
+      "obligation": "addressable",
+      "requirement": "Have procedures for monitoring log-in attempts and reporting discrepancies, such as repeated failed logins or sign-ins the user did not make.\n",
+      "question_ids": [
+        "q-tr-004",
+        "q-tr-005"
+      ],
+      "evidence_types": [
+        "Screenshot of failed-login report or alert configuration",
+        "Procedure describing who reviews log-in reports and how discrepancies are escalated"
+      ],
+      "remediation": {
+        "quick_win": "Turn on failed-login alerts and account-lockout notifications in email and the EHR.",
+        "standard": "Route login events to a reviewed report or alerting tool; define what counts as a discrepancy and who investigates it."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-password-management",
+      "citation": "45 CFR §164.308(a)(5)(ii)(D)",
+      "category": "administrative",
+      "standard": "Security Awareness and Training",
+      "obligation": "addressable",
+      "requirement": "Have procedures for creating, changing, and safeguarding passwords, including guidance the workforce is trained to follow.\n",
+      "question_ids": [
+        "q-tr-006",
+        "q-tr-007"
+      ],
+      "evidence_types": [
+        "Password policy or standard",
+        "Screenshot of enforced password settings in the identity provider or primary system"
+      ],
+      "remediation": {
+        "quick_win": "Adopt a written password standard (length over complexity, no reuse, no sharing) and provide a password manager.",
+        "standard": "Enforce password rules and multi-factor authentication through the identity provider; cover password handling in training.",
+        "note": "Multi-factor authentication exceeds the literal specification but is the practical safeguard assessors and cyber insurers now expect."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-incident-response",
+      "citation": "45 CFR §164.308(a)(6)(ii)",
+      "category": "administrative",
+      "standard": "Security Incident Procedures",
+      "obligation": "required",
+      "requirement": "Identify and respond to suspected or known security incidents; mitigate harmful effects to the extent practicable; and document incidents and outcomes.\n",
+      "question_ids": [
+        "q-ir-001",
+        "q-ir-002",
+        "q-ir-003"
+      ],
+      "evidence_types": [
+        "Written incident response plan with roles and escalation paths",
+        "Incident log (may be empty, but must exist)",
+        "Record of most recent tabletop exercise, if any"
+      ],
+      "remediation": {
+        "quick_win": "Adopt an incident response plan template; designate an incident lead and backup.",
+        "standard": "Run an annual tabletop exercise; integrate breach-notification decision steps with legal counsel.",
+        "note": "Breach notification obligations under Subpart D are legal determinations -- reports must direct clients to counsel, not decide for them."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-data-backup-plan",
+      "citation": "45 CFR §164.308(a)(7)(ii)(A)",
+      "category": "administrative",
+      "standard": "Contingency Plan",
+      "obligation": "required",
+      "requirement": "Establish and implement procedures to create and maintain retrievable exact copies of ePHI, so patient data can be recovered if systems are lost or damaged.\n",
+      "question_ids": [
+        "q-cp-001",
+        "q-cp-002"
+      ],
+      "evidence_types": [
+        "Backup configuration screenshot (scope, schedule, destination)",
+        "Record of the most recent successful restore test",
+        "Written backup procedure"
+      ],
+      "remediation": {
+        "quick_win": "Confirm every system holding patient data is backed up automatically, with at least one copy off-site or in a separate cloud account.",
+        "standard": "Document backup scope, schedule, retention, and encryption; test restores on a set schedule and record the results.",
+        "note": "Ransomware recovery hinges on this control; backups that are never test-restored are a common false comfort."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-disaster-recovery-plan",
+      "citation": "45 CFR §164.308(a)(7)(ii)(B)",
+      "category": "administrative",
+      "standard": "Contingency Plan",
+      "obligation": "required",
+      "requirement": "Establish (and implement as needed) procedures to restore any loss of data after a disaster or major system failure.\n",
+      "question_ids": [
+        "q-cp-003",
+        "q-cp-004"
+      ],
+      "evidence_types": [
+        "Written disaster recovery procedure with restore steps and responsibilities",
+        "Record of the most recent recovery test or actual recovery"
+      ],
+      "remediation": {
+        "quick_win": "Write a one-page restore runbook: what to restore first, from where, who does it, and vendor contacts.",
+        "standard": "Maintain a disaster recovery plan with recovery time and recovery point targets per system; test it at least annually."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-emergency-mode-operation",
+      "citation": "45 CFR §164.308(a)(7)(ii)(C)",
+      "category": "administrative",
+      "standard": "Contingency Plan",
+      "obligation": "required",
+      "requirement": "Establish (and implement as needed) procedures that let critical business processes continue -- and keep ePHI protected -- while operating in emergency mode, such as during an outage or after a disaster.\n",
+      "question_ids": [
+        "q-cp-005",
+        "q-cp-006"
+      ],
+      "evidence_types": [
+        "Emergency mode / downtime procedure document",
+        "Attestation describing how security safeguards are maintained during downtime"
+      ],
+      "remediation": {
+        "quick_win": "Create downtime procedures for scheduling and charting (paper forms, read-only backup access) with security expectations stated.",
+        "standard": "Document emergency-mode operations for each critical process, including how access to ePHI stays controlled, and brief staff on them."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-contingency-testing",
+      "citation": "45 CFR §164.308(a)(7)(ii)(D)",
+      "category": "administrative",
+      "standard": "Contingency Plan",
+      "obligation": "addressable",
+      "requirement": "Periodically test and revise the contingency plans -- backup, disaster recovery, and emergency mode -- so they work when needed.\n",
+      "question_ids": [
+        "q-cp-007",
+        "q-cp-008"
+      ],
+      "evidence_types": [
+        "Record of the most recent contingency or restore test with results",
+        "Revision history or change notes on the contingency plan"
+      ],
+      "remediation": {
+        "quick_win": "Schedule one restore test and one downtime walkthrough this quarter; write down what was learned.",
+        "standard": "Test contingency components on a recurring schedule, capture lessons, and update the plans after each test or real event."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-criticality-analysis",
+      "citation": "45 CFR §164.308(a)(7)(ii)(E)",
+      "category": "administrative",
+      "standard": "Contingency Plan",
+      "obligation": "addressable",
+      "requirement": "Assess which applications and data are most critical, so contingency planning restores the most important systems first.\n",
+      "question_ids": [
+        "q-cp-009"
+      ],
+      "evidence_types": [
+        "Ranked list of applications and data by criticality",
+        "Contingency plan section referencing the ranking (restore order)"
+      ],
+      "remediation": {
+        "quick_win": "List your systems and rank them by how quickly the practice would need each one back.",
+        "standard": "Maintain a criticality ranking with maximum tolerable downtime per system; use it to set the restore order in the disaster recovery plan."
+      },
+      "weight": 1
+    },
+    {
+      "id": "hipaa-sr-evaluation",
+      "citation": "45 CFR §164.308(a)(8)",
+      "category": "administrative",
+      "standard": "Evaluation",
+      "obligation": "standard",
+      "requirement": "Periodically evaluate -- technically and non-technically -- how well the organization's security policies and procedures meet the requirements of the Security Rule, both on a schedule and after environmental or operational changes that affect the security of ePHI.\n",
+      "question_ids": [
+        "q-ev-001",
+        "q-ev-002"
+      ],
+      "evidence_types": [
+        "Most recent periodic security evaluation report or completed checklist",
+        "Record showing an evaluation followed a significant change (move, new EHR, incident)"
+      ],
+      "remediation": {
+        "quick_win": "Put an annual security self-review on the calendar using a Security Rule checklist.",
+        "standard": "Run a documented evaluation annually and after major changes (new systems, relocation, incidents); track resulting fixes to closure.",
+        "note": "An evaluation reviews policies and safeguards against the rule's requirements; it is distinct from the risk analysis, which examines threats to ePHI."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-security-measure-maintenance",
+      "citation": "45 CFR §164.306(e)",
+      "category": "administrative",
+      "standard": "Maintenance",
+      "obligation": "standard",
+      "requirement": "Review and MODIFY the security measures implemented under this subpart as needed to continue provision of reasonable and appropriate protection of ePHI, and update the documentation of those measures in accordance with §164.316(b)(2)(iii). This is a standing duty attached to the deployed safeguards themselves -- not to the policies that describe them.\n",
+      "question_ids": [
+        "q-ev-003",
+        "q-ev-004"
+      ],
+      "evidence_types": [
+        "Record of a security measure that was changed, replaced, or strengthened, with the date and the trigger",
+        "Change or maintenance log for security tooling (versions and dates only, no configuration secrets)"
+      ],
+      "remediation": {
+        "quick_win": "Start a one-page running log of security changes -- what was changed, when, and what prompted it.",
+        "standard": "Tie the log to the evaluation and risk-analysis cycle so each finding produces a recorded change to a deployed safeguard, and update the corresponding documentation when it does.",
+        "note": "Distinct from hipaa-sr-evaluation (§164.308(a)(8)), which assesses POLICIES AND PROCEDURES against the rule. §164.306(e) is the residual duty to change the IMPLEMENTED measures when review shows they no longer provide reasonable and appropriate protection. An entity can evaluate diligently, document faithfully, and still fail this by never acting on what it finds.\n"
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-ba-written-contract",
+      "citation": "45 CFR §164.308(b)(3)",
+      "category": "administrative",
+      "standard": "Business Associate Contracts and Other Arrangements",
+      "obligation": "required",
+      "requirement": "Document, through a written contract or other arrangement meeting §164.314(a), the satisfactory assurances that each business associate -- or subcontractor of a business associate -- will appropriately safeguard the ePHI it creates, receives, maintains, or transmits.\n",
+      "question_ids": [
+        "q-ba-001",
+        "q-ba-002",
+        "q-ba-003"
+      ],
+      "evidence_types": [
+        "Vendor list identifying which vendors handle ePHI",
+        "Signed business associate agreement for each such vendor (signature pages sufficient)",
+        "Attestation of the process for putting a BAA in place before a vendor handles ePHI"
+      ],
+      "remediation": {
+        "quick_win": "List every vendor that touches patient data (EHR, billing, email, IT, shredding, cloud) and check which have a signed BAA.",
+        "standard": "Track BAAs in a vendor register; require a signed BAA before any new vendor handles ePHI, and review the register annually.",
+        "note": "Missing BAAs are a frequent and easily verified OCR finding; this gap is usually fast to close."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-facility-access-controls",
+      "citation": "45 CFR §164.310(a)(1)",
+      "category": "physical",
+      "standard": "Facility Access Controls",
+      "obligation": "standard",
+      "requirement": "Implement policies and procedures to limit physical access to its electronic information systems and the facility or facilities in which they are housed, while ensuring that properly authorized access is allowed. The rule says \"its electronic information systems\" without qualification -- it is not limited to the systems that hold ePHI. Both halves belong to the standard: physical access is limited, and the people who legitimately need it are not driven into workarounds. All four implementation specifications beneath it are Addressable, so this control is what holds the entity to the standard when they are declined under §164.306(d)(3).\n",
+      "question_ids": [
+        "q-ph-118",
+        "q-ph-119"
+      ],
+      "evidence_types": [
+        "Written facility access policy covering every location housing systems that hold ePHI, including hosted or colocation sites",
+        "Current key, badge, or door-code holder list (names and roles only) with its last review date",
+        "Description of how properly authorized after-hours or servicing entry is granted and recorded"
+      ],
+      "remediation": {
+        "quick_win": "Identify every room holding patient data or the equipment that stores it, confirm each can be locked, and write down who currently holds keys, badges, or codes.",
+        "standard": "Adopt a facility access policy for all locations that both limits entry to authorized roles and states how authorized people get in outside normal hours; review the holder list at every role change and departure.",
+        "note": "The two halves fail differently. Doors left open is one finding; staff propping doors or sharing codes because there is no legitimate route in is another, and the fix is not more locks."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-contingency-operations",
+      "citation": "45 CFR §164.310(a)(2)(i)",
+      "category": "physical",
+      "standard": "Facility Access Controls",
+      "obligation": "addressable",
+      "requirement": "Establish (and implement as needed) procedures that let the right people into the facility to restore lost data under the disaster recovery and emergency mode operations plans during an emergency.\n",
+      "question_ids": [
+        "q-ph-101",
+        "q-ph-102"
+      ],
+      "evidence_types": [
+        "Facility-access section of the disaster recovery / emergency mode operations plan",
+        "Emergency contact and authorized-access roster (names/roles only)"
+      ],
+      "remediation": {
+        "quick_win": "Add a short facility-access section to the disaster recovery plan naming who may enter and how after an emergency.",
+        "standard": "Document emergency facility-access procedures for every location holding ePHI, including hosted or colocation sites, and review them annually alongside the disaster recovery plan."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-facility-security-plan",
+      "citation": "45 CFR §164.310(a)(2)(ii)",
+      "category": "physical",
+      "standard": "Facility Access Controls",
+      "obligation": "addressable",
+      "requirement": "Use written policies and procedures to protect the facility and the equipment inside it from unauthorized physical access, tampering, and theft.\n",
+      "question_ids": [
+        "q-ph-103",
+        "q-ph-104"
+      ],
+      "evidence_types": [
+        "Facility security plan or equivalent policy",
+        "Description or photos of physical protections (locks, alarms, cameras) with no patient data visible",
+        "Alarm/monitoring service configuration summary"
+      ],
+      "remediation": {
+        "quick_win": "Write a one-page facility security plan listing current locks, alarms, cameras, and key holders.",
+        "standard": "Maintain a facility security plan covering all locations, with key/badge management and periodic documented walkthrough checks."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-facility-access-validation",
+      "citation": "45 CFR §164.310(a)(2)(iii)",
+      "category": "physical",
+      "standard": "Facility Access Controls",
+      "obligation": "addressable",
+      "requirement": "Control and check each person's access to the facility based on their role or function -- including visitor sign-in and escort, and control over who can reach systems and software used for testing and revision.\n",
+      "question_ids": [
+        "q-ph-105",
+        "q-ph-106"
+      ],
+      "evidence_types": [
+        "Visitor control procedure or sign-in log template (no visitor names needed)",
+        "Key/badge/door-code issuance record format"
+      ],
+      "remediation": {
+        "quick_win": "Start a visitor sign-in and escort practice for areas where patient information is reachable.",
+        "standard": "Document role-based physical access assignments; review key, badge, and code holders when roles change and at every departure."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-maintenance-records",
+      "citation": "45 CFR §164.310(a)(2)(iv)",
+      "category": "physical",
+      "standard": "Facility Access Controls",
+      "obligation": "addressable",
+      "requirement": "Keep a written record of repairs and changes to the security-related parts of the facility -- locks, doors, walls, and alarm hardware.\n",
+      "question_ids": [
+        "q-ph-107"
+      ],
+      "evidence_types": [
+        "Facility maintenance log sample (most recent entries)",
+        "Security-related vendor work orders or invoices"
+      ],
+      "remediation": {
+        "quick_win": "Start a simple log (date, item, work done, by whom) for security-related facility work.",
+        "standard": "Route all security-relevant facility work through the log and review it during periodic facility walkthroughs."
+      },
+      "weight": 1
+    },
+    {
+      "id": "hipaa-sr-workstation-use",
+      "citation": "45 CFR §164.310(b)",
+      "category": "physical",
+      "standard": "Workstation Use",
+      "obligation": "standard",
+      "requirement": "Set written rules for how workstations that can access ePHI are used: what they are for, how work is performed on them, and how their physical surroundings -- screen placement and location -- are arranged.\n",
+      "question_ids": [
+        "q-ph-108",
+        "q-ph-109"
+      ],
+      "evidence_types": [
+        "Workstation use policy",
+        "Staff acknowledgment records",
+        "Photos of typical screen placement in public-facing areas (no patient data on screen)"
+      ],
+      "remediation": {
+        "quick_win": "Adopt a short workstation use policy covering permitted use, screen placement, and locking when unattended.",
+        "standard": "Tailor workstation rules by workstation class (front desk, exam room, remote) and include them in onboarding acknowledgments."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-workstation-security",
+      "citation": "45 CFR §164.310(c)",
+      "category": "physical",
+      "standard": "Workstation Security",
+      "obligation": "standard",
+      "requirement": "Put physical safeguards around every workstation that can access ePHI so that only authorized users can reach or use them.\n",
+      "question_ids": [
+        "q-ph-110",
+        "q-ph-111"
+      ],
+      "evidence_types": [
+        "Description or photos of workstation physical safeguards",
+        "Portable device handling rule"
+      ],
+      "remediation": {
+        "quick_win": "Move or lock down devices in visitor-accessible areas; secure laptops out of sight when the office closes.",
+        "standard": "Document physical safeguards per workstation class, including locked rooms or cable locks and written rules for portable devices."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-media-disposal",
+      "citation": "45 CFR §164.310(d)(2)(i)",
+      "category": "physical",
+      "standard": "Device and Media Controls",
+      "obligation": "required",
+      "requirement": "Have policies and procedures for the final disposal of ePHI and of the hardware or electronic media it is stored on, so a discarded computer, drive, or phone cannot leak patient data.\n",
+      "question_ids": [
+        "q-ph-112",
+        "q-ph-113"
+      ],
+      "evidence_types": [
+        "Media disposal procedure",
+        "Most recent vendor destruction record or disposal log entry (serial numbers may be redacted)"
+      ],
+      "remediation": {
+        "quick_win": "Stop discarding devices unwiped today; engage a destruction vendor that issues written proof of destruction.",
+        "standard": "Adopt a disposal procedure aligned to NIST SP 800-88 media sanitization guidance and keep a vendor destruction record or log entry for every disposal.",
+        "note": "Improper disposal of devices and media is a recurring OCR enforcement theme; the roadmap narrative should weight it accordingly."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-media-reuse",
+      "citation": "45 CFR §164.310(d)(2)(ii)",
+      "category": "physical",
+      "standard": "Device and Media Controls",
+      "obligation": "required",
+      "requirement": "Remove ePHI from electronic media before the media are made available for re-use -- reassigned internally, repurposed, or sent back to a vendor, lessor, or repair shop.\n",
+      "question_ids": [
+        "q-ph-114",
+        "q-ph-115"
+      ],
+      "evidence_types": [
+        "Media re-use / sanitization procedure",
+        "Log entry from a recent wipe or drive retention (device identifier may be redacted)"
+      ],
+      "remediation": {
+        "quick_win": "Require a secure wipe (not just file deletion) before any device or drive is reassigned or returned.",
+        "standard": "Document a sanitization standard and log each re-use event with device identifier, method used, and who performed it."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-media-accountability",
+      "citation": "45 CFR §164.310(d)(2)(iii)",
+      "category": "physical",
+      "standard": "Device and Media Controls",
+      "obligation": "addressable",
+      "requirement": "Keep a record of the movements of hardware and electronic media that hold ePHI, and of the person responsible for each item.\n",
+      "question_ids": [
+        "q-ph-116"
+      ],
+      "evidence_types": [
+        "Hardware/media inventory showing assigned owners (serial numbers may be redacted)",
+        "Movement or check-in/check-out log format"
+      ],
+      "remediation": {
+        "quick_win": "List all devices and media holding ePHI with an assigned owner for each.",
+        "standard": "Track issuance, moves, and returns in the inventory and reconcile it during periodic asset or access reviews."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-data-backup-storage",
+      "citation": "45 CFR §164.310(d)(2)(iv)",
+      "category": "physical",
+      "standard": "Device and Media Controls",
+      "obligation": "addressable",
+      "requirement": "Before equipment holding ePHI is moved, create an exact, retrievable copy of the data when needed -- so a drop, loss, or failure during the move cannot destroy the only copy.\n",
+      "question_ids": [
+        "q-ph-117"
+      ],
+      "evidence_types": [
+        "Move/relocation checklist showing the pre-move backup step",
+        "Verification record from the most recent equipment move"
+      ],
+      "remediation": {
+        "quick_win": "Add a 'verified backup first' step to any equipment move or swap.",
+        "standard": "Fold pre-move backup and restore verification into the change and move procedures for every system holding ePHI."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-unique-user-id",
+      "citation": "45 CFR §164.312(a)(2)(i)",
+      "category": "technical",
+      "standard": "Access Control",
+      "obligation": "required",
+      "requirement": "Assign a unique name and/or number for identifying and tracking each user's identity.\n",
+      "question_ids": [
+        "q-ac-001"
+      ],
+      "evidence_types": [
+        "Screenshot of user list from EHR/practice-management system showing individual accounts",
+        "Written policy prohibiting shared logins"
+      ],
+      "remediation": {
+        "quick_win": "Eliminate shared logins; issue individual accounts in every system touching ePHI.",
+        "standard": "Enforce unique IDs via the identity provider; audit for shared-credential patterns quarterly."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-emergency-access",
+      "citation": "45 CFR §164.312(a)(2)(ii)",
+      "category": "technical",
+      "standard": "Access Control",
+      "obligation": "required",
+      "requirement": "Establish (and implement as needed) procedures for obtaining necessary ePHI during an emergency -- for example, when systems are down or the person who normally has access is unreachable.\n",
+      "question_ids": [
+        "q-ac-101",
+        "q-ac-102"
+      ],
+      "evidence_types": [
+        "Written emergency access (break-glass) procedure",
+        "Screenshot of the emergency access account or role configuration in the primary patient-data system",
+        "Log entry or attestation from the most recent emergency access use or test"
+      ],
+      "remediation": {
+        "quick_win": "Write down who may invoke emergency access, how, and in what situations; confirm the record system's break-glass feature is configured.",
+        "standard": "Test the emergency access procedure at least annually; log every use and review it afterward."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-automatic-logoff",
+      "citation": "45 CFR §164.312(a)(2)(iii)",
+      "category": "technical",
+      "standard": "Access Control",
+      "obligation": "addressable",
+      "requirement": "Implement electronic procedures that end a session after a set period of inactivity -- screens and systems showing ePHI lock automatically when someone walks away.\n",
+      "question_ids": [
+        "q-ac-103",
+        "q-ac-104"
+      ],
+      "evidence_types": [
+        "Screenshot of screen-lock / session-timeout settings on workstations",
+        "Group policy or MDM configuration showing the timeout is centrally enforced"
+      ],
+      "remediation": {
+        "quick_win": "Turn on automatic screen lock (15 minutes or less) on every computer that can reach patient data; shorter in patient-facing areas.",
+        "standard": "Enforce inactivity timeouts centrally via group policy or MDM, and configure application-level session timeouts in the record system."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-encryption-at-rest",
+      "citation": "45 CFR §164.312(a)(2)(iv)",
+      "category": "technical",
+      "standard": "Access Control",
+      "obligation": "addressable",
+      "requirement": "Implement a mechanism to encrypt and decrypt ePHI. The rule states no \"at rest\" qualification: the specification sits under the Access Control standard (§164.312(a)(1)), so it reaches ePHI in every electronic information system that maintains it -- servers, databases, backups, endpoints, and removable media -- and not one storage tier only. Encryption of ePHI in transit is a separate specification at §164.312(e)(2)(ii).\n",
+      "question_ids": [
+        "q-enc-001",
+        "q-enc-002"
+      ],
+      "evidence_types": [
+        "Screenshot of full-disk encryption status on endpoints (e.g., BitLocker/FileVault)",
+        "Configuration export showing database/storage encryption for systems holding ePHI"
+      ],
+      "remediation": {
+        "quick_win": "Enable full-disk encryption on all laptops and workstations; verify via MDM report.",
+        "standard": "Encrypt ePHI at rest across servers, databases, and backups; document key management.",
+        "note": "Addressable, but unencrypted lost devices are a dominant breach pattern; treat functionally as required in roadmap narrative."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-audit-controls",
+      "citation": "45 CFR §164.312(b)",
+      "category": "technical",
+      "standard": "Audit Controls",
+      "obligation": "standard",
+      "requirement": "Implement hardware, software, or procedural mechanisms that record and examine activity in systems containing or using ePHI -- in plain terms, keep activity logs and actually review them.\n",
+      "question_ids": [
+        "q-au-001",
+        "q-au-002",
+        "q-au-003"
+      ],
+      "evidence_types": [
+        "Screenshot of audit-log settings in the primary patient-data system",
+        "Most recent log review record or alert configuration",
+        "Log retention configuration or vendor documentation"
+      ],
+      "remediation": {
+        "quick_win": "Confirm audit logging is turned on in the record system and set a monthly calendar reminder to review it.",
+        "standard": "Enable logging across all systems touching ePHI, define retention, protect logs from tampering, and document a scheduled review with sign-off.",
+        "note": "Audit trails are what let a practice answer 'who looked at this record?' -- a frequent question after snooping complaints."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-integrity",
+      "citation": "45 CFR §164.312(c)(1)",
+      "category": "technical",
+      "standard": "Integrity",
+      "obligation": "standard",
+      "requirement": "Implement policies and procedures to protect ePHI from improper alteration or destruction. This is a protective duty and it is wider than the sole implementation specification beneath it: §164.312(c)(2) asks only for electronic mechanisms to corroborate -- that is, to detect -- that ePHI has not been altered or destroyed in an unauthorized manner. Detecting the damage afterwards does not discharge the standard, and the standard still applies where that specification has been declined under §164.306(d)(3).\n",
+      "question_ids": [
+        "q-int-005",
+        "q-int-006"
+      ],
+      "evidence_types": [
+        "Configuration showing who may edit or delete records in the primary system holding ePHI",
+        "Retention, versioning, or immutability settings that keep an improper change from being final",
+        "Written rule governing correction, amendment, and deletion of records"
+      ],
+      "remediation": {
+        "quick_win": "Check who can delete or overwrite records in the record system and reduce that to the few roles that genuinely need it.",
+        "standard": "Combine role-limited edit and delete rights with versioning or retention settings and protected backups, so an improper change is both prevented where possible and recoverable where not.",
+        "note": "Ransomware is the everyday form of improper destruction; a control that only detects alteration leaves the standard unmet."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-ephi-integrity-mechanism",
+      "citation": "45 CFR §164.312(c)(2)",
+      "category": "technical",
+      "standard": "Integrity",
+      "obligation": "addressable",
+      "requirement": "Implement electronic mechanisms to corroborate that ePHI has not been altered or destroyed in an unauthorized manner -- for example, audit trails of record changes, version history, or integrity checks.\n",
+      "question_ids": [
+        "q-int-001",
+        "q-int-002"
+      ],
+      "evidence_types": [
+        "Vendor documentation or screenshot of change-tracking/versioning features in the record system",
+        "Attestation or record of a tested restore or change investigation"
+      ],
+      "remediation": {
+        "quick_win": "Confirm the record system's change-tracking/audit-trail feature is enabled and cannot be switched off by regular users.",
+        "standard": "Combine change tracking with verified backups and periodic integrity checks so unauthorized alteration or deletion is both detectable and recoverable."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-person-entity-authentication",
+      "citation": "45 CFR §164.312(d)",
+      "category": "technical",
+      "standard": "Person or Entity Authentication",
+      "obligation": "standard",
+      "requirement": "Implement procedures to verify that a person or entity seeking access to ePHI is who they claim to be -- passwords enforced by the system, and a second verification step (MFA) wherever supported.\n",
+      "question_ids": [
+        "q-auth-001",
+        "q-auth-002",
+        "q-auth-003"
+      ],
+      "evidence_types": [
+        "Screenshot of MFA enforcement settings in the identity provider or primary patient-data system",
+        "Screenshot of enforced password policy settings",
+        "Description of how remote-access identity is verified"
+      ],
+      "remediation": {
+        "quick_win": "Turn on MFA for email and all remote access today -- these are the two most-attacked doors.",
+        "standard": "Require MFA on every system containing ePHI where supported; enforce password strength and account lockout centrally through the identity provider."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-transmission-security",
+      "citation": "45 CFR §164.312(e)(1)",
+      "category": "technical",
+      "standard": "Transmission Security",
+      "obligation": "standard",
+      "requirement": "Implement technical security measures to guard against unauthorized access to ePHI that is being transmitted over an electronic communications network. Guarding transmitted ePHI against unauthorized access is broader than the two Addressable specifications beneath the standard -- integrity controls (§164.312(e)(2)(i)) and encryption (§164.312(e)(2)(ii)) -- and it remains mandatory where both have been declined under §164.306(d)(3).\n",
+      "question_ids": [
+        "q-ts-001",
+        "q-ts-002"
+      ],
+      "evidence_types": [
+        "Inventory of every path ePHI leaves the organization, with the protection in place for each",
+        "Policy listing approved transmission channels and restricting unapproved ones",
+        "Wireless and remote-access configuration summary (no keys or credentials)"
+      ],
+      "remediation": {
+        "quick_win": "Write down every way patient information leaves your systems -- portal, email, lab and claims interfaces, remote access, file transfers, texting -- and name what protects each one.",
+        "standard": "Define approved transmission channels in policy, enforce them technically where you can (blocked consumer file-sharing, separated guest Wi-Fi, remote access through VPN or equivalent), and review the list whenever a connection is added or changed.",
+        "note": "The paths that get missed are the informal ones staff adopt themselves -- personal email, texting, consumer file-sharing links. Ask about those specifically."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-transmission-integrity-controls",
+      "citation": "45 CFR §164.312(e)(2)(i)",
+      "category": "technical",
+      "standard": "Transmission Security",
+      "obligation": "addressable",
+      "requirement": "Implement security measures so that ePHI transmitted electronically is not improperly modified without detection -- connections to labs, billers, and other systems use protocols that would reveal tampering in transit.\n",
+      "question_ids": [
+        "q-int-003",
+        "q-int-004"
+      ],
+      "evidence_types": [
+        "Interface/connection inventory listing protocols (TLS, SFTP, VPN) for each data connection",
+        "Configuration screenshot from the interface engine or vendor attestation of secure transport"
+      ],
+      "remediation": {
+        "quick_win": "List every electronic connection carrying patient data (labs, claims, e-prescribing) and confirm each uses TLS, SFTP, or VPN -- retire any plain FTP or unencrypted feed.",
+        "standard": "Maintain a data-connection inventory with owner and protocol for each interface; review it whenever a connection is added or changed."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-transmission-encryption",
+      "citation": "45 CFR §164.312(e)(2)(ii)",
+      "category": "technical",
+      "standard": "Transmission Security",
+      "obligation": "addressable",
+      "requirement": "Implement a mechanism to encrypt ePHI whenever it is transmitted over an electronic communications network.\n",
+      "question_ids": [
+        "q-enc-003",
+        "q-enc-004"
+      ],
+      "evidence_types": [
+        "TLS configuration evidence for patient-facing and internal systems",
+        "Secure email/messaging solution description for PHI-bearing communication"
+      ],
+      "remediation": {
+        "quick_win": "Enforce TLS everywhere; stop sending PHI over unencrypted email or SMS.",
+        "standard": "Deploy secure messaging for patient communication; document approved transmission channels in policy."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hipaa-sr-ba-contract-terms",
+      "citation": "45 CFR §164.314(a)(2)(i)",
+      "category": "organizational",
+      "standard": "Business Associate Contracts or Other Arrangements",
+      "obligation": "required",
+      "requirement": "Business associate agreements must require the vendor to apply the Security Rule's safeguards to ePHI, bind any subcontractors to the same requirements, and report security incidents -- including breaches of unsecured PHI -- back to you.\n",
+      "question_ids": [
+        "q-org-101",
+        "q-org-102",
+        "q-org-103"
+      ],
+      "evidence_types": [
+        "Standard BAA template (or a representative executed BAA with business terms redacted)",
+        "Business associate list with agreement dates"
+      ],
+      "remediation": {
+        "quick_win": "Inventory every vendor that touches ePHI and confirm each has a signed BAA containing the three required security terms.",
+        "standard": "Adopt a current BAA template, refresh agreements that predate the 2013 Omnibus Final Rule (78 FR 5566, Jan. 25, 2013), and review the business associate list at least annually."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-ba-other-arrangements",
+      "citation": "45 CFR §164.314(a)(2)(ii)",
+      "category": "organizational",
+      "standard": "Business Associate Contracts or Other Arrangements",
+      "obligation": "required",
+      "requirement": "Where a standard business associate contract is not used -- for example, two government entities operating under a memorandum of understanding, or a relationship established by law -- the alternative arrangement must satisfy the conditions of 45 CFR §164.504(e)(3).\n",
+      "question_ids": [
+        "q-org-104"
+      ],
+      "evidence_types": [
+        "Documentation of any non-BAA arrangement (MOU, statutory basis)",
+        "Counsel review attestation"
+      ],
+      "remediation": {
+        "quick_win": "Identify any ePHI relationship not covered by a signed BAA and document its legal basis.",
+        "standard": "Have counsel confirm each alternative arrangement meets §164.504(e)(3); most organizations should simply convert these relationships to standard BAAs.",
+        "note": "Typically applicable only to government entities; the assessment should record an explicit N/A rather than skipping this control."
+      },
+      "weight": 1
+    },
+    {
+      "id": "hipaa-sr-ba-subcontractor-contracts",
+      "citation": "45 CFR §164.314(a)(2)(iii)",
+      "category": "organizational",
+      "standard": "Business Associate Contracts or Other Arrangements",
+      "obligation": "required",
+      "requirement": "When your organization is itself a business associate, the same contract requirements flow down: a signed agreement with every subcontractor that creates, receives, maintains, or transmits ePHI on your behalf.\n",
+      "question_ids": [
+        "q-org-105"
+      ],
+      "evidence_types": [
+        "Subcontractor list with BAA dates",
+        "Subcontractor BAA template"
+      ],
+      "remediation": {
+        "quick_win": "If you handle ePHI for other organizations, list your subcontractors and confirm each has a signed BAA.",
+        "standard": "Maintain the subcontractor inventory and require a signed BAA before any subcontractor touches ePHI.",
+        "note": "Applies when the assessed organization acts as a business associate; record an explicit N/A for covered entities with no subcontractor chain."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-group-health-plan-docs",
+      "citation": "45 CFR §164.314(b)(2)",
+      "category": "organizational",
+      "standard": "Requirements for Group Health Plans",
+      "obligation": "required",
+      "requirement": "If a group health plan shares ePHI with the plan sponsor beyond enrollment or summary data, the plan documents must be amended to require the sponsor to safeguard the data, keep it adequately separated, bind its agents to the same protections, and report security incidents to the plan.\n",
+      "question_ids": [
+        "q-org-106"
+      ],
+      "evidence_types": [
+        "Plan document amendment language",
+        "Benefits counsel attestation or determination memo"
+      ],
+      "remediation": {
+        "quick_win": "Confirm whether your group health plan shares ePHI with the sponsor beyond enrollment or summary data; if not, record that determination.",
+        "standard": "Work with benefits counsel to amend the plan documents with the four required provisions.",
+        "note": "Rarely applicable to small provider practices; most clients should hold a documented N/A determination."
+      },
+      "weight": 1
+    },
+    {
+      "id": "hipaa-sr-policies-and-procedures",
+      "citation": "45 CFR §164.316(a)",
+      "category": "policies_and_documentation",
+      "standard": "Policies and Procedures",
+      "obligation": "standard",
+      "requirement": "Maintain reasonable and appropriate written policies and procedures covering the Security Rule's requirements, sized to your organization, and change them as your environment changes -- with each change documented.\n",
+      "question_ids": [
+        "q-doc-101",
+        "q-doc-102"
+      ],
+      "evidence_types": [
+        "Security policy set table of contents or index",
+        "Revision history from a recently updated policy"
+      ],
+      "remediation": {
+        "quick_win": "Assemble existing security policies, identify Security Rule areas with no written coverage, and assign an owner.",
+        "standard": "Maintain a tailored, complete security policy set with a named owner, revision history, and a defined review cycle."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-documentation",
+      "citation": "45 CFR §164.316(b)(1)",
+      "category": "policies_and_documentation",
+      "standard": "Documentation",
+      "obligation": "standard",
+      "requirement": "Maintain the policies and procedures implemented under this subpart in written (which may be electronic) form, and -- where an action, activity, or assessment is required by this subpart to be documented -- maintain a written (which may be electronic) record of that action, activity, or assessment. This is the requirement that the records exist at all. The three implementation specifications beneath it are all Required, but each governs only the handling of that documentation: how long it is retained (§164.316(b)(2)(i), expressly scoped to \"the documentation required by paragraph (b)(1)\"), who it is made available to (§164.316(b)(2)(ii)), and when it is reviewed and updated (§164.316(b)(2)(iii)). An organization holding no records at all satisfies all three vacuously while failing this standard.\n",
+      "question_ids": [
+        "q-doc-107",
+        "q-doc-108"
+      ],
+      "evidence_types": [
+        "Index or listing of the security records held (titles and dates only -- no record contents)",
+        "Written record of each Addressable-specification decision, its reasoning, and any equivalent alternative measure adopted",
+        "Confirmation that the security policy set exists in written or electronic form"
+      ],
+      "remediation": {
+        "quick_win": "List what the Security Rule expects you to have on paper -- risk analysis, training completions, access reviews, incident records, addressable decisions -- and mark which ones exist today.",
+        "standard": "Keep a single index of required security records with an owner and a location for each, and check it on the same cadence as the policy review so a missing record is noticed rather than assumed.",
+        "note": "Encoded as obligation \"standard\", matching this library's convention for every standard-level unit and matching §164.306(d)(1), under which the words \"Required\" and \"Addressable\" attach to implementation specifications and never to standards; Appendix A to Subpart C carries no marking for §164.316 at all. Unlike the other five standard-level controls added in B34, this one cannot be reached by a documented decline -- all three of its specifications are Required -- so the exposure it closes is vacuous satisfaction: nothing to retain, publish, or review.\n"
+      },
+      "weight": 2
+    },
+    {
+      "id": "hipaa-sr-documentation-retention",
+      "citation": "45 CFR §164.316(b)(2)(i)",
+      "category": "policies_and_documentation",
+      "standard": "Documentation",
+      "obligation": "required",
+      "requirement": "Keep security documentation -- policies, and the written records of required actions, activities, and assessments -- for at least six years from its creation or from when it was last in effect, whichever is later.\n",
+      "question_ids": [
+        "q-doc-103",
+        "q-doc-104"
+      ],
+      "evidence_types": [
+        "Written retention rule",
+        "Archive listing of superseded policy versions (titles and dates only)"
+      ],
+      "remediation": {
+        "quick_win": "Create an archive folder for superseded security policies and records; stop overwriting old versions.",
+        "standard": "Adopt a written six-year retention rule and archive process covering policies, reviews, training records, and incident documentation."
+      },
+      "weight": 1
+    },
+    {
+      "id": "hipaa-sr-documentation-availability",
+      "citation": "45 CFR §164.316(b)(2)(ii)",
+      "category": "policies_and_documentation",
+      "standard": "Documentation",
+      "obligation": "required",
+      "requirement": "Make documentation available to the people who must carry out the procedures it describes.\n",
+      "question_ids": [
+        "q-doc-105"
+      ],
+      "evidence_types": [
+        "Published policy location (shared drive path or intranet screenshot)",
+        "Onboarding or training material pointing staff to the policy location"
+      ],
+      "remediation": {
+        "quick_win": "Publish current policies to one shared location and tell staff where it is.",
+        "standard": "Maintain a single current-version source referenced in onboarding and training, with superseded versions moved to the archive."
+      },
+      "weight": 1
+    },
+    {
+      "id": "hipaa-sr-documentation-updates",
+      "citation": "45 CFR §164.316(b)(2)(iii)",
+      "category": "policies_and_documentation",
+      "standard": "Documentation",
+      "obligation": "required",
+      "requirement": "Review security documentation periodically and update it when environmental or operational changes affect the security of ePHI.\n",
+      "question_ids": [
+        "q-doc-106"
+      ],
+      "evidence_types": [
+        "Policy review schedule",
+        "Most recent review record (date, reviewer, outcome)"
+      ],
+      "remediation": {
+        "quick_win": "Put an annual policy review date on the calendar with a named owner.",
+        "standard": "Run scheduled reviews recording date, reviewer, and outcome -- including 'no change needed' -- and trigger off-cycle reviews after major changes."
+      },
+      "weight": 1
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+{
+  "meta": {
+    "from": "ftc-safeguards",
+    "to": "nist-csf-2",
+    "status": "approved"
+  },
+  "attribution": "MojoComply's own analyst mapping from ftc-safeguards controls to NIST CSF 2.0 subcategories -- an internal judgment (see this crosswalk's own header comment), not a NIST or agency publication. CSF subcategory ids are public domain (NIST CSWP 29).",
+  "mappings": [
+    {
+      "control_id": "ftc-safeguards-program",
+      "csf": [
+        "GV.PO-01",
+        "GV.RM-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-qualified-individual",
+      "csf": [
+        "GV.RR-02",
+        "GV.RR-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-risk-assessment",
+      "csf": [
+        "ID.RA-04",
+        "ID.RA-05"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-access-controls",
+      "csf": [
+        "PR.AA-05",
+        "PR.AA-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-data-inventory",
+      "csf": [
+        "ID.AM-02",
+        "ID.AM-05"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-encryption",
+      "csf": [
+        "PR.DS-01",
+        "PR.DS-02"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-secure-development",
+      "csf": [
+        "PR.PS-06"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-mfa",
+      "csf": [
+        "PR.AA-03",
+        "PR.AA-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-secure-disposal",
+      "csf": [
+        "ID.AM-08"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-change-management",
+      "csf": [
+        "PR.PS-01",
+        "ID.RA-07"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-activity-monitoring",
+      "csf": [
+        "PR.PS-04",
+        "DE.CM-03"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-testing",
+      "csf": [
+        "ID.RA-01",
+        "DE.CM-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-personnel-training",
+      "csf": [
+        "PR.AT-01",
+        "PR.AT-02"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-service-providers",
+      "csf": [
+        "GV.SC-05",
+        "GV.SC-07"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-evaluation",
+      "csf": [
+        "ID.IM-01",
+        "GV.OV-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-incident-response",
+      "csf": [
+        "ID.IM-04",
+        "RS.MA-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "ftc-safeguards-board-report",
+      "csf": [
+        "GV.OV-01",
+        "GV.RR-01"
+      ],
+      "strength": "partial"
+    }
+  ]
+}

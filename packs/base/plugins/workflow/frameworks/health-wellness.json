@@ -1,0 +1,496 @@
+{
+  "meta": {
+    "framework": "health-wellness",
+    "version": "1.0.0",
+    "status": "approved",
+    "authority": "FTC Health Breach Notification Rule (16 CFR Part 318) + FTC Act Section 5 (15 U.S.C. 45) + state consumer-health privacy laws (WA RCW 19.373; CA Civ. Code 56 & 1798.121; CO C.R.S. 6-1-1301 et seq.; NV NRS 603A)",
+    "note": "This vertical is for entities in the med-spa, wellness, fitness, and consumer-health-app space that are GENERALLY NOT HIPAA covered entities or business associates. Whether HIPAA, the FTC Health Breach Notification Rule, or any given state consumer-health-privacy law applies to a specific business -- and whether a particular data element is \"consumer health data,\" \"PHR identifiable health information,\" or \"sensitive data,\" and whether an event is a reportable breach -- are LEGAL DETERMINATIONS that require counsel. MojoComply does not make those determinations and does not certify compliance; it assesses readiness against the requirements and produces a gap analysis. Requirements below are paraphrased in plain English; the authoritative text is the cited statute or rule. This library is MULTI-JURISDICTION: the specific U.S. states where the client's users reside drive which state laws apply, so the state-law controls should be scoped to the client's actual footprint with counsel.\n",
+    "tier": "regulation",
+    "categories": [
+      "applicability_scoping",
+      "breach_notification",
+      "privacy_representations",
+      "tracking_technology",
+      "consent_authorization",
+      "consumer_rights",
+      "data_governance",
+      "data_security"
+    ],
+    "obligation_levels": [
+      {
+        "id": "statutory",
+        "label": "Statutory",
+        "tie_break_rank": 1,
+        "note": "A black-letter requirement of a codified rule or statute (16 CFR Part 318 or a named state statute). Applicability to a given client is still a legal determination (Law 2)."
+      },
+      {
+        "id": "advisory",
+        "label": "Advisory",
+        "tie_break_rank": 2,
+        "note": "Readiness / hygiene expectation drawn from an enforcement pattern (chiefly FTC Act Section 5 unfair-or-deceptive-practice actions such as the GoodRx, BetterHelp, and Flo matters) or from cross-jurisdiction scoping practice, rather than a single codified line. Still enforceable exposure, but not a verbatim statutory element."
+      }
+    ],
+    "sources": [
+      {
+        "document": "16 CFR Part 318 -- Health Breach Notification Rule (Federal Trade Commission)",
+        "version": "16 CFR Part 318 as amended by the 2024 Final Rule, 89 FR 47028 -- the eCFR confirms secs. 318.1 through 318.8 all amended 2024-07-29 (sec. 318.9 remains at 2016-12-22). The file header's claim of the \"2024 final rule effective July 29, 2024\" is correct. The lead federal authority for this vertical, together with FTC Act Section 5 (15 U.S.C. 45).",
+        "published": "2024-05-30",
+        "retrieved": "2026-07-26",
+        "url": "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-C/part-318",
+        "change_watch": "No pending Part 318 rulemaking found; the 2024 amendments (broadened \"breach of security\" to include unauthorized disclosures, clarified coverage of health apps, revised \"PHR related entity\" and multiple-sources) are the current text. The original HBNR was published 2009-08-25 (74 FR 42962). Whether the FTC has Part 318 on a periodic review schedule is UNVERIFIED -- the ftc.gov regulatory-review-schedule page returned HTTP 403. PROBE: https://www.ecfr.gov/api/versioner/v1/versions/title-16.json?part=318."
+      },
+      {
+        "document": "Wash. Rev. Code ch. 19.373 -- My Health My Data Act (state component)",
+        "version": "Session law 2023 c 191, twelve sections (19.373.005 through .100 plus .900) -- matches the citations encoded in this library. No amendment shown after 2023. Signing and effective dates are reported secondarily (signed 2023-04-27; effective for most regulated entities 2024-03-31, small business 2024-06-30) but were NOT confirmed against the session law itself, so only the enactment year is recorded here (Law 5). The other state components of this library -- Nev. Rev. Stat. ch. 603A (SB 370, 2023), Colo. Rev. Stat. sec. 6-1-1301 et seq., Cal. Civ. Code sec. 56.06 and sec. 1798.121 -- have no verified current-version reading this pass and are tracked in change_watch below.",
+        "published": "2023",
+        "retrieved": "2026-07-26",
+        "change_watch": "HIGHEST STALENESS SURFACE AREA in the repo -- one federal rule plus four state regimes, each on its own legislative clock, and no single probe covers it. CONFIRMED STATE DRIFT, not merely a watch item: this library cites C.R.S. sec. 6-1-1308(7) only, but Colorado HB 24-1130 (reported signed 2024-05-31, effective 2025-07-01) added standalone biometric-data obligations to the Colorado Privacy Act -- written retention-schedule policy, breach-response protocol, permanent-destruction guidelines, notice-and-consent before collection, restrictions on sale/disclosure -- that apply to any entity handling a Colorado resident's biometric data REGARDLESS of the CPA's numerical processing thresholds. For a med-spa or wellness client doing face or body scans that is a live, uncovered requirement. Colorado and Oregon further strengthened sensitive-data, geolocation and minors' provisions with 2026 effective dates, and twenty states now have comprehensive privacy laws in effect (2026), including Indiana, Kentucky and Rhode Island -- the four-state footprint encoded here is materially narrower than the market. THE HB 24-1130 DETAILS AND THE TWENTY-STATE COUNT COME FROM LAW-FIRM AND PRIVACY-TRACKER REPORTING, NOT from the Colorado Revised Statutes or the enrolled act: verify against leg.colorado.gov before any new control text is drafted (Law 5). PROBE: none for the state piece -- calendared manual review after each state legislative session. the approver should decide whether to narrow this library's declared footprint or expand it."
+      }
+    ]
+  },
+  "attribution": "Public-domain U.S. federal and state statutory/regulatory text (16 CFR Part 318; Wash. Rev. Code 19.373; Colo. Rev. Stat. 6-1-13xx; Cal. Civ. Code 56/1798.121; Nev. Rev. Stat. 603A) plus FTC Act Section 5. Requirement wording is MojoComply's own plain-English paraphrase; the source file's own meta.note says \"Requirements below are paraphrased in plain English; the authoritative text is the cited statute or rule.\"",
+  "controls": [
+    {
+      "id": "hw-hbnr-applicability",
+      "citation": "16 CFR §318.2",
+      "category": "applicability_scoping",
+      "standard": "HBNR Applicability -- Vendor of Personal Health Records / PHR Related Entity",
+      "obligation": "statutory",
+      "requirement": "Determine, with counsel, whether your business is a \"vendor of personal health records,\" a \"PHR related entity,\" or a \"third party service provider\" as those terms are defined by the FTC Health Breach Notification Rule -- for example an app or platform that draws identifiable health information from multiple sources and is not itself covered by HIPAA. If any of these definitions fits, the Rule's breach-notification duties apply to you. Whether a definition fits is a legal determination MojoComply does not make.\n",
+      "question_ids": [
+        "q-hw-101",
+        "q-hw-102"
+      ],
+      "evidence_types": [
+        "Written scoping memo or counsel determination recording whether the entity is a vendor of PHR, a PHR related entity, or a third party service provider under 16 CFR 318.2",
+        "Product/data description used for the scoping analysis (data sources and categories only -- no consumer records)"
+      ],
+      "remediation": {
+        "quick_win": "Write down what identifiable health information your product collects and from how many sources, and route the \"are we a vendor of PHR / PHR related entity?\" question to counsel.",
+        "standard": "Obtain and document a counsel determination of your status under 16 CFR 318.2, and re-run it whenever your data sources, integrations, or product scope materially change.",
+        "note": "This scoping decision gates the entire breach-notification section; frame it as a legal determination for counsel, never a conclusion the tool reaches (Law 2)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hw-hbnr-hipaa-boundary",
+      "citation": "16 CFR §318.1",
+      "category": "applicability_scoping",
+      "standard": "HIPAA / HBNR Jurisdictional Boundary",
+      "obligation": "statutory",
+      "requirement": "Establish, with counsel, which regime governs your health data: HIPAA (if you are a covered entity or business associate) or the FTC Health Breach Notification Rule (which reaches identifiable health information held by entities NOT covered by HIPAA). The Rule's purpose and scope provision draws this line. Most med-spa / wellness / consumer-app clients fall outside HIPAA, but that conclusion must be confirmed for your facts, not assumed.\n",
+      "question_ids": [
+        "q-hw-103"
+      ],
+      "evidence_types": [
+        "Counsel memo or governance record stating whether the entity is a HIPAA covered entity / business associate or an entity outside HIPAA subject to the HBNR",
+        "Any Business Associate Agreements in force (existence and counterparties only -- no PHI)"
+      ],
+      "remediation": {
+        "quick_win": "Record whether any part of your business acts as a HIPAA covered entity or business associate, and flag the boundary question to counsel.",
+        "standard": "Document a counsel-confirmed determination of your HIPAA vs. HBNR status and keep it current; where both regimes touch different product lines, map which data falls under each.",
+        "note": "MojoComply does not opine on HIPAA covered-entity status; the report directs the entity to counsel (Laws 1, 2)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hw-state-law-scoping",
+      "citation": "RCW 19.373.010",
+      "category": "applicability_scoping",
+      "standard": "Multi-State Consumer-Health-Privacy Exposure Scoping",
+      "obligation": "advisory",
+      "requirement": "Map which state consumer-health and sensitive-data privacy laws reach your users based on where they reside, since these laws (Washington's My Health My Data Act, Nevada's consumer health data law, the Colorado Privacy Act, California's CMIA and CCPA/CPRA, and others) apply by reference to the consumer's residency or location -- Washington's definition of \"consumer\" is the illustrative trigger. Maintain a current view of your state footprint so the state-specific controls in this library can be scoped to the states that actually apply.\n",
+      "question_ids": [
+        "q-hw-104"
+      ],
+      "evidence_types": [
+        "A jurisdiction-scoping matrix listing the states where the client has users and which consumer-health / sensitive-data laws counsel has flagged as in scope",
+        "Counsel input or external analysis supporting the state-applicability conclusions"
+      ],
+      "remediation": {
+        "quick_win": "List the states where your users live and note which of them have consumer-health or sensitive-data privacy laws (start with WA, NV, CO, CA).",
+        "standard": "Build and maintain a state-applicability matrix with counsel, refresh it as new state laws take effect and as your user base spreads, and use it to scope the state controls below.",
+        "note": "This vertical is multi-jurisdiction and the law is changing quickly; applicability is a legal determination for counsel, and this control is a scoping-hygiene practice rather than a single codified duty."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hw-hbnr-breach-definition",
+      "citation": "16 CFR §318.2",
+      "category": "breach_notification",
+      "standard": "HBNR \"Breach of Security\" -- Scope Including Unauthorized Disclosure",
+      "obligation": "statutory",
+      "requirement": "Understand what counts as a \"breach of security\" under the Rule: the acquisition of identifiable health information without the individual's authorization. Under the 2024 amendment this reaches not only outside security intrusions but also unauthorized DISCLOSURES you make yourself -- for example sending identifiable health information to an advertising or analytics platform without authorization can be a reportable breach. Whether a specific event meets the definition is a legal determination for counsel.\n",
+      "question_ids": [
+        "q-hw-105",
+        "q-hw-106"
+      ],
+      "evidence_types": [
+        "Written definition/criteria the entity uses to recognize a reportable breach, aligned to 16 CFR 318.2 (including unauthorized disclosures)",
+        "Trigger/decision aid that routes suspected events to counsel for the breach determination"
+      ],
+      "remediation": {
+        "quick_win": "Add \"unauthorized disclosures to third parties (e.g., ad/analytics tools), not just hacks\" to your working definition of a reportable event, and route any suspected event to counsel.",
+        "standard": "Adopt criteria consistent with 16 CFR 318.2 for recognizing a breach of security -- covering unauthorized acquisition by outsiders and unauthorized disclosures by the business itself -- and train staff to escalate candidates for a counsel determination.",
+        "note": "The 2024 amendment's expansion of \"breach\" to cover unauthorized disclosures is what connects the tracking-pixel enforcement pattern to the HBNR; keep the \"is this a breach?\" call with counsel (Law 2)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hw-hbnr-notify-individuals",
+      "citation": "16 CFR §318.3",
+      "category": "breach_notification",
+      "standard": "HBNR Duty to Notify Affected Individuals",
+      "obligation": "statutory",
+      "requirement": "If a breach of security is discovered, notify each individual whose unsecured identifiable health information was acquired without authorization (or reasonably believed to have been). Be ready to execute this notice -- know who owns it, how you would identify affected individuals, and how you would reach them -- before an incident happens.\n",
+      "question_ids": [
+        "q-hw-107"
+      ],
+      "evidence_types": [
+        "Written breach-response procedure assigning ownership of the individual-notification duty",
+        "Notice template(s) prepared in advance (template only -- no individual data)"
+      ],
+      "remediation": {
+        "quick_win": "Name who owns breach notification and draft an individual-notice template you could send within days, not weeks.",
+        "standard": "Build a breach-response runbook that operationalizes the individual-notification duty under 16 CFR 318.3, including how affected individuals would be identified and reached, and rehearse it.",
+        "note": "Whether the duty is triggered in a given event is a legal determination; the runbook directs the entity to counsel rather than deciding notification (Law 2)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hw-hbnr-timing",
+      "citation": "16 CFR §318.4",
+      "category": "breach_notification",
+      "standard": "HBNR Timeliness -- 60 Calendar Days",
+      "obligation": "statutory",
+      "requirement": "Send required breach notifications without unreasonable delay and in no case later than 60 calendar days after discovery of the breach. Your response process must be fast enough to meet this outer limit, including the time needed to investigate and identify affected individuals.\n",
+      "question_ids": [
+        "q-hw-108"
+      ],
+      "evidence_types": [
+        "Breach-response procedure stating the 60-calendar-day outer limit and internal target timelines",
+        "Tabletop-exercise or drill record demonstrating the timeline can be met (no incident data)"
+      ],
+      "remediation": {
+        "quick_win": "Write the 60-calendar-day deadline into your incident procedure with an earlier internal target that leaves room to investigate.",
+        "standard": "Engineer your detection-to-notification workflow so the 60-calendar-day limit is met with margin, and validate it in a tabletop exercise."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hw-hbnr-ftc-media-notice",
+      "citation": "16 CFR §318.5",
+      "category": "breach_notification",
+      "standard": "HBNR Methods of Notice -- Individuals, FTC, and Media",
+      "obligation": "statutory",
+      "requirement": "Provide notice by the methods the Rule specifies: written notice to each individual at their last known address (electronic mail where the individual has consented), with substitute notice available where contact information is insufficient; notice to the Federal Trade Commission (on the accelerated schedule the Rule sets for breaches involving 500 or more individuals); and notice to prominent media outlets serving the relevant area when 500 or more residents of a State are affected.\n",
+      "question_ids": [
+        "q-hw-109",
+        "q-hw-110"
+      ],
+      "evidence_types": [
+        "Breach-response procedure documenting individual, FTC, and media notice methods and the 500-individual thresholds",
+        "Reference to the FTC's online breach-notification submission channel in the procedure"
+      ],
+      "remediation": {
+        "quick_win": "Add the FTC-notice step and the 500-individual media-notice trigger to your breach procedure so they are not overlooked under time pressure.",
+        "standard": "Document each notice channel required by 16 CFR 318.5 -- individual (mail/email, with substitute notice), FTC, and media -- with the applicable thresholds and timing, and pre-stage the submission mechanics.",
+        "note": "Confirm the exact FTC-notice sub-timing for 500+ individuals with counsel against 16 CFR 318.5; this control cites the section, and the report should not assert a specific day-count as settled fact."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hw-hbnr-notice-content",
+      "citation": "16 CFR §318.6",
+      "category": "breach_notification",
+      "standard": "HBNR Content of Notice",
+      "obligation": "statutory",
+      "requirement": "Make sure your breach notice contains the content the Rule requires: what happened and the dates involved, the types of unsecured identifiable health information involved, steps individuals can take to protect themselves, what your business is doing to investigate and mitigate and prevent recurrence, and how individuals can contact you for more information.\n",
+      "question_ids": [
+        "q-hw-111"
+      ],
+      "evidence_types": [
+        "Individual-notice template mapped to the content elements of 16 CFR 318.6 (template only -- no individual data)"
+      ],
+      "remediation": {
+        "quick_win": "Build a notice template with a checklist of the required content elements so nothing is missing when you have to send it.",
+        "standard": "Maintain an individual-notice template that addresses every content element in 16 CFR 318.6 and have counsel review the template in advance."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hw-ftc5-truthful-privacy-claims",
+      "citation": "15 U.S.C. §45",
+      "category": "privacy_representations",
+      "standard": "FTC Act Section 5 -- Truthful, Substantiated, and Honored Privacy Representations",
+      "obligation": "advisory",
+      "requirement": "Make sure every privacy and security representation you publish is truthful, substantiated, and actually honored in practice. Avoid unsubstantiated or misleading claims -- for example describing data as \"anonymous\" when it is re-identifiable, saying \"we never sell your data\" or \"we don't share your data\" when tracking tools or partners receive it, or calling a non-HIPAA service \"HIPAA compliant.\" Under Section 5 of the FTC Act, a privacy promise you do not keep is a deceptive practice (the pattern behind the FTC's GoodRx, BetterHelp, and Flo actions).\n",
+      "question_ids": [
+        "q-hw-112",
+        "q-hw-113"
+      ],
+      "evidence_types": [
+        "Current published privacy policy and any marketing privacy/security claims",
+        "A claims-substantiation record reconciling each material privacy claim against actual data practices (e.g., what \"anonymous\" or \"we don't sell data\" means operationally)"
+      ],
+      "remediation": {
+        "quick_win": "Read your privacy policy and marketing site against what your systems actually do, and remove or correct any claim you cannot back up (start with \"anonymous,\" \"we don't sell,\" and any \"HIPAA\" language).",
+        "standard": "Stand up a review process so privacy and security representations are substantiated before publication and re-verified when data practices change, with sign-off from someone who knows the actual data flows.",
+        "note": "Do not represent a non-HIPAA consumer service as \"HIPAA certified\"; there is no such certification, and claiming one is itself an FTC Act problem (Law 1)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hw-ftc5-unfair-data-practices",
+      "citation": "15 U.S.C. §45",
+      "category": "privacy_representations",
+      "standard": "FTC Act Section 5 -- Avoid Unfair Data Practices",
+      "obligation": "advisory",
+      "requirement": "Avoid data practices that cause or are likely to cause substantial injury to consumers that they cannot reasonably avoid and that is not outweighed by benefits -- the \"unfairness\" prong of Section 5. Disclosing sensitive health information in ways a consumer would not expect (for example to advertising networks) can be an unfair practice even where no express promise was broken. Assess your sensitive-data handling for this exposure.\n",
+      "question_ids": [
+        "q-hw-114"
+      ],
+      "evidence_types": [
+        "Record of a review assessing whether any sensitive-data sharing could constitute an unfair practice (analysis and decisions -- no consumer data)",
+        "Data-sharing decisions with a documented consumer-benefit / consumer-expectation rationale"
+      ],
+      "remediation": {
+        "quick_win": "List every place sensitive health data leaves your control and ask, for each, whether a consumer would reasonably expect it; escalate the surprising ones.",
+        "standard": "Fold an unfairness assessment into your data-sharing decisions so sensitive-data flows that a consumer could not reasonably avoid and would not expect are stopped or brought under clear consent."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hw-tracking-tech-governance",
+      "citation": "15 U.S.C. §45",
+      "category": "tracking_technology",
+      "standard": "Third-Party Tracking, SDK, and Pixel Governance",
+      "obligation": "advisory",
+      "requirement": "Inventory and govern the third-party trackers, SDKs, pixels, and tags embedded in your app, website, and communications (e.g., advertising pixels and analytics tags), because these can silently transmit identifiable health information to third parties. Know what each one sends and to whom, disclose it, and obtain any required consent BEFORE it fires. Uncontrolled tracking technology on a health service is the root of the FTC's Section 5 tracking-pixel actions and can also constitute an unauthorized disclosure under the HBNR and a share/sale under state law.\n",
+      "question_ids": [
+        "q-hw-115",
+        "q-hw-116"
+      ],
+      "evidence_types": [
+        "Inventory of third-party SDKs, pixels, tags, and trackers with the data each transmits and the recipient (configuration/inventory only -- no consumer data)",
+        "Screenshot or configuration showing trackers are gated behind consent, or removed, on health-related pages/flows",
+        "Data-processing / contractual terms with each tracking or analytics vendor (existence and safeguards clauses -- business terms may be redacted)"
+      ],
+      "remediation": {
+        "quick_win": "Audit the pixels, tags, and SDKs on your health-related pages and flows; disable any that transmit health data to advertising or analytics vendors until you have confirmed disclosure and consent.",
+        "standard": "Maintain a living tracker/SDK inventory, gate any tracker that could transmit health data behind valid consent, bind each vendor by contract, and review the inventory on a set cadence and before each release.",
+        "note": "Record analytics/advertising vendors as separate third-party entities so their handling stays distinct from MojoComply and from any system MojoAI built (Law 3)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hw-wmhda-consent",
+      "citation": "RCW 19.373.030",
+      "category": "consent_authorization",
+      "standard": "WA My Health My Data -- Consent to Collect or Share Consumer Health Data",
+      "obligation": "statutory",
+      "requirement": "Under Washington's My Health My Data Act, do not collect or share a consumer's health data except with the consumer's consent, or to the extent necessary to provide a product or service the consumer has requested. Consent must be obtained separately for collection and for sharing, and must meet the Act's requirements. This applies to consumers who are Washington residents or whose health data is collected in Washington.\n",
+      "question_ids": [
+        "q-hw-117"
+      ],
+      "evidence_types": [
+        "Screenshot of the consent flow for collecting and (separately) sharing consumer health data",
+        "Consent-records configuration showing consent is captured, logged, and withdrawable (records design -- no consumer data)"
+      ],
+      "remediation": {
+        "quick_win": "Identify what consumer health data you collect and share beyond what is needed to deliver the requested service, and build a consent step for it.",
+        "standard": "Implement WMHDA-conforming consent, captured separately for collection and for sharing, with logged and withdrawable records, scoped to Washington consumers per counsel.",
+        "note": "Whether a given data element is \"consumer health data\" and whether WMHDA applies are legal determinations for counsel (Law 2)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hw-wmhda-sale-authorization",
+      "citation": "RCW 19.373.070",
+      "category": "consent_authorization",
+      "standard": "WA My Health My Data -- Valid Authorization to Sell",
+      "obligation": "statutory",
+      "requirement": "Do not sell, or offer to sell, a consumer's health data without first obtaining a separate VALID AUTHORIZATION that meets the specific content and form requirements of the My Health My Data Act. This authorization is distinct from, and additional to, the consent required to collect or share; a general consent does not authorize a sale.\n",
+      "question_ids": [
+        "q-hw-118"
+      ],
+      "evidence_types": [
+        "The valid-authorization form used for any sale of consumer health data, mapped to the RCW 19.373.070 content requirements",
+        "Attestation or configuration showing no consumer health data is sold absent a signed valid authorization"
+      ],
+      "remediation": {
+        "quick_win": "Confirm whether any arrangement could count as a \"sale\" of consumer health data; if so, stop it until a valid authorization mechanism is in place.",
+        "standard": "If you sell consumer health data, implement a valid-authorization workflow meeting every RCW 19.373.070 element, kept separate from ordinary consent and retained per the Act.",
+        "note": "Whether an arrangement is a \"sale\" of \"consumer health data\" is a legal determination for counsel (Law 2)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hw-wmhda-geofencing",
+      "citation": "RCW 19.373.080",
+      "category": "consent_authorization",
+      "standard": "WA My Health My Data -- Geofencing Prohibition",
+      "obligation": "statutory",
+      "requirement": "Do not implement a geofence around any entity that provides in-person health care services where the geofence is used to identify or track consumers seeking health care, collect their consumer health data, or send them notifications or ads related to their health data. The My Health My Data Act prohibits this outright.\n",
+      "question_ids": [
+        "q-hw-119"
+      ],
+      "evidence_types": [
+        "Attestation and, where applicable, ad-platform / SDK configuration showing no prohibited geofencing around health-care facilities is in use",
+        "Marketing/location-targeting policy documenting the geofencing prohibition"
+      ],
+      "remediation": {
+        "quick_win": "Confirm with your marketing and location-data vendors that no geofencing around health-care facilities is configured, and document it.",
+        "standard": "Adopt a policy prohibiting health-facility geofencing, verify it across your own and your vendors' location-targeting configurations, and re-check on a set cadence."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hw-state-sensitive-data-consent",
+      "citation": "C.R.S. §6-1-1308(7)",
+      "category": "consent_authorization",
+      "standard": "State Opt-In Consent for Sensitive Data (Colorado and Similar)",
+      "obligation": "statutory",
+      "requirement": "In opt-in states, obtain the consumer's consent before processing sensitive data. Under the Colorado Privacy Act a controller shall not process a consumer's sensitive data -- which includes personal data revealing a mental or physical health condition or diagnosis -- without first obtaining consent (and, for a known child, consent from a parent or guardian). Similar opt-in-for-sensitive-data requirements exist in a growing set of states; scope which apply with counsel.\n",
+      "question_ids": [
+        "q-hw-120"
+      ],
+      "evidence_types": [
+        "Consent flow and consent-record design for processing health-related sensitive data in opt-in states",
+        "Data-processing inventory identifying which processing involves \"sensitive data\" as defined by the applicable state law"
+      ],
+      "remediation": {
+        "quick_win": "Identify processing of health-related sensitive data affecting Colorado (and similar opt-in state) consumers and add an opt-in consent step ahead of it.",
+        "standard": "Implement opt-in consent for sensitive-data processing meeting each applicable state's requirements, with logged records, scoped by counsel to the states in your footprint.",
+        "note": "Whether data is \"sensitive data\" and which states' opt-in rules apply are legal determinations for counsel (Law 2). Colorado also treats sensitive-data processing as always requiring a data protection assessment (C.R.S. 6-1-1309)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hw-nevada-consumer-health",
+      "citation": "NRS §603A.500",
+      "category": "consent_authorization",
+      "standard": "NV Consumer Health Data -- Consent, Policy, and Authorization to Sell",
+      "obligation": "statutory",
+      "requirement": "Under Nevada's consumer health data law, do not collect or share a consumer's health data except with consent or as necessary to provide a requested product or service (NRS 603A.500), maintain a consumer-health-data privacy policy posted on your website (NRS 603A.495), and do not sell consumer health data without the consumer's written authorization (NRS 603A.535). Nevada also prohibits geofencing around in-person health-care facilities (NRS 603A.540).\n",
+      "question_ids": [
+        "q-hw-121"
+      ],
+      "evidence_types": [
+        "Nevada consumer-health-data privacy policy as posted, and the consent and (separately) written-authorization-to-sell flows",
+        "Attestation that no consumer health data is sold absent written authorization and that no prohibited geofencing is configured"
+      ],
+      "remediation": {
+        "quick_win": "Confirm whether you have Nevada users; if so, post a Nevada consumer-health-data privacy policy and add consent for collection/sharing.",
+        "standard": "Implement Nevada's consent, privacy-policy, written-authorization-to-sell, and geofencing requirements, scoped by counsel, mirroring the Washington controls where practices overlap.",
+        "note": "Whether NRS 603A's consumer-health-data provisions apply is a legal determination for counsel (Law 2)."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hw-california-cmia",
+      "citation": "Cal. Civ. Code §56.06",
+      "category": "consent_authorization",
+      "standard": "CA CMIA -- Consumer Health Apps Deemed Providers of Health Care",
+      "obligation": "statutory",
+      "requirement": "Recognize that California's Confidentiality of Medical Information Act reaches consumer health technology: a business that offers software or hardware to consumers (including a mobile app or device) designed to maintain medical information, or that offers a reproductive or sexual health digital service, is deemed a \"provider of health care\" subject to the CMIA -- including its limits on disclosing medical information without authorization. If this fits your product, treat California users' medical information under CMIA rules.\n",
+      "question_ids": [
+        "q-hw-122"
+      ],
+      "evidence_types": [
+        "Scoping record on whether the product is a \"provider of health care\" under Cal. Civ. Code 56.06(b) or (e)",
+        "Authorization / disclosure-control design for medical information of California users, consistent with the CMIA"
+      ],
+      "remediation": {
+        "quick_win": "Determine whether your app or device is designed to maintain medical information (or is a reproductive/sexual health digital service) and flag CMIA applicability to counsel.",
+        "standard": "If CMIA applies, implement its authorization and disclosure controls for California users' medical information, including the reproductive/sexual-health provisions where relevant.",
+        "note": "Whether the business is a \"provider of health care\" under 56.06 is a legal determination for counsel (Law 2)."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hw-california-cpra-sensitive",
+      "citation": "Cal. Civ. Code §1798.121",
+      "category": "consumer_rights",
+      "standard": "CA CCPA/CPRA -- Right to Limit Use of Sensitive Personal Information",
+      "obligation": "statutory",
+      "requirement": "Where the CCPA/CPRA applies, honor the consumer's right to direct your business to limit its use and disclosure of sensitive personal information -- which includes health information -- to what is necessary to perform the goods or services reasonably expected. Provide the mechanism (e.g., a \"Limit the Use of My Sensitive Personal Information\" path) and actually restrict secondary uses when a consumer exercises it.\n",
+      "question_ids": [
+        "q-hw-123"
+      ],
+      "evidence_types": [
+        "Screenshot of the \"limit the use of sensitive personal information\" mechanism and the notice of the right",
+        "Configuration showing sensitive-PI use is restricted to expected purposes once a consumer opts to limit"
+      ],
+      "remediation": {
+        "quick_win": "Confirm whether CCPA/CPRA applies to you; if so, publish the right-to-limit link and route requests to a real restriction, not a dead end.",
+        "standard": "Implement the right to limit sensitive-PI use end to end -- notice, request mechanism, and enforced downstream restriction -- for California consumers, scoped with counsel.",
+        "note": "Whether CCPA/CPRA applies (business thresholds, exemptions) is a legal determination for counsel (Law 2)."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hw-consumer-rights-fulfillment",
+      "citation": "RCW 19.373.040",
+      "category": "consumer_rights",
+      "standard": "Consumer Rights -- Access, Deletion, and Withdrawal of Consent",
+      "obligation": "statutory",
+      "requirement": "Provide a working way for consumers to exercise their rights over their health data -- at a minimum access, deletion, and withdrawal of consent under Washington's My Health My Data Act, with an appeal path for refusals -- and honor deletion and consent-withdrawal requests through to your downstream recipients. Parallel access/correction/deletion rights exist under the Colorado Privacy Act, Nevada's law, and CCPA/CPRA; run one rights process that satisfies each applicable state.\n",
+      "question_ids": [
+        "q-hw-124",
+        "q-hw-125"
+      ],
+      "evidence_types": [
+        "Screenshot of the consumer-rights request intake (access, delete, withdraw consent) and the refusal/appeal path",
+        "Procedure describing how deletion and consent-withdrawal are propagated to processors and third parties (process design -- no consumer data)"
+      ],
+      "remediation": {
+        "quick_win": "Publish a rights-request path (access, delete, withdraw consent) and assign an owner who can actually complete deletions.",
+        "standard": "Operate a single consumer-rights workflow that meets each applicable state's access/deletion/withdrawal requirements, propagates deletions to downstream recipients, and logs handling within statutory response windows.",
+        "note": "Which states' rights regimes apply is a legal determination for counsel (Law 2)."
+      },
+      "weight": 2
+    },
+    {
+      "id": "hw-health-data-inventory-policy",
+      "citation": "RCW 19.373.020",
+      "category": "data_governance",
+      "standard": "Consumer-Health-Data Inventory and Published Privacy Policy",
+      "obligation": "statutory",
+      "requirement": "Know your health data and tell consumers about it. Maintain an inventory / data map of the consumer health data you collect, the purposes, where it is stored, and every third party that receives it; and publish a consumer-health-data privacy policy that discloses the categories collected, the sources, the purposes, the categories shared, and the third parties you share with -- as Washington's My Health My Data Act requires (with parallel policy duties in Nevada). The inventory is the foundation the consent, rights, and tracking controls depend on.\n",
+      "question_ids": [
+        "q-hw-126",
+        "q-hw-127"
+      ],
+      "evidence_types": [
+        "Consumer-health-data inventory / data-flow map (categories, purposes, storage locations, recipients -- no consumer records)",
+        "The published consumer-health-data privacy policy mapped to the RCW 19.373.020 disclosure elements"
+      ],
+      "remediation": {
+        "quick_win": "Build a simple data map of what health data you collect, why, where it lives, and who receives it, and confirm your privacy policy reflects it.",
+        "standard": "Maintain a living consumer-health-data inventory and a conforming published privacy policy, reconcile them on a set cadence and before each release, and drive the consent/rights/tracking controls from them."
+      },
+      "weight": 3
+    },
+    {
+      "id": "hw-data-security-safeguards",
+      "citation": "RCW 19.373.050",
+      "category": "data_security",
+      "standard": "Data Security Practices for Consumer Health Data",
+      "obligation": "statutory",
+      "requirement": "Establish, implement, and maintain data security practices that protect the consumer health data you hold -- restricting access to the employees, processors, and contractors who need it to provide your product or service, appropriate to the volume and sensitivity of the data, as Washington's My Health My Data Act requires and as the Colorado Privacy Act's duty of care and other state laws echo. Encrypt sensitive health data at rest and in transit and control who can reach it.\n",
+      "question_ids": [
+        "q-hw-128"
+      ],
+      "evidence_types": [
+        "Data-security policy scoped to consumer health data, with the access-restriction and encryption practices",
+        "Screenshot of access-control settings and at-rest/in-transit encryption status for the systems holding consumer health data (configuration -- no consumer data)"
+      ],
+      "remediation": {
+        "quick_win": "Restrict access to consumer health data to the people and services that truly need it, and turn on encryption at rest and in transit.",
+        "standard": "Adopt data security practices sized to the volume and sensitivity of the consumer health data you hold -- least-privilege access, encryption at rest and in transit, and periodic access review -- consistent with RCW 19.373.050 and parallel state duties of care."
+      },
+      "weight": 2
+    }
+  ]
+}

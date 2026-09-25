@@ -1,0 +1,392 @@
+{
+  "meta": {
+    "framework": "ny-dfs-500",
+    "version": "1.0.0",
+    "status": "approved",
+    "authority": "23 NYCRR Part 500 (Cybersecurity Requirements for Financial Services Companies -- NYDFS), as amended (Second Amendment, 2023)",
+    "note": "Part 500 applies to entities regulated by the NY Department of Financial Services. It is the recommended lead framework for the insurance vertical; NAIC Insurance Data Security Model Law (MDL-668) largely mirrors it. Requirements are paraphrased; the authoritative text is 23 NYCRR Part 500. Whether an entity is a Covered Entity, and any exemption under 500.19, are determinations requiring the entity's own analysis.",
+    "tier": "regulation",
+    "categories": [
+      "governance",
+      "risk_management",
+      "access_control",
+      "data_protection",
+      "monitoring_testing",
+      "third_party",
+      "incident_response"
+    ],
+    "obligation_levels": [
+      {
+        "id": "required",
+        "label": "Required",
+        "tie_break_rank": 1
+      }
+    ],
+    "sources": [
+      {
+        "document": "23 NYCRR Part 500 -- Cybersecurity Requirements for Financial Services Companies (New York State Department of Financial Services)",
+        "version": "Second Amendment to 23 NYCRR 500, promulgated by Superintendent Adrienne A. Harris, effective upon publication of the Notice of Adoption in the State Register. This is the current text; meta.authority above is current and correct. The published field below records the Second Amendment's EFFECTIVE date (sec. 500.22(e) confirms the new secs. 500.19(e)-(h), 500.20, 500.21, 500.22 and 500.24 \"shall become effective November 1, 2023\"); the State Register publication date itself was not independently confirmed.",
+        "published": "2023-11-01",
+        "retrieved": "2026-07-26",
+        "url": "https://www.dfs.ny.gov/industry_guidance/regulations/final_adoptions_fs/rf_fs_2amend23NYCRR500_text_20231101_alt",
+        "change_watch": "ALL PHASE-IN DATES HAVE NOW EXPIRED -- the entire Part is fully enforceable, which changes how this library should score. Verbatim from sec. 500.22 of the Second Amendment: (c) 180 days from 2023-11-01 for new requirements generally; (d)(1) 30 days for sec. 500.17; (d)(2) one year (2024-11-01) for secs. 500.4, 500.15, 500.16, 500.19(a); (d)(3) 18 months (2025-05-01) for secs. 500.5(a)(2), 500.7, 500.14(a)(2), 500.14(b); (d)(4) two years (2025-11-01) for secs. 500.12 and 500.13(a) -- the final tranche, MFA for all individuals accessing information systems (sec. 500.12) and the asset inventory (sec. 500.13(a)). Any control or report language still framing sec. 500.12 or sec. 500.13(a) as future-dated, or as permitting compensating controls, is now WRONG and must be corrected. RECURRING DEADLINE the engine should surface: sec. 500.17(b)(1) requires each covered entity to submit to the superintendent electronically BY APRIL 15 each year either an annual certification of material compliance for the prior calendar year or a written acknowledgment of non-compliance identifying every non-compliant section with a remediation timeline; sec. 500.17(b)(2) requires signature by the highest-ranking executive AND the CISO (or the senior officer responsible for the cybersecurity program); sec. 500.17(b)(3) requires five-year retention of supporting records. Next due 2027-04-15. That filing is the covered entity's own submission to its regulator -- MojoComply does not make it and does not attest to it (Laws 1, 2). THIRD AMENDMENT: none found, but treat that as a SEARCH-NEGATIVE, not a primary-source confirmation -- dfs.ny.gov serves its regulation pages as PDFs that resist automated reading (two fetch attempts returned unparseable binary or 404) and there is no NYDFS rulemaking API. PROBE: none available; re-check the DFS Cybersecurity Resource Center manually."
+      }
+    ]
+  },
+  "attribution": "Public-domain New York State regulatory text (23 NYCRR Part 500). Requirement wording is MojoComply's own plain-English paraphrase.",
+  "controls": [
+    {
+      "id": "dfs-cybersecurity-program",
+      "citation": "23 NYCRR §500.2",
+      "category": "governance",
+      "standard": "Cybersecurity Program",
+      "obligation": "required",
+      "requirement": "Maintain a cybersecurity program, based on your risk assessment, that protects the confidentiality, integrity, and availability of your systems and the nonpublic information on them. The program must be able to identify risks, protect systems, detect events, respond to and recover from incidents, and meet reporting obligations.\n",
+      "question_ids": [
+        "q-dfs-101",
+        "q-dfs-102"
+      ],
+      "evidence_types": [
+        "Written cybersecurity program overview describing the six core functions",
+        "Risk assessment that the program is based on (summary or table of contents)"
+      ],
+      "remediation": {
+        "quick_win": "Document your cybersecurity program in one place and confirm it addresses identify, protect, detect, respond, recover, and reporting.",
+        "standard": "Build the program out from a current risk assessment; keep the documentation ready to produce to the superintendent on request."
+      },
+      "weight": 2
+    },
+    {
+      "id": "dfs-cybersecurity-policy",
+      "citation": "23 NYCRR §500.3",
+      "category": "governance",
+      "standard": "Cybersecurity Policy",
+      "obligation": "required",
+      "requirement": "Maintain written cybersecurity policies, approved at least annually by a senior officer or your senior governing body, covering the areas relevant to your operations -- including information security, data governance and retention, access controls, business continuity, vendor management, incident response, and vulnerability management.\n",
+      "question_ids": [
+        "q-dfs-103"
+      ],
+      "evidence_types": [
+        "Written cybersecurity policy set (index or table of contents)",
+        "Record of the most recent senior-officer or governing-body approval (date and approver)"
+      ],
+      "remediation": {
+        "quick_win": "Assemble your existing security policies and confirm a senior officer signs off on them at least once a year.",
+        "standard": "Maintain a complete policy set that covers each area listed in the rule, with a named owner and a documented annual approval."
+      },
+      "weight": 2
+    },
+    {
+      "id": "dfs-ciso-governance",
+      "citation": "23 NYCRR §500.4",
+      "category": "governance",
+      "standard": "Cybersecurity Governance (CISO)",
+      "obligation": "required",
+      "requirement": "Designate a qualified Chief Information Security Officer (who may be internal, an affiliate, or a third-party service provider) to oversee the cybersecurity program. The CISO must report in writing at least annually to the senior governing body, which must exercise oversight of cybersecurity risk management.\n",
+      "question_ids": [
+        "q-dfs-104",
+        "q-dfs-105"
+      ],
+      "evidence_types": [
+        "Document designating the CISO (policy, org chart, or job description)",
+        "Most recent written CISO report to the senior governing body (cover page and agenda)"
+      ],
+      "remediation": {
+        "quick_win": "Name a CISO in writing; if the role is outsourced, designate a senior internal person to direct and oversee that provider.",
+        "standard": "Establish a recurring annual CISO report to leadership covering program effectiveness, material risks, material events, and remediation plans, and record leadership's oversight."
+      },
+      "weight": 3,
+      "extensions": {
+        "small_entity_note": "A limited exemption under 23 NYCRR §500.19 may relieve a qualifying small covered entity of some CISO/governance requirements. Whether an exemption applies is the entity's own determination."
+      }
+    },
+    {
+      "id": "dfs-vulnerability-management",
+      "citation": "23 NYCRR §500.5",
+      "category": "monitoring_testing",
+      "standard": "Vulnerability Management",
+      "obligation": "required",
+      "requirement": "Maintain written vulnerability-management policies and procedures. At a minimum, conduct penetration testing of your systems from inside and outside their boundaries by a qualified party at least annually, run automated vulnerability scans (with manual review of anything the scans miss) at a risk-based frequency and after material changes, stay informed of new vulnerabilities, and remediate them promptly by risk.\n",
+      "question_ids": [
+        "q-dfs-106",
+        "q-dfs-107"
+      ],
+      "evidence_types": [
+        "Written vulnerability-management policy",
+        "Most recent penetration-test summary report (findings summary only, no raw exploit data)",
+        "Vulnerability-scan schedule or a redacted summary report showing scan cadence"
+      ],
+      "remediation": {
+        "quick_win": "Schedule an annual penetration test by a qualified party and turn on recurring automated vulnerability scans.",
+        "standard": "Document a vulnerability-management procedure that sets scan frequency by risk, covers systems scans miss with manual review, and tracks findings to timely, risk-prioritized remediation."
+      },
+      "weight": 2,
+      "extensions": {
+        "small_entity_note": "A limited exemption under 23 NYCRR §500.19 may relieve a qualifying small covered entity of the penetration-testing and automated-scan requirements. Whether an exemption applies is the entity's own determination."
+      }
+    },
+    {
+      "id": "dfs-audit-trail",
+      "citation": "23 NYCRR §500.6",
+      "category": "monitoring_testing",
+      "standard": "Audit Trail",
+      "obligation": "required",
+      "requirement": "Based on your risk assessment, keep audit trails designed to detect and respond to cybersecurity events that could materially harm operations, and maintain records that let you reconstruct material financial transactions. Retain these records for the periods the rule specifies.\n",
+      "question_ids": [
+        "q-dfs-108"
+      ],
+      "evidence_types": [
+        "Screenshot of audit-logging configuration in key systems",
+        "Written log-retention standard showing retention periods"
+      ],
+      "remediation": {
+        "quick_win": "Turn on audit logging in the systems that hold or protect nonpublic information and confirm logs are retained, not overwritten.",
+        "standard": "Document an audit-trail standard covering which events are logged, how logs are protected from tampering, and retention periods aligned to the rule."
+      },
+      "weight": 2,
+      "extensions": {
+        "small_entity_note": "A limited exemption under 23 NYCRR §500.19 may relieve a qualifying small covered entity of the audit-trail requirement. Whether an exemption applies is the entity's own determination."
+      }
+    },
+    {
+      "id": "dfs-access-privileges",
+      "citation": "23 NYCRR §500.7",
+      "category": "access_control",
+      "standard": "Access Privileges and Management",
+      "obligation": "required",
+      "requirement": "Limit access to systems holding nonpublic information to what each person needs for their job, limit the number and use of privileged accounts, review all user access at least annually and remove access that is no longer needed, disable or securely configure remote-control protocols, and promptly terminate access when someone leaves.\n",
+      "question_ids": [
+        "q-dfs-109",
+        "q-dfs-110"
+      ],
+      "evidence_types": [
+        "Written access-management or least-privilege policy (including a password policy)",
+        "Most recent user-access review export, with individual identifiers redacted"
+      ],
+      "remediation": {
+        "quick_win": "Run an access review now -- remove accounts and privileges no one needs, and confirm departing staff lose access the same day.",
+        "standard": "Adopt role-based least-privilege access, restrict and monitor privileged accounts, and put user-access reviews on at least an annual schedule with sign-off."
+      },
+      "weight": 2
+    },
+    {
+      "id": "dfs-application-security",
+      "citation": "23 NYCRR §500.8",
+      "category": "data_protection",
+      "standard": "Application Security",
+      "obligation": "required",
+      "requirement": "Maintain written procedures, guidelines, and standards for secure development of applications built in-house and for evaluating the security of applications you obtain externally. The CISO or a qualified designee must review and update them at least annually.\n",
+      "question_ids": [
+        "q-dfs-111"
+      ],
+      "evidence_types": [
+        "Written secure-development standard or secure-procurement guideline",
+        "Record of the most recent CISO (or designee) review of those standards"
+      ],
+      "remediation": {
+        "quick_win": "Write down your secure-development and third-party-application evaluation standards, even briefly, and assign an owner.",
+        "standard": "Maintain secure development and procurement guidelines and have the CISO or a qualified designee review and update them at least annually."
+      },
+      "weight": 2
+    },
+    {
+      "id": "dfs-risk-assessment",
+      "citation": "23 NYCRR §500.9",
+      "category": "risk_management",
+      "standard": "Risk Assessment",
+      "obligation": "required",
+      "requirement": "Conduct a periodic risk assessment of your information systems, sufficient to inform the design of your cybersecurity program. Review and update it at least annually and whenever a business or technology change materially changes your cyber risk.\n",
+      "question_ids": [
+        "q-dfs-112"
+      ],
+      "evidence_types": [
+        "Most recent written risk assessment (dated within 12 months)",
+        "Methodology description or the written policy governing how assessments are conducted"
+      ],
+      "remediation": {
+        "quick_win": "Scope and schedule a documented risk assessment of the systems that hold nonpublic information.",
+        "standard": "Perform a risk assessment against written criteria, refresh it at least annually and after material changes, and use it to drive the rest of the program."
+      },
+      "weight": 3
+    },
+    {
+      "id": "dfs-cybersecurity-personnel",
+      "citation": "23 NYCRR §500.10",
+      "category": "governance",
+      "standard": "Cybersecurity Personnel and Intelligence",
+      "obligation": "required",
+      "requirement": "Use qualified cybersecurity personnel -- your own, an affiliate's, or a third-party service provider's -- sufficient to manage your cyber risks and perform the core program functions. Provide them ongoing training and updates, and verify key staff stay current on evolving threats and countermeasures.\n",
+      "question_ids": [
+        "q-dfs-113"
+      ],
+      "evidence_types": [
+        "Description of how cybersecurity responsibilities are staffed (internal, affiliate, or vendor)",
+        "Records of cybersecurity training or threat-intelligence updates for key personnel"
+      ],
+      "remediation": {
+        "quick_win": "Confirm in writing who is responsible for cybersecurity functions and that they receive regular threat updates.",
+        "standard": "Ensure qualified coverage of all core cybersecurity functions and give key personnel ongoing training and access to current threat intelligence."
+      },
+      "weight": 2,
+      "extensions": {
+        "small_entity_note": "A limited exemption under 23 NYCRR §500.19 may relieve a qualifying small covered entity of some cybersecurity-personnel requirements. Whether an exemption applies is the entity's own determination."
+      }
+    },
+    {
+      "id": "dfs-third-party-provider",
+      "citation": "23 NYCRR §500.11",
+      "category": "third_party",
+      "standard": "Third-Party Service Provider Security Policy",
+      "obligation": "required",
+      "requirement": "Maintain written policies, based on your risk assessment, to secure systems and nonpublic information that are accessible to or held by third-party service providers. Address how you identify and assess them, the minimum security practices they must meet, due diligence, and periodic reassessment -- including their use of multi-factor authentication and encryption.\n",
+      "question_ids": [
+        "q-dfs-114"
+      ],
+      "evidence_types": [
+        "Written third-party service provider security policy",
+        "Vendor register identifying providers with access to nonpublic information and their due-diligence status"
+      ],
+      "remediation": {
+        "quick_win": "List every vendor with access to nonpublic information and record what security due diligence you have on each.",
+        "standard": "Adopt a third-party security policy covering identification, minimum practices, due diligence, and periodic reassessment, and apply it before onboarding new providers."
+      },
+      "weight": 2
+    },
+    {
+      "id": "dfs-mfa",
+      "citation": "23 NYCRR §500.12",
+      "category": "access_control",
+      "standard": "Multi-Factor Authentication",
+      "obligation": "required",
+      "requirement": "Use multi-factor authentication for any individual accessing your information systems. A qualifying small covered entity must at minimum use it for remote access to systems, remote access to third-party apps holding nonpublic information, and all privileged accounts. Any alternative compensating controls must be approved in writing by the CISO and reviewed at least annually.\n",
+      "question_ids": [
+        "q-dfs-115",
+        "q-dfs-116"
+      ],
+      "evidence_types": [
+        "Screenshot of MFA enforcement settings in the identity provider or key systems",
+        "Any written CISO approval of alternative compensating controls, with review date"
+      ],
+      "remediation": {
+        "quick_win": "Turn on MFA for remote access, cloud apps holding nonpublic information, and all privileged accounts today.",
+        "standard": "Extend MFA to every individual accessing your systems; where that is not feasible, document CISO-approved compensating controls and review them at least annually."
+      },
+      "weight": 3,
+      "extensions": {
+        "small_entity_note": "Under a limited exemption at 23 NYCRR §500.19, a qualifying small covered entity must still apply MFA to remote access and privileged accounts, though not universally. Whether an exemption applies is the entity's own determination."
+      }
+    },
+    {
+      "id": "dfs-asset-management",
+      "citation": "23 NYCRR §500.13",
+      "category": "data_protection",
+      "standard": "Asset Management and Data Retention",
+      "obligation": "required",
+      "requirement": "Maintain written policies to produce and keep a complete, accurate asset inventory of your information systems -- tracking, as applicable, owner, location, classification, support-expiration date, and recovery-time objective for each asset. Also securely dispose of nonpublic information that is no longer needed for business or legal reasons.\n",
+      "question_ids": [
+        "q-dfs-117",
+        "q-dfs-118"
+      ],
+      "evidence_types": [
+        "Asset inventory sample showing the tracked fields (identifiers may be redacted)",
+        "Written asset-management and secure-disposal policy"
+      ],
+      "remediation": {
+        "quick_win": "Start an asset inventory of the systems that hold or protect nonpublic information, with an owner for each.",
+        "standard": "Maintain the inventory with the fields the rule lists and a set update cadence, and adopt a periodic secure-disposal procedure for nonpublic information no longer needed."
+      },
+      "weight": 2
+    },
+    {
+      "id": "dfs-monitoring-training",
+      "citation": "23 NYCRR §500.14",
+      "category": "monitoring_testing",
+      "standard": "Monitoring and Training",
+      "obligation": "required",
+      "requirement": "Monitor authorized-user activity to detect unauthorized access, use, or tampering with nonpublic information; use risk-based controls (including web and email filtering) to protect against malicious code; and provide cybersecurity awareness training, including social engineering, to all personnel at least annually. Larger (Class A) companies must also deploy endpoint detection and response and centralized logging.\n",
+      "question_ids": [
+        "q-dfs-119",
+        "q-dfs-120"
+      ],
+      "evidence_types": [
+        "Screenshot of monitoring, web/email filtering, or endpoint-protection configuration",
+        "Cybersecurity awareness training completion records for current personnel (past 12 months)"
+      ],
+      "remediation": {
+        "quick_win": "Deploy annual security awareness training with tracked completion and confirm malware filtering is on for web and email.",
+        "standard": "Implement risk-based monitoring of user activity and anti-malware controls, add endpoint detection and centralized logging where required, and refresh training annually."
+      },
+      "weight": 2,
+      "extensions": {
+        "small_entity_note": "A limited exemption under 23 NYCRR §500.19 may relieve a qualifying small covered entity of the monitoring and training requirements. Whether an exemption applies is the entity's own determination."
+      }
+    },
+    {
+      "id": "dfs-encryption",
+      "citation": "23 NYCRR §500.15",
+      "category": "data_protection",
+      "standard": "Encryption of Nonpublic Information",
+      "obligation": "required",
+      "requirement": "Maintain a written policy requiring encryption that meets industry standards to protect nonpublic information both in transit over external networks and at rest. If encryption at rest is infeasible, the CISO must approve effective alternative compensating controls in writing and review their feasibility and effectiveness at least annually.\n",
+      "question_ids": [
+        "q-dfs-121",
+        "q-dfs-122"
+      ],
+      "evidence_types": [
+        "Written encryption policy",
+        "Screenshots of encryption configuration for data in transit (TLS) and at rest (disk/database)",
+        "Any written CISO approval of compensating controls where encryption at rest is infeasible"
+      ],
+      "remediation": {
+        "quick_win": "Confirm nonpublic information is encrypted in transit (TLS) and enable full-disk or database encryption where it is stored.",
+        "standard": "Adopt an encryption policy covering data in transit and at rest; where at-rest encryption is infeasible, document CISO-approved compensating controls and review annually."
+      },
+      "weight": 3
+    },
+    {
+      "id": "dfs-incident-response-bcdr",
+      "citation": "23 NYCRR §500.16",
+      "category": "incident_response",
+      "standard": "Incident Response and Business Continuity Management",
+      "obligation": "required",
+      "requirement": "Maintain written incident response plans and business continuity and disaster recovery (BCDR) plans that address responding to and recovering from cybersecurity events, including ransomware. Distribute the plans to the staff who implement them, train those staff, test the plans and your ability to restore from backups at least annually, and keep protected backups.\n",
+      "question_ids": [
+        "q-dfs-123",
+        "q-dfs-124"
+      ],
+      "evidence_types": [
+        "Written incident response plan and BCDR plan (tables of contents)",
+        "Record of the most recent plan test or tabletop exercise, and of a backup-restore test"
+      ],
+      "remediation": {
+        "quick_win": "Adopt an incident response plan and a BCDR plan; confirm backups exist and are protected from alteration.",
+        "standard": "Test the incident response and BCDR plans (and a backup restore) at least annually with the staff who would run them, and update the plans after each test or real event."
+      },
+      "weight": 3,
+      "extensions": {
+        "small_entity_note": "A limited exemption under 23 NYCRR §500.19 may relieve a qualifying small covered entity of some incident-response requirements. Whether an exemption applies is the entity's own determination."
+      }
+    },
+    {
+      "id": "dfs-notices-superintendent",
+      "citation": "23 NYCRR §500.17",
+      "category": "incident_response",
+      "standard": "Notices to the Superintendent",
+      "obligation": "required",
+      "requirement": "Part 500 requires a covered entity to notify the superintendent electronically within 72 hours of determining a qualifying cybersecurity incident occurred, and to submit an annual notice of compliance (a certification or an acknowledgment of noncompliance) by April 15. These are the entity's own legal and regulatory filing obligations; whether and what to file are decisions the entity makes with its counsel. MojoComply assesses only whether procedures to support them exist -- it does not make determinations or file on the entity's behalf.\n",
+      "question_ids": [
+        "q-dfs-125",
+        "q-dfs-126"
+      ],
+      "evidence_types": [
+        "Written 72-hour superintendent-notification procedure (who decides, who files, timing)",
+        "Internal calendar or process record for the annual April 15 notice of compliance"
+      ],
+      "remediation": {
+        "quick_win": "Document a 72-hour notification procedure that names who assesses an incident, who engages counsel, and who would file with the superintendent.",
+        "standard": "Maintain procedures supporting both the 72-hour incident notice and the annual notice of compliance, with counsel involved in the underlying legal determinations and filings."
+      },
+      "weight": 1
+    }
+  ]
+}

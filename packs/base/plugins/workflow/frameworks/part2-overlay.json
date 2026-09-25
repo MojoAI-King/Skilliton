@@ -1,0 +1,311 @@
+{
+  "meta": {
+    "framework": "part2-overlay",
+    "version": "1.0.0",
+    "status": "approved",
+    "authority": "42 CFR Part 2 (Confidentiality of Substance Use Disorder Patient Records)",
+    "note": "Part 2 is an OVERLAY on HIPAA for federally assisted substance use disorder treatment programs -- it adds confidentiality protections on top of the Security/Privacy Rules and does not replace them; assess alongside hipaa-security-rule. Whether an entity is a Part 2 program, and any breach or redisclosure determination, are legal determinations that require counsel. Requirements are paraphrased; the authoritative text is 42 CFR Part 2 (2024 Final Rule).",
+    "tier": "regulation",
+    "categories": [
+      "confidentiality",
+      "consent_and_disclosure",
+      "security",
+      "patient_rights",
+      "agreements"
+    ],
+    "obligation_levels": [
+      {
+        "id": "required",
+        "label": "Required",
+        "tie_break_rank": 1
+      }
+    ],
+    "sources": [
+      {
+        "document": "42 CFR Part 2 -- Confidentiality of Substance Use Disorder Patient Records",
+        "version": "As amended by the 2024 Final Rule implementing section 3221 of the CARES Act, 89 FR 12472, which aligned Part 2 with the HIPAA Privacy, Security and Breach Notification Rules. The eCFR versioner reports most sections amended 2024-04-16, with secs. 2.11 and 2.23 showing a later amendment_date of 2024-09-17, and secs. 2.18 (2017-03-21) and 2.36 (2020-08-14) untouched by the 2024 rule. Sec. 2.5 was REMOVED -- eCFR reports it removed=true effective 2017-03-21 -- so it is not part of the current Part 2 and no control may cite it. meta.authority above and the file header's reference to the 2024 Final Rule are current and correct. Compliance date: 2026-02-16.",
+        "published": "2024-02-16",
+        "retrieved": "2026-07-26",
+        "url": "https://www.ecfr.gov/current/title-42/chapter-I/subchapter-A/part-2",
+        "change_watch": "THE COMPLIANCE DATE HAS PASSED AND ENFORCEMENT HAS BEGUN -- the most time-sensitive regime in this repo. Persons subject to Part 2 had to comply with the 2024 Final Rule by 2026-02-16. The HHS Secretary delegated authority to administer and enforce Part 2 to the Director of the Office for Civil Rights, and OCR announced a civil enforcement program with penalties aligned to the HIPAA Privacy/Security/Breach penalty structure (resolution agreements, monetary settlements, corrective action, civil money penalties) beginning 2026-02-16. Any control, remediation tier, or report language that frames the 2024 requirements as forthcoming, or that treats Part 2 as unenforced, is now stale and understates client risk. The reported delegation date (2025-08-25) and the enforcement-program details come from HHS.gov press/fact-sheet pages surfaced via search; the delegation notice itself was NOT independently fetched, so the delegation date is omitted from this record and must be confirmed before it enters report language (Law 5). UNRESOLVED DISCREPANCY: eCFR shows secs. 2.11 and 2.23 with amendment_date 2024-09-17, but the Federal Register API returns only ONE Rule with a 42 CFR Part 2 reference since 2024-01-01 (89 FR 12472) -- no September 2024 document. Either a correction document exists that is not indexed under a Part 2 CFR reference, or this is an eCFR data artifact. Resolve before relying on the sec. 2.11/2.23 text. PROBE: https://www.ecfr.gov/api/versioner/v1/versions/title-42.json?part=2 -- alert on any amendment_date later than 2024-09-17."
+      }
+    ]
+  },
+  "attribution": "Public-domain U.S. federal regulatory text (42 CFR Part 2, Confidentiality of Substance Use Disorder Patient Records). Requirement wording is MojoComply's own plain-English paraphrase.",
+  "controls": [
+    {
+      "id": "part2-applicability",
+      "citation": "42 CFR §2.12",
+      "category": "confidentiality",
+      "standard": "Applicability",
+      "obligation": "required",
+      "requirement": "Determine, with counsel, whether your organization is a \"Part 2 program\" (a federally assisted program that treats, diagnoses, or refers for substance use disorder) or is otherwise a lawful holder of Part 2 records -- because that determination decides whether these confidentiality restrictions apply to your records at all.\n",
+      "question_ids": [
+        "q-part2-101"
+      ],
+      "evidence_types": [
+        "Written counsel determination or memo on Part 2 program status",
+        "Inventory of record systems that hold substance use disorder treatment information (system names only, no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "Ask counsel to confirm in writing whether the practice meets the definition of a Part 2 program or lawful holder, and record the basis.",
+        "standard": "Document which of your services and record systems fall within Part 2, and re-check the determination whenever funding sources, licenses, or service lines change.",
+        "note": "Whether an entity is a Part 2 program is a legal determination the tool does not make; this control records that a counsel-backed determination exists (Law 2)."
+      },
+      "weight": 2
+    },
+    {
+      "id": "part2-confidentiality-restrictions",
+      "citation": "42 CFR §2.13",
+      "category": "confidentiality",
+      "standard": "Confidentiality Restrictions and Safeguards",
+      "obligation": "required",
+      "requirement": "Use or disclose Part 2 records only as the regulation permits -- never in any civil, criminal, administrative, or legislative proceeding without consent or a court order -- and limit every permitted use or disclosure to the information necessary to carry out its purpose.\n",
+      "question_ids": [
+        "q-part2-102",
+        "q-part2-103"
+      ],
+      "evidence_types": [
+        "Confidentiality policy covering Part 2 use and disclosure limits",
+        "Staff training material or acknowledgment on Part 2 confidentiality"
+      ],
+      "remediation": {
+        "quick_win": "Train front-desk and clinical staff that substance use disorder records cannot be released to anyone -- including other providers, family, or law enforcement -- without patient consent or a listed exception.",
+        "standard": "Adopt a written confidentiality procedure that names the permitted uses and disclosures, applies the minimum-necessary limit, and routes any unusual request (subpoena, law enforcement) to a designated person and counsel."
+      },
+      "weight": 3
+    },
+    {
+      "id": "part2-security-records",
+      "citation": "42 CFR §2.16(a)",
+      "category": "security",
+      "standard": "Security for Records",
+      "obligation": "required",
+      "requirement": "Maintain formal written policies and procedures that reasonably protect Part 2 records against unauthorized use or disclosure and anticipated threats -- covering both paper records (transfer, destruction, secure storage, access) and electronic records (creating, receiving, maintaining, transmitting, destruction, and access).\n",
+      "question_ids": [
+        "q-part2-104",
+        "q-part2-105"
+      ],
+      "evidence_types": [
+        "Written security policy addressing paper and electronic Part 2 records",
+        "Access-control configuration for systems holding Part 2 records (screenshot, no patient data)",
+        "Description of physical safeguards for paper records (locked storage, secure rooms)"
+      ],
+      "remediation": {
+        "quick_win": "Confirm paper substance use disorder records are in locked storage when not in use, and that electronic records sit behind role-based access with logging.",
+        "standard": "Adopt formal security policies and procedures covering paper and electronic Part 2 records end to end -- creation, use, access, transfer, and sanitization/destruction to render information non-retrievable.",
+        "note": "This overlays, and can be satisfied together with, the HIPAA Security Rule safeguards; assess alongside hipaa-security-rule rather than duplicating effort."
+      },
+      "weight": 3
+    },
+    {
+      "id": "part2-breach-notification",
+      "citation": "42 CFR §2.16(b)",
+      "category": "security",
+      "standard": "Notification of Breaches",
+      "obligation": "required",
+      "requirement": "Handle breaches of unsecured Part 2 records under the HIPAA Breach Notification Rule (45 CFR Part 160 and Subpart D of Part 164) in the same way a covered entity handles a breach of unsecured protected health information -- so your breach response process must reach Part 2 records, not just other health information.\n",
+      "question_ids": [
+        "q-part2-106",
+        "q-part2-107"
+      ],
+      "evidence_types": [
+        "Breach response / notification procedure that references Part 2 records",
+        "Attestation that counsel is engaged on breach determinations"
+      ],
+      "remediation": {
+        "quick_win": "Confirm your existing HIPAA breach response plan explicitly covers substance use disorder records and names who to notify and when.",
+        "standard": "Integrate Part 2 records into the breach response workflow -- risk assessment, notification timelines, and documentation -- and route every potential breach through counsel before any determination is made.",
+        "note": "Whether an event is a reportable breach is a legal determination requiring counsel; the tool assesses readiness of the process, it does not decide breach status (Law 2)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "part2-patient-notice",
+      "citation": "42 CFR §2.22",
+      "category": "patient_rights",
+      "standard": "Notice to Patients of Federal Confidentiality Requirements",
+      "obligation": "required",
+      "requirement": "At admission, tell each patient that Federal law protects the confidentiality of substance use disorder records, and give a plain-language written notice of the program's privacy practices, the patient's rights, and how to file a complaint.\n",
+      "question_ids": [
+        "q-part2-108"
+      ],
+      "evidence_types": [
+        "Current patient notice / notice of privacy practices template",
+        "Admission checklist or acknowledgment showing the notice is provided"
+      ],
+      "remediation": {
+        "quick_win": "Provide the plain-language confidentiality notice at admission and keep an acknowledgment that each patient received it.",
+        "standard": "Maintain a current written notice with all required elements (privacy practices, patient rights, complaint process) and a documented process for delivering it at admission and on request."
+      },
+      "weight": 1
+    },
+    {
+      "id": "part2-patient-restriction-request",
+      "citation": "42 CFR §2.26",
+      "category": "patient_rights",
+      "standard": "Right to Request Privacy Protection for Records",
+      "obligation": "required",
+      "requirement": "Let patients request restrictions on uses or disclosures of their records for treatment, payment, and health care operations, honor any restriction the program has agreed to (except where emergency treatment or law requires otherwise), and honor the required restriction on disclosures to a health plan for services the patient paid for in full.\n",
+      "question_ids": [
+        "q-part2-109"
+      ],
+      "evidence_types": [
+        "Procedure for receiving and tracking patient restriction requests",
+        "Restriction request / agreement form template"
+      ],
+      "remediation": {
+        "quick_win": "Create a simple intake for patient requests to restrict how their records are used or shared, and a way to flag an agreed restriction in the record system.",
+        "standard": "Document a process to receive, decide, record, and enforce restriction requests -- including the required restriction for fully self-paid services -- and train staff on when a restriction must be honored."
+      },
+      "weight": 1
+    },
+    {
+      "id": "part2-consent",
+      "citation": "42 CFR §2.31",
+      "category": "consent_and_disclosure",
+      "standard": "Consent Requirements",
+      "obligation": "required",
+      "requirement": "Obtain a written consent (paper or electronic) that contains every required element before disclosing Part 2 records -- patient name, who may disclose, a specific description of the information, the recipient(s), the purpose, the patient's right to revoke, an expiration, and the patient's signature and date.\n",
+      "question_ids": [
+        "q-part2-110",
+        "q-part2-111"
+      ],
+      "evidence_types": [
+        "Current Part 2 consent form template",
+        "Procedure describing when and how consent is obtained before disclosure"
+      ],
+      "remediation": {
+        "quick_win": "Replace any generic release form with a Part 2 consent template that includes all required elements, and verify the version in current use is the latest.",
+        "standard": "Adopt a compliant consent template and a procedure that checks each required element is present, supports the single consent for treatment/payment/operations where used, and records revocations.",
+        "note": "A general authorization for release of medical information does not satisfy Part 2 consent; the consent must meet every element in §2.31."
+      },
+      "weight": 3
+    },
+    {
+      "id": "part2-redisclosure",
+      "citation": "42 CFR §2.32",
+      "category": "consent_and_disclosure",
+      "standard": "Prohibition on Redisclosure -- Notice to Accompany Disclosure",
+      "obligation": "required",
+      "requirement": "Accompany every consent-based disclosure of Part 2 records with the required written notice that prohibits the recipient from redisclosing the records, except as the regulation and the patient's consent allow -- this notice must travel with the records.\n",
+      "question_ids": [
+        "q-part2-112",
+        "q-part2-113"
+      ],
+      "evidence_types": [
+        "Redisclosure notice template (the §2.32 statement text)",
+        "Configuration or procedure showing the notice is attached to outbound disclosures"
+      ],
+      "remediation": {
+        "quick_win": "Store the exact §2.32 redisclosure-prohibition notice text and attach it to every release of substance use disorder records.",
+        "standard": "Build the redisclosure notice into your disclosure workflow -- cover letters, fax cover sheets, and electronic exports -- so no consent-based disclosure leaves without it, and train staff on the redisclosure limits.",
+        "note": "Whether a downstream redisclosure was permitted is a legal question for counsel; this control assesses that the required prohibiting notice accompanies disclosures (Law 2)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "part2-permitted-disclosures",
+      "citation": "42 CFR §2.33",
+      "category": "consent_and_disclosure",
+      "standard": "Uses and Disclosures Permitted With Written Consent",
+      "obligation": "required",
+      "requirement": "Make consent-based uses and disclosures only to the persons or classes named or generally designated in the consent; where the patient gives a single consent for all future treatment, payment, and health care operations, those records may then be used and disclosed for those purposes under the HIPAA regulations until the patient revokes the consent in writing.\n",
+      "question_ids": [
+        "q-part2-114",
+        "q-part2-115"
+      ],
+      "evidence_types": [
+        "Procedure mapping each disclosure type to the consent that authorizes it",
+        "Documentation of the single-consent-for-treatment/payment/operations approach, if used"
+      ],
+      "remediation": {
+        "quick_win": "Confirm each routine disclosure (treatment, payment, operations) is backed by a consent that names or designates the recipient.",
+        "standard": "Document which disclosures rely on which consent, adopt the single TPO consent where appropriate under the 2024 rule, and keep disclosures within the scope the consent authorizes."
+      },
+      "weight": 2
+    },
+    {
+      "id": "part2-multiple-enrollment",
+      "citation": "42 CFR §2.34",
+      "category": "consent_and_disclosure",
+      "standard": "Disclosures to Prevent Multiple Enrollments",
+      "obligation": "required",
+      "requirement": "If you disclose records to a central registry or another withdrawal-management or maintenance-treatment program to prevent multiple enrollment, do so only with a consent meeting §2.31 that names each registry and program, only at the permitted points (acceptance, dosage change, interruption/resumption/termination), and limited to identifying information, drug type and dosage, and relevant dates.\n",
+      "question_ids": [
+        "q-part2-116"
+      ],
+      "evidence_types": [
+        "Central-registry / multiple-enrollment disclosure procedure, if applicable",
+        "Consent template variant naming registries and programs"
+      ],
+      "remediation": {
+        "quick_win": "If you do not participate in a central registry or multiple-enrollment sharing, record that this control is not applicable; if you do, confirm consents name each recipient.",
+        "standard": "Where multiple-enrollment disclosures occur, limit them to the permitted data elements and events, use consents that list each registry and program, and confirm recipients do not reuse the information for any other purpose."
+      },
+      "weight": 1
+    },
+    {
+      "id": "part2-research",
+      "citation": "42 CFR §2.52",
+      "category": "consent_and_disclosure",
+      "standard": "Scientific Research",
+      "obligation": "required",
+      "requirement": "Disclose Part 2 records for scientific research only after a program director (or designee) determines the recipient qualifies -- for example, a HIPAA covered entity or business associate with authorization or a waiver, or a researcher under the HHS or FDA human-subjects regulations -- and record that determination.\n",
+      "question_ids": [
+        "q-part2-117"
+      ],
+      "evidence_types": [
+        "Research disclosure determination procedure, if applicable",
+        "Template for documenting the recipient-qualification determination"
+      ],
+      "remediation": {
+        "quick_win": "If you make no research disclosures, record this control as not applicable; if you do, confirm each rests on a documented qualification determination.",
+        "standard": "Adopt a procedure requiring a documented director determination that the research recipient meets one of the §2.52 categories before any research disclosure, and retain the supporting authorization or waiver references."
+      },
+      "weight": 1
+    },
+    {
+      "id": "part2-audit-evaluation",
+      "citation": "42 CFR §2.53",
+      "category": "consent_and_disclosure",
+      "standard": "Management Audits, Financial Audits, and Program Evaluation",
+      "obligation": "required",
+      "requirement": "Disclose Part 2 records for audit or evaluation only to a qualified person acting for a permitted party (a funding or regulating agency, third-party payer, QIO, or an entity with direct administrative control) who agrees in writing to the regulation's limits on use and redisclosure of the information.\n",
+      "question_ids": [
+        "q-part2-118"
+      ],
+      "evidence_types": [
+        "Audit/evaluation access procedure, if applicable",
+        "Written use-and-redisclosure agreement template for auditors and evaluators"
+      ],
+      "remediation": {
+        "quick_win": "Before letting any auditor or evaluator see substance use disorder records, get their written agreement to the Part 2 use and redisclosure limits.",
+        "standard": "Maintain a procedure that confirms the auditor or evaluator acts for a permitted party and is qualified, and require the written use/redisclosure agreement on file before access -- on-premises review where records are not removed."
+      },
+      "weight": 1
+    },
+    {
+      "id": "part2-qsoa",
+      "citation": "42 CFR §2.12(c)(4)",
+      "category": "agreements",
+      "standard": "Qualified Service Organization Agreements",
+      "obligation": "required",
+      "requirement": "Before sharing Part 2 records with a service provider (data processing, billing, lab, legal, accounting, and similar) without patient consent, put a written Qualified Service Organization Agreement in place under which the provider acknowledges it is fully bound by Part 2 and will resist efforts to obtain the records -- and limit the sharing to information the provider needs to serve the program.\n",
+      "question_ids": [
+        "q-part2-119",
+        "q-part2-120"
+      ],
+      "evidence_types": [
+        "Qualified Service Organization Agreement (QSOA) template",
+        "Vendor list identifying which service providers receive Part 2 records and their QSOA status"
+      ],
+      "remediation": {
+        "quick_win": "List every service provider that touches substance use disorder records and confirm each has a signed QSOA before any records are shared.",
+        "standard": "Track QSOAs in a vendor register, require a signed QSOA (and, where the vendor is also a HIPAA business associate, a business associate agreement) before onboarding, and review the register annually.",
+        "note": "A QSOA is distinct from a HIPAA business associate agreement; a vendor that is both a QSO and a business associate needs both instruments."
+      },
+      "weight": 2
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "meta": {
+    "from": "part2-overlay",
+    "to": "nist-csf-2",
+    "status": "approved"
+  },
+  "attribution": "MojoComply's own analyst mapping from part2-overlay controls to NIST CSF 2.0 subcategories -- an internal judgment (see this crosswalk's own header comment), not a NIST or agency publication. CSF subcategory ids are public domain (NIST CSWP 29).",
+  "mappings": [
+    {
+      "control_id": "part2-applicability",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "part2-confidentiality-restrictions",
+      "csf": [
+        "GV.PO-01",
+        "PR.DS-01"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "part2-security-records",
+      "csf": [
+        "PR.DS-01",
+        "PR.DS-02"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "part2-breach-notification",
+      "csf": [
+        "RS.CO-02",
+        "RS.MA-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "part2-patient-notice",
+      "csf": [
+        "GV.OC-02"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "part2-patient-restriction-request",
+      "csf": [
+        "PR.AA-05",
+        "GV.OC-02"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "part2-consent",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "part2-redisclosure",
+      "csf": [
+        "PR.DS-02",
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "part2-permitted-disclosures",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "part2-multiple-enrollment",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "part2-research",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "part2-audit-evaluation",
+      "csf": [
+        "GV.SC-05",
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "part2-qsoa",
+      "csf": [
+        "GV.SC-05",
+        "GV.SC-06"
+      ],
+      "strength": "strong"
+    }
+  ]
+}

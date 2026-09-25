@@ -1,0 +1,259 @@
+{
+  "meta": {
+    "framework": "legal-safeguarding",
+    "version": "1.0.0",
+    "status": "approved",
+    "authority": "ABA Model Rules of Professional Conduct (1.1 cmt. 8, 1.4, 1.6(c), 5.1, 5.3) and ABA Standing Committee on Ethics and Professional Responsibility Formal Opinions 477R, 483, and 498",
+    "note": "This library reflects the ABA MODEL Rules of Professional Conduct and ABA formal ethics opinions. The Model Rules are not themselves binding -- each state adopts and adapts its own Rules of Professional Conduct, so a firm must follow its own state's rules. Nothing here is legal advice or a substitute for the firm's own professional-responsibility counsel. MojoComply provides a readiness and gap assessment; the firm remains responsible for its professional obligations.",
+    "tier": "guidance",
+    "categories": [
+      "competence",
+      "confidentiality",
+      "communication",
+      "incident_response",
+      "supervision"
+    ],
+    "obligation_levels": [
+      {
+        "id": "rule",
+        "label": "Model Rule",
+        "tie_break_rank": 1
+      },
+      {
+        "id": "guidance",
+        "label": "Guidance / Formal Opinion",
+        "tie_break_rank": 2
+      }
+    ],
+    "sources": [
+      {
+        "document": "ABA Model Rules of Professional Conduct (Rules 1.1 cmt. [8], 1.4, 1.6(c), 5.1, 5.3) together with ABA Standing Committee on Ethics and Professional Responsibility Formal Opinions 477R, 483 and 498",
+        "version": "Model Rules as amended through the August 2023 ABA House of Delegates action (Revised Resolution 100, amending Model Rule 1.16(a) and Comments [1] and [2] on a lawyer's duty to inquire into and assess the facts and circumstances of each representation). No amendment to Rules 1.1, 1.4, 1.6, 5.1 or 5.3 was found after that. Formal Opinions 477R, 483 and 498 have not been withdrawn as far as could be determined.",
+        "published": "2023-08",
+        "retrieved": "2026-07-26",
+        "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/model_rules_of_professional_conduct_table_of_contents/",
+        "change_watch": "CONFIRMED CONTENT GAP, not merely a watch item: ABA Formal Opinion 512, the Standing Committee's first ethics guidance on generative AI, bears directly on the three Model Rules this library is built around -- Rule 1.1 competence (including cmt. [8] technology competence), Rule 1.6 confidentiality (a lawyer using generative AI must keep confidential all information relating to the representation regardless of source, absent informed consent), and Rule 1.4 communication, plus reasonable fees. It is NOT in this library. For a law firm putting client matter content into an AI tool this is the single most consequential safeguarding question of the moment, and the library is silent on it. Also relevant: Formal Opinion 513 on the duty to inquire into and assess the facts and circumstances of each representation, which operationalizes the 2023 Rule 1.16 amendment. Opinions have advanced to at least 523, showing an active pipeline; none of the later ones appear to displace 477R/483/498 on safeguarding. THE OPINION NUMBERS AND EVERY DATE ASSOCIATED WITH THEM come from ABA press pages and secondary reporting -- the Formal Opinions index itself could not be fetched (HTTP 403), so all of it needs primary-source confirmation before it enters control text (Law 5). STRUCTURAL REMINDER: meta.tier is correctly \"guidance\" -- the Model Rules are not binding and each state adopts and adapts its own Rules of Professional Conduct, so a state-adoption drift check is a permanent part of this regime's staleness story and cannot be automated. PROBE: none available (no ABA API, index page 403s) -- calendared manual review only."
+      }
+    ]
+  },
+  "attribution": "Based on the ABA Model Rules of Professional Conduct and ABA Standing Committee Formal Opinions, which the American Bar Association (a private body, not a government) holds copyright over. Requirement text is MojoComply's own plain-English restatement for a law-firm office manager, not a reproduction of Model Rule or Comment text -- only rule/opinion citation numbers (facts) are carried verbatim. Included on that basis, not as public-domain sourcing.",
+  "controls": [
+    {
+      "id": "legal-tech-competence",
+      "citation": "ABA Model Rule 1.1 cmt. 8",
+      "category": "competence",
+      "standard": "Technology competence",
+      "obligation": "guidance",
+      "requirement": "Keep reasonably abreast of the benefits and risks of the technology the firm uses to store, send, and work with client information -- including through continuing education. The lawyers responsible need enough working knowledge of the firm's practice-management, email, cloud, and security tools to judge whether client information is being handled safely.\n",
+      "question_ids": [
+        "q-legal-101",
+        "q-legal-102"
+      ],
+      "evidence_types": [
+        "Continuing-education or training records covering technology and cybersecurity topics",
+        "Written description of who at the firm is responsible for understanding the firm's technology risks"
+      ],
+      "remediation": {
+        "quick_win": "Have the responsible lawyer(s) complete a technology-and-cybersecurity CLE this cycle and keep the completion record.",
+        "standard": "Build a recurring habit of reviewing the firm's technology and its risks -- at hire, at least annually, and whenever the firm adopts a new tool -- and keep dated records.",
+        "note": "This is a comment to Rule 1.1, not black-letter text; most states have adopted some form of the duty of technology competence, but confirm your own state's version."
+      },
+      "weight": 2
+    },
+    {
+      "id": "legal-safeguard-client-info",
+      "citation": "ABA Model Rule 1.6(c)",
+      "category": "confidentiality",
+      "standard": "Reasonable efforts to safeguard client information",
+      "obligation": "rule",
+      "requirement": "Make reasonable efforts to prevent the inadvertent or unauthorized disclosure of, or unauthorized access to, information relating to the representation of a client. What is reasonable depends on the sensitivity of the information, the likelihood of disclosure without added safeguards, and the cost and difficulty of those safeguards -- think access controls, multi-factor authentication, and encryption sized to the risk.\n",
+      "question_ids": [
+        "q-legal-103",
+        "q-legal-104"
+      ],
+      "evidence_types": [
+        "Written information-safeguarding policy or acceptable-use policy",
+        "Screenshots of multi-factor authentication and access-control settings on systems holding client information",
+        "Encryption configuration evidence for firm devices and stored client information"
+      ],
+      "remediation": {
+        "quick_win": "Turn on multi-factor authentication for email and any system holding client information, and enable full-disk encryption on every firm device.",
+        "standard": "Match safeguards to the sensitivity of the matters you handle -- role-based access, encryption at rest and in transit, and documented reasonable-efforts decisions for higher-risk work.",
+        "note": "The rule sets a reasonable-efforts standard, not a fixed checklist; document the safeguards you chose and why so the firm can show its reasoning."
+      },
+      "weight": 3
+    },
+    {
+      "id": "legal-safeguarding-policy",
+      "citation": "ABA Model Rule 1.6(c)",
+      "category": "confidentiality",
+      "standard": "Documented safeguarding policy",
+      "obligation": "rule",
+      "requirement": "Write down the safeguards the firm relies on to protect client information, so the reasonable efforts under Rule 1.6(c) are more than ad hoc practice. A short, current policy covering devices, passwords and multi-factor authentication, encryption, approved communication tools, and what to do about a suspected incident gives staff one place to look and evidences the firm's efforts.\n",
+      "question_ids": [
+        "q-legal-105"
+      ],
+      "evidence_types": [
+        "Written information-safeguarding policy with an owner and a review date",
+        "Staff acknowledgment records for the policy"
+      ],
+      "remediation": {
+        "quick_win": "Assemble the firm's existing security practices into one short written policy and give it an owner and a review date.",
+        "standard": "Maintain a tailored safeguarding policy that staff acknowledge at hire and on update, and review it at least annually or when the firm's technology changes.",
+        "note": "A written policy is how a firm shows the reasonable efforts Rule 1.6(c) requires; it is documentation of the safeguards, not a substitute for implementing them."
+      },
+      "weight": 1
+    },
+    {
+      "id": "legal-secure-electronic-communication",
+      "citation": "ABA Formal Op. 477R",
+      "category": "confidentiality",
+      "standard": "Securing electronic client communication",
+      "obligation": "guidance",
+      "requirement": "Decide, matter by matter, how to communicate client information electronically. A lawyer may generally use ordinary email where reasonable efforts against inadvertent or unauthorized access have been made, but stronger measures -- such as encryption or a secure client portal -- may be required when the information is especially sensitive, when the client or an agreement calls for it, or when law requires a higher degree of security.\n",
+      "question_ids": [
+        "q-legal-106",
+        "q-legal-107"
+      ],
+      "evidence_types": [
+        "Description of the firm's secure-communication tools (encrypted email, secure client portal)",
+        "Written guidance telling staff how to choose a communication method by sensitivity of the information"
+      ],
+      "remediation": {
+        "quick_win": "Make a secure client portal or encrypted-email option available and tell staff when to use it instead of ordinary email.",
+        "standard": "Adopt a fact-specific approach that documents how the firm weighs the sensitivity of the information and the client's expectations to choose the communication method for each matter.",
+        "note": "Formal Op. 477R endorses a case-by-case analysis rather than one mandated technology; it is ABA guidance interpreting the Model Rules, and your state may address the question differently."
+      },
+      "weight": 2
+    },
+    {
+      "id": "legal-breach-preparedness",
+      "citation": "ABA Formal Op. 483",
+      "category": "incident_response",
+      "standard": "Preparing for a data breach",
+      "obligation": "guidance",
+      "requirement": "Before anything goes wrong, be able to detect and respond to a cyber incident that affects client information. Have a written incident-response plan that names who is in charge, how a suspected incident is reported and investigated, and how the firm will stop and limit the damage -- so the firm can act quickly rather than improvise.\n",
+      "question_ids": [
+        "q-legal-108"
+      ],
+      "evidence_types": [
+        "Written incident-response plan with roles and escalation steps",
+        "Monitoring or alerting description showing how the firm would detect a suspected incident"
+      ],
+      "remediation": {
+        "quick_win": "Adopt an incident-response plan template and name an incident lead and a backup.",
+        "standard": "Keep the plan current, walk through it with the team at least annually, and make sure the firm can actually detect a suspected intrusion.",
+        "note": "Formal Op. 483 draws on Rules 1.1, 1.4, 1.6, 5.1, and 5.3; it is ABA guidance, and whether a given event triggers legal breach-notification duties is a determination for the firm's counsel."
+      },
+      "weight": 2
+    },
+    {
+      "id": "legal-breach-response",
+      "citation": "ABA Formal Op. 483",
+      "category": "incident_response",
+      "standard": "Responding to a data breach",
+      "obligation": "guidance",
+      "requirement": "When a breach that involves -- or is substantially likely to involve -- material client confidential information occurs, act to stop it and limit the harm, investigate what happened, restore firm operations, and notify affected current clients. Determining whether a specific event is a reportable breach under other law is a decision for counsel, not for this tool.\n",
+      "question_ids": [
+        "q-legal-109",
+        "q-legal-110"
+      ],
+      "evidence_types": [
+        "Incident-response plan section covering containment, investigation, and client notification",
+        "Incident log or register (may be empty, but the process must exist)"
+      ],
+      "remediation": {
+        "quick_win": "Add a client-notification decision step to the incident-response plan and identify counsel to call when an incident touches client information.",
+        "standard": "Practice the full response -- contain, investigate root cause, restore operations, and notify affected clients -- and record each incident and its outcome.",
+        "note": "Formal Op. 483 is ABA guidance interpreting the Model Rules; separate statutory or regulatory breach-notification obligations may also apply, which is a determination for the firm's counsel."
+      },
+      "weight": 3
+    },
+    {
+      "id": "legal-client-communication",
+      "citation": "ABA Model Rule 1.4",
+      "category": "communication",
+      "standard": "Keeping the client reasonably informed",
+      "obligation": "rule",
+      "requirement": "Keep clients reasonably informed about the status of their matter and promptly give them the information they need to make informed decisions. When an incident affects a client's information or the firm's ability to do the work, that duty includes telling the affected client enough, in enough detail, for them to decide how to respond.\n",
+      "question_ids": [
+        "q-legal-111"
+      ],
+      "evidence_types": [
+        "Written procedure for how and when the firm informs clients of significant developments, including an incident",
+        "Communication-log or matter-management description showing client updates are recorded"
+      ],
+      "remediation": {
+        "quick_win": "Write down how the firm decides to tell a client about a significant development or an incident, and who signs off on that message.",
+        "standard": "Fold client-notification steps into the incident-response plan so an affected client is informed promptly and in enough detail to make informed decisions.",
+        "note": "Rule 1.4 is what connects a data incident to a client-communication duty; the timing and content of any notice should be reviewed with counsel."
+      },
+      "weight": 2
+    },
+    {
+      "id": "legal-virtual-practice-safeguards",
+      "citation": "ABA Formal Op. 498",
+      "category": "confidentiality",
+      "standard": "Safeguards for virtual and remote practice",
+      "obligation": "guidance",
+      "requirement": "Where the firm practices virtually or lets staff work remotely, apply the same confidentiality safeguards to the remote setting: strong unique passwords, security updates installed promptly, reputable anti-malware, encryption, secure networks, and care with smart speakers and other listening devices near client conversations.\n",
+      "question_ids": [
+        "q-legal-112"
+      ],
+      "evidence_types": [
+        "Remote-work or virtual-practice policy covering devices, networks, and home-office confidentiality",
+        "Screenshots of endpoint protection, update, and encryption settings on remote-access devices"
+      ],
+      "remediation": {
+        "quick_win": "Issue a short remote-work rule covering secure Wi-Fi, device encryption, screen privacy, and muting or disabling smart speakers during client work.",
+        "standard": "Extend the firm's safeguarding policy to every remote setting and confirm remote devices are updated, encrypted, and running current endpoint protection.",
+        "note": "Formal Op. 498 applies existing duties (Rules 1.1, 1.4, 1.6, 5.1, 5.3) to virtual practice; it is ABA guidance, and your state may have its own remote-practice guidance."
+      },
+      "weight": 2
+    },
+    {
+      "id": "legal-supervise-lawyers",
+      "citation": "ABA Model Rule 5.1",
+      "category": "supervision",
+      "standard": "Supervising lawyers on safeguarding duties",
+      "obligation": "rule",
+      "requirement": "Partners and lawyers with managerial authority must make reasonable efforts to ensure the firm has measures in place giving reasonable assurance that all lawyers meet their professional obligations, and lawyers with direct supervisory authority must make reasonable efforts to see that supervised lawyers do the same -- including the duty to safeguard client information.\n",
+      "question_ids": [
+        "q-legal-113"
+      ],
+      "evidence_types": [
+        "Description of who at the firm oversees safeguarding practices and how",
+        "Records showing safeguarding expectations are communicated to and followed by supervised lawyers"
+      ],
+      "remediation": {
+        "quick_win": "Name the partner or manager accountable for the firm's information-safeguarding measures and put it in writing.",
+        "standard": "Build safeguarding expectations into how lawyers are onboarded, supervised, and reviewed, and check periodically that the firm's measures are being followed.",
+        "note": "Rule 5.1 places the safeguarding duty on those who manage and supervise, not only on the lawyer handling a matter."
+      },
+      "weight": 2
+    },
+    {
+      "id": "legal-supervise-staff-vendors",
+      "citation": "ABA Model Rule 5.3",
+      "category": "supervision",
+      "standard": "Supervising nonlawyer staff and vendors",
+      "obligation": "rule",
+      "requirement": "Make reasonable efforts to ensure that nonlawyer help -- both staff inside the firm (paralegals, administrators) and outside vendors that handle client information (cloud, IT, e-discovery, copy or shredding services) -- behaves in a way compatible with the lawyer's professional obligations. For outside vendors, that means checking their safeguards and setting expectations in the engagement, sized to the sensitivity of the information.\n",
+      "question_ids": [
+        "q-legal-114",
+        "q-legal-115"
+      ],
+      "evidence_types": [
+        "Confidentiality agreements or contract terms with vendors that handle client information",
+        "Vendor list identifying who handles client information and what safeguards they provide",
+        "Staff confidentiality acknowledgments and training records"
+      ],
+      "remediation": {
+        "quick_win": "List every vendor that can reach client information and confirm each has a confidentiality agreement; have staff sign a confidentiality acknowledgment.",
+        "standard": "Vet vendors' safeguards before they handle client information, set safeguarding expectations in the agreement, and train and periodically review internal staff on confidentiality.",
+        "note": "Rule 5.3 reaches outside vendors, not just employees; the reasonable effort depends on the vendor's reputation, the sensitivity of the information, and the terms you agree on."
+      },
+      "weight": 2
+    }
+  ]
+}

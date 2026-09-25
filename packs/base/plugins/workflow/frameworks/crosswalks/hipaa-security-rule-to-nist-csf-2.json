@@ -1,0 +1,447 @@
+{
+  "meta": {
+    "from": "hipaa-security-rule",
+    "to": "nist-csf-2",
+    "status": "approved"
+  },
+  "attribution": "MojoComply's own analyst mapping from hipaa-security-rule controls to NIST CSF 2.0 subcategories -- an internal judgment (see this crosswalk's own header comment), not a NIST or agency publication. CSF subcategory ids are public domain (NIST CSWP 29).",
+  "mappings": [
+    {
+      "control_id": "hipaa-sr-risk-analysis",
+      "csf": [
+        "ID.RA-01",
+        "ID.RA-04",
+        "ID.RA-05"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-risk-management",
+      "csf": [
+        "ID.RA-06"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-sanction-policy",
+      "csf": [
+        "GV.RR-04",
+        "GV.PO-01"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-activity-review",
+      "csf": [
+        "PR.PS-04",
+        "DE.CM-03",
+        "DE.CM-09"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-security-official",
+      "csf": [
+        "GV.RR-02"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-workforce-security",
+      "csf": [
+        "PR.AA-05",
+        "GV.RR-04"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-workforce-authorization",
+      "csf": [
+        "PR.AA-05",
+        "GV.RR-04"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-workforce-clearance",
+      "csf": [
+        "GV.RR-04",
+        "PR.AA-05"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-workforce-termination",
+      "csf": [
+        "PR.AA-01",
+        "PR.AA-05",
+        "GV.RR-04"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-information-access-management",
+      "csf": [
+        "PR.AA-05",
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-clearinghouse-isolation",
+      "csf": [
+        "PR.AA-05",
+        "PR.IR-01"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-access-authorization",
+      "csf": [
+        "PR.AA-05"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-access-establishment",
+      "csf": [
+        "PR.AA-05",
+        "PR.AA-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-security-awareness-training",
+      "csf": [
+        "PR.AT-01",
+        "PR.AT-02"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-security-reminders",
+      "csf": [
+        "PR.AT-01"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-malware-protection",
+      "csf": [
+        "PR.PS-05",
+        "DE.CM-09"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-login-monitoring",
+      "csf": [
+        "DE.CM-03",
+        "PR.PS-04"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-password-management",
+      "csf": [
+        "PR.AA-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-incident-response",
+      "csf": [
+        "ID.IM-04",
+        "RS.MA-01",
+        "RS.MI-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-data-backup-plan",
+      "csf": [
+        "PR.DS-11"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-disaster-recovery-plan",
+      "csf": [
+        "RC.RP-01",
+        "RC.RP-02"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-emergency-mode-operation",
+      "csf": [
+        "PR.IR-03"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-contingency-testing",
+      "csf": [
+        "ID.IM-02",
+        "PR.DS-11"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-criticality-analysis",
+      "csf": [
+        "ID.AM-05"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-evaluation",
+      "csf": [
+        "ID.IM-01",
+        "GV.OV-03"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-security-measure-maintenance",
+      "csf": [
+        "ID.IM-01",
+        "ID.IM-03",
+        "PR.PS-02"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-ba-written-contract",
+      "csf": [
+        "GV.SC-05"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-facility-access-controls",
+      "csf": [
+        "PR.AA-06"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-contingency-operations",
+      "csf": [
+        "PR.AA-06",
+        "PR.IR-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-facility-security-plan",
+      "csf": [
+        "PR.AA-06"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-facility-access-validation",
+      "csf": [
+        "PR.AA-06"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-maintenance-records",
+      "csf": [
+        "PR.AA-06"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-workstation-use",
+      "csf": [
+        "PR.AA-06",
+        "PR.PS-01"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-workstation-security",
+      "csf": [
+        "PR.AA-06"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-media-disposal",
+      "csf": [
+        "ID.AM-08",
+        "PR.PS-03"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-media-reuse",
+      "csf": [
+        "ID.AM-08"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-media-accountability",
+      "csf": [
+        "ID.AM-01",
+        "ID.AM-08"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-data-backup-storage",
+      "csf": [
+        "PR.DS-11"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-ba-contract-terms",
+      "csf": [
+        "GV.SC-05"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-ba-other-arrangements",
+      "csf": [
+        "GV.SC-05"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-ba-subcontractor-contracts",
+      "csf": [
+        "GV.SC-05"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-group-health-plan-docs",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-policies-and-procedures",
+      "csf": [
+        "GV.PO-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-documentation",
+      "csf": [
+        "GV.PO-01"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-documentation-retention",
+      "csf": [
+        "GV.PO-01"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-documentation-availability",
+      "csf": [
+        "GV.PO-01"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-documentation-updates",
+      "csf": [
+        "GV.PO-02"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-unique-user-id",
+      "csf": [
+        "PR.AA-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-emergency-access",
+      "csf": [
+        "PR.AA-05",
+        "PR.IR-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-automatic-logoff",
+      "csf": [
+        "PR.AA-05"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-encryption-at-rest",
+      "csf": [
+        "PR.DS-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-audit-controls",
+      "csf": [
+        "PR.PS-04",
+        "DE.CM-03"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-integrity",
+      "csf": [
+        "PR.DS-01",
+        "PR.AA-05"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-ephi-integrity-mechanism",
+      "csf": [
+        "PR.DS-01"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-person-entity-authentication",
+      "csf": [
+        "PR.AA-03"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-transmission-security",
+      "csf": [
+        "PR.DS-02",
+        "PR.IR-01"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hipaa-sr-transmission-integrity-controls",
+      "csf": [
+        "PR.DS-02"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hipaa-sr-transmission-encryption",
+      "csf": [
+        "PR.DS-02"
+      ],
+      "strength": "strong"
+    }
+  ]
+}

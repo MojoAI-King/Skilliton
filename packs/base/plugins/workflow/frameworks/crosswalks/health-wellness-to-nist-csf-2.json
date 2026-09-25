@@ -1,0 +1,164 @@
+{
+  "meta": {
+    "from": "health-wellness",
+    "to": "nist-csf-2",
+    "status": "approved"
+  },
+  "attribution": "MojoComply's own analyst mapping from health-wellness controls to NIST CSF 2.0 subcategories -- an internal judgment (see this crosswalk's own header comment), not a NIST or agency publication. CSF subcategory ids are public domain (NIST CSWP 29).",
+  "mappings": [
+    {
+      "control_id": "hw-hbnr-applicability",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-hbnr-hipaa-boundary",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-state-law-scoping",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-hbnr-breach-definition",
+      "csf": [
+        "GV.OC-03",
+        "DE.AE-08"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-hbnr-notify-individuals",
+      "csf": [
+        "RS.CO-02"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hw-hbnr-timing",
+      "csf": [
+        "RS.CO-02"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-hbnr-ftc-media-notice",
+      "csf": [
+        "RS.CO-02",
+        "RS.CO-03"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hw-hbnr-notice-content",
+      "csf": [
+        "RS.CO-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-ftc5-truthful-privacy-claims",
+      "csf": [
+        "GV.OC-02",
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-ftc5-unfair-data-practices",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-tracking-tech-governance",
+      "csf": [
+        "ID.AM-04",
+        "GV.SC-07"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-wmhda-consent",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-wmhda-sale-authorization",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-wmhda-geofencing",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-state-sensitive-data-consent",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-nevada-consumer-health",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-california-cmia",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-california-cpra-sensitive",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-consumer-rights-fulfillment",
+      "csf": [
+        "GV.OC-02",
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "hw-health-data-inventory-policy",
+      "csf": [
+        "ID.AM-07",
+        "ID.AM-08"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "hw-data-security-safeguards",
+      "csf": [
+        "PR.DS-01",
+        "PR.AA-05"
+      ],
+      "strength": "strong"
+    }
+  ]
+}

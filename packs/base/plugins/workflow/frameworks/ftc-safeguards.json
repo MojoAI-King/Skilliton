@@ -1,0 +1,408 @@
+{
+  "meta": {
+    "framework": "ftc-safeguards",
+    "version": "1.0.0",
+    "status": "approved",
+    "authority": "16 CFR Part 314 (Standards for Safeguarding Customer Information -- FTC Safeguards Rule)",
+    "note": "The Safeguards Rule applies to non-bank financial institutions under the GLBA. This library assesses an information security program against the Rule; whether an entity is a covered financial institution is a legal determination MojoComply does not make. Requirements are paraphrased in plain English; the authoritative text is 16 CFR Part 314.",
+    "tier": "regulation",
+    "categories": [
+      "program_governance",
+      "risk_assessment",
+      "safeguards",
+      "monitoring_testing",
+      "oversight",
+      "incident_response"
+    ],
+    "obligation_levels": [
+      {
+        "id": "required",
+        "label": "Required",
+        "tie_break_rank": 1
+      }
+    ],
+    "sources": [
+      {
+        "document": "16 CFR Part 314 -- Standards for Safeguarding Customer Information (FTC Safeguards Rule)",
+        "version": "The 2021 overhaul (86 FR 70272) as amended by the 2023 breach-notification amendment (88 FR 77499). The eCFR versioner reports secs. 314.2, 314.4 and 314.5 amended 2024-05-13 and secs. 314.1, 314.3, 314.6 amended 2022-01-07. eCFR Title 16 up_to_date_as_of 2026-07-23. NOTE the file header above claims citations were verified against \"the 2021-amended rule in force\" -- correct but INCOMPLETE: it does not name the 2023 amendment now codified in secs. 314.2/.4/.5, which is where the notification-event definition and the 30-day FTC reporting duty live.",
+        "published": "2023-11-13",
+        "retrieved": "2026-07-26",
+        "url": "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-C/part-314",
+        "change_watch": "No pending Part 314 rulemaking found: the Federal Register API returns no Rule document with a 16 CFR 314 reference after 2023-11-13. Whether the FTC has a periodic (10-year) regulatory review of Part 314 on its published review schedule is UNVERIFIED -- the ftc.gov regulatory-review-schedule page returned HTTP 403 and could not be read; this is a real gap worth closing manually, because an FTC review notice is the usual first signal of amendment. Content-level watch items: (a) the sec. 314.6 small-entity exemption threshold -- customer information on fewer than 5,000 consumers, exempting secs. 314.4(b)(1), (d)(2), (h), (i) -- is unchanged as of the 2026-07-23 snapshot and sec. 314.6 has not been amended since 2022-01-07, so the extensions.small_entity_note scoping in this library remains valid; (b) the 2023 amendment's reporting trigger and threshold are codified in secs. 314.4/314.5 and should be spot-checked against the encoded control text. PROBE: https://www.ecfr.gov/api/versioner/v1/versions/title-16.json?part=314 -- alert on any amendment_date later than 2024-05-13; plus the FR API with conditions[cfr][title]=16&conditions[cfr][part]=314."
+      }
+    ]
+  },
+  "attribution": "Public-domain U.S. federal regulatory text (16 CFR Part 314, FTC Safeguards Rule). Requirement wording is MojoComply's own plain-English paraphrase.",
+  "controls": [
+    {
+      "id": "ftc-safeguards-program",
+      "citation": "16 CFR §314.3(a)",
+      "category": "program_governance",
+      "standard": "Standards for Safeguarding -- Information Security Program",
+      "obligation": "required",
+      "requirement": "Develop, implement, and maintain a comprehensive written information security program -- in one or more readily accessible parts -- that contains administrative, technical, and physical safeguards sized to your business, and that is designed to keep customer information secure and confidential, guard against foreseeable threats, and prevent unauthorized access that could harm a customer.\n",
+      "question_ids": [
+        "q-ftc-101",
+        "q-ftc-102"
+      ],
+      "evidence_types": [
+        "The written information security program document (table of contents / index)",
+        "Revision history or a dated record showing the program is current"
+      ],
+      "remediation": {
+        "quick_win": "Assemble your existing security policies and safeguards into a single written information security program with a named owner and a date.",
+        "standard": "Build a complete program covering administrative, technical, and physical safeguards, scaled to your size and the sensitivity of the customer information you hold, and keep it under a defined review cycle."
+      },
+      "weight": 2
+    },
+    {
+      "id": "ftc-safeguards-qualified-individual",
+      "citation": "16 CFR §314.4(a)",
+      "category": "program_governance",
+      "standard": "Qualified Individual",
+      "obligation": "required",
+      "requirement": "Designate one Qualified Individual responsible for overseeing, implementing, and enforcing your information security program. This person may work for you, an affiliate, or a service provider; if you use a service provider or affiliate, you keep responsibility, name a senior person to direct and oversee them, and require them to maintain a program that protects you.\n",
+      "question_ids": [
+        "q-ftc-103"
+      ],
+      "evidence_types": [
+        "Written designation of the Qualified Individual (policy, org chart, or job description)",
+        "If the role is outsourced: the contract clause and the internal senior-oversight designation"
+      ],
+      "remediation": {
+        "quick_win": "Name your Qualified Individual in writing and share the designation with leadership and staff.",
+        "standard": "Document the role's authority and duties; if the function is outsourced, designate a senior member of your own staff to direct and oversee them and require the safeguards obligation by contract."
+      },
+      "weight": 2
+    },
+    {
+      "id": "ftc-safeguards-risk-assessment",
+      "citation": "16 CFR §314.4(b)(1)",
+      "category": "risk_assessment",
+      "standard": "Written Risk Assessment",
+      "obligation": "required",
+      "requirement": "Base your program on a written risk assessment that identifies reasonably foreseeable internal and external risks to the security, confidentiality, and integrity of customer information, and that evaluates how well your current safeguards control those risks. It must set out criteria for categorizing risks, for assessing the confidentiality/integrity/availability of your systems, and for how each risk will be mitigated or accepted.\n",
+      "question_ids": [
+        "q-ftc-104",
+        "q-ftc-105"
+      ],
+      "evidence_types": [
+        "The written risk assessment document (methodology and findings summary)",
+        "The risk-treatment record showing how identified risks are mitigated or accepted"
+      ],
+      "remediation": {
+        "quick_win": "Schedule and scope a written risk assessment; start by listing the customer information you hold and where it lives.",
+        "standard": "Perform and document a written risk assessment with defined criteria for categorizing risks, assessing your systems, and deciding how each risk is mitigated or accepted; reassess periodically as required by §314.4(b)(2).",
+        "note": "This is the foundation the rest of the program is built on; the FTC treats a missing or stale risk assessment as a core deficiency."
+      },
+      "weight": 3,
+      "extensions": {
+        "small_entity_note": "Under §314.6, financial institutions that maintain customer information on fewer than 5,000 consumers are exempt from the written risk assessment required by §314.4(b)(1). A right-sized risk assessment remains strongly advisable and still informs the safeguards below."
+      }
+    },
+    {
+      "id": "ftc-safeguards-access-controls",
+      "citation": "16 CFR §314.4(c)(1)",
+      "category": "safeguards",
+      "standard": "Safeguards -- Access Controls",
+      "obligation": "required",
+      "requirement": "Put in place, and periodically review, technical (and where appropriate physical) access controls that authenticate users and permit access only to authorized people, and that limit each authorized user to only the customer information they need for their duties.\n",
+      "question_ids": [
+        "q-ftc-106",
+        "q-ftc-107"
+      ],
+      "evidence_types": [
+        "Access-control policy and a role-to-access mapping",
+        "Screenshot of role-based permission settings in the system holding customer information",
+        "Record of the most recent access review and the changes it produced"
+      ],
+      "remediation": {
+        "quick_win": "Remove access no longer needed and require a documented approval before anyone is granted access to systems holding customer information.",
+        "standard": "Define role-based access profiles, grant access on least-privilege lines, and review all user access on a set schedule with sign-off."
+      },
+      "weight": 2
+    },
+    {
+      "id": "ftc-safeguards-data-inventory",
+      "citation": "16 CFR §314.4(c)(2)",
+      "category": "safeguards",
+      "standard": "Safeguards -- Data and Asset Inventory",
+      "obligation": "required",
+      "requirement": "Identify and manage the data, personnel, devices, systems, and facilities that let you run your business, ranked by how important each is to your objectives and your risk strategy -- in plain terms, know what customer information you hold, where it is, and which systems and people touch it.\n",
+      "question_ids": [
+        "q-ftc-108"
+      ],
+      "evidence_types": [
+        "Inventory of systems, devices, and data stores that hold or process customer information",
+        "Data-flow description or diagram (no customer records -- locations and systems only)"
+      ],
+      "remediation": {
+        "quick_win": "Build a simple inventory listing every system, device, and location that stores or processes customer information.",
+        "standard": "Maintain a living inventory of data, systems, devices, and facilities, prioritized by importance to the business, and reconcile it during periodic reviews."
+      },
+      "weight": 2
+    },
+    {
+      "id": "ftc-safeguards-encryption",
+      "citation": "16 CFR §314.4(c)(3)",
+      "category": "safeguards",
+      "standard": "Safeguards -- Encryption at Rest and in Transit",
+      "obligation": "required",
+      "requirement": "Encrypt all customer information both at rest and in transit over external networks. Where you determine encryption is infeasible for a given case, you may instead use effective alternative compensating controls, but only if your Qualified Individual reviews and approves them in writing.\n",
+      "question_ids": [
+        "q-ftc-109",
+        "q-ftc-110"
+      ],
+      "evidence_types": [
+        "Screenshot of at-rest encryption status (full-disk / database / storage) for systems holding customer information",
+        "Configuration evidence of TLS or other encryption for transmission over external networks",
+        "If applicable: the Qualified Individual's written approval of compensating controls"
+      ],
+      "remediation": {
+        "quick_win": "Turn on full-disk encryption on laptops and workstations and enforce TLS for anything carrying customer information over the internet.",
+        "standard": "Encrypt customer information at rest across servers, databases, and backups and in transit over all external networks; where encryption is infeasible, document the compensating controls and obtain the Qualified Individual's written approval.",
+        "note": "Unencrypted customer information on a lost device or an open connection is a dominant breach pattern; weight it accordingly in the roadmap narrative."
+      },
+      "weight": 3
+    },
+    {
+      "id": "ftc-safeguards-secure-development",
+      "citation": "16 CFR §314.4(c)(4)",
+      "category": "safeguards",
+      "standard": "Safeguards -- Secure Development and Application Assessment",
+      "obligation": "required",
+      "requirement": "Use secure development practices for any applications you build in-house that transmit, access, or store customer information, and have procedures to evaluate, assess, or test the security of externally developed applications you use for the same purposes.\n",
+      "question_ids": [
+        "q-ftc-111"
+      ],
+      "evidence_types": [
+        "Secure development standard or checklist (for in-house applications)",
+        "Procedure for evaluating or testing the security of third-party applications before use"
+      ],
+      "remediation": {
+        "quick_win": "Record whether you build any applications in-house; if you do, adopt a short secure-coding checklist and a review step before release.",
+        "standard": "Adopt secure development practices for in-house applications and a documented evaluation or testing procedure for externally developed applications that handle customer information.",
+        "note": "Where no in-house development occurs, record an explicit N/A for that half and keep the external-application evaluation procedure."
+      },
+      "weight": 2
+    },
+    {
+      "id": "ftc-safeguards-mfa",
+      "citation": "16 CFR §314.4(c)(5)",
+      "category": "safeguards",
+      "standard": "Safeguards -- Multi-Factor Authentication",
+      "obligation": "required",
+      "requirement": "Require multi-factor authentication for anyone accessing any information system, unless your Qualified Individual has approved in writing the use of reasonably equivalent or more secure access controls.\n",
+      "question_ids": [
+        "q-ftc-112",
+        "q-ftc-113"
+      ],
+      "evidence_types": [
+        "Screenshot of MFA enforcement settings in the identity provider or the system holding customer information",
+        "If any system is exempted: the Qualified Individual's written approval of the equivalent control"
+      ],
+      "remediation": {
+        "quick_win": "Turn on MFA for email, remote access, and administrator accounts today -- these are the most-attacked doors.",
+        "standard": "Enforce MFA for every individual accessing any information system; where a system cannot support it, document the reasonably equivalent or stronger control and the Qualified Individual's written approval.",
+        "note": "MFA is one of the most effective single controls against account takeover; the Rule makes it a default expectation, not an option."
+      },
+      "weight": 3
+    },
+    {
+      "id": "ftc-safeguards-secure-disposal",
+      "citation": "16 CFR §314.4(c)(6)",
+      "category": "safeguards",
+      "standard": "Safeguards -- Secure Disposal and Data Retention",
+      "obligation": "required",
+      "requirement": "Maintain procedures to securely dispose of customer information, in any format, no later than two years after you last used it to provide a product or service -- unless you still need it for legitimate business or legal reasons, or targeted disposal is not reasonably feasible -- and periodically review your data retention policy to avoid keeping data you no longer need.\n",
+      "question_ids": [
+        "q-ftc-114"
+      ],
+      "evidence_types": [
+        "Written secure-disposal procedure and data retention policy",
+        "Most recent vendor destruction record or disposal log entry (identifiers may be redacted)"
+      ],
+      "remediation": {
+        "quick_win": "Stop discarding devices and paper unwiped; engage a destruction vendor that issues written proof, and write down how long you keep customer information.",
+        "standard": "Adopt a disposal procedure aligned to recognized media-sanitization guidance, enforce the two-year default, and review your retention policy periodically to purge data you no longer need."
+      },
+      "weight": 2
+    },
+    {
+      "id": "ftc-safeguards-change-management",
+      "citation": "16 CFR §314.4(c)(7)",
+      "category": "safeguards",
+      "standard": "Safeguards -- Change Management",
+      "obligation": "required",
+      "requirement": "Adopt procedures for change management, so that additions or changes to your systems are reviewed for security impact before they go live rather than made ad hoc.\n",
+      "question_ids": [
+        "q-ftc-115"
+      ],
+      "evidence_types": [
+        "Written change-management procedure",
+        "Sample of recent change records or approvals (no customer data)"
+      ],
+      "remediation": {
+        "quick_win": "Write a short change-management procedure requiring review and approval before significant system changes.",
+        "standard": "Route system changes through a documented change-management process that assesses security impact, records approvals, and preserves a change history."
+      },
+      "weight": 1
+    },
+    {
+      "id": "ftc-safeguards-activity-monitoring",
+      "citation": "16 CFR §314.4(c)(8)",
+      "category": "safeguards",
+      "standard": "Safeguards -- Activity Monitoring and Logging",
+      "obligation": "required",
+      "requirement": "Implement policies, procedures, and controls to monitor and log the activity of authorized users and to detect unauthorized access to, use of, or tampering with customer information by those users.\n",
+      "question_ids": [
+        "q-ftc-116"
+      ],
+      "evidence_types": [
+        "Screenshot of logging configuration in systems holding customer information",
+        "Procedure describing who reviews logs, how often, and how anomalies are escalated"
+      ],
+      "remediation": {
+        "quick_win": "Turn on activity logging in the systems holding customer information and assign one person to review access reports on a set cadence.",
+        "standard": "Log authorized-user activity across systems holding customer information, protect the logs from tampering, and document a scheduled review that escalates unauthorized access or misuse."
+      },
+      "weight": 2
+    },
+    {
+      "id": "ftc-safeguards-testing",
+      "citation": "16 CFR §314.4(d)",
+      "category": "monitoring_testing",
+      "standard": "Monitoring and Testing of Safeguards",
+      "obligation": "required",
+      "requirement": "Regularly test or otherwise monitor how well your key safeguards are working, including their ability to detect actual and attempted attacks. For information systems this means either effective continuous monitoring, or -- absent that -- annual penetration testing plus vulnerability assessments at least every six months and after material changes.\n",
+      "question_ids": [
+        "q-ftc-117",
+        "q-ftc-118"
+      ],
+      "evidence_types": [
+        "Continuous-monitoring tooling configuration, OR the most recent penetration-test summary report",
+        "Most recent vulnerability-assessment / scan summary report (findings summary -- no raw data extracts)"
+      ],
+      "remediation": {
+        "quick_win": "Decide your path -- continuous monitoring, or scheduled penetration tests and vulnerability scans -- and put the next assessment on the calendar.",
+        "standard": "Stand up effective continuous monitoring, or run annual penetration testing and at-least-semi-annual vulnerability assessments (and after material changes), and feed the findings back into the risk assessment.",
+        "note": "Record penetration testers and scanning firms as separate third-party entities; MojoComply does not perform or attest to these tests (Law 3)."
+      },
+      "weight": 2,
+      "extensions": {
+        "small_entity_note": "Under §314.6, the continuous-monitoring / annual-penetration-test and semi-annual vulnerability-assessment requirement of §314.4(d)(2) does not apply to financial institutions that maintain customer information on fewer than 5,000 consumers. The general duty to regularly test or monitor the effectiveness of key safeguards under §314.4(d)(1) still applies."
+      }
+    },
+    {
+      "id": "ftc-safeguards-personnel-training",
+      "citation": "16 CFR §314.4(e)",
+      "category": "program_governance",
+      "standard": "Security Awareness Training and Personnel",
+      "obligation": "required",
+      "requirement": "Make sure your people can actually run the program: give personnel security awareness training updated to reflect the risks in your risk assessment, use qualified information security staff (in-house or via an affiliate or service provider), keep those staff trained on current risks, and verify that key personnel keep their knowledge of threats and countermeasures current.\n",
+      "question_ids": [
+        "q-ftc-119"
+      ],
+      "evidence_types": [
+        "Security-awareness training records for current personnel (completion only)",
+        "Description of who provides the information-security expertise (in-house, affiliate, or provider)"
+      ],
+      "remediation": {
+        "quick_win": "Deploy security awareness training to all staff with tracked completion, and name who provides your security expertise.",
+        "standard": "Run recurring security awareness training tied to your risk assessment, staff the program with qualified security personnel, and keep key personnel current on evolving threats."
+      },
+      "weight": 2
+    },
+    {
+      "id": "ftc-safeguards-service-providers",
+      "citation": "16 CFR §314.4(f)",
+      "category": "oversight",
+      "standard": "Service Provider Oversight",
+      "obligation": "required",
+      "requirement": "Oversee your service providers: take reasonable steps to select and keep providers capable of maintaining appropriate safeguards for the customer information involved, require those safeguards by contract, and periodically reassess each provider based on the risk it presents and whether its safeguards remain adequate.\n",
+      "question_ids": [
+        "q-ftc-120",
+        "q-ftc-121"
+      ],
+      "evidence_types": [
+        "Service-provider inventory identifying which providers handle customer information",
+        "The safeguards / security clause from a representative service-provider contract (business terms redacted)",
+        "Record of the most recent provider reassessment"
+      ],
+      "remediation": {
+        "quick_win": "List every service provider that handles customer information and confirm each contract requires appropriate safeguards.",
+        "standard": "Vet providers for safeguard capability before engaging them, require safeguards by contract, and reassess each provider on a risk-based schedule.",
+        "note": "Record third-party providers as separate entities so their assessments remain independent of MojoComply and of any system MojoAI built (Law 3)."
+      },
+      "weight": 2
+    },
+    {
+      "id": "ftc-safeguards-evaluation",
+      "citation": "16 CFR §314.4(g)",
+      "category": "program_governance",
+      "standard": "Periodic Evaluation and Adjustment",
+      "obligation": "required",
+      "requirement": "Evaluate and adjust your information security program in light of your testing and monitoring results, any material changes to your operations or business arrangements, the results of your periodic risk assessments, and any other circumstances that may materially affect the program.\n",
+      "question_ids": [
+        "q-ftc-122"
+      ],
+      "evidence_types": [
+        "Record showing the program was reviewed and adjusted (dated, with what changed)",
+        "Trigger log tying updates to test results, risk assessments, or material changes"
+      ],
+      "remediation": {
+        "quick_win": "Put a periodic program review on the calendar and record any changes it produces.",
+        "standard": "Run a documented evaluate-and-adjust cycle driven by testing results, risk-assessment findings, and material changes, and track resulting changes to closure."
+      },
+      "weight": 2
+    },
+    {
+      "id": "ftc-safeguards-incident-response",
+      "citation": "16 CFR §314.4(h)",
+      "category": "incident_response",
+      "standard": "Written Incident Response Plan",
+      "obligation": "required",
+      "requirement": "Establish a written incident response plan designed to promptly respond to and recover from any security event that materially affects the confidentiality, integrity, or availability of customer information in your control. It must address the plan's goals, internal response processes, roles and decision authority, internal and external communications, remediation of weaknesses, documentation and reporting, and post-event review and revision.\n",
+      "question_ids": [
+        "q-ftc-123",
+        "q-ftc-124"
+      ],
+      "evidence_types": [
+        "The written incident response plan (with the seven required areas addressed)",
+        "Record of the most recent plan review or tabletop exercise, if any"
+      ],
+      "remediation": {
+        "quick_win": "Adopt an incident response plan template and designate an incident lead and backup.",
+        "standard": "Build a written incident response plan covering all seven required areas, exercise it periodically, and revise it after any security event.",
+        "note": "Breach-notification obligations are legal determinations; the plan and reports should direct the entity to counsel, not decide notification for them (Law 2)."
+      },
+      "weight": 3,
+      "extensions": {
+        "small_entity_note": "Under §314.6, financial institutions that maintain customer information on fewer than 5,000 consumers are exempt from the written incident response plan required by §314.4(h). A right-sized written plan remains a strongly recommended readiness practice."
+      }
+    },
+    {
+      "id": "ftc-safeguards-board-report",
+      "citation": "16 CFR §314.4(i)",
+      "category": "program_governance",
+      "standard": "Annual Report to the Board",
+      "obligation": "required",
+      "requirement": "Require your Qualified Individual to report in writing, at least annually, to your board of directors or equivalent governing body (or, if none exists, to a senior officer responsible for the program). The report must cover the overall status of the program and compliance, and material matters such as risk assessment and management, service-provider arrangements, testing results, security events, and recommended changes.\n",
+      "question_ids": [
+        "q-ftc-125"
+      ],
+      "evidence_types": [
+        "Cover page or table of contents of the most recent written report to the board / governing body (no customer data)",
+        "Calendar or governance record confirming the reporting cadence"
+      ],
+      "remediation": {
+        "quick_win": "Schedule the Qualified Individual's written report to the board or a senior officer and capture the required topics in a short template.",
+        "standard": "Produce a written report at least annually covering program status and compliance, risk and control decisions, service-provider arrangements, testing results, and security events, and record its delivery to the governing body."
+      },
+      "weight": 1,
+      "extensions": {
+        "small_entity_note": "Under §314.6, financial institutions that maintain customer information on fewer than 5,000 consumers are exempt from the annual written board report required by §314.4(i). Periodic written reporting to leadership remains a recommended governance practice."
+      }
+    }
+  ]
+}

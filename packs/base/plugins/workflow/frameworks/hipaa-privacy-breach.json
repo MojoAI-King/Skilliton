@@ -1,0 +1,541 @@
+{
+  "meta": {
+    "framework": "hipaa-privacy-breach",
+    "version": "1.0.0",
+    "status": "approved",
+    "authority": "45 CFR Part 164, Subparts E (Privacy) and D (Breach Notification of Unsecured Protected Health Information)",
+    "note": "This is an OVERLAY assessed alongside hipaa-security-rule (Subpart C); it covers the Privacy Rule (Subpart E) and Breach Notification Rule (Subpart D) and does not duplicate the Security Rule. Requirements are paraphrased; the authoritative text is 45 CFR Part 164. Whether a use or disclosure is permitted, whether an event is a reportable breach (or an exception applies), minimum-necessary judgments, personal-representative and access-denial determinations, and every notification timing and obligation are LEGAL determinations that require counsel -- the tool assesses process readiness, it does not make these determinations (Law 2). This library supports risk analysis and gap assessment only; it does not attest that any covered entity meets its Privacy or Breach obligations.",
+    "tier": "regulation",
+    "categories": [
+      "uses_and_disclosures",
+      "minimum_necessary",
+      "individual_rights",
+      "notice_and_transparency",
+      "business_associates",
+      "administrative_requirements",
+      "breach_notification"
+    ],
+    "obligation_levels": [
+      {
+        "id": "required",
+        "label": "Required",
+        "tie_break_rank": 1,
+        "note": "Unlike the HIPAA Security Rule (Subpart C), the Privacy Rule and Breach Notification Rule have no Required-vs-Addressable distinction. Their standards and implementation specifications are mandatory, so this framework declares a single obligation level.\n"
+      }
+    ],
+    "sources": [
+      {
+        "document": "45 CFR Part 164, Subpart E (Privacy Rule, secs. 164.500-164.535) and Subpart D (Breach Notification for Unsecured Protected Health Information, secs. 164.400-164.414)",
+        "version": "eCFR current text as of the 2026-07-23 snapshot. Subpart D: all sections amendment_date 2016-12-30 (the eCFR baseline -- unamended since eCFR data begins); the last substantive amendment of record is 78 FR 5566 (Omnibus). Subpart E: secs. 164.502, 164.509, 164.512, 164.520 and 164.535 carry amendment_date 2024-06-25 (the 2024 Reproductive Health Care Privacy Rule, 89 FR 32976); all other Subpart E sections 2016-12-30. WARNING -- see change_watch: the codified text is NOT a reliable statement of what is legally operative for this regime.",
+        "published": "2013-01-25",
+        "retrieved": "2026-07-26",
+        "url": "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164",
+        "change_watch": "CRITICAL TRAP -- eCFR is stale relative to the courts, so an automated staleness check alone will encode a VACATED requirement. Purl v. HHS (N.D. Tex.) vacated the 2024 HIPAA Privacy Rule to Support Reproductive Health Care Privacy nationwide on 2025-06-18; the Fifth Circuit dismissed the appeal on 2025-09-10 and HHS did not pursue it. VERIFIED PRIMARY FACT: as of the eCFR 2026-07-23 snapshot, sec. 164.509 (the attestation requirement that rule created) is still present with removed=false, and secs. 164.502/164.512/164.520 still carry the 2024-06-25 text. The vacatur date and the Fifth Circuit dismissal come from law-firm/bar reporting, NOT from a Federal Register removal document -- no FR document rescinding 89 FR 32976 was found in the 45 CFR 164 Rule list, and the court docket order text was NOT fetched from PACER/CourtListener. the approver should confirm with counsel before any of this enters report language (Law 5). GOOD NEWS: this library encodes NO control citing sec. 164.509 or the reproductive-health provisions, so it is not currently carrying vacated content. SEPARATE ITEM: reporting indicates the Purl court severed and PRESERVED the portion of the 2024 rule amending the sec. 164.520 notice-of-privacy-practices requirements for substance use disorder records, with a compliance date of 2026-02-16 now passed -- that NPP content is operative and is a live gap if this library's notice controls do not cover it. PROBE: https://www.ecfr.gov/api/versioner/v1/versions/title-45.json?part=164 for amendment_date changes, PLUS a manual counsel-review gate -- this regime cannot be automated safely."
+      }
+    ]
+  },
+  "attribution": "Public-domain U.S. federal regulatory text (45 CFR Part 164, HIPAA Privacy Rule and Breach Notification). Requirement wording is MojoComply's own plain-English paraphrase.",
+  "controls": [
+    {
+      "id": "uses-disclosures-permission",
+      "citation": "45 CFR §164.502(a)",
+      "category": "uses_and_disclosures",
+      "standard": "Uses and Disclosures -- General Rule",
+      "obligation": "required",
+      "requirement": "Use or disclose protected health information only where the Privacy Rule permits or requires it -- for treatment, payment, and health care operations, with a valid authorization, or under one of the rule's specific permissions or exceptions. Where an authorization is required, obtain one that meets the rule's elements before the use or disclosure.\n",
+      "question_ids": [
+        "q-ud-101",
+        "q-ud-102"
+      ],
+      "evidence_types": [
+        "Written use-and-disclosure policy naming the permitted purposes and when authorization is required",
+        "Authorization form template",
+        "Staff training material on permitted uses and disclosures"
+      ],
+      "remediation": {
+        "quick_win": "Train staff that protected health information may only be used or shared for treatment, payment, and operations, or with a valid authorization, or under a specific rule exception -- and route unusual requests to a designated person.",
+        "standard": "Adopt a written use-and-disclosure policy that maps each routine flow to its permission, requires a compliant authorization where one is needed, and escalates non-routine requests (law enforcement, subpoena, marketing) to a designated official and counsel.",
+        "note": "Whether a particular use or disclosure is permitted is a legal determination for counsel; this control assesses that a policy and escalation process exist (Law 2)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "minimum-necessary",
+      "citation": "45 CFR §164.502(b); 45 CFR §164.514(d)",
+      "category": "minimum_necessary",
+      "standard": "Minimum Necessary",
+      "obligation": "required",
+      "requirement": "When using, disclosing, or requesting protected health information, make reasonable efforts to limit it to the minimum necessary to accomplish the intended purpose, through role-based access policies and criteria for routine and non-routine disclosures -- except where the minimum-necessary standard does not apply (for example, disclosures to or requests by a provider for treatment, or disclosures to the individual).\n",
+      "question_ids": [
+        "q-mn-101"
+      ],
+      "evidence_types": [
+        "Minimum-necessary policy with role-based access criteria",
+        "Access-control matrix mapping workforce roles to categories of information (roles only, no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "Define which workforce roles need which categories of information and limit routine access accordingly.",
+        "standard": "Adopt a minimum-necessary policy with role-based access criteria, standard limits for routine disclosures and requests, and a case-by-case review process for non-routine ones -- noting the categories the standard does not apply to.",
+        "note": "Whether a specific disclosure meets the minimum-necessary standard is a judgment that may require counsel; the tool assesses that criteria and role-based limits exist (Law 2)."
+      },
+      "weight": 2
+    },
+    {
+      "id": "personal-representatives",
+      "citation": "45 CFR §164.502(g)",
+      "category": "uses_and_disclosures",
+      "standard": "Personal Representatives",
+      "obligation": "required",
+      "requirement": "Treat a person authorized under applicable law to act on an individual's behalf (for health care decisions) as that individual's personal representative for the protected health information relevant to that authority, while applying the rule's exceptions (for example, where doing so could endanger the individual).\n",
+      "question_ids": [
+        "q-pr-101"
+      ],
+      "evidence_types": [
+        "Procedure for verifying and recording personal-representative authority",
+        "Staff guidance on when a personal representative may act for an individual"
+      ],
+      "remediation": {
+        "quick_win": "Give front-desk and records staff a short procedure for confirming a personal representative's authority before granting them access on the individual's behalf.",
+        "standard": "Adopt a personal-representative procedure covering verification of authority, the scope of information it reaches, minors and applicable state law, and the safety exceptions -- and record the basis for each recognition.",
+        "note": "Who qualifies as a personal representative, and whether an exception applies, are legal determinations for counsel; this control assesses that a verification process exists (Law 2)."
+      },
+      "weight": 1
+    },
+    {
+      "id": "de-identification",
+      "citation": "45 CFR §164.514(a); 45 CFR §164.514(b)",
+      "category": "uses_and_disclosures",
+      "standard": "De-identification of Protected Health Information",
+      "obligation": "required",
+      "requirement": "Where you rely on data being de-identified so it is no longer protected health information, ensure de-identification meets the rule -- either an expert determination of very small re-identification risk, or removal of the specified identifiers under the Safe Harbor method with no actual knowledge the remaining data could identify an individual.\n",
+      "question_ids": [
+        "q-deid-101"
+      ],
+      "evidence_types": [
+        "De-identification procedure stating which method (expert determination or Safe Harbor) is used",
+        "Expert determination documentation or Safe Harbor identifier checklist (method records only, no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "If you share or reuse data as \"de-identified,\" confirm it was produced by expert determination or full Safe Harbor identifier removal, not just by dropping names.",
+        "standard": "Adopt a de-identification procedure that specifies the method, retains the expert determination or Safe Harbor checklist, and confirms no actual knowledge that remaining data could re-identify an individual.",
+        "note": "Whether data is properly de-identified is a determination that may require an expert or counsel; the tool assesses that a documented method is followed (Law 2)."
+      },
+      "weight": 1
+    },
+    {
+      "id": "business-associate-agreements",
+      "citation": "45 CFR §164.502(e); 45 CFR §164.504(e)",
+      "category": "business_associates",
+      "standard": "Business Associate Disclosures and Agreements",
+      "obligation": "required",
+      "requirement": "Disclose protected health information to a business associate, or let it create, receive, maintain, or transmit such information on your behalf, only under a written contract or other arrangement that contains the required satisfactory-assurance terms limiting the business associate's use and disclosure of the information.\n",
+      "question_ids": [
+        "q-ba-101",
+        "q-ba-102"
+      ],
+      "evidence_types": [
+        "Business associate agreement template with the required Privacy Rule terms",
+        "Vendor register identifying which vendors are business associates and their agreement status"
+      ],
+      "remediation": {
+        "quick_win": "List every vendor that handles protected health information for you and confirm each has a signed business associate agreement before any information is shared.",
+        "standard": "Track business associate agreements in a vendor register, require a signed agreement with the required terms before onboarding, and review the register and any subcontractor flow-downs on a schedule.",
+        "note": "Whether a given vendor is a business associate is a legal determination for counsel; this control assesses that agreements are in place where they are required (Law 2)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "notice-privacy-practices",
+      "citation": "45 CFR §164.520",
+      "category": "notice_and_transparency",
+      "standard": "Notice of Privacy Practices",
+      "obligation": "required",
+      "requirement": "Maintain a Notice of Privacy Practices containing the required content (how you may use and disclose protected health information, the individual's rights, your legal duties, and how to complain), provide it as the rule requires, and make it available to anyone who asks.\n",
+      "question_ids": [
+        "q-npp-101",
+        "q-npp-102"
+      ],
+      "evidence_types": [
+        "Current Notice of Privacy Practices template",
+        "Procedure and acknowledgment log showing how and when the notice is provided (no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "Confirm your Notice of Privacy Practices is current, includes all required elements, and is posted and available on request.",
+        "standard": "Maintain a Notice of Privacy Practices with all required content, a documented process for providing it (including good-faith acknowledgment where required) and posting it, and a review whenever practices change."
+      },
+      "weight": 2
+    },
+    {
+      "id": "right-of-access",
+      "citation": "45 CFR §164.524",
+      "category": "individual_rights",
+      "standard": "Individual Right of Access",
+      "obligation": "required",
+      "requirement": "Give individuals access to inspect and obtain a copy of their protected health information in a designated record set, in the form and format they request where readily producible, within the required time, charging no more than a reasonable cost-based fee, and applying only the rule's limited grounds for denial.\n",
+      "question_ids": [
+        "q-access-101",
+        "q-access-102"
+      ],
+      "evidence_types": [
+        "Access-request procedure covering timeframe, format, and fee limits",
+        "Access-request intake and tracking template (no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "Give staff a simple intake for access requests with the response deadline and the cost-based fee limits, so requests are not missed or overcharged.",
+        "standard": "Adopt an access procedure covering the required timeframe, form and format, reasonable cost-based fees, the limited denial grounds and review rights, and tracking of each request to closure.",
+        "note": "OCR treats the right of access as an enforcement priority; whether a denial ground applies is a legal determination for counsel (Law 2)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "right-to-amend",
+      "citation": "45 CFR §164.526",
+      "category": "individual_rights",
+      "standard": "Right to Amend",
+      "obligation": "required",
+      "requirement": "Let individuals request amendment of protected health information in a designated record set, act on the request within the required time, and either make the amendment and notify relevant parties or deny it for a permitted reason with the required written explanation and appeal rights.\n",
+      "question_ids": [
+        "q-amend-101"
+      ],
+      "evidence_types": [
+        "Amendment-request procedure with timeframe and permitted denial reasons",
+        "Amendment request and response template (no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "Create an intake for amendment requests with the response deadline and a way to record the outcome in the record.",
+        "standard": "Adopt an amendment procedure covering the required timeframe, the permitted denial reasons and written-denial and disagreement rights, and notifying parties the individual identifies."
+      },
+      "weight": 1
+    },
+    {
+      "id": "accounting-of-disclosures",
+      "citation": "45 CFR §164.528",
+      "category": "individual_rights",
+      "standard": "Accounting of Disclosures",
+      "obligation": "required",
+      "requirement": "On request, give individuals an accounting of certain disclosures of their protected health information made in the required look-back period, excluding the categories the rule exempts (for example, disclosures for treatment, payment, and operations), within the required time.\n",
+      "question_ids": [
+        "q-acct-101"
+      ],
+      "evidence_types": [
+        "Accounting-of-disclosures procedure and request template",
+        "Description of how accountable disclosures are recorded (structure only, no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "Confirm you have a way to record disclosures that must be accounted for (for example, certain disclosures required by law) so you can produce an accounting on request.",
+        "standard": "Adopt an accounting procedure that captures the accountable disclosure categories with the required content, respects the look-back period and exclusions, and responds within the required timeframe.",
+        "note": "Which disclosures must be accounted for is a determination that may require counsel; the tool assesses that a tracking process exists (Law 2). Records of disclosures must never store patient data in this system (Law 4)."
+      },
+      "weight": 1
+    },
+    {
+      "id": "request-restrictions",
+      "citation": "45 CFR §164.522(a)",
+      "category": "individual_rights",
+      "standard": "Right to Request Restrictions",
+      "obligation": "required",
+      "requirement": "Let individuals request restrictions on uses and disclosures of their protected health information for treatment, payment, and operations; honor any restriction you agree to (except as the rule allows), and honor the required restriction on disclosure to a health plan where the individual paid for the item or service in full out of pocket.\n",
+      "question_ids": [
+        "q-restrict-101"
+      ],
+      "evidence_types": [
+        "Procedure for receiving, deciding, and recording restriction requests",
+        "Restriction request form template"
+      ],
+      "remediation": {
+        "quick_win": "Create an intake for restriction requests and a way to flag an agreed restriction -- including the required restriction for items a patient pays for in full -- in the record system.",
+        "standard": "Adopt a restriction procedure covering how requests are received, decided, recorded, and enforced, including the mandatory self-pay restriction, and train staff on when a restriction must be honored."
+      },
+      "weight": 1
+    },
+    {
+      "id": "confidential-communications",
+      "citation": "45 CFR §164.522(b)",
+      "category": "individual_rights",
+      "standard": "Confidential Communications",
+      "obligation": "required",
+      "requirement": "Accommodate reasonable requests from individuals to receive communications of protected health information by alternative means or at alternative locations, without requiring an explanation, where the rule requires (and, for health plans, where the individual states disclosure could endanger them).\n",
+      "question_ids": [
+        "q-confcomm-101"
+      ],
+      "evidence_types": [
+        "Confidential-communications procedure and request template",
+        "Configuration showing alternative contact preferences can be recorded (no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "Give patients a simple way to ask to be contacted a certain way (for example, a specific phone or address) and record that preference.",
+        "standard": "Adopt a confidential-communications procedure that accepts reasonable alternative-contact requests, records the preference in the system, and applies it to mailings, calls, and messages."
+      },
+      "weight": 1
+    },
+    {
+      "id": "privacy-official",
+      "citation": "45 CFR §164.530(a)",
+      "category": "administrative_requirements",
+      "standard": "Privacy Official and Contact",
+      "obligation": "required",
+      "requirement": "Designate a privacy official responsible for developing and implementing your privacy policies and procedures, and designate a contact person or office responsible for receiving complaints and providing further information about the Notice of Privacy Practices.\n",
+      "question_ids": [
+        "q-priv-101"
+      ],
+      "evidence_types": [
+        "Written designation of the privacy official and the complaint-contact person or office",
+        "Job description or charter listing privacy responsibilities"
+      ],
+      "remediation": {
+        "quick_win": "Name, in writing, who the privacy official is and who receives privacy complaints and questions.",
+        "standard": "Document the privacy official designation and the complaint contact, with defined responsibilities, and communicate the contact in the Notice of Privacy Practices."
+      },
+      "weight": 2
+    },
+    {
+      "id": "workforce-training",
+      "citation": "45 CFR §164.530(b)",
+      "category": "administrative_requirements",
+      "standard": "Workforce Training",
+      "obligation": "required",
+      "requirement": "Train all members of the workforce on the privacy policies and procedures relevant to their functions, as necessary and appropriate for them to carry out their duties -- including for new workforce members and when policies materially change.\n",
+      "question_ids": [
+        "q-train-101"
+      ],
+      "evidence_types": [
+        "Privacy training materials and curriculum",
+        "Training completion log (names/roles only, no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "Confirm every workforce member has had privacy training appropriate to their role and that new hires are trained.",
+        "standard": "Run a documented privacy training program with role-appropriate content, onboarding training, refreshers on material policy changes, and completion tracking."
+      },
+      "weight": 2
+    },
+    {
+      "id": "privacy-safeguards",
+      "citation": "45 CFR §164.530(c)",
+      "category": "administrative_requirements",
+      "standard": "Administrative, Technical, and Physical Safeguards (Privacy)",
+      "obligation": "required",
+      "requirement": "Have appropriate administrative, technical, and physical safeguards to protect the privacy of protected health information, and reasonably safeguard it from any intentional or unintentional use or disclosure that violates the Privacy Rule, including limiting incidental uses and disclosures.\n",
+      "question_ids": [
+        "q-safe-101"
+      ],
+      "evidence_types": [
+        "Privacy safeguards policy addressing incidental uses and disclosures",
+        "Description of physical and workflow safeguards (for example, private intake, screen positioning) -- no patient data"
+      ],
+      "remediation": {
+        "quick_win": "Address obvious incidental-disclosure risks -- sign-in sheets, screens visible to the waiting room, conversations overheard at the front desk.",
+        "standard": "Adopt a privacy safeguards policy covering administrative, physical, and workflow measures that limit incidental uses and disclosures, and review it alongside the Security Rule safeguards rather than duplicating them.",
+        "note": "This Privacy Rule safeguards standard overlaps the Security Rule (Subpart C); assess alongside hipaa-security-rule to avoid duplicate effort."
+      },
+      "weight": 3
+    },
+    {
+      "id": "complaints",
+      "citation": "45 CFR §164.530(d)",
+      "category": "administrative_requirements",
+      "standard": "Complaints to the Covered Entity",
+      "obligation": "required",
+      "requirement": "Provide a process for individuals to make complaints about your privacy policies and procedures or your compliance with them, and document the complaints received and their disposition.\n",
+      "question_ids": [
+        "q-complaint-101"
+      ],
+      "evidence_types": [
+        "Complaint-intake procedure",
+        "Complaint log template (dispositions only, no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "Publish a simple way for people to raise privacy complaints and record each one and how it was resolved.",
+        "standard": "Adopt a complaint procedure with a documented intake, tracking of dispositions, and a route to the privacy official -- and reference it in the Notice of Privacy Practices."
+      },
+      "weight": 1
+    },
+    {
+      "id": "sanctions",
+      "citation": "45 CFR §164.530(e)",
+      "category": "administrative_requirements",
+      "standard": "Sanctions",
+      "obligation": "required",
+      "requirement": "Have and apply appropriate sanctions against workforce members who fail to comply with your privacy policies and procedures or the Privacy Rule, and document the sanctions applied.\n",
+      "question_ids": [
+        "q-sanction-101"
+      ],
+      "evidence_types": [
+        "Written sanction policy for privacy violations",
+        "Sanction record template (dispositions only, no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "Confirm a written policy sets consequences for privacy violations and that it is actually applied and recorded.",
+        "standard": "Adopt a graduated sanction policy tied to privacy violations, apply it consistently, and document each action, coordinating with HR and the Security Rule sanction policy."
+      },
+      "weight": 1
+    },
+    {
+      "id": "no-retaliation-no-waiver",
+      "citation": "45 CFR §164.530(g); 45 CFR §164.530(h)",
+      "category": "administrative_requirements",
+      "standard": "No Intimidating or Retaliatory Acts; No Waiver of Rights",
+      "obligation": "required",
+      "requirement": "Do not intimidate, threaten, coerce, discriminate against, or take other retaliatory action against anyone for exercising a Privacy Rule right, filing a complaint, testifying, or opposing an unlawful act or practice; and do not require individuals to waive their rights (to complain to HHS or otherwise) as a condition of treatment, payment, enrollment, or eligibility.\n",
+      "question_ids": [
+        "q-retal-101"
+      ],
+      "evidence_types": [
+        "Policy prohibiting retaliation and waiver of rights",
+        "Intake and consent forms reviewed to confirm they do not require waiver of rights"
+      ],
+      "remediation": {
+        "quick_win": "Confirm no form or practice requires patients to waive their right to complain, and that staff know retaliation for exercising privacy rights is prohibited.",
+        "standard": "Adopt a written non-retaliation and non-waiver policy, train staff on it, and review intake, consent, and financial forms to remove any waiver-of-rights condition."
+      },
+      "weight": 1
+    },
+    {
+      "id": "policies-and-documentation",
+      "citation": "45 CFR §164.530(i); 45 CFR §164.530(j)",
+      "category": "administrative_requirements",
+      "standard": "Policies, Procedures, and Documentation",
+      "obligation": "required",
+      "requirement": "Implement written privacy policies and procedures designed to comply with the Privacy Rule, keep required documentation (policies, communications, actions, activities, and designations) in written or electronic form, retain it for the required period, and update it as needed.\n",
+      "question_ids": [
+        "q-poldoc-101"
+      ],
+      "evidence_types": [
+        "Privacy policies and procedures document set",
+        "Documentation retention schedule and change history"
+      ],
+      "remediation": {
+        "quick_win": "Confirm your privacy policies are written down, current, and retained, not just informal practice.",
+        "standard": "Maintain a documented set of privacy policies and procedures with version control, the required retention period, and a periodic review and update cycle."
+      },
+      "weight": 2
+    },
+    {
+      "id": "breach-risk-assessment",
+      "citation": "45 CFR §164.402",
+      "category": "breach_notification",
+      "standard": "Breach Definition and Risk Assessment",
+      "obligation": "required",
+      "requirement": "Have a process to evaluate whether an impermissible use or disclosure of unsecured protected health information is a breach -- treating it as a presumed breach unless a risk assessment of at least the four required factors (nature and extent of the information; the unauthorized person involved; whether it was actually acquired or viewed; and the extent of mitigation) shows a low probability of compromise -- and apply the definitional exceptions where they fit.\n",
+      "question_ids": [
+        "q-breach-101",
+        "q-breach-102"
+      ],
+      "evidence_types": [
+        "Breach risk-assessment procedure documenting the four required factors",
+        "Risk-assessment worksheet template (no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "Confirm you have a written method for assessing potential breaches that uses the four required factors and involves counsel before a conclusion is reached.",
+        "standard": "Adopt a breach risk-assessment procedure that documents each of the four factors, records the exceptions considered, reaches a low-probability-of-compromise conclusion only with counsel, and preserves the analysis.",
+        "note": "Whether an event is a reportable breach, and whether an exception applies, are legal determinations that require counsel -- the tool assesses that a compliant risk-assessment process exists, it does not decide breach status (Law 2)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "individual-breach-notice",
+      "citation": "45 CFR §164.404",
+      "category": "breach_notification",
+      "standard": "Notification to Individuals",
+      "obligation": "required",
+      "requirement": "Following discovery of a breach of unsecured protected health information, notify each affected individual without unreasonable delay and no later than 60 calendar days after discovery, by the required method, with the required content (what happened, the information involved, steps individuals should take, what you are doing, and contact procedures).\n",
+      "question_ids": [
+        "q-indnotice-101",
+        "q-indnotice-102"
+      ],
+      "evidence_types": [
+        "Individual breach-notification procedure and letter template with the required content elements",
+        "Description of notification methods, including substitute notice (no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "Confirm you have an individual-notice letter template with all required content and that your process can meet the 60-calendar-day outer limit.",
+        "standard": "Adopt an individual-notification procedure covering the timing (without unreasonable delay, no later than 60 days), required content, written first-class or email methods, and substitute notice -- coordinated with counsel.",
+        "note": "The notification obligation and its timing are legal determinations that depend on the breach determination and possible law-enforcement delay (§164.412); confirm with counsel (Law 2)."
+      },
+      "weight": 3
+    },
+    {
+      "id": "media-notice",
+      "citation": "45 CFR §164.406",
+      "category": "breach_notification",
+      "standard": "Notification to the Media",
+      "obligation": "required",
+      "requirement": "For a breach of unsecured protected health information involving more than 500 residents of a State or jurisdiction, notify prominent media outlets serving that State or jurisdiction, without unreasonable delay and no later than 60 calendar days after discovery, with the required content.\n",
+      "question_ids": [
+        "q-medianotice-101"
+      ],
+      "evidence_types": [
+        "Media-notification procedure identifying the 500-resident-per-jurisdiction trigger",
+        "Media notice / press statement template"
+      ],
+      "remediation": {
+        "quick_win": "Confirm your breach plan flags when a breach affecting more than 500 residents of a State requires media notice.",
+        "standard": "Adopt a media-notification procedure covering the per-jurisdiction 500-resident trigger, the timing, the required content, and coordination with counsel and communications.",
+        "note": "Whether the media-notice threshold is met is a legal determination for counsel (Law 2)."
+      },
+      "weight": 1
+    },
+    {
+      "id": "hhs-notice",
+      "citation": "45 CFR §164.408",
+      "category": "breach_notification",
+      "standard": "Notification to the Secretary",
+      "obligation": "required",
+      "requirement": "Notify the Secretary of HHS of breaches of unsecured protected health information -- for breaches involving 500 or more individuals, contemporaneously with individual notice; for breaches involving fewer than 500 individuals, via a log submitted no later than 60 days after the end of the calendar year -- in the manner specified on the HHS website.\n",
+      "question_ids": [
+        "q-hhsnotice-101"
+      ],
+      "evidence_types": [
+        "HHS-notification procedure distinguishing the 500-or-more and fewer-than-500 timelines",
+        "Internal breach log structure used to support annual HHS submission (no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "Confirm you know the two HHS reporting timelines (contemporaneous for 500+, annual log for under 500) and who submits them.",
+        "standard": "Adopt an HHS-notification procedure that applies the correct timeline by breach size, maintains the internal log needed for the annual submission, and files through the HHS portal.",
+        "note": "The reporting timeline turns on the breach determination and individual count -- confirm with counsel (Law 2)."
+      },
+      "weight": 2
+    },
+    {
+      "id": "ba-breach-notice",
+      "citation": "45 CFR §164.410",
+      "category": "breach_notification",
+      "standard": "Notification by a Business Associate",
+      "obligation": "required",
+      "requirement": "Ensure business associates notify the covered entity following discovery of a breach of unsecured protected health information, without unreasonable delay and no later than 60 calendar days after discovery, with the required content -- and have a process to receive and act on such notifications.\n",
+      "question_ids": [
+        "q-banotice-101"
+      ],
+      "evidence_types": [
+        "Business associate agreement clause requiring breach notification within the required time",
+        "Procedure for receiving and acting on a business associate's breach notification"
+      ],
+      "remediation": {
+        "quick_win": "Confirm your business associate agreements require the vendor to report breaches to you promptly, and that someone owns handling such a report.",
+        "standard": "Ensure agreements set the notification timing and content, and adopt an intake procedure that logs a business associate's breach report and feeds it into your own risk assessment and notification process.",
+        "note": "Whether the business associate's report triggers your own notification obligations is a legal determination for counsel (Law 2)."
+      },
+      "weight": 2
+    },
+    {
+      "id": "breach-documentation",
+      "citation": "45 CFR §164.414",
+      "category": "breach_notification",
+      "standard": "Administrative Requirements and Burden of Proof",
+      "obligation": "required",
+      "requirement": "Meet the applicable administrative requirements (including written policies and procedures, training, sanctions, and complaint process) for breach notification, and be able to demonstrate -- carrying the burden of proof -- that all required notifications were made or that an impermissible use or disclosure did not constitute a breach.\n",
+      "question_ids": [
+        "q-breachdoc-101"
+      ],
+      "evidence_types": [
+        "Breach-notification policies and procedures document set",
+        "Breach documentation template retaining the risk assessment and notification record (no patient data)"
+      ],
+      "remediation": {
+        "quick_win": "Confirm you keep records of breach assessments and notifications so you can show what was decided and done.",
+        "standard": "Adopt breach policies and procedures with training and sanctions, and retain, for each incident, the risk assessment, the notification record (or the documented basis that no breach occurred), sufficient to meet the burden of proof.",
+        "note": "The entity carries the burden of proof; whether the documentation is sufficient is a legal determination for counsel (Law 2). Retained records must never contain patient data in this system (Law 4)."
+      },
+      "weight": 2
+    }
+  ]
+}
