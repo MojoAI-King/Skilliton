@@ -162,12 +162,26 @@ test("a project the earlier release prepared is refused by other commands, migra
 
   const fresh = fixture(t);
   assert.equal(sg(fresh, ["prepare", "--dir", fresh.dir, "--apply"]).code, 0);
-  for (const rel of ["docs/tasks/README.md", "docs/decisions/README.md", "docs/lessons/README.md", "docs/security/README.md", ".skilliton/security/records/README.md"]) {
+  // docs/security/README.md is not compared here: migration 0003 only regenerates a generated doc when the old
+  // file's text exactly equals asLegacy(today's generated text) (legacy-migrate-plans.mjs plan0003); N5's new
+  // compliance paragraph means that equality no longer holds for a project the frozen earlier release wrote, so
+  // this one file keeps its older, unrenamed prose (falls back to renaming marker lines only) instead of being
+  // regenerated under the Skilliton names.
+  for (const rel of ["docs/tasks/README.md", "docs/decisions/README.md", "docs/lessons/README.md", ".skilliton/security/records/README.md"]) {
     assert.equal(read(ctx, rel), read(fresh, rel), `${rel} is what prepare generates under the Skilliton names`);
   }
   const check = sg(ctx, ["prepare", "--dir", ctx.dir, "--check"]);
-  assert.equal(check.code, 0, `nothing else is missing or outdated after the migration: ${check.all}`);
-  assert.doesNotMatch(Object.entries(snapshot(ctx.dir)).filter(([p]) => !p.endsWith("/") && !p.startsWith("docs/decisions/2") && !p.startsWith(".skilliton/migrations/") && p !== ".gitignore").map(([p, b]) => `${p}\n${Buffer.from(b, "base64").toString("utf8")}`).join("\n"), /skillgate:harness|skillgate:index|\.skillgate\//, "no generated marker or path under the earlier names is left");
+  // 1 outdated, not 0: config.json still lacks compliance.builtByCompany (N5, added after the frozen earlier
+  // release archived above); migration does not retroactively draft a new prepare field, prepare --apply does.
+  assert.equal(check.code, 1, check.all);
+  assert.match(check.out, /update\s+\.skilliton\/config\.json\s+compliance\.builtByCompany false/);
+  assert.match(check.out, /Summary: setup incomplete: 0 missing, 1 outdated/);
+  // docs/security/README.md is excluded here too, for the same N5 reason as above: its untouched prose still
+  // names the earlier release's own paths (for example .skillgate/private-evidence/), which this line would
+  // otherwise flag as a leftover marker.
+  const afterMigration = Object.entries(snapshot(ctx.dir)).filter(([p]) => !p.endsWith("/") && !p.startsWith("docs/decisions/2") && !p.startsWith(".skilliton/migrations/") && p !== ".gitignore" && p !== "docs/security/README.md");
+  assert.doesNotMatch(afterMigration.map(([p, b]) => `${p}\n${Buffer.from(b, "base64").toString("utf8")}`).join("\n"), /skillgate:harness|skillgate:index|\.skillgate\//, "no generated marker or path under the earlier names is left");
+  assert.match(read(ctx, "docs/security/README.md"), /\.skillgate\/private-evidence\//, "the one known exception: still the earlier release's own unrenamed prose, not silently dropped from the assertion for any other reason");
 
   const rolled = legacyMigrate(ctx, "--dir", ctx.dir, "--rollback", "0003-skilliton-names", "--apply");
   assert.equal(rolled.code, 0, rolled.all);

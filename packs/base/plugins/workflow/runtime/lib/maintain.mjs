@@ -23,6 +23,7 @@ import { GitError, appendEvent, mergesSince, runGit } from "./journal.mjs";
 import { regenerateIndexes } from "./records.mjs";
 import { Refused, selfCommand } from "./core.mjs";
 import { ledgerStep } from "./usage-ledger.mjs";
+import { SCOPE_REL } from "./project-files.mjs";
 
 const DUE_AFTER_HOURS = 24;
 export const DUE_AFTER_COMMITS = 15;
@@ -132,6 +133,7 @@ export async function runMaintain(project, { root, gitDir, apply = false, sessio
     await refreshCollectors(root, { apply, steps, again: true });
     await findingsStep(root, { apply, steps });
   }
+  await complianceSheetStep(root, { apply, steps });
 
   let wrote = false;
   if (apply) {
@@ -203,5 +205,23 @@ async function findingsStep(root, { apply, steps }) {
     }
   } else {
     steps.push({ name: "security findings", status: "not run", detail: `no security register at ${CATALOG_REL}` });
+  }
+}
+
+// The compliance sheet, from the scope as it stands, once a scope has been confirmed: writeSheet(root, { apply })
+// from runtime/lib/compliance.mjs (another lane, not yet shipped in this build). Nothing runs before a scope is
+// confirmed; a module not in this build, or a write that throws, is reported as not run, never as success.
+async function complianceSheetStep(root, { apply, steps }) {
+  if (!existsSync(join(root, SCOPE_REL))) {
+    steps.push({ name: "compliance sheet", status: "not run", detail: `no confirmed compliance scope at ${SCOPE_REL}` });
+    return;
+  }
+  try {
+    const { writeSheet } = await import("./compliance.mjs");
+    const result = await writeSheet(root, { apply });
+    const detail = result.changed ? `${result.rows} row(s) changed` : "current";
+    steps.push({ name: "compliance sheet", status: result.changed ? (apply ? "wrote" : "would write") : "current", detail });
+  } catch (e) {
+    steps.push({ name: "compliance sheet", status: "not run", detail: e?.message ?? String(e) });
   }
 }

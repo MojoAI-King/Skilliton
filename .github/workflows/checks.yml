@@ -196,11 +196,17 @@ jobs:
       - name: An interrupted prepare --apply recovers by the book
         run: node --test scripts/prepare-interrupt.test.mjs
 
+      - name: A compliance scope proposal and compliance.builtByCompany at prepare (N5)
+        run: node --test scripts/prepare-compliance.test.mjs
+
       - name: A project's own record header (prepare.recordHeader) on every writer and reader
         run: node --test scripts/record-header.test.mjs
 
       - name: Tasks, checkpoints, status and lifecycle hooks
         run: node scripts/lifecycle.test.mjs
+
+      - name: The compliance check in the project state, next to security (N5)
+        run: node --test scripts/lifecycle-compliance.test.mjs
 
       - name: The first stop of a session that changed files and recorded nothing is held once (holdFirstStop)
         run: node scripts/stop-first.test.mjs

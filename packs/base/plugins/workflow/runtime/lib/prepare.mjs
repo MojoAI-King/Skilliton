@@ -28,7 +28,7 @@ import { HARNESS_FILES, HARNESS_TEMPLATE, planHarnessFile, readHarnessTemplate }
 import { CONFIG_REL, ConfigError, LAYOUT_VERSION, PROJECT_DIR, ROLES, resolveProject, templateVars, validRelPath } from "./config.mjs";
 import {
   CATALOG_REL, LOCK_REL, RECORDS_README_REL, ROLE_LABELS, SECURITY_README_REL,
-  entryFolderReadme, recordTemplate, recordsReadme, securityReadme,
+  applyComplianceDefault, complianceConfigNote, complianceProposalItem, entryFolderReadme, recordTemplate, recordsReadme, securityReadme,
 } from "./project-files.mjs";
 import { NO_REPOSITORY_PROGRAMS, gitEnvironment } from "./journal.mjs";
 import { DEFAULT_SKIP, detectStack, hotspots } from "./stack.mjs";
@@ -465,7 +465,7 @@ function nextConfig(project, runtimeVersion, draft = { fields: [] }) {
   // The shipped session-start hook reads handoff.file; config.mjs requires it to agree with prepare.artifacts.handoff.
   const handoff = isPlainObject(config.handoff) ? config.handoff : (config.handoff = {});
   handoff.file = project.artifacts.handoff;
-  return config;
+  return (applyComplianceDefault(config), config);
 }
 
 // The changes between two config objects, in words. { lines: string[], drafts: number, others: number }: drafts counts
@@ -477,8 +477,8 @@ function configChanges(before, after, draft = { fields: [], kept: [] }) {
   if (!sameJson(b.artifacts, a.artifacts)) notes.push("prepare.artifacts lists every record role");
   if (!sameJson(b.directories, a.directories)) notes.push("prepare.directories lists the entry folders");
   if (!sameJson(b.requires, a.requires)) notes.push(`prepare.requires.workflow ${a.requires.workflow}`);
-  if (!sameJson(before.handoff, after.handoff)) notes.push(`handoff.file ${after.handoff.file}`);
-  const others = notes.length;
+  if (!sameJson(before.handoff, after.handoff)) notes.push(`handoff.file ${after.handoff.file}`); const complianceNote = complianceConfigNote(before, after);
+  if (complianceNote) notes.push(complianceNote); const others = notes.length;
   for (const field of draft.fields) notes.push(`dispatch.${field.key} ${showValue(field.value)} drafted from ${field.source}`);
   for (const key of draft.kept) notes.push(`dispatch.${key} kept as set`);
   return { lines: notes, drafts: draft.fields.length, others };
@@ -544,7 +544,7 @@ async function planPrepareItems(ctx, runtimeVersion) {
       add(CATALOG_REL, "adopt", "security catalog already present; left exactly as it is");
       notes.push(`The security engine (runtime/lib/security.mjs) is not available in this build, so the existing ${CATALOG_REL} was checked for its basic shape only, not by the code that reads it.`);
     }
-  }
+  } await complianceProposalItem(root, project, inspectPath, add, notes);
   createOrAdopt(RECORDS_README_REL, "explains the immutable observation records", "already present; left exactly as it is", () => recordsReadme(project));
   planGitignoreStep(ctx);
 

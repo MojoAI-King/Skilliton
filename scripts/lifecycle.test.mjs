@@ -29,7 +29,7 @@ const CLI = join(here, "skilliton.mjs");
 const PLUGIN = join(REPO, "packs", "base", "plugins", "workflow");
 // Whether the cross-lane modules status reads are in this build (they are optional to the lifecycle engine).
 const HAS_MIGRATIONS = existsSync(join(PLUGIN, "runtime", "lib", "migrations.mjs"));
-const HAS_SECURITY = existsSync(join(PLUGIN, "runtime", "lib", "security.mjs"));
+const HAS_SECURITY = existsSync(join(PLUGIN, "runtime", "lib", "security.mjs")); const HAS_COMPLIANCE = existsSync(join(PLUGIN, "runtime", "lib", "compliance.mjs"));
 const BIN = join(PLUGIN, "bin", "skilliton");
 const HOOKS_JSON = join(PLUGIN, "hooks", "hooks.json");
 const INSTALLED = JSON.parse(readFileSync(join(PLUGIN, ".claude-plugin", "plugin.json"), "utf8")).version;
@@ -1414,8 +1414,8 @@ test("status exits 0 for a clean prepared project, and --json is exactly one res
     /^OK         handoff: docs\/HANDOFF\.md was written .+; no later commit or uncommitted change \(0 uncommitted path\(s\)\)$/m,
     /^NOTE       sessions: no session recorded in this worktree's journal/m,
     HAS_SECURITY ? /^NOT RUN    security: security evidence not available: no security catalog at \.skilliton\/security\/catalog\.json/m : /^NOT RUN    security: not available in this build \(runtime\/lib\/security\.mjs is not present\)$/m,
-    /^NOT RUN    enrollment: not evaluated: .*\.claude[\\/]settings\.json enables no plugins, so there is nothing to compare/m,
-    new RegExp("^Summary: Nothing needs attention among the checks that ran\\. Not run: " + [HAS_MIGRATIONS ? null : "migrations", "enrollment", "security"].filter(Boolean).join(", ") + "\\.$", "m"),
+    /^NOT RUN    enrollment: not evaluated: .*\.claude[\\/]settings\.json enables no plugins, so there is nothing to compare/m, HAS_COMPLIANCE ? /^NOT RUN    compliance: /m : /^NOT RUN    compliance: not available in this build \(runtime\/lib\/compliance\.mjs is not present\)$/m,
+    new RegExp("^Summary: Nothing needs attention among the checks that ran\\. Not run: " + [HAS_MIGRATIONS ? null : "migrations", "enrollment", "security", "compliance"].filter(Boolean).join(", ") + "\\.$", "m"),
   ]) assert.match(r.out, pattern);
 
   const j = statusJson(p, env);
@@ -1423,7 +1423,7 @@ test("status exits 0 for a clean prepared project, and --json is exactly one res
   assert.equal(j.err, "");
   assert.deepEqual(Object.keys(j.json), ["schema", "command", "result", "summary", "details"]);
   assert.deepEqual([j.json.schema, j.json.command, j.json.result], ["skilliton.result/1", "status", "complete"]);
-  assert.deepEqual(j.json.details.checks.map((c) => c.name), ["layout", "migrations", "versions", "enrollment", "records", "tasks", "handoff", "sessions", "security"]);
+  assert.deepEqual(j.json.details.checks.map((c) => c.name), ["layout", "migrations", "versions", "enrollment", "records", "tasks", "handoff", "sessions", "security", "compliance"]);
   assert.equal(j.json.details.layout.version, 3);
   assert.equal(j.json.details.migrations.available, HAS_MIGRATIONS);
   assert.equal(j.json.details.versions.installed, INSTALLED);

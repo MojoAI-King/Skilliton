@@ -21,7 +21,7 @@ import { GitError, changedPaths, gitTopLevel, readGitState, readJournal, runGit 
 import { TaskChangedError, TaskRecordError, fencedLines, gitLine, listTasks, pickCurrent } from "./tasks.mjs";
 import { deletedTracked, restoreAdvice } from "./records-restore.mjs";
 import { LEGACY_NAME, LEGACY_PROJECT_DIR } from "./legacy-names.mjs";
-import { HANDOFF_PLACEHOLDER } from "./project-files.mjs";
+import { HANDOFF_PLACEHOLDER, complianceCheck } from "./project-files.mjs";
 import { OperationFailed } from "./prepare.mjs";
 import { endedFor, sessionWho as who } from "./previous-session.mjs";
 
@@ -500,7 +500,7 @@ async function securityCheck(root) {
 
 // ---------- gathering ----------
 
-const CHECK_ORDER = ["layout", "migrations", "versions", "enrollment", "records", "tasks", "handoff", "sessions", "security"];
+const CHECK_ORDER = ["layout", "migrations", "versions", "enrollment", "records", "tasks", "handoff", "sessions", "security", "compliance"];
 
 // Evaluates every check. project: the resolved project, or undefined to resolve it here (a configuration problem is
 // then recorded in report.configProblem and the checks that need it are not run). currentSession: the hook's session
@@ -558,7 +558,7 @@ export async function gatherProjectState(root, { state = null, project = undefin
     handoff: () => handoffCheck(project, git),
     sessions: () => sessionsCheck(root, git, currentSession),
     // A project under the earlier names keeps its evidence in the earlier project folder, which this runtime does not read.
-    security: () => (project?.legacyNames ? { status: "not-run", summary: `not evaluated: the evidence is under the earlier ${LEGACY_NAME} names until the project is migrated (${selfCommand()} migrate)`, data: { available: false } } : securityCheck(root)),
+    security: () => (project?.legacyNames ? { status: "not-run", summary: `not evaluated: the evidence is under the earlier ${LEGACY_NAME} names until the project is migrated (${selfCommand()} migrate)`, data: { available: false } } : securityCheck(root)), compliance: () => complianceCheck(root),
   };
   const needsProject = new Set(["layout", "migrations", "versions", "records", "tasks", "handoff"]);
   for (const name of CHECK_ORDER) {
