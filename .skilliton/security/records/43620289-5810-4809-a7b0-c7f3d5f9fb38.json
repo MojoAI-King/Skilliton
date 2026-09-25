@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "43620289-5810-4809-a7b0-c7f3d5f9fb38",
+  "controlId": "SG-SECURITY-LOGGING",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "c9e16ce03711bb01577bc867a20448f068ee738c9d4077ab4d20e0995c11bca0",
+  "recordedAt": "2026-09-25T04:08:33.076Z",
+  "assessment": "gap",
+  "note": "Gap, reassessed after 1.4.3: the guard now keeps each ask it answers in the git folder's skilliton/guardrails.jsonl (time, mode, answer, reason, never the command), but blocked commands and gate rejections are still not kept and nothing reads the file. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-25, for the owner to countersign",
+  "sources": [
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/journal.mjs",
+      "sha256": "2a8fc99c71c06e50d64bb29f9b8a204f379278a65dd300248f563acbb1b0e508"
+    },
+    {
+      "path": "packs/base/plugins/guardrails/hooks/guard-bash.sh",
+      "sha256": "31d721b8c2239350e5da4330c030fa271bffeac1847353f7b82cbe948b35a5fb"
+    },
+    {
+      "path": "scripts/guardrails-modes.test.sh",
+      "sha256": "67656800758c354add25e625ed8fed6ff4500ab62cd8c4477a0a954a7284b37f"
+    },
+    {
+      "path": "docs/CONTRACTS.md",
+      "sha256": "3f11916e7c40947f57cab0b9c8d7b2fba413ab4f648d3170cd7fa97c8b31b9b3"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassess-5-SG-SECURITY-LOGGING.md",
+      "sha256": "2ab3573dab8712221e1162fe401dc4f48351850cf4048a4c82d10f16597b35e1"
+    }
+  ]
+}

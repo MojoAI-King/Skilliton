@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "id": "dcaa9ba8-563a-4ed3-bb86-cac660baedc7",
+  "controlId": "SG-SECURITY-TESTS",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "43f3ea8411368596e4041725bfbc81e35406462c22fdf316644aba1915202864",
+  "recordedAt": "2026-09-25T04:08:33.144Z",
+  "assessment": "observed",
+  "note": "Reassessed after 1.4.3: full checks on the tagged commit 6ae2b20 read 114 pass, 0 fail, 2 skipped (CI-only) of 116; the six guard suites pass on the merged lane and the new modes suite (61) is in CI; no mutants were applied to the modes code. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-25, for the owner to countersign",
+  "sources": [
+    {
+      "path": "scripts/guardrails.test.sh",
+      "sha256": "f8f7c2c9379c0f622acc31e7b708d85fedb98a8c4953d94f62b836b8d6f06d14"
+    },
+    {
+      "path": "scripts/guardrails-bypass.test.sh",
+      "sha256": "5b451b08451dc766671a39d0504ce89423e95ccca5c17dfa0ba4e0c12529f8d4"
+    },
+    {
+      "path": "scripts/guardrails-review.test.sh",
+      "sha256": "ebc98808f6c4c84a903a75052d15b2e73194e64467c1c217fe81133fa96b6775"
+    },
+    {
+      "path": "scripts/guardrails-review2.test.sh",
+      "sha256": "a478d59748faa3fb1a7e7042ef3e43a2f1597fd7d88a400daddec93c97f654e0"
+    },
+    {
+      "path": "scripts/guardrails-timing.test.sh",
+      "sha256": "298b440fdc905da6499504e93cbd21913c1f48eac79169032617c07ca45c81ec"
+    },
+    {
+      "path": "scripts/delivery.test.mjs",
+      "sha256": "d0c508d731373b9f18c9324a42c0560e3a9db6da9700eb5124c9714dfd7d5efc"
+    },
+    {
+      "path": "scripts/delivery-protect.test.mjs",
+      "sha256": "51a1eb8af2f7a274be23bfc1a0768020c3dac1c4066588fd243cd6a28797ac40"
+    },
+    {
+      "path": "scripts/delivery-integrity.test.mjs",
+      "sha256": "2e09c87aa1ff26ad87b5488f46a177afc8c2ff58aeed14b6d85ec4b9425db40a"
+    },
+    {
+      "path": "scripts/release-refusals.test.mjs",
+      "sha256": "2f8521ffd3db5265511123c06f39b2dd239b398ced719dc0dca3325db35d2e99"
+    },
+    {
+      "path": "scripts/read-guard.test.mjs",
+      "sha256": "104617dcd337db4079da43749b88f6ba8c432431b3e6427a63c568d2a46b514f"
+    },
+    {
+      "path": "packs/base/plugins/guardrails/hooks/guard-bash.sh",
+      "sha256": "31d721b8c2239350e5da4330c030fa271bffeac1847353f7b82cbe948b35a5fb"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/delivery.mjs",
+      "sha256": "e1023c5df5a61dc11ff9fa282608cba3d010ad9939b9a8f6c3f6f9a5bf2446fc"
+    },
+    {
+      "path": "scripts/write-links.test.mjs",
+      "sha256": "3201383bdd9bb3d7f1fd3a2e00db4dd17b1ac8f9ea8964b560cbefe6f52632c8"
+    },
+    {
+      "path": "scripts/usage-ledger-links.test.mjs",
+      "sha256": "1200671c74959bfd065f5bb2664c4989ce53cb6a3e934b2a20afa1d18e88864b"
+    },
+    {
+      "path": "scripts/gate-process-label.test.mjs",
+      "sha256": "80cabae4803c9e656849a80602322bddee301eeb27c6a88c34fa318c35c17f4e"
+    },
+    {
+      "path": "scripts/security-entry-paths.test.mjs",
+      "sha256": "9890dd93a9854ac50daa2554a1678d173492c4e90475ca430f1f8c984d34ead7"
+    },
+    {
+      "path": "scripts/guardrails-modes.test.sh",
+      "sha256": "67656800758c354add25e625ed8fed6ff4500ab62cd8c4477a0a954a7284b37f"
+    },
+    {
+      "path": "scripts/dispatch-links.test.mjs",
+      "sha256": "9afe93cf7bafc061f57ac8dfdab4a2cfd6410a92f73de202acfe2725a4417fab"
+    },
+    {
+      "path": "scripts/write-sites.test.mjs",
+      "sha256": "1c2064bc3f242a64be90dbbc2eb99613890f2bde428e39628a6508037c11caca"
+    },
+    {
+      "path": "scripts/lane-agent-cost.test.mjs",
+      "sha256": "7f653d0801e52c61476409475e22de52a39566bacf375331e560841bff7d3c39"
+    },
+    {
+      "path": "scripts/awake.test.mjs",
+      "sha256": "c003723633e8d561c94709a8745a154f6ee08a99fde29dfe51e47e0cbbdce234"
+    },
+    {
+      "path": "scripts/security-path-refusals.test.mjs",
+      "sha256": "0bfdf3a8f540cbdb3f23f6e48a43ed4720273d997ae8d07bc208c11bef36ffbe"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassess-5-SG-SECURITY-TESTS.md",
+      "sha256": "6f97e46592b652c7b685cfac34c16f3880a34ec5ac1d23c0f06d726623059519"
+    }
+  ]
+}

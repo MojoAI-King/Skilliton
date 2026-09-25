@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "b59b2e69-7700-41a4-ae88-f55367244464",
+  "controlId": "SG-ROOT-CAUSE",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "a16162d4e4ca1f1d3bf1d2fb0c5b52a6efbc776dd71844b564d611ac265d116c",
+  "recordedAt": "2026-09-25T04:08:33.008Z",
+  "assessment": "observed",
+  "note": "Reassessed after 1.4.3: 67 lesson entries, every one with a mechanism and a fix section; 21 contain a hex string shaped like a commit hash. The earlier claim stands with that limit. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-25, for the owner to countersign",
+  "sources": [
+    {
+      "path": "docs/lessons/README.md",
+      "sha256": "b962c162186a06e707834f762b32463d70a9140850739cc5d2778bde9df416cc"
+    },
+    {
+      "path": "scripts/join.test.mjs",
+      "sha256": "89e31fb8716b4a43222849a14865b9167152ecaa17eae46b7b07f46ec54732c4"
+    },
+    {
+      "path": "scripts/guardrails.test.sh",
+      "sha256": "f8f7c2c9379c0f622acc31e7b708d85fedb98a8c4953d94f62b836b8d6f06d14"
+    },
+    {
+      "path": "scripts/release.test.mjs",
+      "sha256": "5317d2675057ac48df37c6fed9f1f577dad3a4bf9be0760140d7e010ddbd56b0"
+    },
+    {
+      "path": "docs/lessons/2026-09-24-a-test-proved-under-a-non-interactive-sh-db8c.md",
+      "sha256": "f722cbfed75f6a12a5443f196db34577964c1d18e707cc0ec0671c5054ba0f69"
+    },
+    {
+      "path": "docs/lessons/2026-09-24-a-check-run-that-spans-a-system-sleep-fa-0567.md",
+      "sha256": "c074f576f66bfcf103d2ef7ab368f5edaf366515dce7b104719a88a01e83ca3b"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassess-5-SG-ROOT-CAUSE.md",
+      "sha256": "c82c2858fcae3e3be7926cb8e6aad6481b175bf68a21b990c445982df7c16887"
+    }
+  ]
+}

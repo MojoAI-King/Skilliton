@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "c4ca5f94-4250-4e8b-a844-f48126ce6341",
+  "controlId": "SG-ACCESS-CONTROL",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "62808c672f72b21287f7016d618a6c88be600612cdef012595d71c2ac2f90d7e",
+  "recordedAt": "2026-09-25T04:08:32.937Z",
+  "assessment": "observed",
+  "note": "Reassessed after 1.4.3: quiet mode changes what becomes of an ask, not who may change policy, protected branches or records; blocked commands stay blocked in every mode and a settings-file write still asks. The earlier claim stands. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-25, for the owner to countersign",
+  "sources": [
+    {
+      "path": "docs/DELIVERY.md",
+      "sha256": "f00ff3eb2666e5486dca2b6ab7b946dca574337177cf0ff6c32be64b1c033094"
+    },
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/delivery.mjs",
+      "sha256": "e1023c5df5a61dc11ff9fa282608cba3d010ad9939b9a8f6c3f6f9a5bf2446fc"
+    },
+    {
+      "path": "scripts/delivery.test.mjs",
+      "sha256": "d0c508d731373b9f18c9324a42c0560e3a9db6da9700eb5124c9714dfd7d5efc"
+    },
+    {
+      "path": "scripts/guardrails.test.sh",
+      "sha256": "f8f7c2c9379c0f622acc31e7b708d85fedb98a8c4953d94f62b836b8d6f06d14"
+    },
+    {
+      "path": "packs/base/plugins/guardrails/skills/guardrails/SKILL.md",
+      "sha256": "b2be34071a0f3b1e6a4ff5695256e84344da66fe8cc2fb1089df8ec23a79cc0b"
+    },
+    {
+      "path": "scripts/guardrails-modes.test.sh",
+      "sha256": "67656800758c354add25e625ed8fed6ff4500ab62cd8c4477a0a954a7284b37f"
+    },
+    {
+      "path": "packs/base/plugins/guardrails/hooks/guard-bash.sh",
+      "sha256": "31d721b8c2239350e5da4330c030fa271bffeac1847353f7b82cbe948b35a5fb"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassess-5-SG-ACCESS-CONTROL.md",
+      "sha256": "f0aa3e953599c35f3b65190e86db2a56f7da604e8f6f2de0c7a2afc4cfdbad3a"
+    }
+  ]
+}

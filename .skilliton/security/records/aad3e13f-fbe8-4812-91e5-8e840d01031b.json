@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "aad3e13f-fbe8-4812-91e5-8e840d01031b",
+  "controlId": "SG-DEPENDENCY-RISK",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "063767d5c35e0c0e48a7ccaf5ced093af982899c1a0570e4858d0f6b470883da",
+  "recordedAt": "2026-09-25T04:08:33.215Z",
+  "assessment": "gap",
+  "note": "Gap, reassessed after 1.4.3: INSTALL.md changed an example tag and one table row; still no inventory of Node, git and the pinned CI actions, no dated vulnerability check and no agreed update time frames. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-25, for the owner to countersign",
+  "sources": [
+    {
+      "path": "scripts/lint.test.mjs",
+      "sha256": "48502a05086487d7ef6136921e12e611fb07d2735fb40f543373fb58e54ab066"
+    },
+    {
+      "path": "INSTALL.md",
+      "sha256": "ff0acf561fb86374afcad669b8419c0c08966ca4e090999ddfdfbec60bacf113"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassess-5-SG-DEPENDENCY-RISK.md",
+      "sha256": "475a8eac07a8e2a44cbdeec6c40e90b70ea04348a465ce7f012429cd6f3a4c8f"
+    }
+  ]
+}
