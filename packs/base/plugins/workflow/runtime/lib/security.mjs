@@ -337,7 +337,7 @@ export function evaluateSecurity(root, { now = Date.now(), budget = newBudget() 
   const invalid = poisoned || rows.some((row) => row.freshness === 'invalid');
   const complete = !invalid && counts.undecided === 0 && counts.current === counts.applicable;
   return {
-    project, catalog, rows, counts,
+    project, catalog, rows, counts, now,
     invalidRecords: history.invalid,
     inactiveRecords: history.records.filter((r) => !controlIds.has(r.controlId)).length,
     applicabilityExists: applicability.exists,
@@ -388,6 +388,19 @@ export function securitySummary(root) {
     if (e instanceof ConfigError) return { available: false, reason: `the project configuration could not be used: ${e.message}` };
     return { available: false, reason: `security evidence could not be evaluated (${e?.code ?? 'unexpected error'})` };
   }
+}
+
+// ---------- status json ----------
+
+// The machine-readable shape of `security status --json`: pure, built only from what evaluateSecurity already
+// computed. generatedAt is the `now` evaluateSecurity used (or defaulted to), not a fresh timestamp taken here.
+export const STATUS_JSON_SCHEMA = 'skilliton.security-status/1';
+const statusControl = (row) => ({ id: row.control.id, title: row.control.title, applies: row.applies, decidedBy: row.decision?.decidedBy ?? null,
+  assessment: row.assessment, freshness: row.freshness, recordId: row.record?.id ?? null,
+  recordedAt: row.record?.recordedAt ?? null, maxAgeDays: row.maxAgeDays });
+export function statusJson(ev) {
+  return { schema: STATUS_JSON_SCHEMA, catalogVersion: ev.catalog.catalogVersion, generatedAt: new Date(ev.now).toISOString(),
+    controls: ev.rows.map(statusControl), counts: ev.counts };
 }
 
 // ---------- report ----------

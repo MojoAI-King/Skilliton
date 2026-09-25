@@ -23,7 +23,7 @@ export const help = `security: project security evidence. Status, recorded obser
 collectors, and open findings in their own file. Commands that write show their change first and write only with
 --apply. --dir names the project folder (default: the current folder).
 
-  security status [--dir <project>] [--require-collected] [--apply]
+  security status [--dir <project>] [--require-collected] [--json] [--apply]
       Print the evidence report for every control in .skilliton/security/catalog.json: applicability, the latest
       assessment, and freshness (current, stale, expired, missing, invalid). --apply also writes
       .skilliton/security/REPORT.md; only a report carrying the generated marker is replaced. Status never creates or
@@ -34,6 +34,8 @@ collectors, and open findings in their own file. Commands that write show their 
       and SG-CHECK-CRITERIA when .skilliton/delivery.json exists) that has no record at all, and 0 when each has one.
       Stale and expired are named on the control's line and do not fail it (maintain refreshes them). Invalid
       evidence still exits 2.
+      --json prints exactly one JSON object (schema skilliton.security-status/1) and nothing else, and does not
+      combine with --apply or --require-collected. The exit code matches what the report would exit.
 
   security record --control <id> --assessment observed|gap|needs-human --note <text> --reviewer <label>
                   [--source <file>]... [--artifact <file>]... [--dir <project>] [--apply]
@@ -98,7 +100,7 @@ Exit 3: operation failed: a file could not be read or written, git is missing, o
 The standalone prototype used exit 2 for attention and exit 1 for refusals; these are the shared codes instead.`;
 
 const SUBCOMMANDS = {
-  status: { options: ['dir'], repeat: [], flags: ['require-collected'] },
+  status: { options: ['dir'], repeat: [], flags: ['require-collected', 'json'] },
   record: { options: ['dir', 'control', 'assessment', 'note', 'reviewer'], repeat: ['source', 'artifact'] },
   applicability: { options: ['dir', 'control', 'applies', 'rationale', 'decided-by'], repeat: [], flags: ['propose', 'accept-proposal', 'replace'] },
   collect: { options: ['dir', 'control', 'reviewer'], repeat: ['source'] },
@@ -176,10 +178,17 @@ function requireOptions(o, sub, names) {
 }
 
 async function status({ o }) {
+  if (o.json && (o.apply || o['require-collected'])) {
+    throw new Refused('security status --json does not combine with --apply or --require-collected; run it alone. Nothing was read or written.');
+  }
   const root = projectDir(o);
   const ev = security.evaluateSecurity(root);
-  const report = security.renderReport(ev);
   const code = security.exitCodeFor(ev.result);
+  if (o.json) {
+    process.stdout.write(`${JSON.stringify(security.statusJson(ev), null, 2)}\n`);
+    return code;
+  }
+  const report = security.renderReport(ev);
   const c = ev.counts;
   process.stdout.write(report);
   if (!existsSync(join(root, collectors.DELIVERY_REL))) {
