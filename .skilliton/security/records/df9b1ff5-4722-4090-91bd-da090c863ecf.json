@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "df9b1ff5-4722-4090-91bd-da090c863ecf",
+  "controlId": "SG-SECURITY-LOGGING",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "c9e16ce03711bb01577bc867a20448f068ee738c9d4077ab4d20e0995c11bca0",
+  "recordedAt": "2026-09-25T19:53:10.091Z",
+  "assessment": "gap",
+  "note": "Gap, reassessed after 1.5.0, unchanged: only CONTRACTS.md changed among its sources (the compliance section and the gate's sleep-time read), neither about what is kept; blocked commands and gate rejections are still not kept and nothing reads the guard's notes file. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-25, for the owner to countersign",
+  "sources": [
+    {
+      "path": "packs/base/plugins/workflow/runtime/lib/journal.mjs",
+      "sha256": "2a8fc99c71c06e50d64bb29f9b8a204f379278a65dd300248f563acbb1b0e508"
+    },
+    {
+      "path": "packs/base/plugins/guardrails/hooks/guard-bash.sh",
+      "sha256": "31d721b8c2239350e5da4330c030fa271bffeac1847353f7b82cbe948b35a5fb"
+    },
+    {
+      "path": "scripts/guardrails-modes.test.sh",
+      "sha256": "67656800758c354add25e625ed8fed6ff4500ab62cd8c4477a0a954a7284b37f"
+    },
+    {
+      "path": "docs/CONTRACTS.md",
+      "sha256": "606a5cc7b7f20863199c60dbe42522fb3725e6a6fbf66792e1fcb6918462358a"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-25-reassess-6-SG-SECURITY-LOGGING.md",
+      "sha256": "271c5a9bf2eb42e74198025f997c41da513b35b244076706cc78da6a00e7aa21"
+    }
+  ]
+}

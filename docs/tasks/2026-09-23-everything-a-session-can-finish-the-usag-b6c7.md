@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-25T19:21:19.964Z
+- **Updated:** 2026-09-25T19:58:16.863Z
 
 ## Request
 
@@ -127,9 +127,16 @@ not yet written
 - **Next:** Full node scripts/checks.mjs on the commit after this checkpoint, then release sign 1.5.0 on that same commit with nothing committed between.
 - **Git:** main @ 529f247, 0 uncommitted
 
+### 2026-09-25T19:58:16.863Z
+
+- **State:** Release 1.5.0 published and verified: tag on bcf994e (manifest 1977bef3764a, 24 evidence files), pushed 15:50 EDT, 10 approved in a fresh clone, all 8 installs VERIFIED here (project scope reinstalled after pin dropped it, B102). Owner items recorded, history rewritten by the owner, five security records reassessed (7 of 13 current, 0 stale, 5 gaps, 1 needs a human). Not done: the named scope on the health repository (a client's repository, the owner's to run); B90, B93 to B96, B98 to B102.
+- **Evidence:** Full checks on bcf994e 121 pass, 0 fail, 2 skipped of 123; CI on bcf994e success 129 steps; tag -v good; release list in a fresh clone 10 approved; verify 8 VERIFIED; docs, records, backlog, scrub exit 0.
+- **Next:** Restart the client to load workflow 0.26.0. Then, on the owner's go-ahead: B102 (pin keeps project-scope installs), B95 (the checkpoint reminder during waits), B94 (a fast-forward merge triggers maintenance).
+- **Git:** main @ bcf994e, 8 uncommitted
+
 ## Handoff
 
-- **State:** Release 1.5.0 manifest committed as 529f247 (manifest-sha256 1977bef3764a, 24 evidence files, built from c07882c); not yet signed or pushed. Evidence: CI green on c07882c: 129 steps, 0 failed, 0 skipped; footprint and its self-test, scrub and docs exit 0 locally.
-- **Next:** Full node scripts/checks.mjs on the commit after this checkpoint, then release sign 1.5.0 on that same commit with nothing committed between.
-- **Blocked:** The force-push to main is person-only (the guard and the ruleset); the named scope on the health repository is the owner's to run in that repository.
-- **Watch out:** Restart the client to load guardrails 0.12.0 and workflow 0.25.3; the guard is now in quiet mode on this machine from a signed release, so a command it cannot read runs and is noted in .git/skilliton/guardrails.jsonl; a laptop on 1.3.0 or earlier reads this register as all invalid; .skilliton/security/REPORT.md is an untracked generated file; read the clock before typing a time
+- **State:** Release 1.5.0 published and verified: tag on bcf994e (manifest 1977bef3764a, 24 evidence files), pushed 15:50 EDT, 10 approved in a fresh clone, all 8 installs VERIFIED here (project scope reinstalled after pin dropped it, B102). Owner items recorded, history rewritten by the owner, five security records reassessed (7 of 13 current, 0 stale, 5 gaps, 1 needs a human). Not done: the named scope on the health repository (a client's repository, the owner's to run); B90, B93 to B96, B98 to B102. Evidence: Full checks on bcf994e 121 pass, 0 fail, 2 skipped of 123; CI on bcf994e success 129 steps; tag -v good; release list in a fresh clone 10 approved; verify 8 VERIFIED; docs, records, backlog, scrub exit 0.
+- **Next:** Restart the client to load workflow 0.26.0. Then, on the owner's go-ahead: B102 (pin keeps project-scope installs), B95 (the checkpoint reminder during waits), B94 (a fast-forward merge triggers maintenance).
+- **Blocked:** Owner only: the named scope on the health repository; the earlier hands-on items (the Usage screen, OWNER_TESTS rows, a clean macOS account, Codex login, Windows, an endpoint product, a participant).
+- **Watch out:** 25 commits from the rewrite have new shas; lesson 71cd maps them. A clone of main fetched between 04:59 and 17:59 UTC today needs a reset to origin/main. pin leaves the checkout detached and drops project-scope installs.

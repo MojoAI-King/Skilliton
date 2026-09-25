@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "1911737f-95f9-47da-930e-d6b296efce6b",
+  "controlId": "SG-RECURRING-PATTERNS",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "d1aa4227c54b2e8234a489358db9fe1f4e4c587d7b3b08c793c1f0aca5615dbb",
+  "recordedAt": "2026-09-25T19:53:09.776Z",
+  "assessment": "gap",
+  "note": "Gap, reassessed after 1.5.0: a known cause recurred twice today (a check set chosen by the person changing the code instead of the full list, in a lane and then in the main window), with a timing failure recorded as load without measuring it; still no periodic cross-finding review. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-25, for the owner to countersign",
+  "sources": [
+    {
+      "path": "docs/THREAT_MODEL.md",
+      "sha256": "e40ab6edec2ea460d22a7ea5487aa9356e532b16e8257e6aa36184f0097742ca"
+    },
+    {
+      "path": "SECURITY.md",
+      "sha256": "50bc8f372cb94229e51e95990c9d6ae3feb44765b885d36332f10268b7f8db1f"
+    },
+    {
+      "path": "scripts/skill-writers.test.mjs",
+      "sha256": "4c2a3ddf49fee41338a9f61c7da2c4908cead1664b5a22d60f2d84f9298d93b6"
+    },
+    {
+      "path": "docs/lessons/2026-09-24-a-fix-that-hardens-the-writers-it-names-772e.md",
+      "sha256": "b213d2a289a27a0406af42f3c1f52561c6fffc57cdc59822fa1080c07ede92f8"
+    },
+    {
+      "path": "docs/lessons/2026-09-24-a-check-run-that-spans-a-system-sleep-fa-0567.md",
+      "sha256": "c074f576f66bfcf103d2ef7ab368f5edaf366515dce7b104719a88a01e83ca3b"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "43c0822f72c66635c42bbc95cc9e439380ee3abaf4145a1484603dcf3d99b1a4"
+    },
+    {
+      "path": "docs/lessons/2026-09-24-a-test-proved-under-a-non-interactive-sh-db8c.md",
+      "sha256": "f722cbfed75f6a12a5443f196db34577964c1d18e707cc0ec0671c5054ba0f69"
+    },
+    {
+      "path": "docs/lessons/2026-09-25-a-lane-s-own-suites-are-not-the-merge-ga-2e32.md",
+      "sha256": "d60be35d3efcc085843a2b0ef1d2cbfb48de3117b0f976efe7a5aba3637873e9"
+    },
+    {
+      "path": "docs/lessons/2026-09-25-reading-the-whole-power-log-made-every-f-12f0.md",
+      "sha256": "8381715766344c196bd3562976bdc5b0b3b069bc5d99ece1dd22ec4568cb3510"
+    },
+    {
+      "path": "docs/lessons/2026-09-25-a-history-rewrite-gives-every-rewritten-71cd.md",
+      "sha256": "608f456f76a5e054ad5426039e80fb5bfbe78d72cbd429d23dadaa1d41b476e6"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-25-reassess-6-SG-RECURRING-PATTERNS.md",
+      "sha256": "134985780c86b3a16ac02b5e16a21e0be29c09f9a6e5fe42a81bdf4310f5c097"
+    }
+  ]
+}
