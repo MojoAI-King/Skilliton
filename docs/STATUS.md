@@ -40,5 +40,4 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 | ID | Title | State | Branch | Owner |
 |---|---|---|---|---|
 | [2026-09-23-everything-a-session-can-finish-the-usag-b6c7](tasks/2026-09-23-everything-a-session-can-finish-the-usag-b6c7.md) | Everything a session can finish: the usage batch, the open backlog rows and the security records | in-progress | main | unassigned |
-| [2026-09-25-compliance-in-skilliton-frameworks-as-da-3e50](tasks/2026-09-25-compliance-in-skilliton-frameworks-as-da-3e50.md) | Compliance in Skilliton: frameworks as data, detection with a named confirmation, the control sheet from existing evidence | in-progress | main | unassigned |
 <!-- skilliton:index:tasks:end -->

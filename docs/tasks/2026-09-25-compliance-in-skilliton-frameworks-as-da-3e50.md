@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-25-compliance-in-skilliton-frameworks-as-da-3e50
-- **State:** in-progress
+- **State:** merged
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-25T07:40:25.690Z
+- **Updated:** 2026-09-25T08:12:17.280Z
 
 ## Request
 
@@ -71,9 +71,16 @@ not yet written
 - **Next:** Read the eval result, file it with scripts/evidence.mjs --sha a5d3b58 --notes, tick C6 or record why not, maintain --apply, checkpoint --handoff. Then the owner: the history rewrite from the scratchpad steps, after which CI goes green and release 1.5.0 can be signed.
 - **Git:** main @ a5d3b58, 1 uncommitted
 
+### 2026-09-25T08:12:16.997Z
+
+- **State:** Batch complete on main: five lanes merged fast-forward and closed, N8 records written, N10 re-run recorded, the eval compliance-never-certifies run twice (0.75 both arms at a5d3b58; 1.00 with against 0.67 without at 1e9de2e after section 4 of the skill was rewritten), all eight criteria ticked with evidence; workflow 0.26.0 is on main and not released. This task is closed as merged after this checkpoint.
+- **Evidence:** Eval evidence under evidence/a5d3b589... and evidence/1e9de2e...; the full delivery run on the last lane tree 119 pass, 2 fail (gate timing under load, rerun 19 of 19; the history scrub, four known lines), 2 skipped of 123; maintain --apply run after 1e9de2e; scrub, docs, packs, compliance-skill-words with self-test exit 0.
+- **Next:** Release 1.5.0 once main is green: the owner runs the history rewrite from the scratchpad steps (history-rewrite/README.md and replace.txt in this session scratchpad; four lines from two lane task records, B97), then the release skill from a full run on the release commit. Owner items: review frameworks/baseline-2-to-nist-csf-2.json and set reviewedBy (kill criterion two of decision 39ef); the verdict column in evidence/live/2026-09-25-compliance-two-repositories.md; the SOC 2 and PCI DSS terms; a named scope on the health repository if the sheet is to be measured there. Backlog B97 to B101 from this batch; the other open task b6c7 belongs to the other window.
+- **Git:** main @ da4caab, 2 uncommitted
+
 ## Handoff
 
-- **State:** All five lanes merged fast-forward and the batch closed at a5d3b58: compliance-hooks merged as ccb6f70 after reconciling its guessed seam to the real modules; its task record closed as merged; C1 to C5, C7 and C8 ticked with evidence; dispatch close detached the five lane folders to main and appended cost and peak context to the reports (compliance-hooks 567k, compliance-runtime 330k and frameworks-data 287k ran past the 200k bound); the five lane branches deleted. Open: C6 (the eval compliance-never-certifies is running in the background into the session scratchpad), the evidence file for it, the final maintain and handoff, release 1.5.0 (blocked on a red main), the owner items. Evidence: Full delivery run on the rebased hooks tree: 119 pass, 2 fail, 2 skipped of 123; the two fails: scripts/gate.test.mjs two timing assertions under a load average of 14 to 17 from unrelated processes, 19 of 19 rerun alone; the scrub step, tree scans 0 hits, history 4 known lines (B97). On main after the merge: docs, lint, scrub, names, packs, checks-runner exit 0. The history scan over every ref after deleting the lane branches still names the same 4 lines, all on main.
-- **Next:** Read the eval result, file it with scripts/evidence.mjs --sha a5d3b58 --notes, tick C6 or record why not, maintain --apply, checkpoint --handoff. Then the owner: the history rewrite from the scratchpad steps, after which CI goes green and release 1.5.0 can be signed.
-- **Blocked:** CI stays red on the scrub step until the owner rewrites main from 1c6fe70 onward to drop the two home paths (a force-push to a protected branch, so only the owner, with ruleset 23792740 toggled); no release can be signed on a red main.
-- **Watch out:** Never put a folder under the home directory into LANES.md: dispatch copies item text into task records and commits them without the scrub (B97). The lane branches still hold the old commits, so delete them before the rewrite, not after.
+- **State:** Batch complete on main: five lanes merged fast-forward and closed, N8 records written, N10 re-run recorded, the eval compliance-never-certifies run twice (0.75 both arms at a5d3b58; 1.00 with against 0.67 without at 1e9de2e after section 4 of the skill was rewritten), all eight criteria ticked with evidence; workflow 0.26.0 is on main and not released. This task is closed as merged after this checkpoint. Evidence: Eval evidence under evidence/a5d3b589... and evidence/1e9de2e...; the full delivery run on the last lane tree 119 pass, 2 fail (gate timing under load, rerun 19 of 19; the history scrub, four known lines), 2 skipped of 123; maintain --apply run after 1e9de2e; scrub, docs, packs, compliance-skill-words with self-test exit 0.
+- **Next:** Release 1.5.0 once main is green: the owner runs the history rewrite from the scratchpad steps (history-rewrite/README.md and replace.txt in this session scratchpad; four lines from two lane task records, B97), then the release skill from a full run on the release commit. Owner items: review frameworks/baseline-2-to-nist-csf-2.json and set reviewedBy (kill criterion two of decision 39ef); the verdict column in evidence/live/2026-09-25-compliance-two-repositories.md; the SOC 2 and PCI DSS terms; a named scope on the health repository if the sheet is to be measured there. Backlog B97 to B101 from this batch; the other open task b6c7 belongs to the other window.
+- **Blocked:** Release: CI red on the scrub step until the history rewrite (a force-push to the protected branch, owner only, ruleset 23792740 toggled).
+- **Watch out:** Three lane agents ran past the 200k context bound (567k, 330k, 287k) and still finished; dispatch close recorded it in their reports. Never write a folder under the home directory into LANES.md. The lane folders are detached to main; the five lane branches are deleted.
