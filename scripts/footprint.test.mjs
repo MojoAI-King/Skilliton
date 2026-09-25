@@ -80,6 +80,7 @@ export const SYSTEM_PATHS = [
   ["/usr/bin", "half of the PATH a delivery check falls back to when the server's environment has none"],
   ["/bin", "the other half of that fallback"],
   ["/bin/sh", "the first line of the launcher join writes and of the delivery gate's hook"],
+  ["/usr/sbin/sysctl", "on a Mac, read for kern.sleeptime when a gate run fails, so the power log is read only if a sleep may be in it"],
 ];
 const SYSTEM_PATH_RE = /(?<![A-Za-z0-9._~-])\/(etc|usr|bin|sbin|opt|Library|System|var|private|Applications|dev|tmp|Volumes|proc|root)(\/[A-Za-z0-9._/-]*)?|(?<![A-Za-z0-9])[A-Za-z]:\\\\(?:Program|Windows|Users)/g;
 const WRITE_CALLS = /\b(writeFileSync|appendFileSync|mkdirSync|copyFileSync|renameSync|rmSync|unlinkSync|chmodSync|openSync|createWriteStream)\s*\(\s*["'`]([^"'`]+)["'`]/g;
