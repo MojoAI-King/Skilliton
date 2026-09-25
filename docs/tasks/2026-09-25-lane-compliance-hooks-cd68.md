@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-25-lane-compliance-hooks-cd68
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/compliance-hooks-0925
 - **Owner:** unassigned
-- **Updated:** 2026-09-25T05:20:58.311Z
+- **Updated:** 2026-09-25T07:37:14.094Z
 
 ## Request
 
