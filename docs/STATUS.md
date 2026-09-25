@@ -41,8 +41,4 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 |---|---|---|---|---|
 | [2026-09-23-everything-a-session-can-finish-the-usag-b6c7](tasks/2026-09-23-everything-a-session-can-finish-the-usag-b6c7.md) | Everything a session can finish: the usage batch, the open backlog rows and the security records | in-progress | main | unassigned |
 | [2026-09-25-compliance-in-skilliton-frameworks-as-da-3e50](tasks/2026-09-25-compliance-in-skilliton-frameworks-as-da-3e50.md) | Compliance in Skilliton: frameworks as data, detection with a named confirmation, the control sheet from existing evidence | in-progress | main | unassigned |
-| [2026-09-25-lane-compliance-runtime-66a1](tasks/2026-09-25-lane-compliance-runtime-66a1.md) | Lane compliance-runtime | in-progress | lane/compliance-runtime-0925 | unassigned |
-| [2026-09-25-lane-compliance-skill-36f4](tasks/2026-09-25-lane-compliance-skill-36f4.md) | Lane compliance-skill | in-progress | lane/compliance-skill-0925 | unassigned |
-| [2026-09-25-lane-frameworks-data-98cd](tasks/2026-09-25-lane-frameworks-data-98cd.md) | Lane frameworks-data | in-progress | lane/frameworks-data-0925 | unassigned |
-| [2026-09-25-lane-security-json-f6ad](tasks/2026-09-25-lane-security-json-f6ad.md) | Lane security-json | in-progress | lane/security-json-0925 | unassigned |
 <!-- skilliton:index:tasks:end -->

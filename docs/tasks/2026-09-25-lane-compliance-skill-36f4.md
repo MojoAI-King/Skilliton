@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-25-lane-compliance-skill-36f4
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/compliance-skill-0925
 - **Owner:** unassigned
-- **Updated:** 2026-09-25T04:42:37.237Z
+- **Updated:** 2026-09-25T05:16:25.189Z
 
 ## Request
 

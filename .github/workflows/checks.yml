@@ -242,7 +242,22 @@ jobs:
         run: node --test scripts/handoff-write.test.mjs
 
       - name: Project security evidence and collectors
-        run: node --test scripts/security-evidence.test.mjs scripts/collectors.test.mjs scripts/security-record-refusals.test.mjs scripts/security-propose.test.mjs scripts/security-freshness.test.mjs
+        run: node --test scripts/security-evidence.test.mjs scripts/collectors.test.mjs scripts/security-record-refusals.test.mjs scripts/security-propose.test.mjs scripts/security-freshness.test.mjs scripts/security.test.mjs
+
+      - name: Framework libraries are well formed (the source-dependent checks report NOT RUN here)
+        run: node scripts/frameworks.test.mjs
+
+      - name: compliance scope proposes from planted signals and refuses to record without a name
+        run: node scripts/compliance-scope.test.mjs
+
+      - name: compliance sheet projects security records onto framework controls
+        run: node scripts/compliance-sheet.test.mjs
+
+      - name: No banned word in the sheet, the printed text, the compliance source or the frameworks folder
+        run: node scripts/compliance-words.test.mjs && node scripts/compliance-words.test.mjs --self-test
+
+      - name: No banned word in the compliance skill
+        run: node scripts/compliance-skill-words.test.mjs && node scripts/compliance-skill-words.test.mjs --self-test
 
       - name: security status --require-collected fails on a missing collector-backed record (B71)
         run: node scripts/security-require.test.mjs

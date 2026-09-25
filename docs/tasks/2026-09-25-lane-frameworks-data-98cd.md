@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-25-lane-frameworks-data-98cd
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/frameworks-data-0925
 - **Owner:** unassigned
-- **Updated:** 2026-09-25T04:55:26.035Z
+- **Updated:** 2026-09-25T05:16:25.452Z
 
 ## Request
 

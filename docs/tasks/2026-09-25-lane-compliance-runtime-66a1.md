@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-25-lane-compliance-runtime-66a1
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/compliance-runtime-0925
 - **Owner:** unassigned
-- **Updated:** 2026-09-25T04:57:30.852Z
+- **Updated:** 2026-09-25T05:16:25.711Z
 
 ## Request
 

@@ -34,6 +34,14 @@ Signals fired: none. Frameworks proposed: none; all nine encoded libraries liste
 - What this does not show: whether a repository that handles regulated data but never names it in its root files is detected. That is the known limit of a phrase scan and the reason the intake questions exist; the port keeps them, and prepare asks them when the scan proposes nothing.
 - The owner's verdict column is to be filled by the owner; until then this note supports the design's assumption but does not close it.
 
+## Re-run with the port (2026-09-25, item N10)
+
+From this checkout at commit 7757ac2 (workflow runtime 0.26.0, before the compliance-hooks lane merged): `node scripts/skilliton.mjs compliance scope --json --dir <repository>` on each repository, read-only (the command writes nothing, and `git status` in each repository shows no `.skilliton/compliance` entry afterwards). Knowledge base: the converted scope-kb.json, 1.0.0. Both runs exited 0 with nothing on stderr. The matched text is again not reproduced here.
+
+- Repository A: the same seven signals with the same hit counts as the pre-port run (business-associate-agreement-present 3, consumer-health-data 3, consumer-personal-information-at-scale 1, customer-security-assurance-demand 1, ephi-handling 3, payment-card-acceptance 3, payment-page-fully-outsourced 2), and the same eight frameworks with the same confidence and timing. The port adds the library state and the recording gate: hipaa-security-rule, hipaa-privacy-breach and health-wellness are shipped and recordable (strong, now); pci-dss-v4 and soc2-tsc are proposed but not shipped (held back for their terms); state consumer privacy and ISO/IEC 27001 are not encoded; part2-overlay is shipped but a weak watch, so not recordable. Not pointed at: ftc-safeguards, legal-safeguarding, ny-dfs-500. Intake questions: 3.
+- Repository B: no signal, no framework, all nine knowledge-base entries listed as not pointed at, the same three intake questions.
+- Reading: the port reproduces MojoComply's result on both repositories, signal for signal and framework for framework. `generatedAt` in each proposal is the newest scanned file's modification time (2026-09-24 for A, 2026-09-22 for B), not the clock, as designed.
+
 ## Not run
 
-The ported scanner and the control sheet (batch item N10, after the compliance-runtime and frameworks-data lanes merge). Nothing was written into either repository.
+The control sheet on either repository. It needs a scope confirmed by a named person and written into the repository (`compliance scope --apply --decided-by`) and a security register with records to project, and neither repository gets a write from this batch. The sheet's projection is proved on a synthetic project by `scripts/compliance-sheet.test.mjs`. Running it on repository A, with a named decision, is the owner's call, as is the verdict column above.
