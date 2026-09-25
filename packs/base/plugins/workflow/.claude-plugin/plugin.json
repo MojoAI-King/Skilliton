@@ -1,7 +1,7 @@
 {
   "name": "workflow",
   "description": "The team's way of working and the Skilliton runtime. Skills: task (a request becomes a tracked, recoverable piece of work), dispatch (many items become verified parallel lanes), handoff, maintain, review (plain-English review with a commit verdict) and security (evidence, not assurances). Agents: lane, locate and verify-item, each naming the model and effort it runs on. Runtime (skilliton on the shell path in Claude Code): prepare and migrate projects, task records and checkpoints, status, decision and lesson entries, project security evidence, release verification, the delivery gate, gate (a project's checks as a verdict with the output in a log) and dispatch (a lane plan becomes one Git worktree per lane, each with a brief that bounds it). Hooks: session start shows the handoff and project state; stop reminds to record a checkpoint, and names maintain when a batch has merged; a prompt that reads as six or more separate items gets one note suggesting dispatch; pre-compact and session end keep a local journal for recovery.",
-  "version": "0.25.2",
+  "version": "0.25.3",
   "author": {
     "name": "Mojo AI Services, LLC"
   },

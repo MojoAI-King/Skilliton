@@ -3,7 +3,7 @@
 Kind: Living. Lesson entry.
 
 - **ID:** 2026-09-24-a-count-of-permission-prompts-that-skips-a3a6
-- **Status:** proposed
+- **Status:** accepted
 - **Date:** 2026-09-24
 
 ## What broke

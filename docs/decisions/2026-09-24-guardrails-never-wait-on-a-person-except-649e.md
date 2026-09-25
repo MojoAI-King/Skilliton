@@ -3,7 +3,7 @@
 Kind: Living. Decision entry.
 
 - **ID:** 2026-09-24-guardrails-never-wait-on-a-person-except-649e
-- **Status:** proposed
+- **Status:** accepted
 - **Date:** 2026-09-24
 
 ## Decision
@@ -38,3 +38,5 @@ A command the hook cannot read now runs on a laptop. The header states the limit
 ## Evidence
 
 Lane lane/quiet-guard-0924: the five shipped suites pass as shipped against the new hook (guardrails.test.sh 670, bypass 144 with the two reviews it wraps at 224 and 163, timing 16); scripts/guardrails-modes.test.sh covers the three modes, the two sources and the notes file (60 checks; one expectation was left stale by a refused edit when this entry was written). The prompt count and the replay ran from the session scratchpad over this machine's transcripts and are not committed. The plan document "Skilliton direction: one tool for people and fleets" carries the same decision for the owner's review.
+
+At merge, 2026-09-24, on the lane rebased onto f605f64: guardrails.test.sh 670, bypass 144, review 224, review2 163, timing 16 and guardrails-modes.test.sh 61 pass (the stale expectation above was fixed in the lane), and the modes suite passes 61 under a pseudo-terminal too. Accepted by the owner's request to merge the lane and release it as guardrails 0.12.0.

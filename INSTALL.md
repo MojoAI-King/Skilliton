@@ -61,7 +61,7 @@ claude plugin install code-quality@skilliton
 |---|---|---|
 | Every session start | The last handoff and the project's state are shown to the assistant, which tells you where things stand | enforced by a hook |
 | Before code changes | The assistant writes a task record with acceptance criteria | asked of the assistant |
-| Every shell command | Force-pushes to protected branches, `--no-verify`, secret-shaped commits and deleting Skilliton's records are blocked; commands that throw away uncommitted work ask you first | enforced by a hook |
+| Every shell command | Force-pushes to protected branches, `--no-verify`, secret-shaped commits and deleting Skilliton's records are blocked; a command that would throw away uncommitted work is refused with "commit or stash first", one the hook cannot read runs and is noted, and only turning a rule off or dropping saved work asks you (quiet mode, the default; `guardrails.mode: strict` asks every time) | enforced by a hook |
 | A whole-file read over 50 KB | Refused, with how to read a range instead | enforced by a hook |
 | Finishing with uncommitted changes and no checkpoint in this session, however short it was (`checkpoints.holdFirstStop`, on by default); after a checkpoint, at least 20 minutes since it (`checkpoints.minMinutes`), both in `.skilliton/config.json` | The stop is held once per working-tree state, and the assistant is asked to record where the work stands | enforced by a hook |
 | Six or more separate items in one message | The assistant is told to split them into lanes with `/workflow:dispatch` first | enforced note, the assistant does the work |

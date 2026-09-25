@@ -3,7 +3,7 @@
 Kind: Living. Lesson entry.
 
 - **ID:** 2026-09-24-a-test-proved-under-a-non-interactive-sh-db8c
-- **Status:** proposed
+- **Status:** accepted
 - **Date:** 2026-09-24
 
 ## What broke

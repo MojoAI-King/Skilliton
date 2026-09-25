@@ -169,6 +169,9 @@ jobs:
       - name: Guardrails hook, the time limits (a limit is not judged on an overloaded machine, and says so)
         run: bash scripts/guardrails-timing.test.sh
 
+      - name: Guardrails modes (quiet, strict and fleet), the two sources of the mode and the notes file
+        run: bash scripts/guardrails-modes.test.sh < /dev/null
+
       - name: One set of secret shapes (the runtime scanners and the guardrails hook agree)
         run: node scripts/secret-rules.test.mjs
 

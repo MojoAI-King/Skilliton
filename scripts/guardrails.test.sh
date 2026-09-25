@@ -52,13 +52,10 @@ SS="$(dirname "$HOOK")/session-start-guardrails.sh"
 WHOOK="$SHIPPED_DIR/lane-write-guard.mjs"   # --hook replaces guard-bash.sh only; this one is always the shipped file
 MHOOK="$SHIPPED_DIR/managed-block-guard.mjs" # likewise
 
-export HOME="$TMP/home" GIT_CONFIG_GLOBAL="$TMP/gitconfig" GIT_CONFIG_NOSYSTEM=1
+export HOME="$TMP/home" GIT_CONFIG_GLOBAL="$TMP/gitconfig" GIT_CONFIG_NOSYSTEM=1 SKILLITON_GUARDRAILS_MODE=strict # strict cases; modes: guardrails-modes.test.sh
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
 mkdir -p "$HOME"; : > "$GIT_CONFIG_GLOBAL"
 unset SKILLITON_GUARDRAILS SKILLITON_GUARDRAILS_CLIENT CLAUDE_PROJECT_DIR CLAUDE_PLUGIN_ROOT CLAUDE_PLUGIN_DATA PLUGIN_ROOT PLUGIN_DATA
-# The cases below were written for strict mode, where every ask asks. The default has been quiet since 2026-09-24;
-# what quiet and fleet make of each ask is covered by scripts/guardrails-modes.test.sh.
-export SKILLITON_GUARDRAILS_MODE=strict
 
 fails=0; oks=0
 ok()  { echo "ok   $1"; oks=$((oks + 1)); }
