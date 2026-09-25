@@ -99,9 +99,12 @@ export const secretShaped = (s) => SECRET_SHAPES.some(({ re }) => re.test(s));
 // from that rule and from the credential-word rule in relativePath, so a record can cite an entry; every other shape
 // still applies to the whole path.
 const entryFileName = (part) => part.endsWith('.md') && isId(part.slice(0, -3));
-const secretShapedPath = (p) => SECRET_SHAPES.some(({ rule, re }) => (rule === 'long-encoded-run'
+// The name of the secret shape an attached path matches, or null. The name is a fixed phrase, never the path's text, so
+// a refusal can say which rule fired without printing a value that may be a real secret.
+const secretShapeOfPath = (p) => SECRET_SHAPES.find(({ rule, re }) => (rule === 'long-encoded-run'
   ? p.split('/').some((part) => !entryFileName(part) && re.test(part))
-  : re.test(p)));
+  : re.test(p)))?.rule ?? null;
+const SHAPE_PHRASE = { 'long-encoded-run': 'one path part is a long run of letters, digits, hyphens or underscores, the shape of an encoded key' };
 
 // null when s is a usable text field; otherwise the one rule it broke, in the order this function checks them (a
 // value can break more than one; the first is what is named). textField below is textFieldProblem(s, max) === null,
@@ -118,15 +121,25 @@ export function textField(s, max = 200) {
   return textFieldProblem(s, max) === null;
 }
 
-export function relativePath(p, attachment = false) {
+// where: which attachment this is ("artifacts entry 2"), named in a SENSITIVE_PATH refusal with the rule that fired; the
+// path itself is never named, since a path refused as secret-shaped may be one.
+export function relativePath(p, attachment = false, where = null) {
   if (typeof p !== 'string' || p.length === 0 || p.length > 400 || p.startsWith('/') || /[\\\x00-\x1f\x7f:]/.test(p)) fail('UNSAFE_PATH');
   const parts = p.split('/');
   if (parts.some((v) => !v || v === '.' || v === '..')) fail('UNSAFE_PATH');
-  if (attachment && secretShapedPath(p)) fail('SENSITIVE_PATH');
+  if (!attachment) return parts;
+  const refuse = (why) => fail('SENSITIVE_PATH', where ? `${where}: ${why}` : why);
+  const shape = secretShapeOfPath(p);
+  if (shape) refuse(SHAPE_PHRASE[shape] ?? `the path matches the ${shape} secret shape`);
   // An entry's file name comes from its title, so a word such as tokenizer in it names no credential (entryFileName).
-  if (attachment && parts.some((v) => !entryFileName(v) && (/^(?:\.git|\.env(?:[.-].*)?|\.ssh|\.aws|\.azure|\.kube|\.npmrc|\.pypirc|\.netrc|id_(?:rsa|dsa|ecdsa|ed25519)(?:\..*)?)$/i.test(v)
-    || /(?:credential|password|passwd|secret|token|private[-_.]?key)/i.test(v)
-    || /\.(?:pem|key|p12|pfx|keystore)$/i.test(v)))) fail('SENSITIVE_PATH');
+  const named = parts.filter((v) => !entryFileName(v));
+  if (named.some((v) => /^(?:\.git|\.env(?:[.-].*)?|\.ssh|\.aws|\.azure|\.kube|\.npmrc|\.pypirc|\.netrc|id_(?:rsa|dsa|ecdsa|ed25519)(?:\..*)?)$/i.test(v))) {
+    refuse('one path part is a credential file or folder name (.git, .env, .ssh, a cloud or package-manager credential file, or an SSH key)');
+  }
+  if (named.some((v) => /(?:credential|password|passwd|secret|token|private[-_.]?key)/i.test(v))) {
+    refuse('one path part contains credential, password, secret, token or private key');
+  }
+  if (named.some((v) => /\.(?:pem|key|p12|pfx|keystore)$/i.test(v))) refuse('one path part is a key, certificate or keystore file');
   return parts;
 }
 

@@ -113,8 +113,8 @@ export function readHistory(root, budget = newBudget(), now = Date.now()) {
   return { records, invalid };
 }
 
-export function fingerprintAttachment(root, rel, budget = newBudget()) {
-  relativePath(rel, true);
+export function fingerprintAttachment(root, rel, budget = newBudget(), where = null) {
+  relativePath(rel, true, where);
   return { path: rel, sha256: digest(safeRead(root, rel, LIMIT.file, budget)) };
 }
 
@@ -141,10 +141,11 @@ export function createRecord(root, input, { apply = false, budget = newBudget(),
     if (new Set(paths).size !== paths.length) fail('INVALID_RECORD_INPUT', `${field}: listed twice`);
   }
   if (input.assessment === 'observed' && (!sources.length || !artifacts.length)) fail('OBSERVED_REQUIRES_ATTACHMENTS');
-  const fingerprint = (field) => (a) => {
-    if (typeof a === 'string') return fingerprintAttachment(root, a, budget);
+  const fingerprint = (field) => (a, i) => {
+    const where = `${field} entry ${i + 1}`;
+    if (typeof a === 'string') return fingerprintAttachment(root, a, budget, where);
     if (!keys(a, ['path', 'sha256']) || !SHA.test(a.sha256)) fail('INVALID_RECORD_INPUT', `${field}: not a valid path/sha256 fingerprint`);
-    relativePath(a.path, true);
+    relativePath(a.path, true, where);
     return { path: a.path, sha256: a.sha256 };
   };
   const r = { schemaVersion: 1, id: randomUUID(), controlId: ctrl.id, catalogVersion: cat.catalogVersion, controlHash: controlHash(cat, ctrl),

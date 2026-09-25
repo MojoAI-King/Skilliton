@@ -111,7 +111,7 @@ export const LONG_LINE_PINS = [
   ["packs/base/plugins/workflow/runtime/lib/records.mjs", 14],
   ["packs/base/plugins/workflow/runtime/lib/release.mjs", 36],
   ["packs/base/plugins/workflow/runtime/lib/secret-rules.mjs", 1],
-  ["packs/base/plugins/workflow/runtime/lib/security-io.mjs", 19],
+  ["packs/base/plugins/workflow/runtime/lib/security-io.mjs", 18],
   ["packs/base/plugins/workflow/runtime/lib/security.mjs", 21],
   ["packs/base/plugins/workflow/runtime/lib/session-hooks.mjs", 29],
   ["packs/base/plugins/workflow/runtime/lib/skills-repo.mjs", 2],

@@ -286,6 +286,9 @@ jobs:
       - name: A check run holds a Mac awake and a failing step names a sleep inside it (B91)
         run: node --test scripts/awake.test.mjs
 
+      - name: A security record refused for an attached path names the entry and the rule, never the path (B92)
+        run: node --test scripts/security-path-refusals.test.mjs
+
       - name: The audit-finding eval case's fixture and graders, proved offline
         run: bash packs/base/plugins/workflow/evals/audit-finding-acted-on/self-check.sh
 
