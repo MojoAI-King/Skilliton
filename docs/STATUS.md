@@ -2,7 +2,7 @@
 
 Kind: Living.
 
-Current state (2026-09-24, release 1.4.2 at 20b410c): three signed releases today, each in CHANGELOG.md with its evidence note under evidence/live/. 1.4.0 carried the dependable-promises batch; 1.4.1 closed the committed-link writers class-wide and sent the security skill to `skilliton audit`; 1.4.2 counts agent-run lanes in `dispatch close`, keeps a Mac awake during check runs, and names the entry a refused security record refused. At 20b410c: full checks 113 pass, 0 fail, 2 skipped of 115; CI green; 8 releases approved in a fresh clone; workflow 0.25.2 VERIFIED here, guardrails TAMPERED by another session's in-place edit; security 7 of 13 current and observed. Next: the owner pass (docs/OWNER_WALKTHROUGH.md); open items in docs/BACKLOG.md. Earlier: docs/STATUS_ARCHIVE.md.
+Current state (2026-09-25, release 1.4.3 at 6ae2b20): four signed releases on 2026-09-24, each in CHANGELOG.md with its evidence note under evidence/live/. 1.4.3 carries the guard's quiet mode (guardrails 0.12.0): nothing asks during work except before a rule is turned off or saved work is dropped; a command it can make readable is refused with the fix, one it cannot read runs and is noted in the git folder; `guardrails.mode: strict` asks every time. At 6ae2b20: full checks 114 pass, 0 fail, 2 skipped of 116; CI green; 9 releases approved in a fresh clone; all 8 plugin installs on this machine VERIFIED; security 7 of 13 current and observed. Next: the owner pass (docs/OWNER_WALKTHROUGH.md); open items in docs/BACKLOG.md. Earlier: docs/STATUS_ARCHIVE.md.
 
 <!-- living-docs:milestones:start -->
 
