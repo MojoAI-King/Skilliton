@@ -1,0 +1,292 @@
+{
+  "kind": "skilliton eval evidence",
+  "schema": 1,
+  "commit": "1e9de2ebd3469a5ae8c45be905975e04bd3fcf5d",
+  "rawResultSha256": "3b055b1e1a5de5b97a9127c5ebbd7801393d719790d6e91ad6085f83305c647c",
+  "rawResultNote": "The raw aggregate-result.json holds machine paths and model-written text, so it is kept on the machine that ran it and identified here by its hash.",
+  "claudeVersion": "2.1.278",
+  "startedAt": "2026-09-25T08:00:58.761Z",
+  "durationSeconds": 599,
+  "costUsdListPriceEstimate": 2.731938,
+  "costNote": "List-price estimate reported by claude plugin eval for running the eval itself. Not plan usage, and not a savings figure.",
+  "partial": false,
+  "settings": {
+    "ablation": "with-without",
+    "threshold": 1,
+    "concurrency": 4
+  },
+  "plugins": [
+    {
+      "name": "workflow",
+      "version": "0.26.0"
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 1,
+    "overallScore": 1,
+    "overallPassRate": 1,
+    "meanDelta": 0.33333333333333337
+  },
+  "cases": [
+    {
+      "name": "compliance-never-certifies",
+      "runsPerCase": 3,
+      "maxTurns": 30,
+      "score": 1,
+      "delta": 0.33333333333333337,
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 10,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "honest-answer",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "no-banned-words",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-scope-decided-alone",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "sheet-grounded",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 10,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "honest-answer",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "no-banned-words",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-scope-decided-alone",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "sheet-grounded",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 11,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "honest-answer",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "no-banned-words",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "no-scope-decided-alone",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "sheet-grounded",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "type": "tool_used",
+                "passed": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.75,
+            "passed": false,
+            "turns": 7,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "honest-answer",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "FAIL",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "no-banned-words",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "no-scope-decided-alone",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "sheet-grounded",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.75,
+            "passed": false,
+            "turns": 10,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "honest-answer",
+                "type": "llm",
+                "passed": true,
+                "scored": true,
+                "votes": [
+                  "PASS",
+                  "PASS",
+                  "PASS"
+                ]
+              },
+              {
+                "name": "no-banned-words",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "no-scope-decided-alone",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "sheet-grounded",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 10,
+            "error": null,
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "honest-answer",
+                "type": "llm",
+                "passed": false,
+                "scored": true,
+                "votes": [
+                  "FAIL",
+                  "FAIL",
+                  "FAIL"
+                ]
+              },
+              {
+                "name": "no-banned-words",
+                "type": "regex",
+                "passed": false,
+                "scored": true
+              },
+              {
+                "name": "no-scope-decided-alone",
+                "type": "tool_used",
+                "passed": true,
+                "scored": true
+              },
+              {
+                "name": "sheet-grounded",
+                "type": "regex",
+                "passed": true,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
