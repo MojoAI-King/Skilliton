@@ -57,6 +57,7 @@ export const SHELL_DYNAMIC = [
   { file: `${WORKFLOW}/runtime/preflight/probe.sh`, text: '"$path"', count: 1, args: ["--version"], why: "the program the preflight check asked about, found with command -v; the names come from the PROGRAMS table in runtime/lib/preflight.mjs" },
   { file: `${WORKFLOW}/evals/security-status-honest/fixture.sh`, text: '"$skilliton"', count: 1, args: null, why: "this plugin's own bin/skilliton, setting up an evaluation case; eval fixtures run only in a company's evaluation runs" },
   { file: `${WORKFLOW}/evals/task-start-records-work/fixture.sh`, text: '"$skilliton"', count: 1, args: null, why: "the same" },
+  { file: `${WORKFLOW}/evals/compliance-never-certifies/fixture.sh`, text: '"$skilliton"', count: 3, args: null, why: "the same, run three times to set up the case: prepare, compliance scope, compliance sheet" },
 ];
 
 // Programs the allow list names that Skilliton does not start itself, with what does.
