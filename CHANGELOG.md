@@ -2,12 +2,12 @@
 
 Kind: Living. One entry per signed release, from its manifest under `releases/`, plus what is on `main` since. Plugin versions are what a machine sees; the release number is what it trusts.
 
-## Unreleased (main since 1.4.1)
+## 1.4.2, 2026-09-24
+
+Plugins: workflow 0.25.2, guardrails 0.11.0, context-hygiene 0.3.1, code-quality 0.2.1. Manifest `releases/1.4.2.json`; every entry below shipped on `main` between 1.4.1 and this tag. The number is a patch by the release skill's rule: fixes to existing commands and one new meter option, no new command. Only workflow changed. Source: the backlog rows B89 (open since the batch of 2026-09-24), B91 and B92 (found while releasing 1.4.1 the same evening).
 
 - **Workflow 0.25.2: `dispatch close` counts a lane that ran as an agent (B89).** Claude Code files a lane agent under the integrating window's session, so the lane folder has no transcripts of its own and close read 0 requests for all seven lanes of the 2026-09-24 batch. The meter's new `--lane-dir <folder>` reads the folder's own sessions and every subagent transcript whose `.meta.json` names a lane agent and whose first message names that folder and no other beside it, then the agents it started, linked by their `toolUseId`; each transcript is read once. Measured on the machine that ran the batch: three of its lanes read 197, 97 and 164 requests, with peak contexts of 493,049, 202,727 and 287,464 tokens against the 200,000 bound, all three past it, which the old reading hid. Close says how many lane agent transcripts it counted and how many it left out, and a meter that does not know `--lane-dir` is asked again the old way and says so.
-
 - **Workflow 0.25.2: a check run keeps a Mac awake, and a failure across a sleep says so (B91).** The full run on the 1.4.1 release commit failed two steps whose tests took 1,039 s and 968 s, where each passes in seconds, while the Mac went into system sleep twice; started again under `caffeinate` it passed, and how a sleep turned into those exits is not known. `skilliton gate` and this repository's `scripts/checks.mjs` now start `caffeinate -i -m -s -w <their own pid>` on macOS, which ends with the run, and say on their first line whether anything holds the machine awake; a failing step or verdict reads `pmset -g log` and names any sleep inside that run. Nothing is held or read on Linux or Windows, and the line says so. Preflight checks for both programs on a Mac.
-
 - **Workflow 0.25.2: a refused security record says which attached path and why (B92).** A record refused as SENSITIVE_PATH said only that some attached path looked credential-like or secret-shaped; a note whose name was 49 name characters in one run took eight previews to find. The refusal now names the entry (`artifacts entry 1`, `sources entry 2`) and the rule as a fixed phrase: a long encoded run in one path part, a credential word, a credential file or folder name, a key or certificate file, or the secret shape by name. The path itself is still never printed, since a path refused as secret-shaped may be a secret.
 
 ## 1.4.1, 2026-09-24

@@ -78,7 +78,7 @@ To see it before installing anything: `git clone https://github.com/MojoAI-King/
 | join, join file | set up one machine for a company; the file names the company, its skills repository and who may sign releases |
 | lane | one git worktree, with a written brief, for one slice of a batch of work |
 | guardrails | the hook that judges each shell command before it runs |
-| release, plugin version | the product is released as a whole (1.4.1); each of the four plugins has its own version (workflow 0.25.1 in 1.4.1), and `releases/<release>.json` records which plugin versions a release carries |
+| release, plugin version | the product is released as a whole (1.4.2); each of the four plugins has its own version (workflow 0.25.2 in 1.4.2), and `releases/<release>.json` records which plugin versions a release carries |
 
 ## At a glance
 
