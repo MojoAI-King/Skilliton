@@ -4,6 +4,10 @@ Kind: Reference. The current status is docs/STATUS.md.
 
 Superseded current-state paragraphs, newest first. Each is moved here unchanged when docs/STATUS.md gets a new one (docs/MAINTAIN.md step 6); `node scripts/living-docs.mjs --check` keeps the live paragraph under its byte limit.
 
+### 2026-09-24 (releases 1.4.0 to 1.4.2)
+
+Current state (2026-09-21, wave 8 built on main at 18b8fd0): the owner graded this repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, the owner pass at its end; 81 of 123 items ticked). Wave 8 was the last build wave: four cleanup skills with an eval case each, one kept and three recorded in docs/not-shipped.md; allow markers so a gated repository accepts a push touching the guard's own patterns; the evidence collectors as a CI step; `skilliton pin`, which moves a clone between signed releases because no client can pin a download; and the session start saying enrollment comes first. Measured at 18b8fd0: 0 audit findings over all 544 files, CI green on all 63 steps. Next: the owner pass, in the order docs/OWNER_WALKTHROUGH.md sets. Milestones: the table below. Open items: docs/BACKLOG.md and DECISIONS.md. Claims with evidence: docs/POSITIONING.md. Earlier: docs/STATUS_ARCHIVE.md.
+
 ### 2026-09-21 (wave 8)
 
 Current state (2026-09-21, wave 7 built on main at f1a878a): the owner graded this repository against their ten areas on 2026-09-18 (overall C+; docs/REPORT_CARD.md, bars from the batch files under docs/areas/, the owner pass at its end; 75 of 123 items ticked). Wave 7 built the audit that runs itself in all three places M10 named, with the merge gate as the one that refuses, the supported-client rule, `skilliton usage` over the meter, and the Codex and Cursor decisions. Measured 2026-09-21: the audit reports 0 findings over the 47 files the wave changed and 41 over the whole tree, every one a rule's own pattern or a planted fixture (B45). Next: wave 8, then the owner pass. Milestones: the table below. Open items: docs/BACKLOG.md and DECISIONS.md. Claims with evidence: docs/POSITIONING.md. Earlier: docs/STATUS_ARCHIVE.md.

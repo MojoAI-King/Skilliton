@@ -4,12 +4,12 @@ Kind: Living.
 
 ## RESUME HERE
 
-Written: 2026-09-24 17:22 EDT
+Written: 2026-09-24 21:55 EDT
 
-- **State:** Release 1.4.0 is signed and published: tag skilliton-release/1.4.0 on 4bc1c2c, manifest-sha256 8b70c752, approved in a fresh clone from GitHub (6 approved); workflow 0.25.0 installed and VERIFIED here; guardrails deliberately not updated here, because another session edited the installed guard in place (quiet mode) and verify reads those two copies TAMPERED. Evidence: full checks on 4bc1c2c: 106 pass, 0 fail, 2 skipped (CI-only) of 108, exit 0; CI green on 4bc1c2c (run 36053099223); git tag -v good; evidence/live/2026-09-24-release-1.4.0.md.
-- **Next:** The audit-finding eval run (B48, claude plugin eval, ceiling 5), the three-setup comparison on 1.4.0 (B66, docs/COMPARISON_PROTOCOL.md third run), B88 (a lint for plain runtime writes), B89 (lane cost for agent-run lanes), the security retest; when the quiet-guard work merges, release it and install guardrails from that release so verify reads VERIFIED
-- **Blocked:** Only the owner can do these: read the Usage screen for the token window, the end-of-day maintain minutes before and after, the rows of docs/OWNER_TESTS.md, a clean macOS account, a Codex login, a Windows machine with a Claude login, an endpoint security product, and a participant for the new builder rehearsal
-- **Watch out:** Guardrails on this machine is the other session's in-place edit, not a release: verify reads TAMPERED for guardrails 0.10.0 (user) and 0.8.0 (project) until a release carrying the quiet mode is installed. Restart the client to load workflow 0.25.0. Read the clock before typing a time
-- **Git:** main @ 8fbbc78, 0 uncommitted
+- **State:** Releases 1.4.1 (52b24f8, manifest a410ec84) and 1.4.2 (20b410c, manifest d418b32e) signed, pushed and approved in a fresh clone (8 approved); workflow 0.25.2 installed at user and project scope and VERIFIED; B89, B91 and B92 archived; security 7 of 13 current and observed, 0 stale, 0 invalid; guardrails deliberately not updated here. Evidence: Full checks on 20b410c: 113 pass, 0 fail, 2 skipped (CI-only) of 115, the runner holding the Mac awake; on 52b24f8: 110/0/2 of 112 on the second run, the first having failed two steps across two system sleeps; CI green through 599590d; git tag -v good on both tags; verify 6 VERIFIED 2 TAMPERED; evidence/live/2026-09-24-release-1.4.1.md and -1.4.2.md.
+- **Next:** The owner pass (docs/OWNER_WALKTHROUGH.md); B90 (a comparison task that shows what the guard adds, millions of tokens per run, not started); when the quiet-guard work merges, release it and install guardrails from that release so verify reads VERIFIED
+- **Blocked:** Only the owner can do these: the Usage screen reading for the token window, the rows of docs/OWNER_TESTS.md, a clean macOS account, a Codex login, a Windows machine with a Claude login, an endpoint security product, and a participant for the new builder rehearsal
+- **Watch out:** Guardrails on this machine is the other session's in-place edit and reads TAMPERED; a laptop on 1.3.0 or earlier reads this register as all invalid (update every copy, including project scope); .skilliton/security/REPORT.md is an untracked generated file the guard will not let a session remove; restart the client to load workflow 0.25.2; read the clock before typing a time
+- **Git:** main @ 599590d, 5 uncommitted
 
 ## Earlier
