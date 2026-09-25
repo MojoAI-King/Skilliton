@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "de5d4f0f-ab68-4a5d-a53d-75f8d2565cb4",
+  "controlId": "SG-RECURRING-PATTERNS",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "d1aa4227c54b2e8234a489358db9fe1f4e4c587d7b3b08c793c1f0aca5615dbb",
+  "recordedAt": "2026-09-25T01:20:13.375Z",
+  "assessment": "gap",
+  "note": "Gap, reassessed after 1.4.2: a documented sleep lesson was skipped on a release run and the fix moved the step into the runner, the same move as the writer-link fix; still no periodic cross-finding review. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "docs/THREAT_MODEL.md",
+      "sha256": "e40ab6edec2ea460d22a7ea5487aa9356e532b16e8257e6aa36184f0097742ca"
+    },
+    {
+      "path": "SECURITY.md",
+      "sha256": "92f74c52cc2274e5e4c8e44ff1eafc97add3f766c6ade6edc968fc7d71e1fc74"
+    },
+    {
+      "path": "scripts/skill-writers.test.mjs",
+      "sha256": "4c2a3ddf49fee41338a9f61c7da2c4908cead1664b5a22d60f2d84f9298d93b6"
+    },
+    {
+      "path": "docs/lessons/2026-09-24-a-fix-that-hardens-the-writers-it-names-772e.md",
+      "sha256": "b213d2a289a27a0406af42f3c1f52561c6fffc57cdc59822fa1080c07ede92f8"
+    },
+    {
+      "path": "docs/lessons/2026-09-24-a-check-run-that-spans-a-system-sleep-fa-0567.md",
+      "sha256": "c074f576f66bfcf103d2ef7ab368f5edaf366515dce7b104719a88a01e83ca3b"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "9be79519efd069b1b3a105b3e98cd4803c81867e0af8d8358b669ed8896f86e7"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassess-4-SG-RECURRING-PATTERNS.md",
+      "sha256": "e25343f607a0642a313f5167f951ed51d73dde4c9bda2f760a9fc6333e34261f"
+    }
+  ]
+}

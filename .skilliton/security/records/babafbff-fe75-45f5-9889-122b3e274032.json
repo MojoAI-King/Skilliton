@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "babafbff-fe75-45f5-9889-122b3e274032",
+  "controlId": "SG-DEPENDENCY-RISK",
+  "catalogVersion": "skillgate-baseline-2",
+  "controlHash": "063767d5c35e0c0e48a7ccaf5ced093af982899c1a0570e4858d0f6b470883da",
+  "recordedAt": "2026-09-25T01:20:13.315Z",
+  "assessment": "gap",
+  "note": "Gap, reassessed after 1.4.2: a size pin lowered and an example tag moved; caffeinate and pmset are part of macOS and are listed; still no inventory of Node, git and the pinned CI actions, no dated vulnerability check and no agreed update time frames. Details in the reassessment note.",
+  "reviewer": "build session 2026-09-24, for the owner to countersign",
+  "sources": [
+    {
+      "path": "scripts/lint.test.mjs",
+      "sha256": "48502a05086487d7ef6136921e12e611fb07d2735fb40f543373fb58e54ab066"
+    },
+    {
+      "path": "INSTALL.md",
+      "sha256": "db03f700b371fe1950ff4d6a3489a62d5600d2b9929b16dfa6124707be666342"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".skilliton/private-evidence/2026-09-24-reassess-4-SG-DEPENDENCY-RISK.md",
+      "sha256": "2c427e386065082972bfea39c1ad81e66e371b232edf25bc1a65136ae93397b3"
+    }
+  ]
+}
