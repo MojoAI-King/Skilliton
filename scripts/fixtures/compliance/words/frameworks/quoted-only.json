@@ -1,0 +1,6 @@
+{
+  "meta": { "framework": "quoted-only" },
+  "controls": [
+    { "id": "quoted-1", "citation": "Quoted: a compliant consent", "requirement": "Quoted: a certified record", "note": "Nothing banned here; it passes the JSON rule." }
+  ]
+}

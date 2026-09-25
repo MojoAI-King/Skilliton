@@ -1,0 +1,2 @@
+A planted line for the banned-word self-test: Skilliton will Certify nothing, and nothing here Passes.
+Compliance, compliances and certification are other words and are not flagged.

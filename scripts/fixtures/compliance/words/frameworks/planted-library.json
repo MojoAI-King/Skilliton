@@ -1,0 +1,11 @@
+{
+  "meta": { "framework": "planted-library", "note": "A planted note for the banned-word self-test: the vendor is certified." },
+  "controls": [
+    {
+      "id": "planted-1",
+      "citation": "Planted citation that quotes a rule: a compliant authorization",
+      "requirement": "Planted requirement that quotes a rule: a certified copy is kept.",
+      "remediation": { "standard": "Planted text that the JSON rule does not check for this word: the review passes." }
+    }
+  ]
+}
