@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-25T04:33:57.866Z
+- **Updated:** 2026-09-25T04:47:08.417Z
 
 ## Request
 
@@ -36,9 +36,16 @@ not yet written
 - **Next:** Merge lanes as they report, in the order frameworks-data, compliance-runtime, compliance-hooks, security-json, compliance-skill (rebase, the lane's suites one file at a time, ff-only); then N8 records and the workflow version bump; then N10 with the ported scanner and the sheet
 - **Git:** main @ f47142d, 4 uncommitted
 
+### 2026-09-25T04:47:08.417Z
+
+- **State:** Two lanes merged and pushed: security-json (N9, security status --json, main 9fb3e65) and compliance-skill (N6, the skill, its never-certifies eval and the words test, main ca4b52a); frameworks-data, compliance-runtime and compliance-hooks still building as agents; the plugin eval for the compliance skill waits for the runtime lane, whose state words and flags its fixture assumes
+- **Evidence:** security-json rebased: eleven security suites, lint, lint-shape and the CLI suite (198 checks) exit 0; compliance-skill rebased: words test and its self-test, docs, lint, lint-shape exit 0; both fast-forwards contained; pushes to origin main exit 0
+- **Next:** Merge frameworks-data, then compliance-runtime, then compliance-hooks as they report; then N8 (CONTRACTS, CHANGELOG, PLAN section 9, catalog sources, IT allowlist, CI steps for security.test.mjs and compliance-skill-words.test.mjs and the lanes' new tests, the workflow version bump and its description naming the compliance skill), the plugin eval, then N10
+- **Git:** main @ ca4b52a, 1 uncommitted
+
 ## Handoff
 
-- **State:** Design accepted (decision 39ef); the week-one test of the riskiest assumption run with MojoComply's own scanner on two real repositories (evidence/live/2026-09-25-compliance-two-repositories.md: seven signals and eight proposals on the health-practice repository, none on the feedback tool; owner's verdicts pending); LANES.md written (10 items: 7 in five lanes, N7 done, N8 main at merge, N10 deferred); dispatch --apply created the five worktrees; all five lanes launched as agents. Evidence: skilliton dispatch preview then --apply, 5 lanes created from f47142d; pnpm run scope --json exit 0 on both repositories; scrub-check PASS.
-- **Next:** Merge lanes as they report, in the order frameworks-data, compliance-runtime, compliance-hooks, security-json, compliance-skill (rebase, the lane's suites one file at a time, ff-only); then N8 records and the workflow version bump; then N10 with the ported scanner and the sheet
+- **State:** Two lanes merged and pushed: security-json (N9, security status --json, main 9fb3e65) and compliance-skill (N6, the skill, its never-certifies eval and the words test, main ca4b52a); frameworks-data, compliance-runtime and compliance-hooks still building as agents; the plugin eval for the compliance skill waits for the runtime lane, whose state words and flags its fixture assumes. Evidence: security-json rebased: eleven security suites, lint, lint-shape and the CLI suite (198 checks) exit 0; compliance-skill rebased: words test and its self-test, docs, lint, lint-shape exit 0; both fast-forwards contained; pushes to origin main exit 0.
+- **Next:** Merge frameworks-data, then compliance-runtime, then compliance-hooks as they report; then N8 (CONTRACTS, CHANGELOG, PLAN section 9, catalog sources, IT allowlist, CI steps for security.test.mjs and compliance-skill-words.test.mjs and the lanes' new tests, the workflow version bump and its description naming the compliance skill), the plugin eval, then N10
 - **Blocked:** nothing
 - **Watch out:** nothing known
