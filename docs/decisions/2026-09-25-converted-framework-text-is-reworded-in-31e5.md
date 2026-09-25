@@ -37,4 +37,4 @@ Easy. Remove an entry from `REWORDINGS`, run the converter, and the source phras
 
 - Before the fix, on the rebased compliance-runtime tree: `node scripts/compliance-words.test.mjs` exit 1, five hits named by file and JSON path (health-wellness `.controls[8].remediation.note`; hipaa-privacy-breach `.controls[0].remediation.standard` and `.controls[18].remediation.note`; ny-dfs-500 `.meta.sources[0].change_watch`; part2-overlay `.controls[6].remediation.standard`).
 - After: `node scripts/frameworks-convert.mjs` (with the source) rewrote four files, and `git diff --word-diff` showed only the five phrases changed; `--check` exit 0 (16 files match); `compliance-words` exit 0 and its `--self-test` still fails on its four planted words; `frameworks.test.mjs` exit 0 with and without the source; `lint`, `scrub-check` exit 0.
-- Commit d26e71a on main ("Merge fix for compliance-runtime: the vocabulary check meets the converted libraries").
+- Commit 6a288c7 on main ("Merge fix for compliance-runtime: the vocabulary check meets the converted libraries").

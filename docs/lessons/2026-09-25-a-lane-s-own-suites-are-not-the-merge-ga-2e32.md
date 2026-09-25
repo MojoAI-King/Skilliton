@@ -8,7 +8,7 @@ Kind: Living. Lesson entry.
 
 ## What broke
 
-In the compliance batch of 2026-09-25, `scripts/allowlist.test.mjs` was red on `main` from the compliance-skill merge (ca4b52a) until 5f58d44, three merges later: the lane's eval fixture starts `bin/skilliton` three times through a variable, and the allow-list table had no row for it. The lane's own suites and the ones I ran at merge (its test, docs, lint, lint-shape) were all green. CI went red on ca4b52a and stayed red for every push after it; I read the conclusions from the forge (`gh run list`) an hour and six pushes later, while writing this batch's lessons. By then a second cause was in the history (B97).
+In the compliance batch of 2026-09-25, `scripts/allowlist.test.mjs` was red on `main` from the compliance-skill merge (ca4b52a) until 4f64564, three merges later: the lane's eval fixture starts `bin/skilliton` three times through a variable, and the allow-list table had no row for it. The lane's own suites and the ones I ran at merge (its test, docs, lint, lint-shape) were all green. CI went red on ca4b52a and stayed red for every push after it; I read the conclusions from the forge (`gh run list`) an hour and six pushes later, while writing this batch's lessons. By then a second cause was in the history (B97).
 
 ## The mechanism
 
@@ -16,7 +16,7 @@ Two shortcuts, taken to save minutes. At merge I ran the suites the lane report 
 
 ## The fix
 
-The allow-list row (5f58d44). For the four merges that followed I ran the whole-tree checks on the rebased tree before fast-forwarding, and this entry records the CI reading. The history-scan failure that CI also found is a separate defect with its own row (B97) and remedy.
+The allow-list row (4f64564). For the four merges that followed I ran the whole-tree checks on the rebased tree before fast-forwarding, and this entry records the CI reading. The history-scan failure that CI also found is a separate defect with its own row (B97) and remedy.
 
 ## The rule
 
