@@ -40,5 +40,4 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 | ID | Title | State | Branch | Owner |
 |---|---|---|---|---|
 | [2026-09-23-everything-a-session-can-finish-the-usag-b6c7](tasks/2026-09-23-everything-a-session-can-finish-the-usag-b6c7.md) | Everything a session can finish: the usage batch, the open backlog rows and the security records | in-progress | main | unassigned |
-| [2026-09-24-guardrails-without-prompts-quiet-strict-a506](tasks/2026-09-24-guardrails-without-prompts-quiet-strict-a506.md) | Guardrails without prompts: quiet, strict and fleet modes | in-progress | lane/quiet-guard-0924 | unassigned |
 <!-- skilliton:index:tasks:end -->

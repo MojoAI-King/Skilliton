@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-24-guardrails-without-prompts-quiet-strict-a506
-- **State:** in-progress
+- **State:** merged
 - **Branch:** lane/quiet-guard-0924
 - **Owner:** unassigned
-- **Updated:** 2026-09-24T21:54:54.051Z
+- **Updated:** 2026-09-25T03:34:51.045Z
 
 ## Request
 
