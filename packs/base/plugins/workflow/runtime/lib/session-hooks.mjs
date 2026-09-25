@@ -269,7 +269,7 @@ function boundLines(lines, maxBytes, notice) {
   return { text: `${out}${tail}`, truncated: true };
 }
 
-const BLOCK_LABELS = { layout: "Layout", migrations: "Pending migrations", versions: "Versions", records: "Records", handoff: "Shared handoff", sessions: "Previous session", security: "Security" };
+const BLOCK_LABELS = { layout: "Layout", migrations: "Pending migrations", versions: "Versions", records: "Records", handoff: "Shared handoff", sessions: "Previous session", security: "Security", compliance: "Compliance" };
 const WORDS = { attention: "needs attention", "not-run": "not run", failed: "failed" };
 
 function taskLines(report, check) {
@@ -298,7 +298,7 @@ function taskLines(report, check) {
 const prepareOffer = () => `offer it in plain words before other work: "This project is not set up for Skilliton yet. Setting it up adds records for status, backlog, decisions, lessons and handoffs, a managed instruction block in CLAUDE.md and AGENTS.md, and a security register; it keeps any of those that already exist. Nothing is written until you say yes." On a yes, in this order: ${selfCommand()} prepare shows the change; ${selfCommand()} prepare --apply shows it again and writes it, drafting dispatch.laneTestCommand, laneRoot and hotspots and a delivery policy draft from what the repository shows; then turn the user's first request into the first task with two to six proposed criteria: ${selfCommand()} task start "<title>" --request "<the user's words>" --criteria "<criterion>" --apply`;
 
 // What a resuming session needs first comes first, because truncation keeps the top of the block.
-const BLOCK_ORDER = ["tasks", "sessions", "handoff", "layout", "migrations", "versions", "records", "security"];
+const BLOCK_ORDER = ["tasks", "sessions", "handoff", "layout", "migrations", "versions", "records", "security", "compliance"];
 
 // These four collapse into one "- Checks: ... ok" line when every one of them is ok and has nothing to act on: a
 // clean run then costs one line instead of four repeating "ok" for lines nobody needed to read. Any of the four that

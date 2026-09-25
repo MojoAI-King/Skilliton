@@ -93,8 +93,9 @@ export const DYNAMIC_IMPORTS = [
   [`${PLUGINS}/workflow/runtime/commands/migrate.mjs`, 1, "the collectors module beside it"],
   [`${PLUGINS}/workflow/runtime/commands/hook.mjs`, 1, "the audit's scope reader, loaded only on the stop that audits, so the other hook events do not pay for it"],
   [`${PLUGINS}/workflow/runtime/lib/auto-prepare.mjs`, 3, "the prepare, join and migrations modules beside it, loaded on the session start that prepares or migrates, so a build missing one of them costs one note in the block rather than a hook that fails to load"],
-  [`${PLUGINS}/workflow/runtime/lib/maintain.mjs`, 3, "the security engine and the collectors beside it, loaded only when the project keeps a security register"],
+  [`${PLUGINS}/workflow/runtime/lib/maintain.mjs`, 4, "the security engine and the collectors beside it, loaded only when the project keeps a security register, plus the compliance sheet writer, loaded only once a compliance scope is confirmed"],
   [`${PLUGINS}/workflow/runtime/lib/migrations.mjs`, 1, "migration 0004's module beside it (lib/migrations-findings.mjs), loaded once when this module loads"],
+  [`${PLUGINS}/workflow/runtime/lib/project-files.mjs`, 1, "the compliance sheet status reader beside it (lib/compliance-sheet.mjs), loaded only once a compliance scope is confirmed, so a build where it cannot load fails only the compliance check, not every check (N5)"],
 ];
 const RUNTIME_CODE_PATTERNS = [
   [/(?<![\w.])eval\s*\(|globalThis\s*\.\s*eval\b/, "eval"],

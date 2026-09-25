@@ -41,7 +41,7 @@ const LAYOUT_FILES = [
   "docs/STATUS.md", "docs/BACKLOG.md", "docs/BACKLOG_ARCHIVE.md", "docs/ROADMAP.md", "DECISIONS.md", "docs/LESSONS.md",
   "docs/HANDOFF.md", "docs/HANDOFF_ARCHIVE.md", "docs/MAINTAIN.md", "docs/tasks/README.md", "docs/decisions/README.md",
   "docs/lessons/README.md", "docs/security/README.md", ".skilliton/security/catalog.json",
-  ".skilliton/security/records/README.md", ".gitignore", "CLAUDE.md", "AGENTS.md", ".skilliton/config.json",
+  ".skilliton/compliance/proposal.json", ".skilliton/security/records/README.md", ".gitignore", "CLAUDE.md", "AGENTS.md", ".skilliton/config.json",
 ];
 
 const BASE_ENV = (() => {
@@ -117,7 +117,7 @@ test("preview writes nothing and names a concrete plan (prototype case: dry-run 
   assert.equal(r.code, 0, r.all);
   assert.match(r.out, /create\s+docs\/STATUS\.md\s+status record, created as "not yet assessed"/);
   assert.match(r.out, /create\s+\.skilliton\/config\.json/);
-  assert.match(r.out, /\nSummary: 19 to create, .*nothing written\. To write it: skilliton prepare --apply/);
+  assert.match(r.out, /\nSummary: 20 to create, .*nothing written\. To write it: skilliton prepare --apply/);
   assert.deepEqual(snapshot(ctx.dir), {});
   assert.equal(existsSync(join(ctx.dir, ".git", "skilliton-backups")), false);
 });
@@ -126,7 +126,7 @@ test("apply creates the full layout-3 set; check is read-only (prototype cases: 
   const ctx = fixture(t);
   const r = prepare(ctx, "--apply");
   assert.equal(r.code, 0, r.all);
-  assert.match(r.out, /\nSummary: prepared \(layout 3\): 19 created, 0 updated/);
+  assert.match(r.out, /\nSummary: prepared \(layout 3\): 20 created, 0 updated/);
   assert.deepEqual(files(ctx.dir), [...LAYOUT_FILES].sort(), "exactly the layout-3 set: no copied runtime, no lock left behind");
   assert.equal(existsSync(join(ctx.dir, ".skilliton", "bin")), false);
 
@@ -548,7 +548,7 @@ test("a repository with no detectable stack drafts laneRoot only and says why th
   assert.match(r.out, /^Note: no test command was detected \(package\.json scripts, pytest, go\.mod, Cargo\.toml, Makefile\), so dispatch\.laneTestCommand was not drafted; set it by hand in \.skilliton\/config\.json\.$/m);
   assert.match(r.out, /^Note: dispatch\.hotspots needs at least 10 commits .*the repository has no commits yet.*$/m);
   assert.match(r.out, /^Note: No delivery policy draft was written \(no test command was detected\); write \.skilliton\/delivery\.json by hand/m);
-  assert.match(r.out, /Summary: 19 to create, 0 to update, 0 adopted as they are, 0 already current, 0 drafted; nothing written/);
+  assert.match(r.out, /Summary: 20 to create, 0 to update, 0 adopted as they are, 0 already current, 0 drafted; nothing written/);
   assert.deepEqual(snapshot(ctx.dir), {});
 });
 
@@ -560,14 +560,14 @@ test("a node repository drafts laneTestCommand, laneRoot and the delivery draft;
   assert.match(preview.out, /create\s+\.skilliton\/config\.json\s+.*dispatch\.laneTestCommand "npm test" drafted from package\.json scripts\.test; dispatch\.laneRoot "\.\.\/repo-lanes" drafted from the repository folder name/);
   assert.match(preview.out, /^  draft    \.skilliton\/delivery\.draft\.json\s+delivery policy draft with one check "tests" \(npm test\) from package\.json scripts\.test; never run until confirmed with: skilliton delivery confirm --apply$/m);
   assert.match(preview.out, /^Note: dispatch\.hotspots needs at least 10 commits to tell recurring paths apart \(the repository has 1\); prepare drafts it once the history is longer\.$/m);
-  assert.match(preview.out, /Summary: 19 to create, 0 to update, 0 adopted as they are, 0 already current, 1 drafted; nothing written/);
+  assert.match(preview.out, /Summary: 20 to create, 0 to update, 0 adopted as they are, 0 already current, 1 drafted; nothing written/);
   assert.equal(existsSync(join(ctx.dir, ".skilliton")), false, "the preview wrote nothing");
 
   const r = prepare(ctx, "--apply");
   assert.equal(r.code, 0, r.all);
-  const planAt = r.out.indexOf("  draft    .skilliton/delivery.draft.json"), writingAt = r.out.indexOf("Writing 20 file(s) ..."), writtenAt = r.out.indexOf("  drafted  .skilliton/delivery.draft.json");
+  const planAt = r.out.indexOf("  draft    .skilliton/delivery.draft.json"), writingAt = r.out.indexOf("Writing 21 file(s) ..."), writtenAt = r.out.indexOf("  drafted  .skilliton/delivery.draft.json");
   assert.ok(planAt > 0 && writingAt > planAt && writtenAt > writingAt, `the plan is printed before the write, then the past tense:\n${r.out}`);
-  assert.match(r.out, /Summary: prepared \(layout 3\): 19 created, 0 updated, 0 adopted as they were, 0 already current, 1 drafted\./);
+  assert.match(r.out, /Summary: prepared \(layout 3\): 20 created, 0 updated, 0 adopted as they were, 0 already current, 1 drafted\./);
   assert.match(r.out, /A draft is what prepare read from the repository; review it before relying on it\./);
   const config = JSON.parse(read(ctx, ".skilliton/config.json"));
   assert.deepEqual(config.dispatch, { laneTestCommand: "npm test", laneRoot: "../repo-lanes" });

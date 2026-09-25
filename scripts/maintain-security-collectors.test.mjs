@@ -13,7 +13,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -81,20 +81,6 @@ function preparedRepo(dir, env) {
 
 function cli(cwd, args, env) {
   const r = spawnSync(process.execPath, [CLI, ...args], { cwd, env, encoding: "utf8" });
-  return { code: r.status, out: r.stdout, err: r.stderr, all: `${r.stdout}${r.stderr}` };
-}
-
-// A byte-for-byte copy of the plugin with a fake runtime/lib/compliance.mjs added (that module belongs to another
-// lane and does not ship here yet), run directly by its own entry point rather than through scripts/skilliton.mjs,
-// which always names the real plugin. Mirrors scripts/lifecycle.test.mjs's copyPlugin/cross-lane test.
-function copyPluginWithCompliance(dir, source) {
-  const copy = join(dir, "plugin-copy");
-  cpSync(PLUGIN, copy, { recursive: true });
-  writeFileSync(join(copy, "runtime", "lib", "compliance.mjs"), source);
-  return join(copy, "runtime", "skilliton.mjs");
-}
-function cliAt(entry, cwd, args, env) {
-  const r = spawnSync(process.execPath, [entry, ...args], { cwd, env, encoding: "utf8" });
   return { code: r.status, out: r.stdout, err: r.stderr, all: `${r.stdout}${r.stderr}` };
 }
 
@@ -189,36 +175,31 @@ test("a collector that cannot run is reported as not run, never as success, and 
   assert.match(applied.out, /wrote\s+journal\s+maintain event recorded/, "maintenance still records that it ran");
 }));
 
-test("the compliance sheet step: not run before a scope is confirmed, not run (never success) when compliance.mjs is not in this build, and writes or reports current once both are true (writeSheet stubbed, N5)", () => withTemp("compliance-sheet", ({ dir, env }) => {
+test("the compliance sheet step: not run before a scope is confirmed, then writes and reports current once one is (lib/compliance-sheet.mjs's real writeSheet, N5)", () => withTemp("compliance-sheet", ({ dir, env }) => {
   const p = preparedRepo(join(dir, "p"), env);
 
   const noScope = cli(p, ["maintain", "--apply"], env);
   assert.equal(noScope.code, 0, noScope.all);
   assert.match(noScope.out, /not run\s+compliance sheet\s+no confirmed compliance scope at \.skilliton\/compliance\/scope\.json/);
 
-  mkdirSync(join(p, ".skilliton", "compliance"), { recursive: true });
-  writeFileSync(join(p, ".skilliton", "compliance", "scope.json"), JSON.stringify({ frameworks: ["SOC 2"] }));
+  // A real signal (the same phrase scripts/compliance-scope.test.mjs uses for ephi-handling) makes HIPAA Security
+  // Rule recordable, and a real "compliance scope --apply" confirms it, so the sheet step has real rows to write.
+  writeFileSync(join(p, "README.md"), "# fixture\n\nThe app exchanges FHIR resources.\n");
+  commit(p, env, "add a compliance signal");
+  const confirmed = cli(p, ["compliance", "scope", "--apply", "--decided-by", "Test Reviewer"], env);
+  assert.equal(confirmed.code, 0, confirmed.all);
   commit(p, env, "confirm compliance scope");
-  const noModule = cli(p, ["maintain", "--apply"], env);
-  assert.equal(noModule.code, 0, noModule.all);
-  assert.match(noModule.out, /not run\s+compliance sheet\s+.*compliance\.mjs/, "a module not in this build is reported as not run, never as success");
 
-  const entry = copyPluginWithCompliance(dir, [
-    "export async function writeSheet(root, { apply }) {",
-    "  if (process.env.FAKE_SHEET === 'current') return { changed: false, rows: 0 };",
-    "  return { changed: true, rows: 3 };",
-    "}",
-    "",
-  ].join("\n"));
-  const preview = cliAt(entry, p, ["maintain"], { ...env, FAKE_SHEET: "changed" });
+  const preview = cli(p, ["maintain"], env);
   assert.equal(preview.code, 0, preview.all);
-  assert.match(preview.out, /would write\s+compliance sheet\s+3 row\(s\) changed/);
+  assert.match(preview.out, /would write\s+compliance sheet\s+\d+ row\(s\) changed/);
 
-  const applied = cliAt(entry, p, ["maintain", "--apply"], { ...env, FAKE_SHEET: "changed" });
+  const applied = cli(p, ["maintain", "--apply"], env);
   assert.equal(applied.code, 0, applied.all);
-  assert.match(applied.out, /wrote\s+compliance sheet\s+3 row\(s\) changed/);
+  assert.match(applied.out, /wrote\s+compliance sheet\s+\d+ row\(s\) changed/);
+  assert.ok(existsSync(join(p, "docs", "COMPLIANCE-CONTROLS.md")));
 
-  const current = cliAt(entry, p, ["maintain", "--apply"], { ...env, FAKE_SHEET: "current" });
-  assert.equal(current.code, 0, current.all);
-  assert.match(current.out, /current\s+compliance sheet\s+current/);
+  const settled = cli(p, ["maintain", "--apply"], env);
+  assert.equal(settled.code, 0, settled.all);
+  assert.match(settled.out, /current\s+compliance sheet\s+current/);
 }));

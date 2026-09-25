@@ -171,11 +171,13 @@ test("a project the earlier release prepared is refused by other commands, migra
     assert.equal(read(ctx, rel), read(fresh, rel), `${rel} is what prepare generates under the Skilliton names`);
   }
   const check = sg(ctx, ["prepare", "--dir", ctx.dir, "--check"]);
-  // 1 outdated, not 0: config.json still lacks compliance.builtByCompany (N5, added after the frozen earlier
-  // release archived above); migration does not retroactively draft a new prepare field, prepare --apply does.
+  // 1 missing, 1 outdated: config.json still lacks compliance.builtByCompany, and no compliance scope proposal
+  // was ever drafted for this project (N5, added after the frozen earlier release archived above); migration
+  // does not retroactively draft either, prepare --apply does.
   assert.equal(check.code, 1, check.all);
+  assert.match(check.out, /create\s+\.skilliton\/compliance\/proposal\.json\s+compliance scope proposal, 0 recordable framework\(s\)/);
   assert.match(check.out, /update\s+\.skilliton\/config\.json\s+compliance\.builtByCompany false/);
-  assert.match(check.out, /Summary: setup incomplete: 0 missing, 1 outdated/);
+  assert.match(check.out, /Summary: setup incomplete: 1 missing, 1 outdated/);
   // docs/security/README.md is excluded here too, for the same N5 reason as above: its untouched prose still
   // names the earlier release's own paths (for example .skillgate/private-evidence/), which this line would
   // otherwise flag as a leftover marker.

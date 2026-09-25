@@ -23,7 +23,7 @@ import { GitError, appendEvent, mergesSince, runGit } from "./journal.mjs";
 import { regenerateIndexes } from "./records.mjs";
 import { Refused, selfCommand } from "./core.mjs";
 import { ledgerStep } from "./usage-ledger.mjs";
-import { SCOPE_REL } from "./project-files.mjs";
+import { ComplianceRefusal, SCOPE_REL, readScope } from "./compliance-scope.mjs";
 
 const DUE_AFTER_HOURS = 24;
 export const DUE_AFTER_COMMITS = 15;
@@ -208,19 +208,30 @@ async function findingsStep(root, { apply, steps }) {
   }
 }
 
-// The compliance sheet, from the scope as it stands, once a scope has been confirmed: writeSheet(root, { apply })
-// from runtime/lib/compliance.mjs (another lane, not yet shipped in this build). Nothing runs before a scope is
-// confirmed; a module not in this build, or a write that throws, is reported as not run, never as success.
+// The compliance sheet, from the confirmed scope as it stands: writeSheet(root, { apply }) (lib/compliance-sheet.mjs).
+// Nothing runs before a scope is confirmed; an unusable scope or proposal file, or a write that fails, is reported
+// as not run, never as success.
 async function complianceSheetStep(root, { apply, steps }) {
-  if (!existsSync(join(root, SCOPE_REL))) {
+  let scope;
+  try { scope = readScope(root); } catch (e) {
+    if (!(e instanceof ComplianceRefusal)) throw e;
+    steps.push({ name: "compliance sheet", status: "not run", detail: e.message });
+    return;
+  }
+  if (!scope) {
     steps.push({ name: "compliance sheet", status: "not run", detail: `no confirmed compliance scope at ${SCOPE_REL}` });
     return;
   }
   try {
-    const { writeSheet } = await import("./compliance.mjs");
-    const result = await writeSheet(root, { apply });
-    const detail = result.changed ? `${result.rows} row(s) changed` : "current";
-    steps.push({ name: "compliance sheet", status: result.changed ? (apply ? "wrote" : "would write") : "current", detail });
+    // Loaded dynamically, not statically at the top of this file, for the same reason as project-files.mjs's
+    // complianceCheck: compliance-sheet.mjs statically imports evaluateSecurity from security.mjs, and a static
+    // import chain down to it would fail this whole module (every maintain step, not just this one) the moment
+    // security.mjs is a build that lacks that export, rather than reporting this one step as not run.
+    const { writeSheet } = await import("./compliance-sheet.mjs");
+    const result = writeSheet(root, { apply });
+    const status = result.due ? (apply ? "wrote" : "would write") : "current";
+    const detail = result.due ? `${result.changedRows} row(s) changed` : "current";
+    steps.push({ name: "compliance sheet", status, detail });
   } catch (e) {
     steps.push({ name: "compliance sheet", status: "not run", detail: e?.message ?? String(e) });
   }

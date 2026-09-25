@@ -544,7 +544,7 @@ async function planPrepareItems(ctx, runtimeVersion) {
       add(CATALOG_REL, "adopt", "security catalog already present; left exactly as it is");
       notes.push(`The security engine (runtime/lib/security.mjs) is not available in this build, so the existing ${CATALOG_REL} was checked for its basic shape only, not by the code that reads it.`);
     }
-  } await complianceProposalItem(root, project, inspectPath, add, notes);
+  } complianceProposalItem(root, add, notes);
   createOrAdopt(RECORDS_README_REL, "explains the immutable observation records", "already present; left exactly as it is", () => recordsReadme(project));
   planGitignoreStep(ctx);
 

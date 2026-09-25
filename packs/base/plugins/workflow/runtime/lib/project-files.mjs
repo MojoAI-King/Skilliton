@@ -10,17 +10,14 @@
 // skillgate:project blocks; what the prototype wrote is frozen in prototype-v1.mjs for migration 0002. The starter
 // security catalog now ships as catalogs/<catalogVersion>.json in this plugin.
 
-import { existsSync } from "node:fs";
 import { posix } from "node:path";
-import { fileURLToPath } from "node:url";
 import { DEFAULTS, formatRecordHeader } from "./config.mjs";
 import { isPlainObject, sameJson, selfCommand } from "./core.mjs";
+import { ComplianceRefusal, proposeScope, readProposal, readScope, writeProposal } from "./compliance-scope.mjs";
 
 export const CATALOG_REL = ".skilliton/security/catalog.json";
 export const SECURITY_README_REL = "docs/security/README.md";
 export const RECORDS_README_REL = ".skilliton/security/records/README.md";
-const SCOPE_PROPOSAL_REL = ".skilliton/compliance/scope.proposal.json";
-export const SCOPE_REL = ".skilliton/compliance/scope.json";
 export const REPORT_REL = ".skilliton/security/REPORT.md";
 export const REPORT_MARKER = "<!-- skilliton-security-evidence-report:v1 -->";
 export const MIGRATIONS_DIR = ".skilliton/migrations";
@@ -239,9 +236,10 @@ export function securityReadme(project = null) {
     "An observation records a scoped claim together with fingerprints of the files it names. Status reports each control as current, stale, missing or invalid. A current observation is not a control pass, a certification or a penetration test, and regenerating the report never re-dates an observation.",
     `Catalogs shipped with Skilliton are partial sets of original practice summaries with related references to public frameworks; they are not complete framework assessments. ${code("catalogVersion")} in ${code("catalog.json")} names the version in use, and a newer catalog reaches this project only through a migration.`,
     `Keep sensitive assessment artifacts in the ignored ${code(".skilliton/private-evidence/")} folder or an approved evidence store. Never record credentials or customer data. An artifact that is missing on another machine stays missing; it is never replaced by an assumed pass.`,
-    `A compliance scope proposal, when one exists, is a guess at ${code(SCOPE_PROPOSAL_REL)}: which frameworks look in`
-    + " scope, drawn from what the project shows, never a legal determination. Confirm or correct it with"
-    + ` ${code("skilliton compliance scope --apply --decided-by <you>")}, naming the person who decided.`,
+    `A compliance scope proposal, when one exists, is a guess at ${code(".skilliton/compliance/proposal.json")}: which frameworks look in`
+    + ` scope, drawn from what the project's own files show (run ${code("skilliton compliance scope")} to see it), never a legal`
+    + ` determination. Confirm or correct it with ${code("skilliton compliance scope --apply --decided-by <you>")}, naming the`
+    + ` person who decided; ${code("skilliton compliance sheet --apply")} then builds the control record from the confirmed scope.`,
   ], project?.recordHeader);
 }
 
@@ -251,71 +249,68 @@ export function recordsReadme(project = null) {
   ], project?.recordHeader);
 }
 
-// ---------- compliance (runtime/lib/compliance.mjs, owned by another lane) ----------
+// ---------- compliance (runtime/lib/compliance-scope.mjs, runtime/lib/compliance-sheet.mjs) ----------
 //
-// prepare.mjs and lifecycle.mjs are both already at their line ceiling (scripts/lint.test.mjs), so the seam loader
-// and the compliance plan/check logic live here, where there is room, and those two files keep thin call sites.
-
-// Dynamically imports file from this same lib/ folder, the way lifecycle.mjs's own loadOptional does for
-// migrations.mjs and security.mjs: { available, failed, reason, fn } for exportName, never thrown.
-async function loadSeamModule(file, exportName) {
-  const url = new URL(`./${file}`, import.meta.url);
-  const notPresent = { available: false, failed: false, reason: `not available in this build (runtime/lib/${file} is not present)`, fn: null };
-  if (!existsSync(fileURLToPath(url))) return notPresent;
-  let mod;
-  try { mod = await import(url.href); } catch (e) {
-    const why = String(e?.message ?? e).slice(0, 200);
-    return { available: false, failed: true, reason: `runtime/lib/${file} is present but could not be loaded (${why})`, fn: null };
-  }
-  const noExport = { available: false, failed: false, reason: `not available in this build (runtime/lib/${file} has no ${exportName} export)`, fn: null };
-  if (typeof mod[exportName] !== "function") return noExport;
-  return { available: true, failed: false, reason: null, fn: mod[exportName] };
-}
-
-// compliance.mjs's proposeScope(root, project) contract: { frameworks: string[], bytes: Buffer } (the
-// scope.proposal.json content), or it throws. Returns { available, bytes, frameworks (a count) } or
-// { available: false, reason }, never throws.
-async function proposeComplianceScope(root, project) {
-  const seam = await loadSeamModule("compliance.mjs", "proposeScope");
-  if (!seam.available) return { available: false, reason: seam.reason };
-  const proposal = await seam.fn(root, project);
-  return { available: true, bytes: proposal.bytes, frameworks: proposal.frameworks.length };
-}
+// prepare.mjs and lifecycle.mjs are both already at their line ceiling (scripts/lint.test.mjs), so the compliance
+// plan/check logic lives here, where there is room, and those two files keep thin call sites.
 
 // The scope-proposal plan item prepare.mjs's planPrepareItems adds after the security catalog block: nothing when a
-// scope is already confirmed or a proposal already exists, otherwise add() gets a plan item or notes gets a line
-// saying compliance.mjs is not in this build. inspectPath is prepare.mjs's own (symlink-safe) path check; add and
-// notes are prepare.mjs's own plan-building callback and notes array (mutated directly, as planGitignoreStep does).
-export async function complianceProposalItem(root, project, inspectPath, add, notes) {
-  if (inspectPath(root, SCOPE_REL).exists || inspectPath(root, SCOPE_PROPOSAL_REL).exists) return;
-  const proposal = await proposeComplianceScope(root, project);
-  if (!proposal.available) { notes.push(`${proposal.reason}.`); return; }
-  const confirm = `${selfCommand()} compliance scope --apply --decided-by <you>`;
-  const what = `compliance scope proposal, ${proposal.frameworks} framework(s) guessed from the project; confirm: ${confirm}`;
-  add(SCOPE_PROPOSAL_REL, "create", what, null, proposal.bytes);
+// scope is already confirmed or a proposal already exists. A ComplianceRefusal (for example the knowledge base not
+// installed) becomes a plan note, never a failed prepare. add and notes are prepare.mjs's own plan-building
+// callback and notes array (mutated directly, the way planGitignoreStep does).
+export function complianceProposalItem(root, add, notes) {
+  try {
+    if (readScope(root) || readProposal(root)) return;
+    const proposal = proposeScope(root);
+    const info = writeProposal(root, proposal, { apply: false });
+    const recordable = proposal.frameworks.filter((f) => f.recordable).length;
+    const confirm = `${selfCommand()} compliance scope --apply --decided-by <you>`;
+    const what = `compliance scope proposal, ${recordable} recordable framework(s) guessed from the project; confirm: ${confirm}`;
+    add(info.path, "create", what, null, Buffer.from(`${JSON.stringify(proposal, null, 2)}\n`, "utf8"));
+  } catch (e) {
+    if (e instanceof ComplianceRefusal) { notes.push(`${e.message}.`); return; }
+    throw e;
+  }
 }
 
-// lifecycle.mjs's "compliance" check, next to securityCheck: one line, or "not-run" with nothing to act on when
-// there is neither a proposal nor a confirmed scope. compliance.mjs's complianceSummary(root) contract: { available,
-// proposal: { frameworks } | null, scope: { frameworks, sheet: "current" | "stale" | "missing" } | null } when
-// available, else { available: false, reason }.
+// lifecycle.mjs's "compliance" check, next to securityCheck. A recordable framework the confirmed scope does not yet
+// have is "waiting for a named confirmation", checked by id, never by proposal.generatedAt (the newest scanned
+// file's mtime, so a fresh clone would re-date it and never settle). A confirmed scope with nothing left waiting
+// reports its framework count and the sheet's freshness; a proposal with no recordable framework is quiet (ok, not
+// attention); neither a proposal nor a scope is not-run. An unusable scope or proposal file is attention, not a
+// crash: a person can fix it, unlike an internal failure.
 export async function complianceCheck(root) {
-  const seam = await loadSeamModule("compliance.mjs", "complianceSummary");
-  if (!seam.available) return { status: seam.failed ? "failed" : "not-run", summary: seam.reason, data: { available: false } };
-  const s = await seam.fn(root);
-  if (!s || typeof s !== "object" || s.available !== true) {
-    return { status: "not-run", summary: `compliance not available: ${s?.reason ?? "no reason given"}`, data: { available: false } };
+  let scope, proposal;
+  try { scope = readScope(root); proposal = readProposal(root); } catch (e) {
+    if (!(e instanceof ComplianceRefusal)) throw e;
+    return { status: "attention", summary: `compliance: ${e.message}`, data: { available: false } };
   }
-  if (s.scope) {
-    const summary = `compliance: ${s.scope.frameworks} framework(s) in scope, sheet ${s.scope.sheet}: skilliton compliance sheet --apply`;
-    return { status: s.scope.sheet === "current" ? "ok" : "attention", summary, data: s };
+  const recordable = proposal ? proposal.frameworks.filter((f) => f.recordable) : [];
+  const scopeIds = new Set((scope?.frameworks ?? []).map((f) => f.id));
+  const waiting = recordable.filter((f) => !scopeIds.has(f.id));
+  if (waiting.length) {
+    const confirm = `${selfCommand()} compliance scope --apply --decided-by <you>`;
+    const summary = `compliance: proposal waiting for a named confirmation (${waiting.length} frameworks): ${confirm}`;
+    return { status: "attention", summary, data: { proposal, scope } };
   }
-  if (s.proposal) {
-    const summary = `compliance: proposal waiting for a named confirmation (${s.proposal.frameworks} frameworks): `
-      + `skilliton compliance scope --apply --decided-by <you>`;
-    return { status: "attention", summary, data: s };
+  if (scope) {
+    // Loaded dynamically, not statically at the top of this file: compliance-sheet.mjs itself statically imports
+    // evaluateSecurity from security.mjs, and security.mjs is a module other lanes' tests swap out under this same
+    // plugin copy (scripts/lifecycle.test.mjs's cross-lane test). A static import chain down to it would fail the
+    // whole module graph (and every check, not just this one) the moment that test's security.mjs lacks an export
+    // this file never asked for; a dynamic import here confines that failure to this one check, the same way
+    // lifecycle.mjs's own loadOptional confines a bad security.mjs to the security check alone.
+    let sheetStatus;
+    try { ({ sheetStatus } = await import("./compliance-sheet.mjs")); } catch (e) {
+      const reason = `runtime/lib/compliance-sheet.mjs is present but could not be loaded (${e.message})`;
+      return { status: "failed", summary: `compliance: ${reason}`, data: { available: false, reason } };
+    }
+    const sheet = sheetStatus(root);
+    const summary = `compliance: ${scope.frameworks.length} framework(s) in scope, sheet ${sheet.state}: ${selfCommand()} compliance sheet --apply`;
+    return { status: sheet.state === "current" ? "ok" : "attention", summary, data: { scope, sheet } };
   }
-  return { status: "not-run", summary: "compliance: no proposal and no confirmed scope", data: s };
+  if (proposal) return { status: "ok", summary: "compliance: nothing was proposed from the project's files", data: { proposal } };
+  return { status: "not-run", summary: "compliance: no proposal and no confirmed scope", data: {} };
 }
 
 // prepare.mjs's nextConfig calls this to add config.compliance.builtByCompany: false the first time (never

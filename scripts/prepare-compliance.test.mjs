@@ -1,27 +1,28 @@
 #!/usr/bin/env node
 // prepare-compliance.test.mjs: the compliance scope proposal item and config.compliance.builtByCompany that
 // packs/base/plugins/workflow/runtime/lib/prepare.mjs's planPrepareItems adds (N5), and the helpers in
-// runtime/lib/project-files.mjs that hold their logic (loadSeamModule, proposeComplianceScope,
-// complianceProposalItem, applyComplianceDefault, complianceConfigNote). A separate file from prepare.test.mjs
-// because that file is already pinned at its own line ceiling (scripts/lint.test.mjs) and has no room to grow.
+// runtime/lib/project-files.mjs that hold their logic (complianceProposalItem, applyComplianceDefault,
+// complianceConfigNote), over runtime/lib/compliance-scope.mjs's proposeScope/writeProposal/readScope/readProposal
+// (lane N2, docs/decisions/2026-09-25-compliance-lives-in-public-skilliton-as-39ef.md). A separate file from
+// prepare.test.mjs because that file is already pinned at its own line ceiling (scripts/lint.test.mjs) and has no
+// room to grow.
 //
-// The proposal comes from runtime/lib/compliance.mjs's proposeScope(root, project), a module owned by another lane
-// that does not ship in this build; most of these tests run against a byte-for-byte copy of the plugin with a fake
-// compliance.mjs added, the same way scripts/lifecycle.test.mjs's cross-lane test stubs security.mjs.
+// Real signals, real frameworks: a project's README naming FHIR resources (the same phrase
+// scripts/compliance-scope.test.mjs uses for the ephi-handling signal) is enough to make HIPAA Security Rule
+// recordable, because a library for it ships in packs/base/plugins/workflow/frameworks/.
 //
 //   node --test scripts/prepare-compliance.test.mjs
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CLI = join(here, "skilliton.mjs");
-const PLUGIN = join(here, "..", "packs", "base", "plugins", "workflow");
 
 const BASE_ENV = (() => {
   const env = {
@@ -45,30 +46,23 @@ function fixture(t) {
   return ctx;
 }
 
-function sg(ctx, args, { cli = CLI, env = {} } = {}) {
-  const r = spawnSync(process.execPath, [cli, ...args], { cwd: ctx.dir, env: { ...BASE_ENV, HOME: ctx.home, ...env }, encoding: "utf8" });
+function sg(ctx, args, { env = {} } = {}) {
+  const r = spawnSync(process.execPath, [CLI, ...args], { cwd: ctx.dir, env: { ...BASE_ENV, HOME: ctx.home, ...env }, encoding: "utf8" });
   return { code: r.status, out: r.stdout, err: r.stderr, all: `${r.stdout}${r.stderr}` };
 }
 const prepare = (ctx, ...args) => sg(ctx, ["prepare", "--dir", ctx.dir, ...args]);
 const read = (ctx, rel) => readFileSync(join(ctx.dir, rel), "utf8");
 const write = (ctx, rel, text) => writeFileSync(join(ctx.dir, rel), text);
+const proposalPath = (ctx) => join(ctx.dir, ".skilliton/compliance/proposal.json");
 
-// A byte-for-byte copy of the plugin with a fake runtime/lib/compliance.mjs added (owned by another lane, not
-// shipped here), run by its own entry point. Mirrors scripts/lifecycle.test.mjs's copyPlugin/cross-lane test.
-function copyPluginWithCompliance(ctx, source) {
-  const copy = join(ctx.base, "plugin-copy");
-  cpSync(PLUGIN, copy, { recursive: true });
-  writeFileSync(join(copy, "runtime", "lib", "compliance.mjs"), source);
-  return join(copy, "runtime", "skilliton.mjs");
-}
-
-test("compliance.builtByCompany is drafted false and never overwritten by hand; no scope proposal is drafted when compliance.mjs is not in this build (N5)", (t) => {
+test("compliance.builtByCompany is drafted false and never overwritten by hand; a project with no compliance signal drafts a proposal with no recordable framework (N5)", (t) => {
   const ctx = fixture(t);
   const r = prepare(ctx, "--apply");
   assert.equal(r.code, 0, r.all);
   assert.equal(JSON.parse(read(ctx, ".skilliton/config.json")).compliance.builtByCompany, false);
-  assert.equal(existsSync(join(ctx.dir, ".skilliton/compliance/scope.proposal.json")), false);
-  assert.match(r.all, /not available in this build \(runtime\/lib\/compliance\.mjs is not present\)/);
+  assert.match(r.all, /create\s+\.skilliton\/compliance\/proposal\.json\s+compliance scope proposal, 0 recordable framework\(s\)/);
+  const proposal = JSON.parse(read(ctx, ".skilliton/compliance/proposal.json"));
+  assert.deepEqual(proposal.frameworks, []);
 
   const cfg = JSON.parse(read(ctx, ".skilliton/config.json"));
   cfg.compliance.builtByCompany = true;
@@ -78,34 +72,44 @@ test("compliance.builtByCompany is drafted false and never overwritten by hand; 
   assert.equal(JSON.parse(read(ctx, ".skilliton/config.json")).compliance.builtByCompany, true, "a person's true is kept, never reset to false");
 });
 
-test("a scope proposal is drafted from compliance.mjs's proposeScope (another lane, stubbed) and adopted untouched once it exists; a confirmed scope suppresses it (N5)", (t) => {
+test("a real signal drafts a scope proposal with a recordable framework, adopted untouched once it exists; a confirmed scope suppresses a new one (N5)", (t) => {
   const ctx = fixture(t);
-  const entry = copyPluginWithCompliance(ctx, [
-    "export async function proposeScope(root, project) {",
-    "  const frameworks = ['SOC 2', 'HIPAA'];",
-    "  return { frameworks, bytes: Buffer.from(JSON.stringify({ frameworks }, null, 2) + '\\n') };",
-    "}",
-    "",
-  ].join("\n"));
-  const prepareAt = (...args) => sg(ctx, ["prepare", "--dir", ctx.dir, ...args], { cli: entry });
+  write(ctx, "README.md", "# fixture\n\nThe app exchanges FHIR resources.\n");
 
-  const preview = prepareAt();
+  const preview = prepare(ctx);
   assert.equal(preview.code, 0, preview.all);
-  assert.match(preview.out, /create\s+\.skilliton\/compliance\/scope\.proposal\.json\s+compliance scope proposal, 2 framework\(s\)/);
-  assert.equal(existsSync(join(ctx.dir, ".skilliton/compliance/scope.proposal.json")), false, "preview writes nothing");
+  const previewMatch = /create\s+\.skilliton\/compliance\/proposal\.json\s+compliance scope proposal, (\d+) recordable framework\(s\)/.exec(preview.out);
+  assert.ok(previewMatch, preview.all);
+  assert.ok(Number(previewMatch[1]) >= 1, "the FHIR signal makes at least one framework recordable");
+  assert.equal(existsSync(proposalPath(ctx)), false, "preview writes nothing");
 
-  const applied = prepareAt("--apply");
+  const applied = prepare(ctx, "--apply");
   assert.equal(applied.code, 0, applied.all);
-  assert.deepEqual(JSON.parse(read(ctx, ".skilliton/compliance/scope.proposal.json")).frameworks, ["SOC 2", "HIPAA"]);
+  const proposal = JSON.parse(read(ctx, ".skilliton/compliance/proposal.json"));
+  const recordable = proposal.frameworks.filter((f) => f.recordable);
+  assert.ok(recordable.length >= 1, JSON.stringify(proposal.frameworks));
+  assert.ok(recordable.some((f) => f.id === "hipaa-security-rule"), "a library for HIPAA Security Rule ships with Skilliton");
 
-  const again = prepareAt("--apply");
+  const again = prepare(ctx, "--apply");
   assert.equal(again.code, 0, again.all);
   assert.match(again.out, /already prepared/, "the proposal file already exists, so nothing is redrafted");
+  assert.deepEqual(JSON.parse(read(ctx, ".skilliton/compliance/proposal.json")), proposal, "not touched byte for byte");
 
-  rmSync(join(ctx.dir, ".skilliton/compliance/scope.proposal.json"));
+  rmSync(proposalPath(ctx));
   mkdirSync(join(ctx.dir, ".skilliton/compliance"), { recursive: true });
-  writeFileSync(join(ctx.dir, ".skilliton/compliance/scope.json"), "{}\n");
-  const withScope = prepareAt("--apply");
+  const scope = { schemaVersion: 1, decidedBy: "Fixture", decidedAt: "2026-01-01T00:00:00.000Z", frameworks: [], intake: {} };
+  writeFileSync(join(ctx.dir, ".skilliton/compliance/scope.json"), `${JSON.stringify(scope, null, 2)}\n`);
+  const withScope = prepare(ctx, "--apply");
   assert.equal(withScope.code, 0, withScope.all);
-  assert.equal(existsSync(join(ctx.dir, ".skilliton/compliance/scope.proposal.json")), false, "a confirmed scope means no new proposal is drafted");
+  assert.equal(existsSync(proposalPath(ctx)), false, "a confirmed scope means no new proposal is drafted");
+});
+
+test("an unusable scope.json is a plan note, not a failed prepare (ComplianceRefusal)", (t) => {
+  const ctx = fixture(t);
+  mkdirSync(join(ctx.dir, ".skilliton/compliance"), { recursive: true });
+  writeFileSync(join(ctx.dir, ".skilliton/compliance/scope.json"), "not json");
+  const r = prepare(ctx, "--apply");
+  assert.equal(r.code, 0, r.all, "one unusable file does not fail the whole prepare");
+  assert.match(r.all, /Note: \.skilliton\/compliance\/scope\.json does not parse as JSON\./);
+  assert.equal(existsSync(proposalPath(ctx)), false, "nothing was drafted while the scope file could not be read");
 });
