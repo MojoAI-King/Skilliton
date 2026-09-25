@@ -1,0 +1,44 @@
+{
+  "meta": {
+    "from": "skillgate-baseline-2",
+    "to": "nist-csf-2",
+    "status": "draft"
+  },
+  "description": "A fixed fixture baseline crosswalk, so the sheet test does not move when the shipped crosswalk is reviewed.",
+  "reviewed": false,
+  "reviewedBy": null,
+  "mappings": [
+    {
+      "control_id": "SG-AUTHENTICATION",
+      "csf": [
+        "PR.AA-03"
+      ],
+      "strength": "strong",
+      "reason": "Fixture reason."
+    },
+    {
+      "control_id": "SG-ACCESS-CONTROL",
+      "csf": [
+        "PR.AA-05"
+      ],
+      "strength": "strong",
+      "reason": "Fixture reason."
+    },
+    {
+      "control_id": "SG-SESSION-HANDLING",
+      "csf": [
+        "PR.AA-04"
+      ],
+      "strength": "partial",
+      "reason": "Fixture reason."
+    },
+    {
+      "control_id": "SG-SECURITY-LOGGING",
+      "csf": [
+        "PR.PS-04"
+      ],
+      "strength": "partial",
+      "reason": "Fixture reason."
+    }
+  ]
+}

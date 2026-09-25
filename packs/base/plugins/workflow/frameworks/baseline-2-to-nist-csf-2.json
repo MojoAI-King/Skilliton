@@ -1,0 +1,142 @@
+{
+  "meta": {
+    "from": "skillgate-baseline-2",
+    "to": "nist-csf-2",
+    "status": "draft"
+  },
+  "description": "Which NIST CSF 2.0 subcategories each of the 15 baseline security controls in catalogs/skillgate-baseline-2.json supports. strong: the control's evidence, when current, covers most of what the subcategory asks of a software project; partial: it covers one part, and the rest needs other evidence. A mapping says the evidence is relevant to the subcategory, never that the subcategory is met. The control sheet walks framework controls to CSF through each library's own crosswalk, then to these controls, then to their records.",
+  "reviewed": false,
+  "reviewedBy": null,
+  "mappings": [
+    {
+      "control_id": "SG-CHECK-CRITERIA",
+      "csf": [
+        "PR.PS-06"
+      ],
+      "strength": "partial",
+      "reason": "Defining the security checks each change needs is one part of integrating secure development practices; monitoring their performance is not covered."
+    },
+    {
+      "control_id": "SG-CHECK-EVIDENCE",
+      "csf": [
+        "PR.PS-06",
+        "ID.RA-07"
+      ],
+      "strength": "partial",
+      "reason": "Keeping the evidence behind security decisions supports monitoring secure development and recording changes and exceptions, for the decisions it holds."
+    },
+    {
+      "control_id": "SG-SECURITY-TESTS",
+      "csf": [
+        "ID.RA-01",
+        "ID.IM-02"
+      ],
+      "strength": "partial",
+      "reason": "Scoped security tests identify and record vulnerabilities in the software and feed improvements from tests; other assets are out of their reach."
+    },
+    {
+      "control_id": "SG-ROOT-CAUSE",
+      "csf": [
+        "ID.RA-01",
+        "ID.IM-02"
+      ],
+      "strength": "partial",
+      "reason": "Explaining a found vulnerability's mechanism validates it and names the improvement; it starts from a finding rather than a search for them."
+    },
+    {
+      "control_id": "SG-RECURRING-PATTERNS",
+      "csf": [
+        "ID.IM-01",
+        "ID.IM-02"
+      ],
+      "strength": "partial",
+      "reason": "Reviewing findings together identifies improvements from evaluations and tests, for the findings the project has recorded."
+    },
+    {
+      "control_id": "SG-WORKFLOW-IMPROVEMENT",
+      "csf": [
+        "ID.IM-03",
+        "PR.PS-06"
+      ],
+      "strength": "partial",
+      "reason": "Turning lessons into tested workflow changes identifies improvements from how work runs and updates development practice."
+    },
+    {
+      "control_id": "SG-COMMAND-INJECTION",
+      "csf": [
+        "PR.PS-06",
+        "ID.RA-01"
+      ],
+      "strength": "partial",
+      "reason": "Assessing how operating-system commands are built is one secure development practice and finds one class of vulnerability."
+    },
+    {
+      "control_id": "SG-SECRETS-IN-SOURCE",
+      "csf": [
+        "PR.AA-01",
+        "PR.DS-01"
+      ],
+      "strength": "partial",
+      "reason": "Keeping secret values out of the repository protects credentials and data at rest in one place; how credentials are issued and rotated is not covered."
+    },
+    {
+      "control_id": "SG-DEPENDENCY-RISK",
+      "csf": [
+        "ID.AM-02",
+        "ID.RA-01",
+        "PR.PS-02"
+      ],
+      "strength": "partial",
+      "reason": "An inventory of third-party components checked for known vulnerabilities and kept current covers the software's own dependencies, not every system."
+    },
+    {
+      "control_id": "SG-AUTHENTICATION",
+      "csf": [
+        "PR.AA-03"
+      ],
+      "strength": "strong",
+      "reason": "The list of sign-in paths for people and services with the protections on each is what authenticating users and services asks of an application."
+    },
+    {
+      "control_id": "SG-SESSION-HANDLING",
+      "csf": [
+        "PR.AA-04"
+      ],
+      "strength": "partial",
+      "reason": "Issuing, checking and ending session tokens protects and verifies identity assertions inside the application; federation and other assertions are not covered."
+    },
+    {
+      "control_id": "SG-ACCESS-CONTROL",
+      "csf": [
+        "PR.AA-05"
+      ],
+      "strength": "strong",
+      "reason": "Documented access rules for functions and records, with tests that deny another user's data, are how an application defines and enforces permissions."
+    },
+    {
+      "control_id": "SG-INPUT-INJECTION",
+      "csf": [
+        "PR.PS-06"
+      ],
+      "strength": "partial",
+      "reason": "Validating input and keeping untrusted data out of queries and interpreters is one secure development practice."
+    },
+    {
+      "control_id": "SG-SECURITY-LOGGING",
+      "csf": [
+        "PR.PS-04"
+      ],
+      "strength": "partial",
+      "reason": "Logging security events well enough to investigate them generates records for monitoring; continuous monitoring of those records is not covered."
+    },
+    {
+      "control_id": "SG-POLICY-CHANGE-REVIEW",
+      "csf": [
+        "PR.PS-01",
+        "ID.RA-07"
+      ],
+      "strength": "partial",
+      "reason": "Reviewing changes to delivery and validation policy on their own applies configuration management to those paths and records the changes."
+    }
+  ]
+}

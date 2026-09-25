@@ -1,18 +1,21 @@
 // compliance.mjs: the command line over lib/compliance-scope.mjs (which frameworks a project's own files point at, and
-// the scope a named person confirmed). docs/decisions/2026-09-25-compliance-lives-in-public-skilliton-as-39ef.md is
-// the design. Skilliton assesses and prepares; nothing printed here says a project meets a framework.
+// the scope a named person confirmed) and lib/compliance-sheet.mjs (the control record built from the project's
+// security evidence). docs/decisions/2026-09-25-compliance-lives-in-public-skilliton-as-39ef.md is the design.
+// Skilliton assesses and prepares; nothing printed here says a project meets a framework.
 //
-// Exit codes: 0 complete; 2 refused, with the reason (nothing written); 3 a write or a read failed.
+// Exit codes: 0 complete; 1 the control record is missing or out of date (sheet without --apply); 2 refused, with the
+// reason (nothing written); 3 a write or a read failed.
 
 import { Refused, backupFile, newStamp, parseArgs, say, selfCommand, tilde } from "../lib/core.mjs";
-import { ConfigError, readProjectConfig } from "../lib/config.mjs";
-import { LEGACY_NAME } from "../lib/legacy-names.mjs";
+import { ConfigError, resolveProject } from "../lib/config.mjs";
 import { SecurityRefusal, projectRoot, refusalText, textFieldProblem } from "../lib/security-io.mjs";
 import * as scope from "../lib/compliance-scope.mjs";
+import * as sheet from "../lib/compliance-sheet.mjs";
 
-export const help = `compliance: which compliance frameworks this project's own files point at, and the scope a named person
-confirmed. Skilliton assesses and prepares; it never attests, and nothing it prints says a project meets a framework.
-Whether a framework applies to an organization is a legal determination the organization makes with its counsel.
+export const help = `compliance: which compliance frameworks this project's own files point at, the scope a named person
+confirmed, and the control record built from the project's security evidence. Skilliton assesses and prepares; it never
+attests, and nothing it prints says a project meets a framework. Whether a framework applies to an organization is a
+legal determination the organization makes with its counsel.
 --dir names the project folder (default: the current folder).
 
   compliance scope [--json] [--dir <project>]
@@ -29,11 +32,25 @@ Whether a framework applies to an organization is a legal determination the orga
       earlier stays recorded, and the intake answers are kept. The previous file is backed up. Without --decided-by
       it is refused and nothing is written.
 
+  compliance sheet [--json] [--apply] [--dir <project>]
+      Build the control record: for every control of each framework in the confirmed scope, walk the library's
+      crosswalk to NIST CSF 2.0, then the baseline crosswalk to the project's security controls, then their records
+      and freshness (read through the security module). A row is evidenced when every mapped control has a current
+      observed record, partial when some do or some records are stale, not_started when none, and not_applicable when
+      the control's own gate (answered in the scope file's intake) or the project's applicability decisions say so.
+      Each row lists the records behind it and, when not evidenced, what a person must supply. Without --apply it says
+      whether the file (compliance.sheetFile, default docs/COMPLIANCE-CONTROLS.md) is current and how many rows would
+      change, and exits 1 when it is missing or out of date. --apply writes the block between the
+      skilliton:compliance-sheet markers, backs up the previous file, and prints how many rows changed; an unchanged
+      sheet is not written. --json prints the computed sheet as JSON.
+
 SKILLITON_FRAMEWORKS_DIR names another frameworks folder than the plugin's own (the tests use it).
-Exit codes: 0 complete; 2 refused, with the reason, nothing written; 3 a read or write failed.`;
+Exit codes: 0 complete; 1 the control record is missing or out of date (sheet without --apply); 2 refused, with the
+reason, nothing written; 3 a read or write failed.`;
 
 const SUBCOMMANDS = {
   scope: { flags: ["json", "apply"], options: ["dir", "decided-by"] },
+  sheet: { flags: ["json", "apply"], options: ["dir"] },
 };
 const ALL_FLAGS = [...new Set(Object.values(SUBCOMMANDS).flatMap((s) => s.flags))];
 const ALL_OPTIONS = [...new Set(Object.values(SUBCOMMANDS).flatMap((s) => s.options))];
@@ -53,24 +70,16 @@ function parse(argv) {
   return { sub, o };
 }
 
+// The project folder. resolveProject refuses an unusable configuration, and a project still under the earlier names
+// (whose records live in the earlier folder), before anything is read.
 function projectDir(o) {
   let root;
   try { root = projectRoot(o.dir ?? process.cwd()); } catch (e) {
-    if (e instanceof SecurityRefusal && e.kind === "invalid") {
-      throw new Refused(o.dir === undefined ? "the current folder cannot be used as the project folder"
-        : "the --dir folder does not exist or is not a folder (the value is not shown)");
-    }
-    throw e;
+    if (!(e instanceof SecurityRefusal) || e.kind !== "invalid") throw e;
+    throw new Refused(o.dir === undefined ? "the current folder cannot be used as the project folder"
+      : "the --dir folder does not exist or is not a folder (the value is not shown)");
   }
-  let config;
-  try { config = readProjectConfig(root); } catch (e) {
-    if (e instanceof ConfigError) throw new Refused(e.message);
-    throw e;
-  }
-  if (config.legacy) {
-    throw new Refused(`this project still uses the earlier ${LEGACY_NAME} names (${config.rel}). Nothing was read or written. `
-      + `Preview the move: ${selfCommand()} migrate`);
-  }
+  resolveProject(root);
   return root;
 }
 
@@ -120,7 +129,7 @@ function renderFramework(r, n) {
   return lines;
 }
 
-export function renderProposal(p) {
+function renderProposal(p) {
   const kb = p.knowledgeBase;
   const out = [`Compliance scope proposal for this project (knowledge base ${kb.version}, ${kb.status})`];
   if (kb.status !== "approved") out.push("The knowledge base is not approved by its owner, so this proposal is for internal use only.");
@@ -186,7 +195,41 @@ function scopeCommand({ o }) {
   return 0;
 }
 
-const HANDLERS = { scope: scopeCommand };
+// ---------- sheet ----------
+
+function sheetCommand({ o }) {
+  if (o.json && o.apply) throw new Refused("compliance sheet: --json and --apply cannot be combined");
+  const root = projectDir(o);
+  if (o.json) { say(JSON.stringify(sheet.computeSheet(root), null, 2)); return 0; }
+  const stamp = newStamp();
+  const result = sheet.writeSheet(root, { apply: Boolean(o.apply), beforeReplace: (path) => {
+    try { return backupFile("compliance", path, stamp); } catch {
+      throw new scope.ComplianceRefusal("the backup of the control record could not be written, so it was not changed", "failed");
+    }
+  } });
+  const s = result.sheet;
+  say(`Control record: ${result.path}`);
+  say(s.scope ? `Scope confirmed by ${s.scope.decidedBy} on ${s.scope.decidedAt}: ${s.frameworks.map((f) => f.id).join(", ") || "no framework"}.`
+    : `No confirmed scope yet (${scope.SCOPE_REL}). Run: ${selfCommand()} compliance scope`);
+  for (const f of s.frameworks.filter((x) => !x.library)) say(`${f.id}: no library ships with Skilliton; a person assesses it separately.`);
+  if (!s.crosswalk.reviewed) say("The crosswalk from the baseline security controls to NIST CSF 2.0 has not been reviewed yet.");
+  for (const w of s.warnings) say(w);
+  say(sheet.countLine(s.counts));
+  const waiting = s.frameworks.flatMap((f) => f.controls.filter((c) => c.needsPerson).map((c) => ({ f, c })));
+  if (waiting.length) say(`Needs a person (${waiting.length}):`);
+  for (const { f, c } of waiting) say(...wrap(`${f.id}: ${c.id}: ${c.needsPerson.reason}. Supply: ${c.needsPerson.evidenceTypes.join(", ")}`, "  "));
+  if (o.apply) {
+    say(result.written ? `Wrote ${result.path}: ${result.changedRows} row(s) changed.` : `${result.path} is current: 0 rows changed, nothing written.`);
+    if (result.backup) say(`Backup of the previous file: ${tilde(result.backup)}`);
+    return 0;
+  }
+  if (!result.due) { say(`${result.path} is current: 0 rows would change.`); return 0; }
+  say(`${result.path} is ${result.state === "missing" ? "missing" : "out of date"}: ${result.changedRows} row(s) would change.`);
+  say(`To write it: ${selfCommand()} compliance sheet --apply`);
+  return 1;
+}
+
+const HANDLERS = { scope: scopeCommand, sheet: sheetCommand };
 
 export async function run(argv) {
   let label = "compliance";
@@ -205,7 +248,10 @@ export async function run(argv) {
       if (e.kind === "failed") { console.error(`skilliton: ${text}`); return 3; }
       throw new Refused(`${text} Nothing was written.`);
     }
-    if (e instanceof ConfigError) throw new Refused(`${label}: ${e.message}`);
+    if (e instanceof ConfigError) {
+      if (e.kind === "failed") { console.error(`skilliton: ${label}: ${e.message}`); return 3; }
+      throw new Refused(`${label}: ${e.message}`);
+    }
     throw e;
   }
 }

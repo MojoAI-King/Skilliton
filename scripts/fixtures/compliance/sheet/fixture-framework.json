@@ -1,0 +1,148 @@
+{
+  "meta": {
+    "framework": "fixture-framework",
+    "version": "0.0.1-fixture",
+    "status": "approved",
+    "authority": "Fixture authority, not a real framework",
+    "tier": "regulation",
+    "categories": [
+      "fixture"
+    ],
+    "obligation_levels": [
+      {
+        "id": "required",
+        "label": "Required"
+      }
+    ]
+  },
+  "attribution": "Fixture text written for the Skilliton tests; not a real framework.",
+  "controls": [
+    {
+      "id": "fx-sign-in",
+      "citation": "Fixture 1.1",
+      "category": "fixture",
+      "standard": "Fixture standard for fx-sign-in.",
+      "obligation": "required",
+      "requirement": "Fixture requirement: people and services sign in with protections.",
+      "question_ids": [
+        "fx-sign-in-question"
+      ],
+      "evidence_types": [
+        "fx-sign-in written procedure",
+        "fx-sign-in review record"
+      ],
+      "remediation": {
+        "quick_win": "Fixture quick step.",
+        "standard": "Fixture standard step."
+      },
+      "weight": 2
+    },
+    {
+      "id": "fx-permissions",
+      "citation": "Fixture 1.2",
+      "category": "fixture",
+      "standard": "Fixture standard for fx-permissions.",
+      "obligation": "required",
+      "requirement": "Fixture requirement: permissions are defined and enforced.",
+      "question_ids": [
+        "fx-permissions-question"
+      ],
+      "evidence_types": [
+        "fx-permissions written procedure",
+        "fx-permissions review record"
+      ],
+      "remediation": {
+        "quick_win": "Fixture quick step.",
+        "standard": "Fixture standard step."
+      },
+      "weight": 2
+    },
+    {
+      "id": "fx-sessions",
+      "citation": "Fixture 1.3",
+      "category": "fixture",
+      "standard": "Fixture standard for fx-sessions.",
+      "obligation": "required",
+      "requirement": "Fixture requirement: sign-in and session assertions are protected.",
+      "question_ids": [
+        "fx-sessions-question"
+      ],
+      "evidence_types": [
+        "fx-sessions written procedure",
+        "fx-sessions review record"
+      ],
+      "remediation": {
+        "quick_win": "Fixture quick step.",
+        "standard": "Fixture standard step."
+      },
+      "weight": 2
+    },
+    {
+      "id": "fx-backups",
+      "citation": "Fixture 2.1",
+      "category": "fixture",
+      "standard": "Fixture standard for fx-backups.",
+      "obligation": "required",
+      "requirement": "Fixture requirement: backups are made and tested.",
+      "question_ids": [
+        "fx-backups-question"
+      ],
+      "evidence_types": [
+        "fx-backups written procedure",
+        "fx-backups review record"
+      ],
+      "remediation": {
+        "quick_win": "Fixture quick step.",
+        "standard": "Fixture standard step."
+      },
+      "weight": 2
+    },
+    {
+      "id": "fx-logging",
+      "citation": "Fixture 3.1",
+      "category": "fixture",
+      "standard": "Fixture standard for fx-logging.",
+      "obligation": "required",
+      "requirement": "Fixture requirement: security events are logged.",
+      "question_ids": [
+        "fx-logging-question"
+      ],
+      "evidence_types": [
+        "fx-logging written procedure",
+        "fx-logging review record"
+      ],
+      "remediation": {
+        "quick_win": "Fixture quick step.",
+        "standard": "Fixture standard step."
+      },
+      "weight": 2
+    },
+    {
+      "id": "fx-clearinghouse",
+      "citation": "Fixture 4.1",
+      "category": "fixture",
+      "standard": "Fixture standard for fx-clearinghouse.",
+      "obligation": "required",
+      "requirement": "Fixture requirement: a clearinghouse separates its functions.",
+      "question_ids": [
+        "fx-clearinghouse-question"
+      ],
+      "evidence_types": [
+        "fx-clearinghouse written procedure",
+        "fx-clearinghouse review record"
+      ],
+      "remediation": {
+        "quick_win": "Fixture quick step.",
+        "standard": "Fixture standard step."
+      },
+      "weight": 2,
+      "applicability": {
+        "question_id": "fixture-entity-type",
+        "in_scope_answers": [
+          "clearinghouse"
+        ],
+        "scope_note": "Binds only an entity that is a clearinghouse; the intake answer says it is not."
+      }
+    }
+  ]
+}

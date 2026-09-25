@@ -1,0 +1,52 @@
+{
+  "meta": {
+    "from": "fixture-framework",
+    "to": "nist-csf-2",
+    "status": "approved"
+  },
+  "mappings": [
+    {
+      "control_id": "fx-sign-in",
+      "csf": [
+        "PR.AA-03"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "fx-permissions",
+      "csf": [
+        "PR.AA-05"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "fx-sessions",
+      "csf": [
+        "PR.AA-03",
+        "PR.AA-04"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "fx-backups",
+      "csf": [
+        "PR.DS-11"
+      ],
+      "strength": "strong"
+    },
+    {
+      "control_id": "fx-logging",
+      "csf": [
+        "PR.PS-04"
+      ],
+      "strength": "partial"
+    },
+    {
+      "control_id": "fx-clearinghouse",
+      "csf": [
+        "GV.OC-03"
+      ],
+      "strength": "partial"
+    }
+  ]
+}
