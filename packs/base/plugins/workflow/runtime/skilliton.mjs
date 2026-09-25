@@ -34,6 +34,7 @@ const GROUPS = [
       { name: "index", summary: "regenerate the decision, lesson and task indexes from their entries" },
       { name: "maintain", summary: "the mechanical half of maintenance: indexes, security findings, and the journal event the stop hook measures the next one from (--apply writes)" },
       { name: "security", summary: "project security evidence: status, record, applicability, collect, findings" },
+      { name: "compliance", summary: "frameworks a project's files point at, the confirmed scope, the control record (--apply writes)" },
       { name: "hook", summary: "run a lifecycle hook (session-start, stop, pre-compact, session-end); called by the plugin's hooks" },
       { name: "gate", summary: "run the project's checks (delivery policy, or npm run verify, or --cmd) and return a verdict with the full output in a log" },
       { name: "audit", summary: "read the files a change touches and report what is worth a person's attention; --record writes it as scoped security evidence" },

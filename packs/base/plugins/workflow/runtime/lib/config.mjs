@@ -19,7 +19,7 @@ export const LAYOUT_VERSION = 3;
 export const SUPPORTED_LAYOUTS = [1, 2, 3];
 export const LEGACY_LAYOUTS = [1, 2];
 
-export const KNOWN_SECTIONS = ["prepare", "handoff", "maintain", "dispatch", "guardrails", "checkpoints", "security"];
+export const KNOWN_SECTIONS = ["prepare", "handoff", "maintain", "dispatch", "guardrails", "checkpoints", "security", "compliance"];
 
 // Record roles and the conventional places a project may already keep them, in the order they are adopted.
 export const ROLE_CANDIDATES = {
@@ -47,6 +47,9 @@ export const DEFAULTS = {
   integrationBranches: ["main", "master"],
   checkpoints: { stopReminder: true, minMinutes: 20, holdFirstStop: true },
   security: { maxAgeDays: null },
+  // builtByCompany: whether the company being assessed built this project, printed as the control sheet's
+  // independence line. sheetFile: where `compliance sheet --apply` writes the control record.
+  compliance: { builtByCompany: false, sheetFile: "docs/COMPLIANCE-CONTROLS.md" },
   recordHeader: "Kind: {kind}",
 };
 
@@ -196,6 +199,7 @@ export function configProblems(config) {
   const findings = security.findingsFile;
   const findingsOk = typeof findings === "string" && findings.endsWith(".md") && !findings.startsWith("/") && !findings.split(/[\\/]/).includes("..");
   if (findings !== undefined && !findingsOk) problems.push("security.findingsFile must be a repository-relative .md path");
+  problems.push(...complianceProblems(config.compliance));
   const dispatch = isObject(config.dispatch) ? config.dispatch : {};
   for (const key of Object.keys(dispatch)) if (!Object.hasOwn(DISPATCH_DEFAULTS, key)) problems.push(`dispatch has the unknown key "${key}" (known: ${Object.keys(DISPATCH_DEFAULTS).join(", ")})`);
   for (const key of ["laneRoot", "laneTestCommand"]) {
@@ -214,6 +218,21 @@ export function configProblems(config) {
   if (ceiling !== undefined && ceiling !== null && !(Number.isInteger(ceiling) && ceiling >= 10000 && ceiling <= 2000000)) {
     problems.push("dispatch.contextCeiling must be null or a whole number of tokens from 10000 to 2000000");
   }
+  return problems;
+}
+
+// The compliance section: the same path rule as security.findingsFile, and a plain true or false. Values are never echoed.
+function complianceProblems(section) {
+  if (!isObject(section)) return []; // a section that is not an object is named by the check of every known section
+  const problems = [];
+  for (const key of Object.keys(section)) {
+    if (!Object.hasOwn(DEFAULTS.compliance, key)) problems.push(`compliance has the unknown key "${key}" (known: builtByCompany, sheetFile)`);
+  }
+  if (section.builtByCompany !== undefined && typeof section.builtByCompany !== "boolean") problems.push("compliance.builtByCompany must be true or false");
+  const sheet = section.sheetFile;
+  const sheetOk = typeof sheet === "string" && sheet.endsWith(".md") && !sheet.startsWith("/")
+    && !sheet.split(/[\\/]/).includes("..") && !/[\x00-\x1f\x7f:]/.test(sheet);
+  if (sheet !== undefined && !sheetOk) problems.push("compliance.sheetFile must be a repository-relative .md path");
   return problems;
 }
 
@@ -286,6 +305,7 @@ export function resolveProject(rootInput, { allowLegacy = false } = {}) {
     handoff: { file: artifacts.handoff, maxBytes: handoffSection.maxBytes ?? DEFAULTS.handoffMaxBytes, keepEarlier: handoffSection.keepEarlier ?? DEFAULTS.handoffKeepEarlier },
     checkpoints: { ...DEFAULTS.checkpoints, ...(isObject(config.checkpoints) ? config.checkpoints : {}) },
     security: { ...DEFAULTS.security, ...(isObject(config.security) ? config.security : {}) },
+    compliance: { ...DEFAULTS.compliance, ...(isObject(config.compliance) ? config.compliance : {}) },
     dispatch: { ...DISPATCH_DEFAULTS, ...(isObject(config.dispatch) ? config.dispatch : {}) },
   };
 }

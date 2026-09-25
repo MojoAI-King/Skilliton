@@ -1,0 +1,501 @@
+{
+  "meta": {
+    "artifact": "framework-applicability",
+    "version": "0.0.1-fixture",
+    "status": "approved",
+    "note": "A hand-made fixture of the same shape as the converted knowledge base, for the scope tests only.",
+    "determination_default": "Fixture default determination: the organization confirms the scope with its counsel."
+  },
+  "signals": [
+    {
+      "id": "payment-card-acceptance",
+      "label": "Fixture signal payment-card-acceptance",
+      "description": "Fixture description of payment-card-acceptance.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "payment-page-fully-outsourced",
+      "label": "Fixture signal payment-page-fully-outsourced",
+      "description": "Fixture description of payment-page-fully-outsourced.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "payment-page-on-merchant-site",
+      "label": "Fixture signal payment-page-on-merchant-site",
+      "description": "Fixture description of payment-page-on-merchant-site.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "card-data-handled-directly",
+      "label": "Fixture signal card-data-handled-directly",
+      "description": "Fixture description of card-data-handled-directly.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "card-present-terminal",
+      "label": "Fixture signal card-present-terminal",
+      "description": "Fixture description of card-present-terminal.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "ephi-handling",
+      "label": "Fixture signal ephi-handling",
+      "description": "Fixture description of ephi-handling.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "business-associate-agreement-present",
+      "label": "Fixture signal business-associate-agreement-present",
+      "description": "Fixture description of business-associate-agreement-present.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "consumer-health-data",
+      "label": "Fixture signal consumer-health-data",
+      "description": "Fixture description of consumer-health-data.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "substance-use-disorder-program",
+      "label": "Fixture signal substance-use-disorder-program",
+      "description": "Fixture description of substance-use-disorder-program.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "multi-tenant-architecture",
+      "label": "Fixture signal multi-tenant-architecture",
+      "description": "Fixture description of multi-tenant-architecture.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "service-delivered-to-third-party-customers",
+      "label": "Fixture signal service-delivered-to-third-party-customers",
+      "description": "Fixture description of service-delivered-to-third-party-customers.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "customer-security-assurance-demand",
+      "label": "Fixture signal customer-security-assurance-demand",
+      "description": "Fixture description of customer-security-assurance-demand.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "nonbank-financial-activity",
+      "label": "Fixture signal nonbank-financial-activity",
+      "description": "Fixture description of nonbank-financial-activity.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "customer-financial-account-data",
+      "label": "Fixture signal customer-financial-account-data",
+      "description": "Fixture description of customer-financial-account-data.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "ny-regulated-financial-entity",
+      "label": "Fixture signal ny-regulated-financial-entity",
+      "description": "Fixture description of ny-regulated-financial-entity.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "legal-practice-matter-data",
+      "label": "Fixture signal legal-practice-matter-data",
+      "description": "Fixture description of legal-practice-matter-data.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "consumer-personal-information-at-scale",
+      "label": "Fixture signal consumer-personal-information-at-scale",
+      "description": "Fixture description of consumer-personal-information-at-scale.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "eu-uk-personal-data",
+      "label": "Fixture signal eu-uk-personal-data",
+      "description": "Fixture description of eu-uk-personal-data.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "controlled-unclassified-information",
+      "label": "Fixture signal controlled-unclassified-information",
+      "description": "Fixture description of controlled-unclassified-information.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "iso-27001-demand",
+      "label": "Fixture signal iso-27001-demand",
+      "description": "Fixture description of iso-27001-demand.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "federally-regulated-depository-institution",
+      "label": "Fixture signal federally-regulated-depository-institution",
+      "description": "Fixture description of federally-regulated-depository-institution.",
+      "source": "repo_scan"
+    },
+    {
+      "id": "covered-entity-or-business-associate-status",
+      "label": "Is the organization a covered entity or a business associate?",
+      "description": "Fixture description of covered-entity-or-business-associate-status.",
+      "source": "interview"
+    },
+    {
+      "id": "glba-financial-institution-status",
+      "label": "Does the organization treat itself as a financial institution under the federal financial-privacy law?",
+      "description": "Fixture description of glba-financial-institution-status.",
+      "source": "interview"
+    },
+    {
+      "id": "nydfs-covered-entity-status",
+      "label": "Does the organization hold a New York banking, insurance or financial services licence?",
+      "description": "Fixture description of nydfs-covered-entity-status.",
+      "source": "interview"
+    }
+  ],
+  "frameworks": [
+    {
+      "framework": "ftc-safeguards",
+      "label": "FTC Safeguards Rule",
+      "summary": "Fixture summary for FTC Safeguards Rule.",
+      "triggers": [
+        {
+          "applies_when": "Fixture trigger: nonbank-financial-activity was observed.",
+          "signal": "nonbank-financial-activity",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: glba-financial-institution-status was observed.",
+          "signal": "glba-financial-institution-status",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: customer-financial-account-data was observed.",
+          "signal": "customer-financial-account-data",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "Fixture determination: whether FTC Safeguards Rule applies is for the organization and its counsel to decide."
+    },
+    {
+      "framework": "health-wellness",
+      "label": "Consumer health and wellness privacy",
+      "summary": "Fixture summary for Consumer health and wellness privacy.",
+      "triggers": [
+        {
+          "applies_when": "Fixture trigger: consumer-health-data was observed.",
+          "signal": "consumer-health-data",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: ephi-handling was observed.",
+          "signal": "ephi-handling",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "Fixture determination: whether Consumer health and wellness privacy applies is for the organization and its counsel to decide."
+    },
+    {
+      "framework": "hipaa-privacy-breach",
+      "label": "HIPAA Privacy and Breach Notification Rules",
+      "summary": "Fixture summary for HIPAA Privacy and Breach Notification Rules.",
+      "triggers": [
+        {
+          "applies_when": "Fixture trigger: ephi-handling was observed.",
+          "signal": "ephi-handling",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: covered-entity-or-business-associate-status was observed.",
+          "signal": "covered-entity-or-business-associate-status",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: business-associate-agreement-present was observed.",
+          "signal": "business-associate-agreement-present",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "Fixture determination: whether HIPAA Privacy and Breach Notification Rules applies is for the organization and its counsel to decide."
+    },
+    {
+      "framework": "hipaa-security-rule",
+      "label": "HIPAA Security Rule",
+      "summary": "Fixture summary for HIPAA Security Rule.",
+      "triggers": [
+        {
+          "applies_when": "Fixture trigger: ephi-handling was observed.",
+          "signal": "ephi-handling",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: covered-entity-or-business-associate-status was observed.",
+          "signal": "covered-entity-or-business-associate-status",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: business-associate-agreement-present was observed.",
+          "signal": "business-associate-agreement-present",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "Fixture determination: whether HIPAA Security Rule applies is for the organization and its counsel to decide."
+    },
+    {
+      "framework": "legal-safeguarding",
+      "label": "Legal client-data safeguarding",
+      "summary": "Fixture summary for Legal client-data safeguarding.",
+      "triggers": [
+        {
+          "applies_when": "Fixture trigger: legal-practice-matter-data was observed.",
+          "signal": "legal-practice-matter-data",
+          "weight": "strong",
+          "posture": "current"
+        }
+      ],
+      "determination": "Fixture determination: whether Legal client-data safeguarding applies is for the organization and its counsel to decide."
+    },
+    {
+      "framework": "ny-dfs-500",
+      "label": "NY DFS Part 500",
+      "summary": "Fixture summary for NY DFS Part 500.",
+      "triggers": [
+        {
+          "applies_when": "Fixture trigger: nydfs-covered-entity-status was observed.",
+          "signal": "nydfs-covered-entity-status",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: ny-regulated-financial-entity was observed.",
+          "signal": "ny-regulated-financial-entity",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: nonbank-financial-activity was observed.",
+          "signal": "nonbank-financial-activity",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "Fixture determination: whether NY DFS Part 500 applies is for the organization and its counsel to decide."
+    },
+    {
+      "framework": "part2-overlay",
+      "label": "42 CFR Part 2 overlay",
+      "summary": "Fixture summary for 42 CFR Part 2 overlay.",
+      "triggers": [
+        {
+          "applies_when": "Fixture trigger: substance-use-disorder-program was observed.",
+          "signal": "substance-use-disorder-program",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: ephi-handling was observed.",
+          "signal": "ephi-handling",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "Fixture determination: whether 42 CFR Part 2 overlay applies is for the organization and its counsel to decide."
+    },
+    {
+      "framework": "pci-dss-v4",
+      "label": "PCI DSS v4",
+      "summary": "Fixture summary for PCI DSS v4.",
+      "triggers": [
+        {
+          "applies_when": "Fixture trigger: payment-card-acceptance was observed.",
+          "signal": "payment-card-acceptance",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: card-data-handled-directly was observed.",
+          "signal": "card-data-handled-directly",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: card-present-terminal was observed.",
+          "signal": "card-present-terminal",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "Fixture determination: whether PCI DSS v4 applies is for the organization and its counsel to decide.",
+      "variant_dimension": "SAQ type (the merchant's validation path)",
+      "variants": [
+        {
+          "id": "saq-d",
+          "label": "SAQ D",
+          "when_signals": [
+            "card-data-handled-directly"
+          ],
+          "unless_signals": [],
+          "note": "Fixture note: card data reaches systems the business controls."
+        },
+        {
+          "id": "saq-a-ep",
+          "label": "SAQ A-EP",
+          "when_signals": [
+            "payment-page-on-merchant-site"
+          ],
+          "unless_signals": [
+            "card-data-handled-directly"
+          ],
+          "note": "Fixture note: the payment page is on the merchant site."
+        },
+        {
+          "id": "saq-a",
+          "label": "SAQ A",
+          "when_signals": [
+            "payment-page-fully-outsourced"
+          ],
+          "unless_signals": [
+            "card-data-handled-directly",
+            "payment-page-on-merchant-site",
+            "card-present-terminal"
+          ],
+          "note": "Fixture note: card entry is fully outsourced."
+        },
+        {
+          "id": "saq-b",
+          "label": "SAQ B or B-IP",
+          "when_signals": [
+            "card-present-terminal"
+          ],
+          "note": "Fixture note: a card-present terminal is in use."
+        }
+      ],
+      "variant_note": "Fixture note: the SAQ type is not settled by these signals; the acquirer confirms it."
+    },
+    {
+      "framework": "soc2-tsc",
+      "label": "SOC 2 Trust Services Criteria",
+      "summary": "Fixture summary for SOC 2 Trust Services Criteria.",
+      "triggers": [
+        {
+          "applies_when": "Fixture trigger: customer-security-assurance-demand was observed.",
+          "signal": "customer-security-assurance-demand",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: service-delivered-to-third-party-customers was observed.",
+          "signal": "service-delivered-to-third-party-customers",
+          "weight": "strong",
+          "posture": "prospective"
+        },
+        {
+          "applies_when": "Fixture trigger: multi-tenant-architecture was observed.",
+          "signal": "multi-tenant-architecture",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "determination": "Fixture determination: whether SOC 2 Trust Services Criteria applies is for the organization and its counsel to decide."
+    }
+  ],
+  "candidates": [
+    {
+      "id": "state-consumer-privacy",
+      "name": "State consumer privacy laws",
+      "summary": "Fixture summary for State consumer privacy laws.",
+      "triggers": [
+        {
+          "applies_when": "Fixture trigger: consumer-personal-information-at-scale was observed.",
+          "signal": "consumer-personal-information-at-scale",
+          "weight": "strong",
+          "posture": "current"
+        }
+      ],
+      "add_note": "Fixture note: a library would be encoded first.",
+      "determination": "Fixture determination: whether State consumer privacy laws applies is for the organization and its counsel to decide."
+    },
+    {
+      "id": "eu-uk-data-protection",
+      "name": "EU and UK data protection",
+      "summary": "Fixture summary for EU and UK data protection.",
+      "triggers": [
+        {
+          "applies_when": "Fixture trigger: eu-uk-personal-data was observed.",
+          "signal": "eu-uk-personal-data",
+          "weight": "strong",
+          "posture": "current"
+        }
+      ],
+      "add_note": "Fixture note: a library would be encoded first.",
+      "determination": "Fixture determination: whether EU and UK data protection applies is for the organization and its counsel to decide."
+    },
+    {
+      "id": "iso-iec-27001",
+      "name": "ISO/IEC 27001",
+      "summary": "Fixture summary for ISO/IEC 27001.",
+      "triggers": [
+        {
+          "applies_when": "Fixture trigger: iso-27001-demand was observed.",
+          "signal": "iso-27001-demand",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: customer-security-assurance-demand was observed.",
+          "signal": "customer-security-assurance-demand",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "add_note": "Fixture note: a library would be encoded first.",
+      "determination": "Fixture determination: whether ISO/IEC 27001 applies is for the organization and its counsel to decide."
+    },
+    {
+      "id": "defense-contractor-cui",
+      "name": "Defense contractor CUI safeguarding",
+      "summary": "Fixture summary for Defense contractor CUI safeguarding.",
+      "triggers": [
+        {
+          "applies_when": "Fixture trigger: controlled-unclassified-information was observed.",
+          "signal": "controlled-unclassified-information",
+          "weight": "strong",
+          "posture": "current"
+        }
+      ],
+      "add_note": "Fixture note: a library would be encoded first.",
+      "determination": "Fixture determination: whether Defense contractor CUI safeguarding applies is for the organization and its counsel to decide."
+    },
+    {
+      "id": "glba-safeguards-banking-regulators",
+      "name": "Banking-regulator safeguards guidelines",
+      "summary": "Fixture summary for Banking-regulator safeguards guidelines.",
+      "triggers": [
+        {
+          "applies_when": "Fixture trigger: federally-regulated-depository-institution was observed.",
+          "signal": "federally-regulated-depository-institution",
+          "weight": "strong",
+          "posture": "current"
+        },
+        {
+          "applies_when": "Fixture trigger: nonbank-financial-activity was observed.",
+          "signal": "nonbank-financial-activity",
+          "weight": "supporting",
+          "posture": "current"
+        }
+      ],
+      "add_note": "Fixture note: a library would be encoded first.",
+      "determination": "Fixture determination: whether Banking-regulator safeguards guidelines applies is for the organization and its counsel to decide."
+    }
+  ]
+}
