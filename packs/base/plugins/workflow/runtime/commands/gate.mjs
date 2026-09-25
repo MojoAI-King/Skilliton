@@ -4,6 +4,7 @@
 import { parseArgs, refuse, resolveExistingDir, say, selfCommand, tilde } from "../lib/core.mjs";
 import { DEFAULT_LABEL, DEFAULT_TAIL, DEFAULT_TIMEOUT_SECONDS, LABEL_RE, MAX_TAIL, MAX_TIMEOUT_SECONDS, describe, planGate, runGate } from "../lib/gate.mjs";
 import { OperationFailed, resolveGitRoot } from "../lib/prepare.mjs";
+import { sleepLine } from "../lib/awake.mjs";
 
 export const help = `gate: run the project's checks and return a verdict, not a transcript.
 
@@ -52,7 +53,7 @@ export async function run(argv) {
       if (e && typeof e.code === "string") throw new OperationFailed(`the gate log could not be written (${e.code}: ${e.message})`);
       throw e;
     }
-    const { results, where, startTree, machine, competing, outside } = outcome;
+    const { results, where, startTree, machine, competing, outside, slept } = outcome;
     const failed = results.find((r) => !r.ok) ?? null;
     const passed = results.filter((r) => r.ok);
     const seconds = results.reduce((a, r) => a + r.seconds, 0);
@@ -81,6 +82,8 @@ export async function run(argv) {
       say(machine.measured
         ? `  load average (1m): ${machine.loadavg1.toFixed(2)} across ${machine.cpuCount} CPU(s)`
         : `  load average (1m): not measured on ${machine.reason}`);
+      const asleep = sleepLine(slept);
+      if (asleep) say(`  ${asleep}`);
       say("  a failure in a file outside these lists may come from the machine or another session, not the change");
       for (const line of contextLines(outside, competing, listed)) say(`  ${line}`);
     }

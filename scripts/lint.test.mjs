@@ -65,7 +65,7 @@ export const PINNED_LINES = [
   ["scripts/deadcode.mjs", 634],
   ["scripts/preflight.test.mjs", 622],
   ["scripts/join.test.mjs", 617],
-  ["packs/base/plugins/workflow/runtime/lib/preflight.mjs", 672],
+  ["packs/base/plugins/workflow/runtime/lib/preflight.mjs", 631],
   ["packs/base/plugins/workflow/runtime/lib/release.mjs", 614],
   ["packs/base/plugins/workflow/runtime/lib/prepare.mjs", 601],
   ["packs/base/plugins/workflow/runtime/lib/join.mjs", 603],

@@ -283,6 +283,9 @@ jobs:
       - name: A lane run as an agent is counted as that lane's cost (B89)
         run: node --test scripts/lane-agent-cost.test.mjs
 
+      - name: A check run holds a Mac awake and a failing step names a sleep inside it (B91)
+        run: node --test scripts/awake.test.mjs
+
       - name: The audit-finding eval case's fixture and graders, proved offline
         run: bash packs/base/plugins/workflow/evals/audit-finding-acted-on/self-check.sh
 

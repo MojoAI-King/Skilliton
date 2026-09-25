@@ -26,6 +26,7 @@ import { refuse, resolveProgram, selfCommand } from "./core.mjs";
 import { DRAFT_FILE, POLICY_FILE, parsePolicyText } from "./delivery-policy.mjs";
 import { ConfigError, DEFAULTS, resolveProject } from "./config.mjs";
 import { changedPaths, GitError, readGitState, runGit } from "./journal.mjs";
+import { holdAwake, sleptBetween } from "./awake.mjs";
 
 export const DEFAULT_TAIL = 25;
 export const MAX_TAIL = 200;
@@ -314,7 +315,8 @@ function openLog(gitDir, label) {
 
 // Runs the plan in order, stopping at the first failure. Resolves { results, log: path }. `signals` lets the
 // caller forward an interrupt to the running child.
-export async function runGate(plan, { root, gitDir, label, tailLines, env = process.env, signals = true }) {
+export async function runGate(plan, opts) {
+  const { root, gitDir, label, tailLines, env = process.env, signals = true, powerLog = sleptBetween } = opts;
   // Opened before anything starts, so a log that cannot be written is a refusal (exit 3) and no check is left running.
   const { fd, path } = openLog(gitDir, label);
   const log = createWriteStream(null, { fd });
@@ -330,19 +332,24 @@ export async function runGate(plan, { root, gitDir, label, tailLines, env = proc
   // build output left behind.
   const startTree = treeSnapshot(root);
   const competing = nodeProcesses();
+  const awake = holdAwake();
   const results = [];
   try {
     log.write(`skilliton gate ${label}: ${plan.source}\n`);
     for (const run of plan.runs) {
       log.write(`\n=== ${run.name} ===\n`);
+      const startedMs = Date.now();
       const result = await runOne(run, { cwd: root, log, tailLines, env, onChild: (child, group) => { current = { child, group }; } });
       current = null;
+      result.startedMs = startedMs;
+      result.endedMs = Date.now();
       results.push(result);
       log.write(`\n=== ${run.name}: ${describe(result)} ===\n`);
       if (!result.ok) break;
     }
   } finally {
     for (const [sig, h] of handlers) process.off(sig, h);
+    awake.release();
   }
   if (logError) throw logError;
   const where = provenance(root);
@@ -353,6 +360,11 @@ export async function runGate(plan, { root, gitDir, label, tailLines, env = proc
   log.write(`other node processes at start: ${competing.measured ? [competing.count, ...competing.first].join("; ") : competing.reason}\n`);
   const failed = results.find((r) => !r.ok);
   const outside = failed ? outsideChange(root, failed.named, startTree) : null;
+  // Only for a failing run, because reading the power log takes a moment: a sleep inside it can be the whole cause.
+  const slept = failed ? powerLog(failed.startedMs, failed.endedMs) : null;
+  log.write(`kept awake: ${awake.note}\n`);
+  const asleep = slept === null ? "not measured (the power log is read on macOS only)" : slept.length ? `${slept.length} time(s)` : "no";
+  if (failed) log.write(`asleep during the failing run: ${asleep}\n`);
   if (outside) {
     log.write(outside.measured
       ? `failing files outside the change (${outside.against}): ${names(outside.files)}\n`
@@ -362,7 +374,7 @@ export async function runGate(plan, { root, gitDir, label, tailLines, env = proc
     ? `load average (1m): ${machine.loadavg1.toFixed(2)} across ${machine.cpuCount} CPU(s)\n`
     : `load average (1m): not measured on ${machine.reason}\n`);
   await new Promise((r) => log.end(r)); // the end of the log is where a suite prints its summary; never lose it
-  return { results, log: path, where, startTree, machine, competing, outside };
+  return { results, log: path, where, startTree, machine, competing, outside, awake, slept };
 }
 
 export function describe(result) {

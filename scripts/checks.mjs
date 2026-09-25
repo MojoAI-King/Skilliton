@@ -25,6 +25,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { holdAwake, sleepLine, sleptBetween } from "../packs/base/plugins/workflow/runtime/lib/awake.mjs";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKFLOW = join(REPO, ".github", "workflows", "checks.yml");
@@ -97,6 +98,9 @@ function main(argv) {
   let pass = 0, fail = 0, skipped = 0, n = 0;
   const failed = [];
   console.log(`checks: ${chosen.length} step(s) from ${shown}, logs under ${process.env.SKILLITON_CHECKS_LOG_DIR ? LOG_DIR : ".git/skilliton/checks/"}`);
+  // A long run on an idle Mac on power went to sleep twice and failed two steps that pass in seconds (lib/awake.mjs).
+  const awake = holdAwake();
+  console.log(`checks: kept awake: ${awake.note}`);
   for (const step of chosen) {
     n++;
     const reason = skipReason(step);
@@ -109,8 +113,14 @@ function main(argv) {
     const log = join(LOG_DIR, `${String(n).padStart(2, "0")}-${step.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60)}.log`);
     writeFileSync(log, `# ${step.name}\n# ${step.run}\n# exit ${r.status}\n\n${r.stdout ?? ""}${r.stderr ?? ""}`);
     if (r.status === 0) { pass++; console.log(`${String(n).padStart(2)} PASS ${step.name} (${seconds}s)`); }
-    else { fail++; failed.push(step.name); console.log(`${String(n).padStart(2)} FAIL ${step.name} exit ${r.status} (${seconds}s), log: ${log}`); }
+    else {
+      fail++; failed.push(step.name);
+      console.log(`${String(n).padStart(2)} FAIL ${step.name} exit ${r.status} (${seconds}s), log: ${log}`);
+      const asleep = sleepLine(sleptBetween(started, Date.now()));
+      if (asleep) console.log(`   ${asleep}`);
+    }
   }
+  awake.release();
   console.log(`checks: ${pass} pass, ${fail} fail, ${skipped} skipped, of ${chosen.length}`);
   for (const name of failed) console.log(`  failed: ${name}`);
   return fail ? 1 : 0;

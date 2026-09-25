@@ -103,7 +103,7 @@ export const LONG_LINE_PINS = [
   ["packs/base/plugins/workflow/runtime/lib/maintain.mjs", 12],
   ["packs/base/plugins/workflow/runtime/lib/migrations.mjs", 20],
   ["packs/base/plugins/workflow/runtime/lib/pin.mjs", 11],
-  ["packs/base/plugins/workflow/runtime/lib/preflight.mjs", 39],
+  ["packs/base/plugins/workflow/runtime/lib/preflight.mjs", 32],
   ["packs/base/plugins/workflow/runtime/lib/prepare.mjs", 40],
   ["packs/base/plugins/workflow/runtime/lib/project-files.mjs", 19],
   ["packs/base/plugins/workflow/runtime/lib/prototype-v1.mjs", 2],

@@ -33,6 +33,9 @@ import { runGit, trustDir } from "./trust.mjs";
 import { joinDir } from "./join.mjs";
 import { claudeConfigDir, codexHome } from "./verify.mjs";
 import { REDACTION_SHAPES } from "./secret-rules.mjs";
+import { PROGRAMS } from "./preflight-programs.mjs";
+
+export { PROGRAMS };
 
 const PROBE = join(PLUGIN_ROOT, "runtime", "preflight", "probe.sh");
 const LS_REMOTE_TIMEOUT_MS = 45000;
@@ -42,50 +45,6 @@ const AFTER_KILL_MS = 1500; // how long to wait after killing a program's proces
 // clone of the skills repository exercises that clone's folder, not the cache, and says so.
 const INSTALLED_COPY = /[\\/]plugins[\\/]cache[\\/]/;
 
-// Every program docs/IT-ALLOWLIST.md section 1 names, what starts it, and what stops working without it.
-//   by      "hook" a hook script starts it, so the probe script starts it here; "runtime" node starts it; "client" a
-//           coding tool the developer runs
-//   need    "required" Skilliton does not work without it; "feature" one part stops working; "reader" one of the JSON
-//           readers, of which one is enough; "maintainer" only a company maintainer's own commands reach it
-//   blocks  "setup" setting a machine up cannot finish without it; "sessions" setup finishes and something in a later
-//           session does not work; null neither. bash is a "sessions" item: join writes files with node and drives the
-//           coding tools, and it is the hooks and the launcher that need a shell afterwards.
-export const PROGRAMS = [
-  { name: "node", by: "runtime", need: "required", what: "every command, every session hook, and reading the JSON a hook is given when jq is not there", blocks: "setup" },
-  { name: "bash", by: "runtime", need: "required", what: "every hook script and the terminal launcher", blocks: "sessions" },
-  { name: "sh", by: "runtime", need: "required", what: "the shell Claude Code hands each hook command to, and the launcher join writes", blocks: "sessions" },
-  { name: "env", by: "runtime", need: "required", what: "the first line of every hook script", blocks: "sessions" },
-  { name: "git", by: "runtime", need: "required", what: "project state at session start, the secret check before a commit, and release verification", blocks: "setup" },
-  { name: "ssh-keygen", by: "runtime", need: "required", what: "checking the signature on a company release, so verify can say VERIFIED", blocks: "setup" },
-  { name: "jq", by: "hook", need: "feature", what: "the optional status line and the drift check, which have no other way to read JSON; the guardrails and handoff hooks fall back to node", blocks: "sessions" },
-  { name: "python3", by: "hook", need: "optional", what: "reading a hook's input where neither jq nor node is there, which cannot happen while node is required", blocks: null },
-  { name: "npm", by: "runtime", need: "optional", what: "skilliton gate's fallback (npm run verify) in a project with a verify script in package.json and no delivery policy; a project without either names its command with --cmd", blocks: null },
-  { name: "grep", by: "hook", need: "required", what: "the guardrails check for secrets in a commit", blocks: "sessions" },
-  { name: "find", by: "hook", need: "required", what: "the same check, when it looks at files", blocks: "sessions" },
-  { name: "dirname", by: "hook", need: "required", what: "the terminal launcher and the status line", blocks: "sessions" },
-  { name: "readlink", by: "hook", need: "required", what: "the terminal launcher, when it follows a link", blocks: "sessions" },
-  { name: "awk", by: "hook", need: "feature", what: "the session-start checklist and the guardrails command reader", blocks: "sessions" },
-  { name: "sed", by: "hook", need: "feature", what: "the session-start checklist and the drift check", blocks: "sessions" },
-  { name: "tr", by: "hook", need: "feature", what: "the session-start checklist and the status line", blocks: "sessions" },
-  { name: "wc", by: "hook", need: "feature", what: "the session-start checklist", blocks: "sessions" },
-  { name: "cat", by: "hook", need: "feature", what: "the status line and the guardrails hook reading their input", blocks: "sessions" },
-  { name: "date", by: "hook", need: "feature", what: "the time on each status line record", blocks: "sessions" },
-  { name: "mkdir", by: "hook", need: "feature", what: "the status line's log folder", blocks: "sessions" },
-  { name: "head", by: "hook", need: "feature", what: "the drift check", blocks: "sessions" },
-  { name: "tail", by: "hook", need: "feature", what: "the drift check", blocks: "sessions" },
-  { name: "cut", by: "hook", need: "feature", what: "the drift check", blocks: "sessions" },
-  { name: "ls", by: "hook", need: "feature", what: "the drift check, finding the newest transcript", blocks: "sessions" },
-  { name: "xargs", by: "hook", need: "feature", what: "the scrub check that import and propose run", blocks: "sessions" },
-  { name: "tar", by: "runtime", need: "feature", what: "the delivery gate on a shared repository", blocks: "sessions" },
-  { name: "ps", by: "runtime", need: "feature", what: "a failing skilliton gate verdict naming the other node processes running", blocks: null },
-  { name: "cp", by: "hook", need: "maintainer", what: "the scrub check's own self-test", blocks: null },
-  { name: "mktemp", by: "hook", need: "maintainer", what: "the scrub check's own self-test", blocks: null },
-  { name: "rm", by: "hook", need: "maintainer", what: "the scrub check's own self-test", blocks: null },
-  { name: "cmd.exe", by: "runtime", need: "required", what: "on Windows, starting npm's claude launcher, a .cmd file Node cannot start by itself", platform: "win32", blocks: "setup" },
-  { name: "xcode-select", by: "hook", need: "feature", what: "on a Mac, telling a real python3 from the developer-tools stub", platform: "darwin", blocks: "sessions" },
-  { name: "claude", by: "client", need: "client", what: "Claude Code itself: the marketplace, the plugins and every session", blocks: "setup" },
-  { name: "codex", by: "client", need: "client", what: "Codex itself, for teams that use it", blocks: "setup" },
-];
 
 const ACTION = {
   blocked: (item) => `Ask IT to allow ${item.path ?? item.name} to be started by the shell and by node (docs/IT-ALLOWLIST.md section 1).`,
