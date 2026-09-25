@@ -260,5 +260,6 @@ Lesson entries in `docs/lessons/`, sorted by ID. `skilliton index` writes this l
 | [2026-09-24-an-eval-difference-came-from-graders-one-0135](lessons/2026-09-24-an-eval-difference-came-from-graders-one-0135.md) | An eval difference came from graders one setup could not pass | accepted | 2026-09-24 |
 | [2026-09-25-a-history-rewrite-gives-every-rewritten-71cd](lessons/2026-09-25-a-history-rewrite-gives-every-rewritten-71cd.md) | A history rewrite gives every rewritten commit a new sha, and every record that cites one | accepted | 2026-09-25 |
 | [2026-09-25-a-lane-s-own-suites-are-not-the-merge-ga-2e32](lessons/2026-09-25-a-lane-s-own-suites-are-not-the-merge-ga-2e32.md) | A lane's own suites are not the merge gate: run the whole-tree checks at every merge | accepted | 2026-09-25 |
+| [2026-09-25-reading-the-whole-power-log-made-every-f-12f0](lessons/2026-09-25-reading-the-whole-power-log-made-every-f-12f0.md) | Reading the whole power log made every failing gate run on a Mac 9 seconds slower | accepted | 2026-09-25 |
 | [2026-09-25-two-lanes-that-meet-at-data-need-the-che-8df1](lessons/2026-09-25-two-lanes-that-meet-at-data-need-the-che-8df1.md) | Two lanes that meet at data need the check run over the data before dispatch | accepted | 2026-09-25 |
 <!-- skilliton:index:lessons:end -->

@@ -67,6 +67,10 @@ export const PROGRAMS = [
   },
   { name: "caffeinate", by: "runtime", need: "feature", what: "on a Mac, keeping it awake while skilliton gate runs", platform: "darwin", blocks: null },
   { name: "pmset", by: "runtime", need: "feature", what: "on a Mac, a failing gate verdict saying if the machine slept", platform: "darwin", blocks: null },
+  {
+    name: "sysctl", by: "runtime", need: "feature", platform: "darwin", blocks: null,
+    what: "on a Mac, when it last slept, so the power log is read only if needed",
+  },
   { name: "claude", by: "client", need: "client", what: "Claude Code itself: the marketplace, the plugins and every session", blocks: "setup" },
   { name: "codex", by: "client", need: "client", what: "Codex itself, for teams that use it", blocks: "setup" },
 ];

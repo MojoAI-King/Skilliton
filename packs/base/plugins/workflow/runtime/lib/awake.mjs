@@ -15,6 +15,7 @@ import { existsSync } from "node:fs";
 
 const CAFFEINATE = "/usr/bin/caffeinate";
 const PMSET = "/usr/bin/pmset";
+const SYSCTL = "/usr/sbin/sysctl";
 
 // Starts caffeinate for this process: -i idle sleep, -m disk sleep, -s system sleep while on power, and -w this pid, so it
 // ends by itself if the run dies. Returns { held, note, release }: release() stops it when the run ends, so nothing is
@@ -59,9 +60,23 @@ export function parsePowerLog(text, startMs, endMs) {
   return sleeps;
 }
 
+// When the kernel last went to sleep (kern.sleeptime), or null when it cannot be read. One sysctl call, about 20 ms,
+// where pmset -g log took 9 s on 2026-09-25 (201,439 lines) and so made every failing gate run 9 s slower. The kernel
+// stamps a sleep a few seconds after the log's Sleep line (10:01:52.9 against 10:01:50), which only means the log is
+// read a little more often, never less.
+export function lastSleepMs({ program = SYSCTL } = {}) {
+  if (!existsSync(program)) return null;
+  const r = spawnSync(program, ["-n", "kern.sleeptime"], { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "pipe"] });
+  const m = !r.error && r.status === 0 && /sec = (\d+), usec = (\d+)/.exec(r.stdout);
+  return m ? Number(m[1]) * 1000 + Math.floor(Number(m[2]) / 1000) : null;
+}
+
 // The sleeps the power log records between two instants, or null when it cannot be read (not macOS, no pmset, a failure).
-export function sleptBetween(startMs, endMs, { platform = process.platform, program = PMSET } = {}) {
+// A step that began after the kernel's last sleep cannot have slept, so the log is not read for it: an empty list.
+export function sleptBetween(startMs, endMs, { platform = process.platform, program = PMSET, lastSleep = lastSleepMs } = {}) {
   if (platform !== "darwin" || !existsSync(program)) return null;
+  const last = lastSleep();
+  if (last !== null && last < startMs) return [];
   const r = spawnSync(program, ["-g", "log"], { encoding: "utf8", timeout: 30000, maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
   if (r.error || r.status !== 0) return null;
   return parsePowerLog(r.stdout, startMs, endMs);

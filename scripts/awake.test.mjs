@@ -10,14 +10,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { chmodSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const lib = join(here, "..", "packs", "base", "plugins", "workflow", "runtime", "lib");
-const { holdAwake, parsePowerLog, sleepLine, sleptBetween } = await import(join(lib, "awake.mjs"));
+const { holdAwake, lastSleepMs, parsePowerLog, sleepLine, sleptBetween } = await import(join(lib, "awake.mjs"));
 const { planGate, runGate } = await import(join(lib, "gate.mjs"));
 
 // Lines in the format pmset -g log prints, around one sleep from 19:07:26 to 19:24:47 at -0400.
@@ -51,6 +51,27 @@ test("off macOS nothing is held or read, and the note says so", () => {
   const missing = holdAwake({ platform: "darwin", program: "/nonexistent/caffeinate" });
   assert.equal(missing.held, false);
   assert.match(missing.note, /is not on this Mac/);
+});
+
+test("the power log is read only when the kernel's last sleep began after the step did (9 s saved per failing run)", () => {
+  // The program given as pmset is node, which refuses -g: reading it gives null, so null proves the log was read and []
+  // proves it was not.
+  const read = (last) => sleptBetween(1000, 2000, { platform: "darwin", program: process.execPath, lastSleep: () => last });
+  assert.deepEqual(read(999), [], "the last sleep began before the step: nothing to read");
+  assert.equal(read(1500), null, "the last sleep began during the step: the log is read");
+  assert.equal(read(null), null, "the kernel's time cannot be read: the log is read, as before");
+  const dir = mkdtempSync(join(tmpdir(), "skilliton-sysctl-"));
+  try {
+    const stub = join(dir, "sysctl");
+    writeFileSync(stub, "#!/bin/sh\necho '{ sec = 1790344912, usec = 891615 } Fri Sep 25 10:01:52 2026'\n");
+    chmodSync(stub, 0o755);
+    assert.equal(lastSleepMs({ program: stub }), 1790344912891, "kern.sleeptime's seconds and microseconds, as milliseconds");
+    assert.equal(lastSleepMs({ program: join(dir, "missing") }), null);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  if (process.platform === "darwin") {
+    const last = lastSleepMs();
+    assert.ok(last === null || last <= Date.now(), "on this Mac the kernel's last sleep is a time in the past");
+  }
 });
 
 test("on macOS caffeinate holds the machine for the process it names and ends with it", { skip: process.platform !== "darwin" && "macOS only" }, async () => {
