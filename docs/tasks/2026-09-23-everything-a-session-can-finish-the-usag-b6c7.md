@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-25T01:55:44.915Z
+- **Updated:** 2026-09-25T03:53:21.496Z
 
 ## Request
 
@@ -78,9 +78,16 @@ not yet written
 - **Next:** The owner pass (docs/OWNER_WALKTHROUGH.md); B90 (a comparison task that shows what the guard adds, millions of tokens per run, not started); when the quiet-guard work merges, release it and install guardrails from that release so verify reads VERIFIED
 - **Git:** main @ 599590d, 5 uncommitted
 
+### 2026-09-25T03:53:21.496Z
+
+- **State:** Quiet-guard lane merged (guardrails 0.12.0) with its main-only half (contracts, README, INSTALL, SECURITY, template sentence and migration 0100-instructions-3ced7e976ae9, workflow 0.25.3, CI step, entries accepted); release 1.4.3 manifest 27edff7d committed as c964483; not yet signed
+- **Evidence:** Six guard suites on the rebased lane: 670, 144, 224, 163, 16, 61 pass; modes 61 under a pseudo-terminal; full checks on c964483: 114 pass, 0 fail, 2 skipped of 116; CI green on c964483; two lane defects fixed at merge (size pin, executable bit)
+- **Next:** Sign 1.4.3, push the tag, fresh-clone release list, install workflow and guardrails at both scopes, verify, reassess the six stale security controls, evidence note, handoff
+- **Git:** main @ c964483, 1 uncommitted
+
 ## Handoff
 
-- **State:** Releases 1.4.1 (52b24f8, manifest a410ec84) and 1.4.2 (20b410c, manifest d418b32e) signed, pushed and approved in a fresh clone (8 approved); workflow 0.25.2 installed at user and project scope and VERIFIED; B89, B91 and B92 archived; security 7 of 13 current and observed, 0 stale, 0 invalid; guardrails deliberately not updated here. Evidence: Full checks on 20b410c: 113 pass, 0 fail, 2 skipped (CI-only) of 115, the runner holding the Mac awake; on 52b24f8: 110/0/2 of 112 on the second run, the first having failed two steps across two system sleeps; CI green through 599590d; git tag -v good on both tags; verify 6 VERIFIED 2 TAMPERED; evidence/live/2026-09-24-release-1.4.1.md and -1.4.2.md.
-- **Next:** The owner pass (docs/OWNER_WALKTHROUGH.md); B90 (a comparison task that shows what the guard adds, millions of tokens per run, not started); when the quiet-guard work merges, release it and install guardrails from that release so verify reads VERIFIED
+- **State:** Quiet-guard lane merged (guardrails 0.12.0) with its main-only half (contracts, README, INSTALL, SECURITY, template sentence and migration 0100-instructions-3ced7e976ae9, workflow 0.25.3, CI step, entries accepted); release 1.4.3 manifest 27edff7d committed as c964483; not yet signed. Evidence: Six guard suites on the rebased lane: 670, 144, 224, 163, 16, 61 pass; modes 61 under a pseudo-terminal; full checks on c964483: 114 pass, 0 fail, 2 skipped of 116; CI green on c964483; two lane defects fixed at merge (size pin, executable bit).
+- **Next:** Sign 1.4.3, push the tag, fresh-clone release list, install workflow and guardrails at both scopes, verify, reassess the six stale security controls, evidence note, handoff
 - **Blocked:** Only the owner can do these: the Usage screen reading for the token window, the rows of docs/OWNER_TESTS.md, a clean macOS account, a Codex login, a Windows machine with a Claude login, an endpoint security product, and a participant for the new builder rehearsal
 - **Watch out:** Guardrails on this machine is the other session's in-place edit and reads TAMPERED; a laptop on 1.3.0 or earlier reads this register as all invalid (update every copy, including project scope); .skilliton/security/REPORT.md is an untracked generated file the guard will not let a session remove; restart the client to load workflow 0.25.2; read the clock before typing a time
