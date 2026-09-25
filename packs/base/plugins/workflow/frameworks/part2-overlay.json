@@ -177,7 +177,7 @@
       ],
       "remediation": {
         "quick_win": "Replace any generic release form with a Part 2 consent template that includes all required elements, and verify the version in current use is the latest.",
-        "standard": "Adopt a compliant consent template and a procedure that checks each required element is present, supports the single consent for treatment/payment/operations where used, and records revocations.",
+        "standard": "Adopt a consent template that meets the rule and a procedure that checks each required element is present, supports the single consent for treatment/payment/operations where used, and records revocations.",
         "note": "A general authorization for release of medical information does not satisfy Part 2 consent; the consent must meet every element in §2.31."
       },
       "weight": 3

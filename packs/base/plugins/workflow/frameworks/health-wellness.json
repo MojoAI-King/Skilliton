@@ -236,7 +236,7 @@
       "remediation": {
         "quick_win": "Read your privacy policy and marketing site against what your systems actually do, and remove or correct any claim you cannot back up (start with \"anonymous,\" \"we don't sell,\" and any \"HIPAA\" language).",
         "standard": "Stand up a review process so privacy and security representations are substantiated before publication and re-verified when data practices change, with sign-off from someone who knows the actual data flows.",
-        "note": "Do not represent a non-HIPAA consumer service as \"HIPAA certified\"; there is no such certification, and claiming one is itself an FTC Act problem (Law 1)."
+        "note": "Do not represent a non-HIPAA consumer service as holding a HIPAA certification; there is no such certification, and claiming one is itself an FTC Act problem (Law 1)."
       },
       "weight": 3
     },

@@ -77,7 +77,10 @@ for (const c of refusalCases) {
 
 const FRAMEWORKS_DIR = join(REPO, "packs/base/plugins/workflow/frameworks");
 const allTopFiles = existsSync(FRAMEWORKS_DIR) ? readdirSync(FRAMEWORKS_DIR).filter((f) => f.endsWith(".json")) : [];
-const libraryFiles = allTopFiles.filter((f) => f !== "scope-kb.json");
+// The baseline crosswalk is written by hand in this repository, not converted: it maps this repository's own 15
+// security controls to the spine, so it is neither a library nor a source crosswalk, and it is checked on its own below.
+const BASELINE_CROSSWALK = "baseline-2-to-nist-csf-2.json";
+const libraryFiles = allTopFiles.filter((f) => f !== "scope-kb.json" && f !== BASELINE_CROSSWALK);
 ok(libraryFiles.length === 8, `8 library/spine files are committed (found ${libraryFiles.length}: ${libraryFiles.join(", ")})`);
 
 const crosswalkDir = join(FRAMEWORKS_DIR, "crosswalks");
@@ -126,6 +129,28 @@ for (const file of crosswalkFiles) {
   }
   ok(badControl === 0, `${file}: every control_id exists in ${frameworkId}.json (${badControl} that do not)`);
   ok(badCsf === 0, `${file}: every csf id exists in the spine (${badCsf} that do not)`);
+}
+
+if (allTopFiles.includes(BASELINE_CROSSWALK)) {
+  const data = readJson(BASELINE_CROSSWALK);
+  const catalog = JSON.parse(readFileSync(join(REPO, "packs/base/plugins/workflow/catalogs/skillgate-baseline-2.json"), "utf8"));
+  const controlIds = new Set((catalog.controls ?? []).map((c) => c.id));
+  const mapped = new Set();
+  let badControl = 0, badCsf = 0, badStrength = 0, missingReason = 0;
+  for (const m of data.mappings ?? []) {
+    mapped.add(m.control_id);
+    if (!controlIds.has(m.control_id)) badControl++;
+    for (const csf of m.csf ?? []) if (!spineIds.has(csf)) badCsf++;
+    if (m.strength !== "strong" && m.strength !== "partial") badStrength++;
+    if (typeof m.reason !== "string" || m.reason.trim() === "") missingReason++;
+  }
+  const unmapped = [...controlIds].filter((id) => !mapped.has(id));
+  ok(data.meta?.from === "skillgate-baseline-2" && data.meta?.to === "nist-csf-2", `${BASELINE_CROSSWALK}: meta.from is the baseline catalog and meta.to is the spine`);
+  ok(badControl === 0, `${BASELINE_CROSSWALK}: every control_id exists in catalogs/skillgate-baseline-2.json (${badControl} that do not)`);
+  ok(badCsf === 0, `${BASELINE_CROSSWALK}: every csf id exists in the spine (${badCsf} that do not)`);
+  ok(badStrength === 0, `${BASELINE_CROSSWALK}: every strength is strong or partial (${badStrength} that are not)`);
+  ok(missingReason === 0, `${BASELINE_CROSSWALK}: every mapping gives a reason (${missingReason} missing)`);
+  ok(unmapped.length === 0, `${BASELINE_CROSSWALK}: every one of the ${controlIds.size} baseline controls has a mapping (${unmapped.join(", ") || "none missing"})`);
 }
 
 if (existsSync(join(FRAMEWORKS_DIR, "scope-kb.json"))) {

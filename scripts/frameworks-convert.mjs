@@ -27,7 +27,9 @@
 //     Both are normalized to plain ASCII. Checked once, by hand, against every occurrence in the six-plus-two
 //     files this converts: every dash in the folded/joined output is space-padded, so this is a safe, lossless
 //     substitution, not a guess (see docs/tasks/2026-09-25-lane-frameworks-data-98cd.md's checkpoint trail).
-// Both run inside convertAll, so a fresh conversion and the committed JSON apply the same transform and stay equal.
+//   - a third, added at merge: five phrases whose "compliant" or "certified" the vocabulary check refuses are
+//     reworded to say the same thing (see REWORDINGS below, with the count each must match).
+// All run inside convertAll, so a fresh conversion and the committed JSON apply the same transforms and stay equal.
 //
 // COPYRIGHT / INCLUSION DECISIONS (read here, not re-derived by the code -- this is a judgment call, not a rule):
 //   - hipaa-security-rule, hipaa-privacy-breach, part2-overlay, ftc-safeguards, ny-dfs-500, nist-csf-2 (spine):
@@ -309,11 +311,38 @@ const crosswalkAttribution = (frameworkId) =>
 const NAME_TO_REDACT = new RegExp(`\\b${String.fromCharCode(74, 111, 101, 121)}\\b`, "g");
 const EM_DASH = String.fromCodePoint(0x2014);
 const EN_DASH = String.fromCodePoint(0x2013);
+
+// The third transform, added at merge on 2026-09-25: scripts/compliance-words.test.mjs refuses "compliant" and
+// "certified" in shipped framework text outside a citation or requirement field, because this product assesses and
+// never attests, and the source's remediation prose uses both words in five places. Each phrase is rewritten to say
+// the same thing without the word. Each must occur exactly `count` times across the corpus: convertAll refuses the
+// run when a count is off, so a source change (a phrase gone, or a new one the words check will catch) is loud, and a
+// rewrite that no longer matches anything cannot sit here unnoticed.
+const REWORDINGS = [
+  { from: 'as "HIPAA certified"; there is no such certification', to: "as holding a HIPAA certification; there is no such certification", count: 1 },
+  { from: "requires a compliant authorization where one is needed", to: "requires an authorization that meets the rule where one is needed", count: 1 },
+  { from: "the tool assesses that a compliant risk-assessment process exists", to: "the tool assesses that a risk-assessment process meeting the rule exists", count: 1 },
+  { from: "identifying every non-compliant section", to: "identifying every section not met", count: 1 },
+  { from: "Adopt a compliant consent template", to: "Adopt a consent template that meets the rule", count: 1 },
+];
+const rewordingSeen = new Map();
 export function transformText(s) {
-  return s
+  let out = s
     .replace(NAME_TO_REDACT, "the approver")
     .split(` ${EM_DASH} `).join(" -- ")
     .split(` ${EN_DASH} `).join(" - ");
+  for (const r of REWORDINGS) {
+    if (!out.includes(r.from)) continue;
+    rewordingSeen.set(r.from, (rewordingSeen.get(r.from) ?? 0) + out.split(r.from).length - 1);
+    out = out.split(r.from).join(r.to);
+  }
+  return out;
+}
+function checkRewordings() {
+  for (const r of REWORDINGS) {
+    const seen = rewordingSeen.get(r.from) ?? 0;
+    if (seen !== r.count) throw new Error(`the rewording "${r.from}" matched ${seen} time(s) in the source, not ${r.count}: the source changed, so re-check this table and scripts/compliance-words.test.mjs`);
+  }
 }
 
 function deepTransform(value) {
@@ -338,6 +367,7 @@ export function convertAll(srcDir) {
   const files = new Map();
   const skipped = [];
   const included = [];
+  rewordingSeen.clear();
 
   const frameworksDirEntries = readdirSync(join(srcDir, "frameworks")).filter((f) => f.endsWith(".yaml"));
   const known = new Set([...CORE_FRAMEWORKS, SPINE, ...CONDITIONAL_FRAMEWORKS, ...Object.keys(EXCLUDED_FRAMEWORKS)]);
@@ -370,6 +400,7 @@ export function convertAll(srcDir) {
   if (scoping.meta?.status !== "approved") skipped.push({ id: "scoping/applicability.yaml", reason: `meta.status is "${scoping.meta?.status}", not approved` });
   else files.set("scope-kb.json", JSON.stringify(scoping, null, 2) + "\n");
 
+  checkRewordings();
   return { files, skipped, included };
 }
 

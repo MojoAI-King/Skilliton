@@ -54,7 +54,7 @@
       ],
       "remediation": {
         "quick_win": "Train staff that protected health information may only be used or shared for treatment, payment, and operations, or with a valid authorization, or under a specific rule exception -- and route unusual requests to a designated person.",
-        "standard": "Adopt a written use-and-disclosure policy that maps each routine flow to its permission, requires a compliant authorization where one is needed, and escalates non-routine requests (law enforcement, subpoena, marketing) to a designated official and counsel.",
+        "standard": "Adopt a written use-and-disclosure policy that maps each routine flow to its permission, requires an authorization that meets the rule where one is needed, and escalates non-routine requests (law enforcement, subpoena, marketing) to a designated official and counsel.",
         "note": "Whether a particular use or disclosure is permitted is a legal determination for counsel; this control assesses that a policy and escalation process exist (Law 2)."
       },
       "weight": 3
@@ -427,7 +427,7 @@
       "remediation": {
         "quick_win": "Confirm you have a written method for assessing potential breaches that uses the four required factors and involves counsel before a conclusion is reached.",
         "standard": "Adopt a breach risk-assessment procedure that documents each of the four factors, records the exceptions considered, reaches a low-probability-of-compromise conclusion only with counsel, and preserves the analysis.",
-        "note": "Whether an event is a reportable breach, and whether an exception applies, are legal determinations that require counsel -- the tool assesses that a compliant risk-assessment process exists, it does not decide breach status (Law 2)."
+        "note": "Whether an event is a reportable breach, and whether an exception applies, are legal determinations that require counsel -- the tool assesses that a risk-assessment process meeting the rule exists, it does not decide breach status (Law 2)."
       },
       "weight": 3
     },
