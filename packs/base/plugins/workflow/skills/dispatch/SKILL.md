@@ -68,6 +68,8 @@ Say these outcomes out loud rather than engineering around them: everything coll
 
 **Shared seams.** When two lanes meet at one seam (a route and its caller, a type both read, a component one moves and another imports), the brief names the seam's exact signature and which lane commits it first; the other imports it by name. Budget one fix round per lane at merge.
 
+**A seam can be data.** When one lane's check, loader or parser will read what another lane produces (a converted data set, a generated file, a fixture), run that check's rule over the source material now, before the briefs are written, and put the result in both briefs: the producing lane learns what its output must not contain, the consuming lane learns what it will meet. A rule stated in a brief and never run against the real input is an assumption, and it surfaces at merge as a fix round the plan did not budget (lesson 2026-09-25-two-lanes-that-meet-at-data-need-the-che-8df1).
+
 ## Step 5: write LANES.md
 
 **Name the base commit.** Put it on its own line near the top, in this exact form, so that `skilliton dispatch` reads the same commit a person does:
