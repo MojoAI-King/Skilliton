@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-25T16:58:03.619Z
+- **Updated:** 2026-09-25T18:20:01.127Z
 
 ## Request
 
@@ -99,9 +99,16 @@ not yet written
 - **Next:** Prepare the history rewrite in a scratchpad clone that re-creates only the 23 commits from 815f25f onward, re-signed, so every earlier sha and every release tag stays; verify it; hand the owner one block for the ruleset toggle and the force-push; then reset main and the five lane folders at faca928, read CI, and release 1.5.0.
 - **Git:** main @ 58ac0f9, 0 uncommitted
 
+### 2026-09-25T18:20:01.127Z
+
+- **State:** History rewrite done by the owner: main is d5dbaa2 (25 commits re-created and re-signed from the first path-bearing lane record; d9cad87 and all nine tags unchanged; ruleset back on). Local main and the five lane folders moved to it. Records now cite the new shas (77 references in 8 files, reversible), map in lesson 71cd (9ee6d3a). Release 1.5.0 in progress: preview checked (workflow 0.26.0 new tree, the other three identical to 1.4.3), changelog, README and INSTALL edits made, manifest not yet written.
+- **Evidence:** Before the push, in the rewritten clone: 0 home-path lines, newest tree identical, d9cad87 unchanged, metadata identical and 25 of 25 good signatures, only the two task records changed, 9 of 9 tags on main, scrub --history exit 0. CI on d5dbaa2 success, 129 steps, 0 failed, 0 skipped; local scrub --history-all exit 0; docs, records, backlog, scrub exit 0 before 9ee6d3a.
+- **Next:** When CI on 9ee6d3a is green: release create 1.5.0 --apply with the 23 evidence files, commit as Release 1.5.0, full node scripts/checks.mjs on that exact commit, release sign, tag -v, push both, release list in a fresh clone, plugin updates at both scopes, verify, the evidence note, reassess SG-RECURRING-PATTERNS and SG-SECURITY-LOGGING, handoff.
+- **Git:** main @ 9ee6d3a, 5 uncommitted
+
 ## Handoff
 
-- **State:** The owner approved every waiting item on 2026-09-25 ("I approve all the things you are waiting on me for"). Done at 58ac0f9: the baseline crosswalk marked reviewed (row check first, one arguable rating in decision 39ef), the verdict column agreed for all eight, the licence check recorded as decision 8c57 (SOC 2 and PCI DSS held back under their publishers' terms, which an approval cannot override), the security report file committed. Not done from here: a named scope on the health repository, because it writes into a client's repository. Evidence: compliance-sheet, frameworks, compliance-words, docs, lint, lint-shape, records and scrub-check exit 0 on the tree committed as 58ac0f9; PCI SSC terms page last updated 12 August 2020, read 2026-09-25.
-- **Next:** Prepare the history rewrite in a scratchpad clone that re-creates only the 23 commits from 815f25f onward, re-signed, so every earlier sha and every release tag stays; verify it; hand the owner one block for the ruleset toggle and the force-push; then reset main and the five lane folders at faca928, read CI, and release 1.5.0.
+- **State:** History rewrite done by the owner: main is d5dbaa2 (25 commits re-created and re-signed from the first path-bearing lane record; d9cad87 and all nine tags unchanged; ruleset back on). Local main and the five lane folders moved to it. Records now cite the new shas (77 references in 8 files, reversible), map in lesson 71cd (9ee6d3a). Release 1.5.0 in progress: preview checked (workflow 0.26.0 new tree, the other three identical to 1.4.3), changelog, README and INSTALL edits made, manifest not yet written. Evidence: Before the push, in the rewritten clone: 0 home-path lines, newest tree identical, d9cad87 unchanged, metadata identical and 25 of 25 good signatures, only the two task records changed, 9 of 9 tags on main, scrub --history exit 0. CI on d5dbaa2 success, 129 steps, 0 failed, 0 skipped; local scrub --history-all exit 0; docs, records, backlog, scrub exit 0 before 9ee6d3a.
+- **Next:** When CI on 9ee6d3a is green: release create 1.5.0 --apply with the 23 evidence files, commit as Release 1.5.0, full node scripts/checks.mjs on that exact commit, release sign, tag -v, push both, release list in a fresh clone, plugin updates at both scopes, verify, the evidence note, reassess SG-RECURRING-PATTERNS and SG-SECURITY-LOGGING, handoff.
 - **Blocked:** The force-push to main is person-only (the guard and the ruleset); the named scope on the health repository is the owner's to run in that repository.
 - **Watch out:** Restart the client to load guardrails 0.12.0 and workflow 0.25.3; the guard is now in quiet mode on this machine from a signed release, so a command it cannot read runs and is noted in .git/skilliton/guardrails.jsonl; a laptop on 1.3.0 or earlier reads this register as all invalid; .skilliton/security/REPORT.md is an untracked generated file; read the clock before typing a time
