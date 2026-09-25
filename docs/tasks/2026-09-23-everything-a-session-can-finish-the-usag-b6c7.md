@@ -6,7 +6,7 @@ Kind: Living. Task record.
 - **State:** in-progress
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-25T04:10:01.935Z
+- **Updated:** 2026-09-25T16:58:03.619Z
 
 ## Request
 
@@ -92,9 +92,16 @@ not yet written
 - **Next:** The owner pass (docs/OWNER_WALKTHROUGH.md); backlog B94 (a fast-forward lane merge should trigger maintenance), B95 (the checkpoint reminder should not interrupt a wait on a run), B96 (release sign should name commits after the manifest), B93, B90
 - **Git:** main @ 1348ac9, 4 uncommitted
 
+### 2026-09-25T16:58:03.619Z
+
+- **State:** The owner approved every waiting item on 2026-09-25 ("I approve all the things you are waiting on me for"). Done at 3d40604: the baseline crosswalk marked reviewed (row check first, one arguable rating in decision 39ef), the verdict column agreed for all eight, the licence check recorded as decision 8c57 (SOC 2 and PCI DSS held back under their publishers' terms, which an approval cannot override), the security report file committed. Not done from here: a named scope on the health repository, because it writes into a client's repository.
+- **Evidence:** compliance-sheet, frameworks, compliance-words, docs, lint, lint-shape, records and scrub-check exit 0 on the tree committed as 3d40604; PCI SSC terms page last updated 12 August 2020, read 2026-09-25.
+- **Next:** Prepare the history rewrite in a scratchpad clone that re-creates only the 23 commits from 1c6fe70 onward, re-signed, so every earlier sha and every release tag stays; verify it; hand the owner one block for the ruleset toggle and the force-push; then reset main and the five lane folders at a5d3b58, read CI, and release 1.5.0.
+- **Git:** main @ 3d40604, 0 uncommitted
+
 ## Handoff
 
-- **State:** Release 1.4.3 signed on 6ae2b20 (manifest 27edff7d), pushed, 9 approved in a fresh clone; guardrails 0.12.0 (quiet mode) and workflow 0.25.3 installed at both scopes; all 8 installs VERIFIED; security 7 of 13 current and observed, 0 stale; quiet-guard lane merged and closed. Evidence: Full checks on 6ae2b20 and on c964483: 114 pass, 0 fail, 2 skipped (CI-only) of 116 each; six guard suites on the rebased lane: 670, 144, 224, 163, 16, 61; modes 61 under a pseudo-terminal; CI green; git tag -v good; verify 8 VERIFIED; evidence/live/2026-09-24-release-1.4.3.md.
-- **Next:** The owner pass (docs/OWNER_WALKTHROUGH.md); backlog B94 (a fast-forward lane merge should trigger maintenance), B95 (the checkpoint reminder should not interrupt a wait on a run), B96 (release sign should name commits after the manifest), B93, B90
-- **Blocked:** Only the owner can do these: the Usage screen reading for the token window, the rows of docs/OWNER_TESTS.md, a clean macOS account, a Codex login, a Windows machine with a Claude login, an endpoint security product, and a participant for the new builder rehearsal
+- **State:** The owner approved every waiting item on 2026-09-25 ("I approve all the things you are waiting on me for"). Done at 3d40604: the baseline crosswalk marked reviewed (row check first, one arguable rating in decision 39ef), the verdict column agreed for all eight, the licence check recorded as decision 8c57 (SOC 2 and PCI DSS held back under their publishers' terms, which an approval cannot override), the security report file committed. Not done from here: a named scope on the health repository, because it writes into a client's repository. Evidence: compliance-sheet, frameworks, compliance-words, docs, lint, lint-shape, records and scrub-check exit 0 on the tree committed as 3d40604; PCI SSC terms page last updated 12 August 2020, read 2026-09-25.
+- **Next:** Prepare the history rewrite in a scratchpad clone that re-creates only the 23 commits from 1c6fe70 onward, re-signed, so every earlier sha and every release tag stays; verify it; hand the owner one block for the ruleset toggle and the force-push; then reset main and the five lane folders at a5d3b58, read CI, and release 1.5.0.
+- **Blocked:** The force-push to main is person-only (the guard and the ruleset); the named scope on the health repository is the owner's to run in that repository.
 - **Watch out:** Restart the client to load guardrails 0.12.0 and workflow 0.25.3; the guard is now in quiet mode on this machine from a signed release, so a command it cannot read runs and is noted in .git/skilliton/guardrails.jsonl; a laptop on 1.3.0 or earlier reads this register as all invalid; .skilliton/security/REPORT.md is an untracked generated file; read the clock before typing a time
