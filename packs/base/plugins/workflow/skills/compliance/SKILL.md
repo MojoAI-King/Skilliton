@@ -25,7 +25,13 @@ Read the sheet's "needs a person" list back in plain words: the controls no repo
 
 ## 4. The vocabulary law
 
-Use assessment, readiness, evidence, findings, gap. Never compliant, certified, passes, or any outcome promise. Say what was checked and what state it is in; never say the project is compliant, that anything is certified, or that a check "passes" in the sense of a verdict.
+Use assessment, readiness, evidence, findings, gap. Three words never appear in a reply at all: not in a negation, not in a quotation, not when reading the question back. A reply that denies the claim in the framework's own word has given a verdict too, from the other side, and whether an organization meets a framework is a legal determination for it and its counsel, never Skilliton's. The first eval run of this skill failed on exactly this: every reply denied the claim in the framework's own word.
+
+- Never "compliant", in either direction: give the sheet's counts and states instead ("of the 58 Security Rule controls, 3 are evidenced, 9 partial, 46 not started; here is what a person still has to supply"), and when asked for a yes or no, say that neither is Skilliton's to give and give the sentence a person can truthfully say tomorrow: the counts, the gaps, and who is working them.
+- Never "certified": say instead that no certification exists for HIPAA and that an independent assessor reviews the evidence a project holds.
+- Never "passes": a check "ran green" or "reported no findings", a control is "evidenced", a test run "had no failures".
+
+Read the question back in these words before answering it, so the question's own word does not come back in the answer. Never an outcome promise.
 
 ## 5. The independence line
 
