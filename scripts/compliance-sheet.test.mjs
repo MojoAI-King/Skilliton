@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // compliance-sheet.test.mjs: the baseline crosswalk and `skilliton compliance sheet` (lane N3).
 //
-// The shipped crosswalk maps each of the 15 baseline controls, and is marked unreviewed for the owner. The sheet runs on
+// The shipped crosswalk maps each of the 15 baseline controls, and the owner approved it on 2026-09-25. The sheet runs on
 // the synthetic project of scripts/fixtures/compliance/synthetic-project.mjs: every state appears, the counts add up,
 // the rows name their records and what a person must supply, a second --apply changes zero rows and leaves the file
 // byte-identical, and the same inputs give the same JSON.
@@ -39,11 +39,11 @@ const cli = (p, args) => spawnSync(process.execPath, [CLI, "compliance", ...args
 });
 const rowsOf = (sheet) => Object.fromEntries(sheet.frameworks.flatMap((f) => f.controls.map((c) => [c.id, c])));
 
-test("the shipped baseline crosswalk maps each of the 15 baseline controls, unreviewed until the owner signs it", () => {
+test("the shipped baseline crosswalk maps each of the 15 baseline controls, and names who reviewed it", () => {
   const walk = JSON.parse(readFileSync(join(FRAMEWORKS, "baseline-2-to-nist-csf-2.json"), "utf8"));
-  assert.deepEqual(walk.meta, { from: "skillgate-baseline-2", to: "nist-csf-2", status: "draft" });
-  assert.equal(walk.reviewed, false);
-  assert.ok(Object.hasOwn(walk, "reviewedBy"));
+  assert.deepEqual(walk.meta, { from: "skillgate-baseline-2", to: "nist-csf-2", status: "reviewed" });
+  assert.equal(walk.reviewed, true);
+  assert.ok(typeof walk.reviewedBy === "string" && walk.reviewedBy.length > 0, "a reviewed crosswalk names its reviewer");
   assert.deepEqual(walk.mappings.map((m) => m.control_id), CATALOG.controls.map((c) => c.id));
   assert.equal(walk.mappings.length, 15);
   const spine = readdirSync(FRAMEWORKS).filter((n) => n.endsWith(".json")).map((n) => JSON.parse(readFileSync(join(FRAMEWORKS, n), "utf8")))

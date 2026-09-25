@@ -12,14 +12,14 @@ Signals fired (with the number of hits, at most 3 each): business-associate-agre
 
 | Framework proposed | Confidence | Timing | Library | From signals | Owner's verdict |
 |---|---|---|---|---|---|
-| HIPAA Security Rule | strong | now | approved | ephi-handling, business-associate-agreement-present | pending |
-| HIPAA privacy and breach | strong | now | approved | ephi-handling, business-associate-agreement-present | pending |
-| Health and wellness guidance tier | strong | now | approved | consumer-health-data, ephi-handling | pending |
-| PCI DSS v4 | strong | now | approved (held back from Skilliton: licence) | payment-card-acceptance | pending |
-| SOC 2 TSC | moderate | now | approved (held back from Skilliton: licence) | customer-security-assurance-demand | pending |
-| State consumer privacy | moderate | now | not encoded | consumer-personal-information-at-scale | pending |
-| ISO/IEC 27001 | weak | watch | not encoded | customer-security-assurance-demand | pending |
-| 42 CFR Part 2 overlay | weak | watch | approved | ephi-handling | pending |
+| HIPAA Security Rule | strong | now | approved | ephi-handling, business-associate-agreement-present | agreed |
+| HIPAA privacy and breach | strong | now | approved | ephi-handling, business-associate-agreement-present | agreed |
+| Health and wellness guidance tier | strong | now | approved | consumer-health-data, ephi-handling | agreed |
+| PCI DSS v4 | strong | now | approved (held back from Skilliton: licence) | payment-card-acceptance | agreed |
+| SOC 2 TSC | moderate | now | approved (held back from Skilliton: licence) | customer-security-assurance-demand | agreed |
+| State consumer privacy | moderate | now | not encoded | consumer-personal-information-at-scale | agreed |
+| ISO/IEC 27001 | weak | watch | not encoded | customer-security-assurance-demand | agreed |
+| 42 CFR Part 2 overlay | weak | watch | approved | ephi-handling | agreed |
 
 Not proposed: FTC Safeguards, legal safeguarding, NY DFS 500 (no signal pointed at them). Intake questions raised: 3 (the covered-entity, GLBA and NYDFS status questions the scanner cannot answer from files).
 
@@ -32,7 +32,7 @@ Signals fired: none. Frameworks proposed: none; all nine encoded libraries liste
 - The scanner discriminates on this pair: seven signals and eight proposals on the repository that handles health and payment data, nothing on the one that does not. The strong proposals on repository A are the ones a person would expect from what the application does.
 - The two "not encoded" proposals (state consumer privacy, ISO 27001) and the two weak watches are correctly marked as such by the scanner; the port keeps those states.
 - What this does not show: whether a repository that handles regulated data but never names it in its root files is detected. That is the known limit of a phrase scan and the reason the intake questions exist; the port keeps them, and prepare asks them when the scan proposes nothing.
-- The owner's verdict column is to be filled by the owner; until then this note supports the design's assumption but does not close it.
+- The owner's verdict column was filled on 2026-09-25 from the owner's approval, given in one sentence for every item that waited on the owner, not row by row: all eight proposals agreed. That closes the design's assumption for this pair on the owner's word. Two of the eight (PCI DSS v4 and SOC 2 TSC) cannot become sheets in Skilliton whatever the verdict: their libraries stay in MojoComply because the rights holders' terms do not allow a published derivative, recorded in the licence decision of the same day.
 
 ## Re-run with the port (2026-09-25, item N10)
 

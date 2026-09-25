@@ -2,11 +2,11 @@
   "meta": {
     "from": "skillgate-baseline-2",
     "to": "nist-csf-2",
-    "status": "draft"
+    "status": "reviewed"
   },
   "description": "Which NIST CSF 2.0 subcategories each of the 15 baseline security controls in catalogs/skillgate-baseline-2.json supports. strong: the control's evidence, when current, covers most of what the subcategory asks of a software project; partial: it covers one part, and the rest needs other evidence. A mapping says the evidence is relevant to the subcategory, never that the subcategory is met. The control sheet walks framework controls to CSF through each library's own crosswalk, then to these controls, then to their records.",
-  "reviewed": false,
-  "reviewedBy": null,
+  "reviewed": true,
+  "reviewedBy": "the Skilliton project owner (Mojo AI Services, LLC) on 2026-09-25",
   "mappings": [
     {
       "control_id": "SG-CHECK-CRITERIA",
