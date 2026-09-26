@@ -44,5 +44,4 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 | ID | Title | State | Branch | Owner |
 |---|---|---|---|---|
 | [2026-09-23-everything-a-session-can-finish-the-usag-b6c7](tasks/2026-09-23-everything-a-session-can-finish-the-usag-b6c7.md) | Everything a session can finish: the usage batch, the open backlog rows and the security records | in-progress | main | unassigned |
-| [2026-09-26-plan-v5-a-private-skilliton-that-harness-67bd](tasks/2026-09-26-plan-v5-a-private-skilliton-that-harness-67bd.md) | PLAN v5: a private Skilliton that harnesses every company computer the same way | in-progress | main | unassigned |
 <!-- skilliton:index:tasks:end -->

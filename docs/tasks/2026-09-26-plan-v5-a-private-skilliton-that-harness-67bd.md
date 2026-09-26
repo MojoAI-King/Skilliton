@@ -3,10 +3,10 @@
 Kind: Living. Task record.
 
 - **ID:** 2026-09-26-plan-v5-a-private-skilliton-that-harness-67bd
-- **State:** in-progress
+- **State:** merged
 - **Branch:** main
 - **Owner:** unassigned
-- **Updated:** 2026-09-26T05:01:30.492Z
+- **Updated:** 2026-09-26T05:02:50.216Z
 
 ## Request
 
@@ -14,9 +14,9 @@ Help with the four decisions: the fleet harness private (all of Skilliton privat
 
 ## Acceptance criteria
 
-- [ ] Decision entries for going private (with its consequences and prerequisites), the fleet as every company computer through device management, and compliance engagements inside Skilliton
-- [ ] PLAN.md v5: the owner's goal in section 0, Phase 4 milestones and their order in section 7, section 9's scope rewritten to match the decisions
-- [ ] The visibility change handed to the owner as pasteable commands with the checks to run after it
+- [x] Decision entries for going private (with its consequences and prerequisites), the fleet as every company computer through device management, and compliance engagements inside Skilliton (evidence: docs/decisions ebc3, e1d4 and cbe3 in dd53ed6, the stay-public note in 79aa67a)
+- [x] PLAN.md v5: the owner's goal in section 0, Phase 4 milestones and their order in section 7, section 9's scope rewritten to match the decisions (evidence: PLAN.md in dd53ed6, full checks 121 pass, 0 fail, 2 skipped of 123 on that commit)
+- [x] The visibility change handed to the owner as pasteable commands with the checks to run after it (evidence: the two commands given in the session on 2026-09-26 and the rules check in decision ebc3's Risk section; the owner chose to stay public for now)
 
 ## Decisions
 
