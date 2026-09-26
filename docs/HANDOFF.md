@@ -4,12 +4,12 @@ Kind: Living.
 
 ## RESUME HERE
 
-Written: 2026-09-25 15:58 EDT
+Written: 2026-09-26 01:01 EDT
 
-- **State:** Release 1.5.0 published and verified: tag on bcf994e (manifest 1977bef3764a, 24 evidence files), pushed 15:50 EDT, 10 approved in a fresh clone, all 8 installs VERIFIED here (project scope reinstalled after pin dropped it, B102). Owner items recorded, history rewritten by the owner, five security records reassessed (7 of 13 current, 0 stale, 5 gaps, 1 needs a human). Not done: the named scope on the health repository (a client's repository, the owner's to run); B90, B93 to B96, B98 to B102. Evidence: Full checks on bcf994e 121 pass, 0 fail, 2 skipped of 123; CI on bcf994e success 129 steps; tag -v good; release list in a fresh clone 10 approved; verify 8 VERIFIED; docs, records, backlog, scrub exit 0.
-- **Next:** Restart the client to load workflow 0.26.0. Then, on the owner's go-ahead: B102 (pin keeps project-scope installs), B95 (the checkpoint reminder during waits), B94 (a fast-forward merge triggers maintenance).
-- **Blocked:** Owner only: the named scope on the health repository; the earlier hands-on items (the Usage screen, OWNER_TESTS rows, a clean macOS account, Codex login, Windows, an endpoint product, a participant).
-- **Watch out:** 25 commits from the rewrite have new shas; lesson 71cd maps them. A clone of main fetched between 04:59 and 17:59 UTC today needs a reset to origin/main. pin leaves the checkout detached and drops project-scope installs.
-- **Git:** main @ bcf994e, 8 uncommitted
+- **State:** PLAN.md v5 and decisions ebc3, e1d4, cbe3 committed (dd53ed6, full list 121 pass, 0 fail, 2 skipped of 123). The owner keeps the repository public for now. Tomorrow's batch (M15 plus B98 and B101) is planned in LANES.md: 7 lanes, 10 items each verified against the code at dd53ed6, N9 (B93) deferred for want of a measured field. Evidence: Ten read-only verifiers, one per item, all REAL with write sets; full checks on dd53ed6 exit 0; docs, records, living-docs, scrub exit 0 on the records after.
+- **Next:** 2026-09-27, when the owner says go: skilliton dispatch (preview), then --apply; run each lane as a workflow:lane agent; merge in LANES.md's order (guard-paths, pin-projects, release-sign, dispatch-scrub, compliance-intake, stop-hook, prompt-count), each rebased with the full gate on its tree, ff-only, pushed and CI read; main applies each lane's CONTRACTS, CI, MAINTAIN, IT-ALLOWLIST, CHANGELOG and BACKLOG lines; then workflow 0.27.0 and release 1.6.0.
+- **Blocked:** Owner only: confirm the prompt ceiling at the last merge; name a scope on one company product (B101's measurement, M16); an Intune tenant with a clean Mac and a Windows PC (M12); the Usage screen reading before transcripts expire in mid-October; the visibility switch when wanted.
+- **Watch out:** lib/release.mjs is pinned at 614 lines and lib/dispatch.mjs is at 591 of 600: lanes move code out, never raise a pin. Only main bumps the workflow version. Lanes share this Mac, so a timing failure is measured before it is called load (lesson 12f0).
+- **Git:** main @ dd53ed6, 3 uncommitted
 
 ## Earlier

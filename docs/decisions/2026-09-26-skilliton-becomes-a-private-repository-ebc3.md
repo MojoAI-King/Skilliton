@@ -8,7 +8,7 @@ Kind: Living. Decision entry.
 
 ## Decision
 
-All of Skilliton becomes private: the repository on GitHub (MojoAI-King/Skilliton) is switched from public to private, and everything the company adds to it, the fleet harness, licensed framework libraries, evidence collection and the auditor packet, lives in this one repository instead of a second private one. The owner chose this on 2026-09-26 over a separate private repository beside a public base and over MojoComply's repository. It takes effect when the owner changes the repository's visibility, which is the owner's step (a GitHub setting, outward-facing and not undone cleanly); until then the repository is public and the rules for public material still hold.
+All of Skilliton becomes private: the repository on GitHub (MojoAI-King/Skilliton) is switched from public to private, and everything the company adds to it, the fleet harness, licensed framework libraries, evidence collection and the auditor packet, lives in this one repository instead of a second private one. The owner chose this on 2026-09-26 over a separate private repository beside a public base and over MojoComply's repository. It takes effect when the owner changes the repository's visibility, which is the owner's step (a GitHub setting, outward-facing and not undone cleanly); until then the repository is public and the rules for public material still hold. Later on 2026-09-26 the owner chose to leave it public for now; the switch is not scheduled, and until it happens licensed framework text (SOC 2, PCI DSS, HITRUST, ISO 27001) stays out of this repository.
 
 ## Why
 
