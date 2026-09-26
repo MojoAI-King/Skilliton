@@ -25,6 +25,10 @@ Written by `node scripts/living-docs.mjs --apply` from PLAN.md section 7 (the mi
 | M12 | Enrollment through device management | Spike measured on Linux | B22, B29, B30, B79, B80 |
 | M13 | Any AI coding tool | Not started | B23, O24 |
 | M14 | Proof of value and team view | Started: first comparison run 2026-09-22 | B15, B16 |
+| M15 | Private and quiet | Not started | none |
+| M16 | Compliance engagements | First increment shipped in 1.5.0 | none |
+| M17 | Any framework | Not started | none |
+| M18 | Always-on agents | Not started; after M12 | none |
 
 <!-- living-docs:milestones:end -->
 
@@ -40,4 +44,5 @@ Open tasks in `docs/tasks/` (every state except done-local, merged, released, ve
 | ID | Title | State | Branch | Owner |
 |---|---|---|---|---|
 | [2026-09-23-everything-a-session-can-finish-the-usag-b6c7](tasks/2026-09-23-everything-a-session-can-finish-the-usag-b6c7.md) | Everything a session can finish: the usage batch, the open backlog rows and the security records | in-progress | main | unassigned |
+| [2026-09-26-plan-v5-a-private-skilliton-that-harness-67bd](tasks/2026-09-26-plan-v5-a-private-skilliton-that-harness-67bd.md) | PLAN v5: a private Skilliton that harnesses every company computer the same way | in-progress | main | unassigned |
 <!-- skilliton:index:tasks:end -->
